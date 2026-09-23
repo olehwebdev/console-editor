@@ -1,0 +1,35 @@
+{
+  "name": "console-editor",
+  "productName": "Console Editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop editor for live-patching the JS/CSS/HTML of any website without rebuilding it.",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "electron-vite build && vitest run -c vitest.e2e.config.ts",
+    "demo-site": "node --no-warnings test/fixtures/site.ts"
+  },
+  "devDependencies": {
+    "@types/js-beautify": "^1.14.3",
+    "@types/node": "^22.20.4",
+    "electron": "^44.4.5",
+    "electron-vite": "^5.0.0",
+    "playwright-core": "^1.56.1",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.6",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "js-beautify": "^2.0.3",
+    "monaco-editor": "^0.56.0"
+  },
+  "overrides": {
+    "dompurify": "^3.4.16"
+  }
+}

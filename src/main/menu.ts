@@ -1,0 +1,63 @@
+import { Menu, shell, type BrowserWindow, type MenuItemConstructorOptions } from 'electron';
+import type { AppEvent, MenuCommand } from '../shared/types';
+import type { PageController } from './PageController';
+import type { OverrideStore } from './store/OverrideStore';
+
+/**
+ * Replaces Electron's default menu. The default one binds Ctrl/Cmd+R to reloading
+ * the *editor* window, which would throw away unsaved edits.
+ */
+export function installMenu(win: BrowserWindow, page: PageController, store: OverrideStore, send: (e: AppEvent) => void): void {
+  const isMac = process.platform === 'darwin';
+  const command = (c: MenuCommand) => () => send({ type: 'command', command: c });
+
+  const template: MenuItemConstructorOptions[] = [
+    ...(isMac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+    {
+      label: 'File',
+      submenu: [
+        { label: 'Save Override', accelerator: 'CmdOrCtrl+S', click: command('save') },
+        { label: 'Format Document', accelerator: 'Shift+Alt+F', click: command('format') },
+        { type: 'separator' },
+        { label: 'Reveal Overrides Folder', click: () => void shell.openPath(store.filesDir) },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        // Undo/redo/select-all go to the renderer so Monaco handles them itself.
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: command('undo') },
+        { label: 'Redo', accelerator: isMac ? 'Shift+Cmd+Z' : 'Ctrl+Y', click: command('redo') },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { label: 'Select All', accelerator: 'CmdOrCtrl+A', click: command('select-all') },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { label: 'Focus Address Bar', accelerator: 'CmdOrCtrl+L', click: command('focus-url') },
+        { label: 'Reload Page', accelerator: 'CmdOrCtrl+R', click: () => page.reload() },
+        { label: 'Reload Page', accelerator: 'F5', visible: false, acceleratorWorksWhenHidden: true, click: () => page.reload() },
+        { label: 'Toggle Diff', accelerator: 'CmdOrCtrl+Shift+D', click: command('toggle-diff') },
+        { type: 'separator' },
+        // Not F12 / Ctrl+Shift+I: Monaco uses those (go to definition / format on Linux).
+        { label: 'Page DevTools', accelerator: 'CmdOrCtrl+Shift+J', click: () => page.openDevTools() },
+        { label: 'Editor DevTools', accelerator: 'CmdOrCtrl+Alt+I', click: () => win.webContents.toggleDevTools() },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    { role: 'windowMenu' },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
