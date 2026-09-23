@@ -5,7 +5,15 @@
  * an external Chrome over WebSocket would implement the same two methods.
  */
 export interface CdpTransport {
-  send<T = any>(method: string, params?: Record<string, unknown>): Promise<T>;
-  /** Subscribes to a protocol event. Returns an unsubscribe function. */
-  on(event: string, handler: (params: any) => void): () => void;
+  /**
+   * Sends a command to the page's own session, or to a child session
+   * (an auto-attached iframe target) when `sessionId` is given.
+   */
+  send<T = any>(method: string, params?: Record<string, unknown>, sessionId?: string): Promise<T>;
+  /**
+   * Subscribes to a protocol event. Events from the page's own session arrive
+   * with `sessionId` undefined; events from child sessions carry their id.
+   * Returns an unsubscribe function.
+   */
+  on(event: string, handler: (params: any, sessionId?: string) => void): () => void;
 }
