@@ -98,7 +98,9 @@ export class PageController {
     });
   }
 
-  reload(): void {
+  /** Reloads the page, first asking service workers that run outdated code to unregister (see `prepareReload`). */
+  async reload(): Promise<void> {
+    await this.engine.prepareReload(this.view.webContents.getURL());
     this.view.webContents.reloadIgnoringCache();
   }
 

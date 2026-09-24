@@ -1,7 +1,7 @@
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from '../../../shared/types';
 import type { CdpTransport } from '../../engine/cdp';
 import { CDP } from '../../engine/constants';
-import { IFRAME_SETUP_TIMEOUT_MS, withTimeout, type SessionObserver } from '../../engine/PageInterception';
+import { SETUP_TIMEOUT_MS, withTimeout, type SessionObserver } from '../../engine/PageInterception';
 import { ConsoleFrames, type SessionKey } from '../ConsoleFrames';
 import { ACCESSOR_VALUE, MAX_PROPERTIES } from '../constants';
 import type { ConsoleSession, PageFrameTree } from '../types';
@@ -70,7 +70,7 @@ export class ConsoleService implements SessionObserver {
     }
     // A frame that doesn't answer (busy in a loop) must not hold the setting up.
     await Promise.all(
-      [...this.sessions].map(([id, { transport }]) => withTimeout(this.start(id, transport), IFRAME_SETUP_TIMEOUT_MS, 'Recording a frame').catch(() => undefined)),
+      [...this.sessions].map(([id, { transport }]) => withTimeout(this.start(id, transport), SETUP_TIMEOUT_MS, 'Recording a frame').catch(() => undefined)),
     );
   }
 

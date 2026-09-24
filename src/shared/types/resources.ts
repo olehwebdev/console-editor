@@ -1,3 +1,5 @@
+import type { WorkerType } from './workers';
+
 /** The resource kinds we can override. Values match CDP `Network.ResourceType`. */
 export type ResourceKind = 'Document' | 'Script' | 'Stylesheet';
 
@@ -20,6 +22,17 @@ export interface ResourceEntry {
    * the entry. Such entries disappear when that iframe navigates or goes away.
    */
   iframeId?: string;
+  /**
+   * Set when a worker loaded the file: the kind of worker and its script URL
+   * (a worklet's is the URL of the document that added it).
+   */
+  worker?: { type: WorkerType; url: string };
+  /**
+   * Opaque id of the worker session that reported the entry. Such entries
+   * disappear when that worker goes away; a service worker's outlive the page
+   * that registered it.
+   */
+  workerId?: string;
 }
 
 export interface ResourceContent {

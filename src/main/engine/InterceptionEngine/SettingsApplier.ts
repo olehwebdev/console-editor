@@ -4,13 +4,13 @@ import { computeFetchPatterns } from './computeFetchPatterns';
 import type { OverrideMatcher } from './OverrideMatcher';
 import { SerialQueue } from './SerialQueue';
 import { SriGuard } from './SriGuard';
-import type { EngineOptions } from './types';
+import type { EngineOptions, SessionSettings } from './types';
 
 /**
  * Applies the settings (cache, service workers, CSP, SRI guard) to one CDP
  * session and keeps its `Fetch` interception patterns current, one change at a time.
  */
-export class SettingsApplier {
+export class SettingsApplier implements SessionSettings {
   private fetchEnabled = false;
   private readonly queue = new SerialQueue();
   private readonly sriGuard: SriGuard;

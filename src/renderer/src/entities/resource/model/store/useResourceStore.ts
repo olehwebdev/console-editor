@@ -3,13 +3,14 @@ import { applyResourceOp } from './applyResourceOp';
 import { resourceKey } from './resourceKey';
 import type { ResourceStore } from './types';
 
-export const useResourceStore = create<ResourceStore>()((set) => ({
+export const useResourceStore = create<ResourceStore>()((set, get) => ({
   byKey: {},
-  reset: () => set({ byKey: {} }),
+  // Through `apply`, so each op's rule lives in one place (its applier).
+  reset: () => get().apply([{ type: 'reset' }]),
   add: (entry) => set((s) => ({ byKey: { ...s.byKey, [resourceKey(entry)]: entry } })),
   addMany: (entries) => set((s) => ({ byKey: { ...s.byKey, ...Object.fromEntries(entries.map((e) => [resourceKey(e), e])) } })),
-  dropIframe: (iframeId) =>
-    set((s) => ({ byKey: Object.fromEntries(Object.entries(s.byKey).filter(([, e]) => e.iframeId !== iframeId)) })),
+  dropIframe: (iframeId) => get().apply([{ type: 'drop-iframe', iframeId }]),
+  dropWorker: (workerId) => get().apply([{ type: 'drop-worker', workerId }]),
   apply: (ops) =>
     set((s) => {
       if (!ops.length) return s;

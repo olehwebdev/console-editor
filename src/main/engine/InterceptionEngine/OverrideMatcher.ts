@@ -1,6 +1,7 @@
 import { compileMatcher, type UrlPredicate } from '../../../shared/matcher';
 import type { MatchType, Override } from '../../../shared/types';
 import { answersKind } from './answersKind';
+import { VERSION_SEPARATOR } from './constants';
 import type { EngineOptions } from './types';
 
 const MATCH_RANK = { exact: 0, glob: 1, regex: 2 } as const satisfies Record<MatchType, number>;
@@ -18,8 +19,9 @@ export class OverrideMatcher {
    * Finds the enabled override for a URL. Exact beats glob beats regex; newer
    * beats older. With a `resourceType`, documents, scripts and stylesheets are
    * only answered by an override of their own kind (so a broad pattern can't
-   * put JS in a stylesheet or replace a page); other requests (fetch, XHR,
-   * preload) by script and style overrides.
+   * put JS in a stylesheet or replace a page); `Other` (mostly what workers
+   * load as scripts) by script overrides; other requests (fetch, XHR, preload)
+   * by script and style overrides.
    */
   find(url: string, resourceType?: string): Override | undefined {
     let best: Override | undefined;
@@ -35,6 +37,12 @@ export class OverrideMatcher {
       }
     }
     return best;
+  }
+
+  /** The version of the override that would serve `url` now (`id@updatedAt`), or '' for the live file. */
+  version(url: string, resourceType: string): string {
+    const o = this.find(url, resourceType);
+    return o ? `${o.id}${VERSION_SEPARATOR}${o.updatedAt}` : '';
   }
 
   /** Drops the compiled matchers (the overrides changed). */

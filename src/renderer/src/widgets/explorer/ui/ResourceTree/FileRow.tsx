@@ -4,16 +4,17 @@ import { Badge } from '@/shared/ui/badge';
 import { ContextMenu } from '@/shared/ui/menu';
 import { Tooltip } from '@/shared/ui/tooltip';
 import { TreeLabel, TreeRow } from '@/shared/ui/tree';
-import { describeFrame, KindIcon, type ResourceRow } from '@/entities/resource';
+import { describeFrame, describeWorker, KindIcon, WORKER_NAME, type ResourceRow } from '@/entities/resource';
 import { openResource } from '@/features/open-resource';
 import { ROW_ICON_SIZE } from '../constants';
 import { fileMenu } from './fileMenu';
 import type { RowNav } from './types';
 
-/** A file in the tree: opens on click, with its actions on right-click and badges for iframes and overrides. */
+/** A file in the tree: opens on click, with its actions on right-click and badges for iframes, workers and overrides. */
 export function FileRow({ row, selected, query, ...nav }: { row: Extract<ResourceRow, { type: 'file' }>; selected: boolean; query: string } & RowNav) {
   const { entry } = row;
   const frameLabel = describeFrame(entry);
+  const workerLabel = describeWorker(entry);
   return (
     <ContextMenu items={fileMenu(entry)} label={`${fileName(entry.url)} actions`}>
       <TreeRow
@@ -22,10 +23,11 @@ export function FileRow({ row, selected, query, ...nav }: { row: Extract<Resourc
         selected={selected}
         icon={<KindIcon kind={entry.kind} size={ROW_ICON_SIZE} />}
         label={<TreeLabel text={row.label} highlight={query} />}
-        title={`${entry.url}\n${entry.mimeType} · ${entry.status}${entry.overrideId ? ' · served from your override' : ''}${frameLabel ? `\n${frameLabel}` : ''}`}
+        title={`${entry.url}\n${entry.mimeType} · ${entry.status}${entry.overrideId ? ' · served from your override' : ''}${frameLabel ? `\n${frameLabel}` : ''}${workerLabel ? `\n${workerLabel}` : ''}`}
         data-url={entry.url}
         data-testid="resource-row"
         data-iframe={entry.frame ? '' : undefined}
+        data-worker={entry.worker?.type}
         className={entry.overrideId ? '[&_[data-tree-label]]:text-live' : undefined}
         onClick={() => void openResource(entry.url)}
         trailing={
@@ -34,6 +36,13 @@ export function FileRow({ row, selected, query, ...nav }: { row: Extract<Resourc
               <Tooltip content={frameLabel}>
                 <Badge tone="info" icon={icons.IframeIcon} aria-label={frameLabel} className="frame-badge">
                   iframe
+                </Badge>
+              </Tooltip>
+            ) : null}
+            {workerLabel && entry.worker ? (
+              <Tooltip content={workerLabel}>
+                <Badge tone="info" icon={icons.WorkerIcon} aria-label={workerLabel} className="worker-badge">
+                  {WORKER_NAME[entry.worker.type]}
                 </Badge>
               </Tooltip>
             ) : null}

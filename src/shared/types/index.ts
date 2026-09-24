@@ -17,5 +17,6 @@ export type { SessionDraft, SessionState, SessionTab } from './session';
 export type { Settings } from './settings';
 export { DEFAULT_SETTINGS } from './settings';
 export type { AppInfo, AvailableUpdate, UpdateInstall, UpdateState } from './updates';
+export type { MissedReason, WorkerType } from './workers';
 export type { Workspace, WorkspaceColor, WorkspaceIcon, WorkspacePatch, WorkspacesState } from './workspaces';
 export { WORKSPACE_COLORS, WORKSPACE_ICONS } from './workspaces';

@@ -4,6 +4,7 @@ import type { OverrideMeta } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
 import type { UpdateState } from './updates';
+import type { MissedReason } from './workers';
 import type { WorkspacesState } from './workspaces';
 
 /** Events emitted by the interception engine. */
@@ -16,8 +17,10 @@ export type EngineEvent =
   | { type: 'navigated'; url: string; iframeId?: string }
   /** A cross-site iframe session went away (removed, reloaded, or moved to another process). */
   | { type: 'iframe-detached'; iframeId: string }
+  /** A worker session went away (terminated, its page left, or a new service worker version took over). */
+  | { type: 'worker-detached'; workerId: string }
   /** An enabled override matched a file the page received unmodified (e.g. a Chromium interception gap). */
-  | { type: 'override-missed'; overrideId: string; url: string }
+  | { type: 'override-missed'; overrideId: string; url: string; reason?: MissedReason }
   | { type: 'resource'; resource: ResourceEntry }
   | { type: 'override-served'; overrideId: string; url: string }
   | { type: 'upstream-changed'; overrideId: string; url: string }

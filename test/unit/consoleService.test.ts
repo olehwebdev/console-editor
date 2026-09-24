@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleService } from '../../src/main/console';
 import type { CdpTransport } from '../../src/main/engine/cdp';
-import { IFRAME_SETUP_TIMEOUT_MS } from '../../src/main/engine/PageInterception';
+import { SETUP_TIMEOUT_MS } from '../../src/main/engine/PageInterception';
 import { MAX_CONSOLE_ENTRIES } from '../../src/shared/constants';
 import { DEFAULT_SETTINGS, type AppEvent, type ConsoleEntry, type Settings } from '../../src/shared/types';
 
@@ -362,7 +362,7 @@ describe('console service: the setting', () => {
     settings.captureConsole = true;
     let done = false;
     void service.applySettings().then(() => (done = true));
-    await vi.advanceTimersByTimeAsync(IFRAME_SETUP_TIMEOUT_MS + 10);
+    await vi.advanceTimersByTimeAsync(SETUP_TIMEOUT_MS + 10);
     expect(done).toBe(true);
     expect(service.listFrames().map((f) => f.id)).toEqual(['TOP', 'SAME']);
   });
