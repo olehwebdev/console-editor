@@ -28,39 +28,33 @@ export const WORKSPACE_SWATCH: Record<WorkspaceColor, string> = {
   rose: 'bg-workspace-rose',
 };
 
-const SIZE = {
-  md: { box: 'size-7 rounded-lg text-[12.5px]', image: 'size-4', glyph: 14 },
-  lg: { box: 'size-10 rounded-xl text-[17px]', image: 'size-6', glyph: 18 },
-} as const;
-
 export interface WorkspaceIconProps {
   workspace: Pick<Workspace, 'name' | 'host' | 'icon' | 'color'>;
   /** The site's icon; the colour tile stands in while there is none. */
   favicon?: string | null;
-  size?: keyof typeof SIZE;
   className?: string;
 }
 
 /**
  * A workspace's tile: its site's favicon, or its first letter, on its colour.
  * The colour shows either way, so two workspaces on one site stay apart.
+ * 28 px with the radius of inputs and buttons (`h-7`, `rounded-lg`), so it lines up beside a field.
  */
-export function WorkspaceIcon({ workspace, favicon, size = 'md', className }: WorkspaceIconProps) {
-  const dims = SIZE[size];
+export function WorkspaceIcon({ workspace, favicon, className }: WorkspaceIconProps) {
   const image = workspace.icon === 'favicon' ? favicon : null;
   const initial = workspaceInitial(workspace);
   return (
     <span
       aria-hidden
       data-icon={image ? 'favicon' : 'color'}
-      className={cn('grid shrink-0 select-none place-items-center overflow-hidden font-semibold leading-none ring-1 ring-inset', TINT[workspace.color], dims.box, className)}
+      className={cn('grid shrink-0 select-none place-items-center overflow-hidden font-semibold leading-none ring-1 ring-inset', TINT[workspace.color], 'size-7 rounded-lg text-[12.5px]', className)}
     >
       {image ? (
-        <img src={image} alt="" draggable={false} className={cn('object-contain', dims.image)} />
+        <img src={image} alt="" draggable={false} className="size-4 object-contain" />
       ) : initial ? (
         initial
       ) : (
-        <Icon icon={icons.GlobeIcon} size={dims.glyph} />
+        <Icon icon={icons.GlobeIcon} size={14} />
       )}
     </span>
   );
