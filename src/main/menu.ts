@@ -40,6 +40,10 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
     {
       label: 'View',
       submenu: [
+        // In the menu so they also work while the page has focus (its keys never reach the editor).
+        { label: 'Go to File or Command…', accelerator: 'CmdOrCtrl+K', click: command('toggle-palette') },
+        { label: 'Go to File or Command…', accelerator: 'CmdOrCtrl+P', visible: false, acceleratorWorksWhenHidden: true, click: command('toggle-palette') },
+        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: command('toggle-sidebar') },
         { label: 'Focus Address Bar', accelerator: 'CmdOrCtrl+L', click: command('focus-url') },
         { label: 'Reload Page', accelerator: 'CmdOrCtrl+R', click: () => page.reload() },
         { label: 'Reload Page', accelerator: 'F5', visible: false, acceleratorWorksWhenHidden: true, click: () => page.reload() },

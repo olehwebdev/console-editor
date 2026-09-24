@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
+import { sha256 } from '../../src/main/engine/InterceptionEngine';
 import { IFRAME_AUTO_ATTACH, IFRAME_SETUP_TIMEOUT_MS, PageInterception } from '../../src/main/engine/PageInterception';
 import { DEFAULT_SETTINGS, type EngineEvent, type Override } from '../../src/shared/types';
 
@@ -66,7 +67,6 @@ const override: Override = {
   createdAt: 0,
   updatedAt: 0,
   content: 'patched();',
-  base: '',
 };
 
 async function setup(overrides: Override[] = []) {
@@ -169,6 +169,22 @@ describe('PageInterception', () => {
     cdp.emit('Network.responseReceived', { requestId: 'n1', type: 'Script', frameId: 'frame', response: { url: 'https://widget.test/w.js', status: 200, mimeType: 'text/javascript' } }, 'S1');
     const resource = events.findLast((e) => e.type === 'resource');
     expect(resource).toMatchObject({ resource: { url: 'https://widget.test/w.js', iframeId: 'S1', overrideId: 'o1', frame: { url: '', depth: 1 } } });
+  });
+
+  it("reads a cross-site iframe's document through the iframe's session, with the parent's upstream hash", async () => {
+    const { cdp, pi } = await setup([override]);
+    const raw = '<script src="w.js" integrity="sha384-x"></script>';
+    cdp.responses['Fetch.getResponseBody'] = { body: raw, base64Encoded: false };
+    // The page's session pauses the iframe's document (and strips its SRI attributes)…
+    cdp.emit('Fetch.requestPaused', { requestId: 'f1', networkId: 'doc', resourceType: 'Document', request: { url: 'https://widget.test/', method: 'GET' }, responseStatusCode: 200, responseHeaders: [] });
+    await flush();
+    cdp.emit('Network.responseReceived', { requestId: 'doc', type: 'Document', frameId: 'T-S1', response: { url: 'https://widget.test/', status: 200, mimeType: 'text/html' } });
+    // …but only the iframe's own session (target id = frame id) can return the body.
+    cdp.emit('Target.attachedToTarget', iframe('S1', 'T-S1'));
+    await flush();
+    const content = await pi.getResourceContent('https://widget.test/');
+    expect(content.content).toBe('body from S1');
+    expect(content.hash).toBe(sha256(raw));
   });
 
   it('drops a target and everything nested in it when it detaches', async () => {

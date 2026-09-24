@@ -58,12 +58,11 @@ export function registerIpc({ win, page, store, settings }: Deps): void {
   handle('overrides:list', () => store.metas());
   handle('overrides:get', (id: unknown) => {
     assertString(id, 'id');
-    const { base: _base, ...withContent } = store.get(id);
-    return withContent;
+    return store.get(id);
   });
   handle('overrides:base', (id: unknown) => {
     assertString(id, 'id');
-    return store.get(id).base;
+    return store.base(id);
   });
   handle('overrides:create', async (input: CreateOverrideInput) => {
     assertString(input?.sourceUrl, 'sourceUrl');

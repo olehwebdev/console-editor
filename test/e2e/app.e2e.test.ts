@@ -160,6 +160,33 @@ describe.skipIf(!built)('Console Editor app', () => {
     await expect.poll(() => inSite('window.patchedInNested', 'nested.localhost'), { timeout: 15_000 }).toBe(true);
   });
 
+  it("keeps the page under the editor's control: guards, new tabs, permissions", async () => {
+    await goTo(win, `${site.url}/guard.html`);
+    await expect.poll(() => inSite('document.title')).toBe('Guarded');
+    // The app answers the page's beforeunload itself; keep Playwright from trying to as well.
+    app.windows().find((p) => p.url().startsWith(site.url))?.on('dialog', () => undefined);
+    // beforeunload only applies once the user has interacted with the page.
+    await app.evaluate(({ webContents }, url) => {
+      const wc = webContents.getAllWebContents().find((w) => w.getURL().startsWith(url))!;
+      wc.sendInputEvent({ type: 'mouseDown', x: 5, y: 5, button: 'left', clickCount: 1 });
+      wc.sendInputEvent({ type: 'mouseUp', x: 5, y: 5, button: 'left', clickCount: 1 });
+    }, site.url);
+    await expect.poll(() => inSite('navigator.userActivation.hasBeenActive')).toBe(true);
+
+    // The page's "Leave site?" guard doesn't cancel an editor reload.
+    const firstLoad = await inSite('window.loadedAt');
+    await win.getByRole('button', { name: 'Reload page' }).click();
+    await expect.poll(() => inSite('window.loadedAt'), { timeout: 15_000 }).not.toBe(firstLoad);
+
+    // Permissions are denied unless listed (Electron would grant them all).
+    expect(await inSite('navigator.storage.persist()')).toBe(false);
+
+    // A link meant for a new tab loads in the page view instead of a bare window.
+    await inSite("document.getElementById('tab').click()");
+    await expect.poll(() => inSite('location.search'), { timeout: 15_000 }).toBe('?from=tab');
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+  });
+
   it('keeps overrides after a restart', async () => {
     await app.close();
     ({ app, win } = await launch(userData));

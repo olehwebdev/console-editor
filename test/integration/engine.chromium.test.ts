@@ -31,7 +31,6 @@ function makeOverride(partial: Partial<Override> & Pick<Override, 'kind' | 'sour
     originalHash: null,
     createdAt: now,
     updatedAt: now,
-    base: '',
     ...partial,
   };
 }

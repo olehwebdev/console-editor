@@ -180,6 +180,17 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   add('/frames/shared.js', 'text/javascript', SHARED_JS);
   add('/frames/back.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/back.js"></script><p>back on the top page\'s site</p>');
   add('/frames/back.js', 'text/javascript', BACK_JS);
+  // A page with an unsaved-changes guard, a new-tab link and a pop-up (site view policy).
+  add(
+    '/guard.html',
+    'text/html; charset=utf-8',
+    `<!doctype html><title>Guarded</title>
+<script>
+  window.loadedAt = Math.random();
+  addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
+</script>
+<p><a id="tab" href="/?from=tab" target="_blank">new tab</a></p>`,
+  );
   return {
     url: `http://127.0.0.1:${actualPort}`,
     server,

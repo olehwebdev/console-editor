@@ -11,7 +11,7 @@ interface IndexFile {
   overrides: OverrideMeta[];
 }
 
-function toMeta({ content: _content, base: _base, ...meta }: Override): OverrideMeta {
+function toMeta({ content: _content, ...meta }: Override): OverrideMeta {
   return meta;
 }
 
@@ -32,10 +32,14 @@ async function writeAtomic(path: string, content: string): Promise<void> {
  *   <dir>/files/<id>.base.<ext>   the content editing started from (for diffs)
  *
  * Content is kept in memory as well, because the engine needs it synchronously
- * on every intercepted request.
+ * on every intercepted request. The base is only read when a diff asks for it;
+ * when it equals the content no base file is written.
+ *
+ * Changes run one at a time and reach memory (and so the engine) only once
+ * they are on disk: a failed write never leaves a half-applied override.
  */
 export class OverrideStore {
-  private readonly overrides = new Map<string, Override>();
+  private overrides = new Map<string, Override>();
   private writes: Promise<void> = Promise.resolve();
 
   constructor(readonly dir: string) {}
@@ -66,8 +70,7 @@ export class OverrideStore {
     for (const meta of index.overrides ?? []) {
       try {
         const content = await readFile(this.contentPath(meta, 'content'), 'utf8');
-        const base = await readFile(this.contentPath(meta, 'base'), 'utf8').catch(() => content);
-        this.overrides.set(meta.id, { ...meta, content, base });
+        this.overrides.set(meta.id, { ...meta, content });
       } catch {
         // Content file missing: drop the entry rather than serving an empty file.
       }
@@ -92,71 +95,94 @@ export class OverrideStore {
     return o;
   }
 
+  /** The content editing started from (for diffs): the content itself unless a separate base was saved. */
+  async base(id: string): Promise<string> {
+    const o = this.get(id);
+    try {
+      return await readFile(this.contentPath(o, 'base'), 'utf8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return o.content;
+      throw err;
+    }
+  }
+
   async create(input: CreateOverrideInput): Promise<Override> {
     const match = input.match ?? defaultMatcherFor(input.sourceUrl);
     const error = validateMatcher(match);
     if (error) throw new Error(error);
-    let id: string;
-    do id = randomBytes(4).toString('hex');
-    while (this.overrides.has(id));
-    const now = Date.now();
-    const override: Override = {
-      id,
-      kind: input.kind,
-      sourceUrl: input.sourceUrl,
-      match,
-      enabled: true,
-      originalHash: input.originalHash,
-      createdAt: now,
-      updatedAt: now,
-      content: input.content,
-      base: input.base ?? input.content,
-    };
-    this.overrides.set(id, override);
-    await this.persist(async () => {
+    return this.mutate(async (overrides) => {
+      let id: string;
+      do id = randomBytes(4).toString('hex');
+      while (overrides.has(id));
+      const now = Date.now();
+      const override: Override = {
+        id,
+        kind: input.kind,
+        sourceUrl: input.sourceUrl,
+        match,
+        enabled: true,
+        originalHash: input.originalHash,
+        createdAt: now,
+        updatedAt: now,
+        content: input.content,
+      };
       await writeAtomic(this.contentPath(override, 'content'), override.content);
-      await writeAtomic(this.contentPath(override, 'base'), override.base);
+      if (input.base !== undefined && input.base !== input.content) await writeAtomic(this.contentPath(override, 'base'), input.base);
+      overrides.set(id, override);
+      return override;
     });
-    return override;
   }
 
   async update(id: string, patch: OverridePatch): Promise<Override> {
-    const current = this.get(id);
+    this.get(id);
     if (patch.match) {
       const error = validateMatcher(patch.match);
       if (error) throw new Error(error);
     }
-    const next: Override = {
-      ...current,
-      ...(patch.content !== undefined ? { content: patch.content } : {}),
-      ...(patch.match ? { match: { ...patch.match } } : {}),
-      ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
-      updatedAt: Date.now(),
-    };
-    this.overrides.set(id, next);
-    await this.persist(async () => {
+    return this.mutate(async (overrides) => {
+      // Built from the latest committed state, so queued updates don't undo each other.
+      const current = overrides.get(id);
+      if (!current) throw new Error(`Unknown override ${id}`);
+      const next: Override = {
+        ...current,
+        ...(patch.content !== undefined ? { content: patch.content } : {}),
+        ...(patch.match ? { match: { ...patch.match } } : {}),
+        ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
+        updatedAt: Date.now(),
+      };
       if (patch.content !== undefined) await writeAtomic(this.contentPath(next, 'content'), next.content);
+      overrides.set(id, next);
+      return next;
     });
-    return next;
   }
 
   async remove(id: string): Promise<void> {
     const o = this.get(id);
-    this.overrides.delete(id);
-    await this.persist(async () => {
-      await rm(this.contentPath(o, 'content'), { force: true });
-      await rm(this.contentPath(o, 'base'), { force: true });
+    await this.mutate(async (overrides) => {
+      overrides.delete(id);
     });
+    // Only once the index no longer lists it.
+    await rm(this.contentPath(o, 'content'), { force: true });
+    await rm(this.contentPath(o, 'base'), { force: true });
   }
 
-  /** Runs file writes one at a time, then rewrites the index. */
-  private persist(writeFiles: () => Promise<void>): Promise<void> {
+  /**
+   * Applies `change` to a copy of the overrides (it may write content files),
+   * writes the index, and only then makes the copy current. Runs one at a time.
+   */
+  private mutate<T>(change: (overrides: Map<string, Override>) => Promise<T>): Promise<T> {
     const run = this.writes.then(async () => {
-      await writeFiles();
-      const index: IndexFile = { version: INDEX_VERSION, overrides: this.metas() };
+      const next = new Map(this.overrides);
+      const result = await change(next);
+      const index: IndexFile = { version: INDEX_VERSION, overrides: [...next.values()].map(toMeta) };
       await writeAtomic(this.indexPath, `${JSON.stringify(index, null, 2)}\n`);
+      this.overrides = next;
+      return result;
     });
-    this.writes = run.catch(() => undefined);
+    this.writes = run.then(
+      () => undefined,
+      () => undefined,
+    );
     return run;
   }
 }

@@ -42,6 +42,8 @@ interface TrackedResource {
   requestId: string;
   frameId?: string;
   loaderId?: string;
+  /** Hash of the raw upstream body when we rewrote this response (SRI stripped). */
+  upstreamHash?: string;
 }
 
 /** Subset of `Fetch.requestPaused` params that we use. */
@@ -111,10 +113,11 @@ export class InterceptionEngine {
   /** `${overrideId}|${url}` already reported as missed since the last navigation. */
   private readonly missed = new Set<string>();
   /**
-   * Hash of the raw upstream body of documents we rewrote (SRI stripped). The
-   * page, and so `Network.getResponseBody`, only ever saw the rewritten HTML.
+   * Network requestId -> hash of the raw upstream body of a document we
+   * rewrote (SRI stripped), until its response is tracked. The page, and so
+   * `Network.getResponseBody`, only ever saw the rewritten HTML.
    */
-  private readonly upstreamHashes = new Map<string, string>();
+  private readonly rewritten = new Map<string, string>();
   private readonly disposers: Array<() => void> = [];
   private mainFrameId: string | undefined;
   /** Parent frame of an iframe session's root frame (it lives in the parent's session). */
@@ -160,7 +163,11 @@ export class InterceptionEngine {
       this.cdp.on('Page.frameAttached', (p: { frameId: string; parentFrameId?: string }) => {
         if (p.parentFrameId) this.frameParents.set(p.frameId, p.parentFrameId);
       }),
-      this.cdp.on('Page.frameDetached', (p: { frameId: string }) => this.frameUrls.delete(p.frameId)),
+      this.cdp.on('Page.frameDetached', (p: { frameId: string; reason?: string }) => {
+        this.frameUrls.delete(p.frameId);
+        // A frame that moved to another process still has its documents reported here.
+        if (p.reason !== 'swap') this.frameParents.delete(p.frameId);
+      }),
     );
     await this.cdp.send('Page.enable');
     const tree = await this.cdp.send<{ frameTree: FrameTree }>('Page.getFrameTree');
@@ -228,9 +235,9 @@ export class InterceptionEngine {
     this.baseDepth = depth;
   }
 
-  /** Raw upstream hash of a document this engine rewrote (SRI stripped), if any. */
+  /** Raw upstream hash of a listed document this engine rewrote (SRI stripped), if any. */
   upstreamHashOf(url: string): string | undefined {
-    return this.upstreamHashes.get(url);
+    return this.resources.get(url)?.upstreamHash;
   }
 
   /** The request id and frame of a listed resource (for reading its body through another session). */
@@ -285,7 +292,7 @@ export class InterceptionEngine {
     for (const attempt of attempts) {
       try {
         const content = await attempt();
-        return { url, content, hash: this.upstreamHashes.get(url) ?? sha256(content) };
+        return { url, content, hash: tracked?.upstreamHash ?? sha256(content) };
       } catch (err) {
         lastError = err;
       }
@@ -295,14 +302,16 @@ export class InterceptionEngine {
 
   /**
    * Finds the enabled override for a URL. Exact beats glob beats regex; newer
-   * beats older. With a `resourceType`, HTML overrides only answer documents and
-   * script/style overrides never do (so a broad pattern can't replace a page).
+   * beats older. With a `resourceType`, documents, scripts and stylesheets are
+   * only answered by an override of their own kind (so a broad pattern can't
+   * put JS in a stylesheet or replace a page); other requests (fetch, XHR,
+   * preload) by script and style overrides.
    */
   findOverride(url: string, resourceType?: string): Override | undefined {
     let best: Override | undefined;
     for (const o of this.opts.getOverrides()) {
       if (!o.enabled || !this.matcherFor(o)(url)) continue;
-      if (resourceType && (resourceType === 'Document') !== (o.kind === 'Document')) continue;
+      if (resourceType && !answersKind(o.kind, resourceType)) continue;
       if (
         !best ||
         MATCH_RANK[o.match.type] < MATCH_RANK[best.match.type] ||
@@ -408,7 +417,7 @@ export class InterceptionEngine {
     if (html === undefined) return false;
     const stripped = stripIntegrityAttributes(html);
     if (stripped.count === 0) return false;
-    this.upstreamHashes.set(p.request.url, sha256(html));
+    if (p.networkId) this.rewritten.set(p.networkId, sha256(html));
     await this.cdp.send('Fetch.fulfillRequest', {
       requestId: p.requestId,
       responseCode: p.responseStatusCode,
@@ -462,9 +471,11 @@ export class InterceptionEngine {
     this.pending = undefined;
     this.resources.clear();
     this.servedBy.clear();
+    this.rewritten.clear();
     this.missed.clear();
-    const keep = new Set(held.map((r) => r.entry.url));
-    for (const url of [...this.upstreamHashes.keys()]) if (!keep.has(url)) this.upstreamHashes.delete(url);
+    // The old document's subframes are gone (Chromium doesn't always say so); the new ones attach after this.
+    for (const id of [...this.frameUrls.keys()]) if (id !== this.mainFrameId) this.frameUrls.delete(id);
+    this.frameParents.clear();
     const iframeId = this.opts.iframe?.id;
     this.opts.emit({ type: 'navigated', url: frame.url, ...(iframeId ? { iframeId } : {}) });
     for (const tracked of held) {
@@ -481,9 +492,12 @@ export class InterceptionEngine {
     response: { url: string; status: number; mimeType: string };
   }): void {
     const url = p.response.url;
-    if (!isKind(p.type) || /^(data|blob|about|chrome|devtools):/.test(url)) return;
+    // Overrides also answer fetch()/XHR requests: forget those too, not only listed kinds.
     const overrideId = this.servedBy.get(p.requestId);
+    const upstreamHash = this.rewritten.get(p.requestId);
     this.servedBy.delete(p.requestId);
+    this.rewritten.delete(p.requestId);
+    if (!isKind(p.type) || /^(data|blob|about|chrome|devtools):/.test(url)) return;
     // While a navigation is pending, only its own document counts; it's listed when it commits.
     const heldForCommit = !!this.pending && p.loaderId === this.pending.loaderId;
     if (this.pending && !heldForCommit) return;
@@ -502,7 +516,7 @@ export class InterceptionEngine {
       ...(frame ? { frame } : {}),
       ...(iframeId ? { iframeId } : {}),
     };
-    const tracked: TrackedResource = { entry, requestId: p.requestId, frameId: p.frameId, loaderId: p.loaderId };
+    const tracked: TrackedResource = { entry, requestId: p.requestId, frameId: p.frameId, loaderId: p.loaderId, upstreamHash };
     if (heldForCommit) {
       this.pending!.held.push(tracked);
       return;
@@ -543,6 +557,10 @@ export class InterceptionEngine {
     this.missed.add(key);
     this.opts.emit({ type: 'override-missed', overrideId: override.id, url });
   }
+}
+
+function answersKind(kind: ResourceKind, resourceType: string): boolean {
+  return isKind(resourceType) ? kind === resourceType : kind !== 'Document';
 }
 
 interface FrameTree {

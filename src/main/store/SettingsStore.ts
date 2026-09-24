@@ -1,9 +1,11 @@
+import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { DEFAULT_SETTINGS, type Settings } from '../../shared/types';
 
 export class SettingsStore {
   private settings: Settings = { ...DEFAULT_SETTINGS };
+  private writes: Promise<void> = Promise.resolve();
 
   constructor(private readonly path: string) {}
 
@@ -20,12 +22,22 @@ export class SettingsStore {
     return this.settings;
   }
 
-  async update(patch: Partial<Settings>): Promise<Settings> {
-    this.settings = { ...this.settings, ...pickKnown(patch) };
-    await mkdir(dirname(this.path), { recursive: true });
-    await writeFile(`${this.path}.tmp`, `${JSON.stringify(this.settings, null, 2)}\n`, 'utf8');
-    await rename(`${this.path}.tmp`, this.path);
-    return this.settings;
+  /** Writes one update at a time; the new settings take effect only once they are on disk. */
+  update(patch: Partial<Settings>): Promise<Settings> {
+    const run = this.writes.then(async () => {
+      const next = { ...this.settings, ...pickKnown(patch) };
+      const tmp = `${this.path}.${randomBytes(4).toString('hex')}.tmp`;
+      await mkdir(dirname(this.path), { recursive: true });
+      await writeFile(tmp, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+      await rename(tmp, this.path);
+      this.settings = next;
+      return next;
+    });
+    this.writes = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 }
 

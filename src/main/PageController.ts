@@ -2,6 +2,7 @@ import { session, WebContentsView, type BrowserWindow, type Session } from 'elec
 import type { AppEvent, PageState, Rect } from '../shared/types';
 import { electronTransport } from './electronTransport';
 import { PageInterception } from './engine/PageInterception';
+import { installSitePermissions } from './sitePermissions';
 import type { OverrideStore } from './store/OverrideStore';
 import type { SettingsStore } from './store/SettingsStore';
 
@@ -44,6 +45,7 @@ export class PageController {
   ) {
     this.siteSession = session.fromPartition(SITE_PARTITION);
     this.siteSession.setUserAgent(chromeUserAgent(this.siteSession.getUserAgent()));
+    installSitePermissions(this.siteSession, win);
 
     this.view = new WebContentsView({
       webPreferences: { session: this.siteSession, contextIsolation: true, sandbox: true },
@@ -71,6 +73,19 @@ export class PageController {
         if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
         return res.text();
       },
+    });
+
+    // A page's "Leave site?" guard would silently cancel reloads after a save,
+    // Back/Forward and typed URLs (Electron shows no dialog): the editor wins.
+    wc.on('will-prevent-unload', (event) => event.preventDefault());
+    // Real pop-ups (sign-in flows rely on window.opener) open as child windows;
+    // links meant for a new tab load here, where overrides apply.
+    wc.setWindowOpenHandler(({ url, disposition }) => {
+      if (disposition === 'new-window') {
+        return { action: 'allow', overrideBrowserWindowOptions: { parent: win, autoHideMenuBar: true } };
+      }
+      if (/^https?:/i.test(url)) void this.navigate(url);
+      return { action: 'deny' };
     });
 
     const pushState = () => this.send({ type: 'page-state', state: this.state() });

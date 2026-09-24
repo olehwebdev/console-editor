@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import { join } from 'node:path';
 import type { AppEvent } from '../shared/types';
-import { LOCAL_NETWORK_ACCESS_FEATURES } from './chromiumFlags';
+import { LOCAL_NETWORK_ACCESS_FEATURES, withDisabledFeatures } from './chromiumFlags';
 import { registerIpc } from './ipc';
 import { installMenu } from './menu';
 import { PageController } from './PageController';
@@ -12,7 +12,10 @@ import { SettingsStore } from './store/SettingsStore';
 if (process.env.CONSOLE_EDITOR_USER_DATA) app.setPath('userData', process.env.CONSOLE_EDITOR_USER_DATA);
 
 // Documents served from overrides would otherwise lose access to local/intranet hosts (see chromiumFlags.ts).
-app.commandLine.appendSwitch('disable-features', LOCAL_NETWORK_ACCESS_FEATURES.join(','));
+app.commandLine.appendSwitch(
+  'disable-features',
+  withDisabledFeatures(app.commandLine.getSwitchValue('disable-features'), LOCAL_NETWORK_ACCESS_FEATURES),
+);
 
 /** First http(s) URL on the command line, e.g. `npm start -- https://example.com`. */
 function initialUrl(): string | undefined {

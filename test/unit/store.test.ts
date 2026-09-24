@@ -45,19 +45,44 @@ describe('OverrideStore', () => {
     await b.load();
     const loaded = b.get(o.id);
     expect(loaded.content).toBe('v2();');
-    expect(loaded.base).toBe('original();');
+    expect(await b.base(o.id)).toBe('original();');
     expect(loaded.enabled).toBe(false);
     expect(loaded.match.type).toBe('glob');
   });
 
-  it('uses the content as the diff base when none is sent (saves a large IPC transfer)', async () => {
+  it('uses the content as the diff base when none is sent, without storing it twice', async () => {
     const store = new OverrideStore(dir);
     await store.load();
     const { base: _base, ...withoutBase } = input;
     const o = await store.create(withoutBase);
-    expect(o.base).toBe('patched();');
+    expect(await store.base(o.id)).toBe('patched();');
+    expect(await readdir(join(dir, 'files'))).toEqual([`${o.id}.js`]);
     expect(store.meta(o.id)).not.toHaveProperty('content');
-    expect(store.meta(o.id)).not.toHaveProperty('base');
+    // The engine only needs the content: the base is not kept in memory.
+    expect(store.get(o.id)).not.toHaveProperty('base');
+  });
+
+  it('keeps memory unchanged when a write fails (no ghost overrides, no unsaved content served)', async () => {
+    const store = new OverrideStore(dir);
+    await store.load();
+    const o = await store.create(input);
+    // Make every content write fail: the files folder becomes a plain file.
+    await rm(join(dir, 'files'), { recursive: true });
+    await writeFile(join(dir, 'files'), '');
+    await expect(store.create({ ...input, content: 'ghost();' })).rejects.toThrow();
+    await expect(store.update(o.id, { content: 'unsaved();' })).rejects.toThrow();
+    expect(store.list().map((x) => x.content)).toEqual(['patched();']);
+    // Later changes still go through.
+    await store.update(o.id, { enabled: false });
+    expect(store.get(o.id).enabled).toBe(false);
+  });
+
+  it('applies queued updates on top of each other', async () => {
+    const store = new OverrideStore(dir);
+    await store.load();
+    const o = await store.create(input);
+    await Promise.all([store.update(o.id, { content: 'v2();' }), store.update(o.id, { enabled: false })]);
+    expect(store.get(o.id)).toMatchObject({ content: 'v2();', enabled: false });
   });
 
   it('removes files on delete', async () => {
@@ -108,6 +133,16 @@ describe('SettingsStore', () => {
     const b = new SettingsStore(path);
     await b.load();
     expect(b.get()).toEqual({ ...DEFAULT_SETTINGS, bypassCSP: true });
+  });
+
+  it('applies overlapping updates one after the other', async () => {
+    const path = join(dir, 'settings.json');
+    const s = new SettingsStore(path);
+    await s.load();
+    await Promise.all([s.update({ bypassCSP: true }), s.update({ autoReloadOnSave: false }), s.update({ stripIntegrity: false })]);
+    const expected = { ...DEFAULT_SETTINGS, bypassCSP: true, autoReloadOnSave: false, stripIntegrity: false };
+    expect(s.get()).toEqual(expected);
+    expect(JSON.parse(await readFile(path, 'utf8'))).toEqual(expected);
   });
 
   it('survives a corrupt file', async () => {

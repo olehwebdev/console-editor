@@ -80,8 +80,12 @@ src/
     index.ts         app bootstrap, window, unsaved-changes prompt
     PageController.ts  WebContentsView for the site, navigation, engine wiring
     electronTransport.ts  webContents.debugger → CdpTransport
-    engine/          InterceptionEngine.ts, transform.ts (SRI/source maps/headers), cdp.ts
+    engine/          PageInterception.ts (one engine per CDP session: page + iframes),
+                     InterceptionEngine.ts, transform.ts (SRI/source maps/headers),
+                     cdp.ts (transport interface), websocketTransport.ts (browser-level CDP, used by tests)
     store/           OverrideStore.ts, SettingsStore.ts
+    sitePermissions.ts  permission policy for the site view
+    chromiumFlags.ts    Local Network Access switches (see §6.5, §8)
     ipc.ts, menu.ts
   preload/index.ts   contextBridge → window.consoleEditor
   renderer/src/      React UI, Feature-Sliced Design (see DESIGN_SYSTEM.md §6):
@@ -95,9 +99,10 @@ src/
 test/
   unit/              matcher, transform, store, engine and PageInterception (fake CDP), minified heuristic
   renderer/          resource tree building, palette fuzzy matching
-  integration/       engine against real Chromium + fixture site
+  integration/       engine and iframe sessions against real Chromium + fixture site
   e2e/               the built Electron app driven by Playwright
-  fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps
+  fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps, iframes
+  helpers/           Chromium launcher with the app's flags, WebSocket CDP harness
 ```
 
 ## 5. Data model
@@ -216,6 +221,10 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 
 - Editor window: `contextIsolation`, `sandbox`, a strict CSP (`script-src 'self'`), no navigation, no pop-ups. It sees only `window.consoleEditor`.
 - Site view: no preload, sandboxed, separate persistent session partition (`persist:site`). It cannot reach IPC, and every IPC handler also checks that the sender is the editor window.
+- Site permissions (`sitePermissions.ts`): Electron grants everything when a session has no handler, so the site session denies by default. Fullscreen, sanitized clipboard writes and pointer lock are granted; camera/microphone, location, notifications, clipboard reads, MIDI and launching other applications ask with a native dialog naming the requesting origin (remembered until quit; launching an app is asked every time); everything else is denied.
+- Pop-ups: `window.open` pop-ups (sign-in flows need `window.opener`) open as child windows without interception; links meant for a new tab load in the page view, where overrides apply.
+- A page's `beforeunload` guard cannot block reloads or navigation: editor-initiated reloads after a save must win, and Electron would cancel them without showing a dialog.
+- **Trade-off:** Chromium's Local Network Access checks are disabled for the whole app (feature switches are process-wide), because documents served through `Fetch.fulfillRequest` have no address space and would otherwise be blocked from reaching localhost/intranet hosts (§6.5). Any page opened in the app can therefore reach local-network addresses, as in Chrome before these checks shipped. Browse only sites you are working on.
 - IPC inputs are type-checked; matchers are validated before storage; settings are filtered to known boolean keys.
 - The site sees a standard Chrome user agent (Electron tokens removed).
 - All data stays local: nothing is uploaded, and there are no telemetry or network calls besides the page and out-of-page fetches for the files you open.

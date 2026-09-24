@@ -36,17 +36,18 @@ export interface OverrideMeta {
   updatedAt: number;
 }
 
+/**
+ * An override as stored and served: metadata plus the edited content. The
+ * content editing started from (the diff base) stays on disk until a diff
+ * asks for it (`getOverrideBase`).
+ */
 export interface Override extends OverrideMeta {
   /** The edited content that is served instead of the upstream file. */
   content: string;
-  /** The content the user started editing from (after formatting). Used for the diff view. */
-  base: string;
 }
 
-/** An override's metadata plus the content that gets served (the diff base is fetched separately). */
-export interface OverrideWithContent extends OverrideMeta {
-  content: string;
-}
+/** What `getOverride` returns. */
+export type OverrideWithContent = Override;
 
 export interface CreateOverrideInput {
   kind: ResourceKind;
@@ -134,7 +135,11 @@ export interface Rect {
 
 /** Events emitted by the interception engine. */
 export type EngineEvent =
-  /** A document load started: the top-level page (no iframeId) or a cross-site iframe's own frame. */
+  /**
+   * A root frame committed a new document (not merely started loading): the
+   * top-level page, or a cross-site iframe's own frame when `iframeId` is set.
+   * Drop the entries it owned; the new document's own entry follows.
+   */
   | { type: 'navigated'; url: string; iframeId?: string }
   /** A cross-site iframe session went away (removed, reloaded, or moved to another process). */
   | { type: 'iframe-detached'; iframeId: string }
@@ -153,7 +158,16 @@ export type AppEvent =
   | { type: 'command'; command: MenuCommand };
 
 /** Menu actions the renderer implements (so they reach Monaco instead of the native text field). */
-export type MenuCommand = 'save' | 'format' | 'toggle-diff' | 'focus-url' | 'undo' | 'redo' | 'select-all';
+export type MenuCommand =
+  | 'save'
+  | 'format'
+  | 'toggle-diff'
+  | 'focus-url'
+  | 'toggle-palette'
+  | 'toggle-sidebar'
+  | 'undo'
+  | 'redo'
+  | 'select-all';
 
 /** The API exposed to the renderer as `window.consoleEditor`. */
 export interface ConsoleEditorApi {

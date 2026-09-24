@@ -23,7 +23,6 @@ function makeOverride(partial: Partial<Override> & Pick<Override, 'kind' | 'sour
     originalHash: null,
     createdAt: 0,
     updatedAt: nextId,
-    base: '',
     ...partial,
   };
 }
@@ -47,6 +46,8 @@ describe.skipIf(!chromiumAvailable)('iframes in Chromium', () => {
   let overrides: Override[];
   let settings: Settings;
   let events: EngineEvent[];
+  /** URLs read through the out-of-page fallback instead of a CDP session. */
+  let fallbackFetches: string[];
 
   // Cross-site frames live on other hosts; same port.
   const widgetUrl = (path: string) => `http://localhost:${new URL(site.url).port}${path}`;
@@ -65,6 +66,7 @@ describe.skipIf(!chromiumAvailable)('iframes in Chromium', () => {
   });
 
   beforeEach(async () => {
+    fallbackFetches = [];
     overrides = [];
     settings = { ...DEFAULT_SETTINGS };
     events = [];
@@ -76,7 +78,10 @@ describe.skipIf(!chromiumAvailable)('iframes in Chromium', () => {
       getOverrides: () => overrides,
       getSettings: () => settings,
       emit: (e) => events.push(e),
-      fallbackFetch: async (url) => (await fetch(url)).text(),
+      fallbackFetch: async (url) => {
+        fallbackFetches.push(url);
+        return (await fetch(url)).text();
+      },
     });
     await interception.attach();
   });
@@ -136,12 +141,15 @@ describe.skipIf(!chromiumAvailable)('iframes in Chromium', () => {
     const content = await interception.getResourceContent(widgetUrl('/frames/widget.js'));
     expect(content.content).toBe(WIDGET_JS);
     expect(content.hash).toBe(sha256(WIDGET_JS));
+    // Read from the iframe's session, not downloaded again.
+    expect(fallbackFetches).toEqual([]);
   });
 
   it("reads a cross-site iframe's own HTML document (only its own session has the body)", async () => {
     await openFrames();
     const content = await interception.getResourceContent(widgetUrl('/frames/widget.html'));
     expect(content.content).toContain('<div id="widget">');
+    expect(fallbackFetches).toEqual([]);
   });
 
   it('serves an edited script inside the cross-site iframe (despite its SRI hash)', async () => {

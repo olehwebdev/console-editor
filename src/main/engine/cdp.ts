@@ -1,8 +1,8 @@
 /**
  * The minimal Chrome DevTools Protocol surface the engine needs.
  * Adapters exist for Electron's `webContents.debugger` (see `electronTransport`)
- * and Playwright's `CDPSession` (used by the integration tests); an adapter for
- * an external Chrome over WebSocket would implement the same two methods.
+ * and for a browser-level WebSocket connection (`websocketTransport`, which
+ * drives the integration tests and is the basis for an external-Chrome mode).
  */
 export interface CdpTransport {
   /**

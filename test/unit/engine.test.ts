@@ -14,7 +14,6 @@ function override(partial: Partial<Override>): Override {
     createdAt: 0,
     updatedAt: 0,
     content: 'patched();',
-    base: '',
     ...partial,
   };
 }
@@ -166,6 +165,47 @@ describe('InterceptionEngine', () => {
     expect(engine.findOverride('https://a.com/page', 'Script')?.id).toBe('script');
     // A script fetched with XHR/fetch still gets its override.
     expect(engine.findOverride('https://a.com/app.js', 'Fetch')?.id).toBe('script');
+    // A stylesheet is never answered with a script (a glob like main.* matches both).
+    expect(engine.findOverride('https://a.com/main.css', 'Stylesheet')).toBeUndefined();
+  });
+
+  it('lets a stylesheet whose URL a script glob matches through unmodified', async () => {
+    const glob = override({ match: { type: 'glob', pattern: 'https://a.com/static/main.*', ignoreQuery: true } });
+    const { transport, events } = await setup([glob]);
+    transport.emit('Fetch.requestPaused', { requestId: 'f1', resourceType: 'Stylesheet', request: { url: 'https://a.com/static/main.css', method: 'GET' }, responseStatusCode: 200, responseHeaders: [] });
+    await flush();
+    expect(transport.methods()).toContain('Fetch.continueRequest');
+    expect(transport.methods()).not.toContain('Fetch.fulfillRequest');
+    expect(events.some((e) => e.type === 'override-served')).toBe(false);
+  });
+
+  describe('override-missed', () => {
+    const response = (t: FakeTransport, requestId: string, url = 'https://a.com/app.js', type = 'Script') =>
+      t.emit('Network.responseReceived', { requestId, type, frameId: 'main', response: { url, status: 200, mimeType: 'text/javascript' } });
+    const missed = (events: EngineEvent[]) => events.filter((e) => e.type === 'override-missed');
+
+    it('reports an enabled override whose file arrived unmodified, once per URL until the next navigation', async () => {
+      const { transport, events } = await setup([override({})]);
+      response(transport, 'r1');
+      response(transport, 'r2');
+      expect(missed(events)).toEqual([{ type: 'override-missed', overrideId: 'o1', url: 'https://a.com/app.js' }]);
+      transport.emit('Page.frameNavigated', { frame: { id: 'main', loaderId: 'next', url: 'https://a.com/' } });
+      response(transport, 'r3');
+      expect(missed(events)).toHaveLength(2);
+    });
+
+    it('stays quiet for served files, disabled overrides and other kinds', async () => {
+      const regexScript = override({ id: 'rx', match: { type: 'regex', pattern: '/static/main\\.', ignoreQuery: false } });
+      const { transport, events, overrides } = await setup([override({}), regexScript]);
+      transport.emit('Fetch.requestPaused', { requestId: 'f1', networkId: 'r1', resourceType: 'Script', request: { url: 'https://a.com/app.js', method: 'GET' }, responseStatusCode: 200, responseHeaders: [] });
+      await flush();
+      response(transport, 'r1');
+      // The regex override only pauses scripts, so a stylesheet it also matches was never its to serve.
+      response(transport, 'css', 'https://a.com/static/main.css', 'Stylesheet');
+      overrides[0]!.enabled = false;
+      response(transport, 'r2');
+      expect(missed(events)).toEqual([]);
+    });
   });
 
   it("reports the raw upstream hash for a document whose SRI attributes it stripped", async () => {
@@ -189,6 +229,23 @@ describe('InterceptionEngine', () => {
     const content = await engine.getResourceContent('https://a.com/');
     // …but the hash is the upstream one, so a Document override made from it won't warn of phantom redeploys.
     expect(content.hash).toBe(sha256(raw));
+  });
+
+  it("drops the upstream hash when the same document later arrives without being rewritten", async () => {
+    const raw = '<script src="/a.js" integrity="sha384-x"></script>';
+    const { transport, engine } = await setup([override({})]);
+    transport.responses['Fetch.getResponseBody'] = { body: raw, base64Encoded: false };
+    transport.emit('Fetch.requestPaused', { requestId: 'f1', networkId: 'doc1', resourceType: 'Document', request: { url: 'https://a.com/', method: 'GET' }, responseStatusCode: 200, responseHeaders: [{ name: 'content-type', value: 'text/html' }] });
+    await flush();
+    transport.emit('Network.responseReceived', { requestId: 'doc1', type: 'Document', frameId: 'main', response: { url: 'https://a.com/', status: 200, mimeType: 'text/html' } });
+    // Redeployed without integrity attributes: nothing to rewrite this time.
+    const plain = '<script src="/a.js"></script><p>v2</p>';
+    transport.responses['Fetch.getResponseBody'] = { body: plain, base64Encoded: false };
+    transport.emit('Fetch.requestPaused', { requestId: 'f2', networkId: 'doc2', resourceType: 'Document', request: { url: 'https://a.com/', method: 'GET' }, responseStatusCode: 200, responseHeaders: [{ name: 'content-type', value: 'text/html' }] });
+    await flush();
+    transport.emit('Network.responseReceived', { requestId: 'doc2', type: 'Document', frameId: 'main', response: { url: 'https://a.com/', status: 200, mimeType: 'text/html' } });
+    transport.responses['Network.getResponseBody'] = { body: plain, base64Encoded: false };
+    expect((await engine.getResourceContent('https://a.com/')).hash).toBe(sha256(plain));
   });
 
   it('does not override redirects', async () => {
