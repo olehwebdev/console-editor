@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import type { MatchType, OverrideMeta } from '@common/types';
+import { useState } from 'react';
+import type { MatchType, OverrideMeta, UrlMatcher } from '@common/types';
 import { icons } from '@/shared/config';
 import { cn } from '@/shared/lib';
 import { Button } from '@/shared/ui/button';
@@ -15,19 +15,17 @@ const TYPE_HELP: Record<MatchType, string> = {
   regex: 'JavaScript regular expression',
 };
 
-/** Edits which request URLs an override applies to. */
+const sameRule = (a: UrlMatcher, b: UrlMatcher) => a.type === b.type && a.pattern === b.pattern && a.ignoreQuery === b.ignoreQuery;
+
+/** Edits which request URLs an override applies to. Key it by the override, so each one starts from its own rule. */
 export function MatchRule({ override }: { override: OverrideMeta }) {
-  const [type, setType] = useState<MatchType>(override.match.type);
-  const [pattern, setPattern] = useState(override.match.pattern);
-  const [ignoreQuery, setIgnoreQuery] = useState(override.match.ignoreQuery);
+  const saved = override.match;
+  // Unapplied edits, with the rule they were made to: once that changes (applied, or changed elsewhere) they are dropped.
+  const [draft, setDraft] = useState<{ base: UrlMatcher; rule: UrlMatcher } | null>(null);
+  const { type, pattern, ignoreQuery } = draft && sameRule(draft.base, saved) ? draft.rule : saved;
+  const edit = (patch: Partial<UrlMatcher>) => setDraft({ base: saved, rule: { type, pattern, ignoreQuery, ...patch } });
 
-  useEffect(() => {
-    setType(override.match.type);
-    setPattern(override.match.pattern);
-    setIgnoreQuery(override.match.ignoreQuery);
-  }, [override.match.type, override.match.pattern, override.match.ignoreQuery]);
-
-  const dirty = type !== override.match.type || pattern.trim() !== override.match.pattern || ignoreQuery !== override.match.ignoreQuery;
+  const dirty = type !== saved.type || pattern.trim() !== saved.pattern || ignoreQuery !== saved.ignoreQuery;
   const apply = () => void applyMatch(override.id, { type, pattern: pattern.trim(), ignoreQuery });
 
   return (
@@ -35,7 +33,7 @@ export function MatchRule({ override }: { override: OverrideMeta }) {
       <span className="text-[12px] text-fg-subtle">Applies to</span>
       <Menu
         label="Match type"
-        items={(['exact', 'glob', 'regex'] as MatchType[]).map((t) => ({ label: `${t} — ${TYPE_HELP[t]}`, checked: t === type, onSelect: () => setType(t) }))}
+        items={(['exact', 'glob', 'regex'] as MatchType[]).map((t) => ({ label: `${t} — ${TYPE_HELP[t]}`, checked: t === type, onSelect: () => edit({ type: t }) }))}
       >
         <Button size="sm" variant="secondary" trailing={<Icon icon={icons.ChevronDownIcon} size={12} />} data-testid="match-type">
           <span className="font-mono">{type}</span>
@@ -45,13 +43,13 @@ export function MatchRule({ override }: { override: OverrideMeta }) {
         size="sm"
         mono
         value={pattern}
-        onChange={(e) => setPattern(e.target.value)}
+        onChange={(e) => edit({ pattern: e.target.value })}
         onKeyDown={(e) => e.key === 'Enter' && dirty && apply()}
         aria-label="URL pattern"
         data-testid="match-pattern"
         className="min-w-[220px] flex-1"
       />
-      <Switch size="sm" checked={ignoreQuery} onCheckedChange={setIgnoreQuery} label={<span className="text-[12px] text-fg-muted">ignore ?query</span>} />
+      <Switch size="sm" checked={ignoreQuery} onCheckedChange={(checked) => edit({ ignoreQuery: checked })} label={<span className="text-[12px] text-fg-muted">ignore ?query</span>} />
       <Button size="sm" variant={dirty ? 'primary' : 'ghost'} disabled={!dirty} onClick={apply} className={cn(!dirty && 'opacity-60')}>
         Apply
       </Button>

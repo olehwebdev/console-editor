@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { icons } from '@/shared/config';
 import { cn } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
@@ -16,13 +16,9 @@ export interface AddressBarProps {
 export function AddressBar({ inputRef, className }: AddressBarProps) {
   const url = usePageStore((s) => s.page.url);
   const loading = usePageStore((s) => s.page.loading);
-  const [draft, setDraft] = useState(url);
-  const [editing, setEditing] = useState(false);
-  const local = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (!editing) setDraft(url);
-  }, [url, editing]);
+  /** What is being typed; null while not editing, so the field follows the page's URL. */
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? url;
 
   const secure = url.startsWith('https://');
   return (
@@ -40,28 +36,25 @@ export function AddressBar({ inputRef, className }: AddressBarProps) {
         <Icon icon={icons.GlobeIcon} size={14} className={secure ? 'text-live/80' : 'text-fg-subtle'} />
       )}
       <input
-        ref={(el) => {
-          local.current = el;
-          inputRef?.(el);
-        }}
+        ref={inputRef}
         data-testid="address-bar"
-        value={draft}
+        value={value}
         spellCheck={false}
         autoComplete="off"
         placeholder="Enter a URL — https://example.com or localhost:3000"
         onChange={(e) => setDraft(e.target.value)}
         onFocus={(e) => {
-          setEditing(true);
+          setDraft(url);
           e.target.select();
         }}
-        onBlur={() => setEditing(false)}
+        // Leaving the field (Enter and Escape blur it) drops the draft.
+        onBlur={() => setDraft(null)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && draft.trim()) {
-            void navigate(draft);
-            local.current?.blur();
+          if (e.key === 'Enter' && value.trim()) {
+            void navigate(value);
+            e.currentTarget.blur();
           } else if (e.key === 'Escape') {
-            setDraft(url);
-            local.current?.blur();
+            e.currentTarget.blur();
           }
         }}
         className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-fg outline-none placeholder:font-sans placeholder:text-fg-subtle"

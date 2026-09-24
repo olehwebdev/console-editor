@@ -40,6 +40,8 @@ export function PagePreview({ suspended = false, layoutKey, addressBarRef }: Pag
   /** The still shown while frozen: an image, `'unavailable'` if capturing failed, or null while pending. */
   const [snapshot, setSnapshot] = useState<string | 'unavailable' | null>(null);
   const frozen = overlayOpen && hasPage;
+  // A still belongs to one freeze; the next one waits for its own.
+  if (!frozen && snapshot !== null) setSnapshot(null);
 
   // Once the capture settles the live view gets out of the overlay's way, image or not.
   const hidden = suspended || !hasPage || (frozen && snapshot !== null);
@@ -54,12 +56,16 @@ export function PagePreview({ suspended = false, layoutKey, addressBarRef }: Pag
     setNativeViewRect(area);
   }, [hidden, hasPage, suspended]);
 
-  // Sync now, then follow the host for a while: moves that don't resize it
-  // (a neighbouring panel animating) never reach the ResizeObserver.
+  // Keep the view on the host box: now, whenever the host or the window is
+  // resized, and frame by frame until the host settles, since moves that don't
+  // resize it (a neighbouring panel animating) never reach the ResizeObserver.
   useLayoutEffect(() => {
     sync();
     const el = host.current;
     if (!el) return;
+    const observer = new ResizeObserver(sync);
+    observer.observe(el);
+    window.addEventListener('resize', sync);
     let last = el.getBoundingClientRect();
     let still = 0;
     let frame = 0;
@@ -73,31 +79,28 @@ export function PagePreview({ suspended = false, layoutKey, addressBarRef }: Pag
       frame = still < SETTLE_FRAMES ? requestAnimationFrame(track) : 0;
     };
     frame = requestAnimationFrame(track);
-    return () => cancelAnimationFrame(frame);
-  }, [sync, layoutKey]);
-
-  useEffect(() => () => setNativeViewRect(null), []);
-
-  useEffect(() => {
-    const el = host.current;
-    if (!el) return;
-    const observer = new ResizeObserver(sync);
-    observer.observe(el);
-    window.addEventListener('resize', sync);
     return () => {
+      cancelAnimationFrame(frame);
       observer.disconnect();
       window.removeEventListener('resize', sync);
     };
-  }, [sync]);
+  }, [sync, layoutKey]);
+
+  // The view goes with the panel (the preview was hidden), or it would stay drawn over what takes its place.
+  // Not in the effect above: its cleanup runs before every re-sync, and would hide the view in between.
+  useLayoutEffect(
+    () => () => {
+      api.setPageBounds(NO_BOUNDS);
+      setNativeViewRect(null);
+    },
+    [],
+  );
 
   // Freeze: capture first (the live view keeps showing meanwhile), then swap in the still.
   useEffect(() => {
-    if (!frozen) {
-      setSnapshot(null);
-      return;
-    }
+    if (!frozen) return;
     let cancelled = false;
-    api
+    void api
       .capturePage()
       .catch(() => null)
       .then((image) => {

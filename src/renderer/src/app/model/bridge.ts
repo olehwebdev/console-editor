@@ -16,12 +16,8 @@ import { checkForUpdatesNow, handleUpdateState, openWhatsNew, startUpdates } fro
 import type { PageCommands } from '@/pages/editor';
 import { flushSession, restoreSession, startSessionSync } from './session';
 
+/** What menu commands like "Focus Address Bar" do on the page; given to `startBridge`. */
 let pageCommands: PageCommands | null = null;
-
-/** The page registers what menu commands like "Focus Address Bar" should do while it is shown. */
-export function setPageCommands(commands: PageCommands | null): void {
-  pageCommands = commands;
-}
 
 function runCommand(command: MenuCommand): void {
   switch (command) {
@@ -150,8 +146,9 @@ export function handleAppEvent(event: AppEvent): void {
   }
 }
 
-/** Loads the initial state and starts routing events. Returns a cleanup. */
-export async function startBridge(): Promise<() => void> {
+/** Loads the initial state and starts routing events, menu commands to `commands`. Returns a cleanup. */
+export async function startBridge(commands: PageCommands): Promise<() => void> {
+  pageCommands = commands;
   const off = onAppEvent(handleAppEvent);
   const [settings, overrides, resources, page] = await Promise.all([
     api.getSettings(),

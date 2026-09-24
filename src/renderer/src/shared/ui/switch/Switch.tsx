@@ -1,6 +1,6 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import { animate, motion, useReducedMotion } from 'motion/react';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/shared/lib';
 
 // Heavy, deliberate thumb: high mass keeps the travel weighty without wobble.
@@ -72,14 +72,6 @@ export function Switch({
   const thumbRef = useRef<HTMLSpanElement>(null);
   const [pressed, setPressed] = useState(false);
 
-  // Refusal shake when a disabled switch is pressed.
-  useEffect(() => {
-    const thumb = thumbRef.current;
-    if (!thumb || reduce || !disabled || !pressed) return;
-    const controls = animate(thumb, { x: [0, -2, 2, -1, 0] }, { duration: 0.3 });
-    return () => controls.stop();
-  }, [disabled, pressed, reduce]);
-
   const squish = pressed && !disabled && !reduce;
 
   return (
@@ -95,7 +87,10 @@ export function Switch({
           if (!disabled) onCheckedChange(!checked);
         }}
         onPointerDown={(event) => {
-          if (event.button === 0) setPressed(true);
+          if (event.button !== 0) return;
+          setPressed(true);
+          // Refusal shake when a disabled switch is pressed.
+          if (disabled && !reduce && thumbRef.current) animate(thumbRef.current, { x: [0, -2, 2, -1, 0] }, { duration: 0.3 });
         }}
         onPointerUp={() => setPressed(false)}
         onPointerLeave={() => setPressed(false)}

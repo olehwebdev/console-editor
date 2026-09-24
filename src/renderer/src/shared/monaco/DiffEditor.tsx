@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { cn } from '@/shared/lib';
 import { focusWhenFree, getActiveEditor, setActiveEditor } from './editors';
 import { guardFloatingWidgets } from './floatingGuard';
@@ -23,8 +23,7 @@ export interface DiffEditorProps {
 export function DiffEditor({ original, modified, onMount, className }: DiffEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const diffRef = useRef<Diff | null>(null);
-  const onMountRef = useRef(onMount);
-  onMountRef.current = onMount;
+  const mounted = useEffectEvent((editor: monaco.editor.IStandaloneCodeEditor) => onMount?.(editor));
 
   useEffect(() => {
     const diff = monaco.editor.createDiffEditor(host.current!, {
@@ -40,7 +39,7 @@ export function DiffEditor({ original, modified, onMount, className }: DiffEdito
     const edited = diff.getModifiedEditor();
     setActiveEditor(edited);
     const unguard = guardFloatingWidgets(host.current!, [diff.getOriginalEditor(), edited]);
-    const cleanup = onMountRef.current?.(edited);
+    const cleanup = mounted(edited);
     return () => {
       cleanup?.();
       unguard();

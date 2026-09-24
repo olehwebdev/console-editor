@@ -152,6 +152,23 @@ describe('panel fitting', () => {
     expect(fitPanels(useLayout.getState()).preview).toBe(before - 14);
   });
 
+  it('holds the settled preview width through a drag, then catches up', async () => {
+    const { useLayout, selectPreviewWidth, selectSettledPreviewWidth } = await loadLayout(1600);
+    const width = () => selectPreviewWidth(useLayout.getState());
+    const settled = () => selectSettledPreviewWidth(useLayout.getState());
+    const before = width();
+    expect(settled()).toBe(before);
+
+    useLayout.getState().setResizing(true);
+    useLayout.getState().resizePreview(-60, -60);
+    useLayout.getState().resizePreview(-60, -120);
+    expect(width()).toBe(before + 120);
+    expect(settled()).toBe(before);
+
+    useLayout.getState().setResizing(false);
+    expect(settled()).toBe(before + 120);
+  });
+
   it('keeps the dividers under the pointer through sub-pixel moves (scaled screens, zoom)', async () => {
     const { useLayout, selectPreviewWidth, selectSidebarWidth } = await loadLayout(1600);
     const width = { preview: () => selectPreviewWidth(useLayout.getState()), sidebar: () => selectSidebarWidth(useLayout.getState()) };
