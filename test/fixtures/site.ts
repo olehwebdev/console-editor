@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { gzipSync } from 'node:zlib';
+import { STORE_BUNDLE, STORE_BUNDLE_PATH, STORE_CSS, STORE_CSS_PATH, STORE_HTML } from './demoStore.ts';
 
 export const APP_JS = `window.appValue = 'original';\ndocument.addEventListener('DOMContentLoaded', () => { document.querySelector('#app').textContent = 'app: ' + window.appValue; });\n`;
 
@@ -180,6 +181,10 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   add('/frames/shared.js', 'text/javascript', SHARED_JS);
   add('/frames/back.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/back.js"></script><p>back on the top page\'s site</p>');
   add('/frames/back.js', 'text/javascript', BACK_JS);
+  // The demo store (README screenshots, `npm run demo-site`): a checkout with a bug in its bundle.
+  add('/store/', 'text/html; charset=utf-8', STORE_HTML);
+  add(STORE_BUNDLE_PATH, 'application/javascript; charset=utf-8', STORE_BUNDLE);
+  add(STORE_CSS_PATH, 'text/css', STORE_CSS);
   // A page with an unsaved-changes guard, a new-tab link and a pop-up (site view policy).
   add(
     '/guard.html',
@@ -204,5 +209,7 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 
 if (process.argv[1] && /site\.ts$/.test(process.argv[1])) {
   const port = Number(process.env.PORT ?? 5174);
-  startFixtureSite(port).then((site) => console.log(`Fixture site running at ${site.url}`));
+  startFixtureSite(port).then((site) =>
+    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes`),
+  );
 }

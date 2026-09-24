@@ -23,6 +23,15 @@ export function triggerInActiveEditor(handlerId: string): void {
   active?.trigger('command', handlerId, null);
 }
 
+/**
+ * Closes the active editor's floating widgets (suggestions, parameter hints,
+ * hover). One left open over the page view keeps it frozen on a snapshot,
+ * which would hide the reload that follows a save.
+ */
+export function dismissEditorWidgets(): void {
+  for (const id of ['hideSuggestWidget', 'closeParameterHints', 'editor.action.hideHover']) triggerInActiveEditor(id);
+}
+
 let focusRequest: monaco.editor.ITextModel | null = null;
 
 /**

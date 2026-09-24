@@ -4,7 +4,30 @@
   "version": "0.1.0",
   "private": true,
   "description": "Desktop editor for live-patching the JS/CSS/HTML of any website (including cross-site iframes) without rebuilding it.",
+  "keywords": [
+    "devtools",
+    "debugging",
+    "live-editing",
+    "chrome-devtools-protocol",
+    "electron",
+    "monaco-editor",
+    "overrides",
+    "iframes"
+  ],
+  "homepage": "https://github.com/olehwebdev/console-editor#readme",
+  "bugs": {
+    "url": "https://github.com/olehwebdev/console-editor/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/olehwebdev/console-editor.git"
+  },
+  "license": "MIT",
+  "author": "olehwebdev",
   "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

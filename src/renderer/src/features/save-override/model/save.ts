@@ -1,5 +1,6 @@
 import { api, errorMessage } from '@/shared/api';
 import { fileName } from '@/shared/lib';
+import { dismissEditorWidgets } from '@/shared/monaco';
 import { toast } from '@/shared/ui/toast';
 import { getTabBase, getTabModel, markTabSaved, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
@@ -22,6 +23,8 @@ const jobs = new Map<string, SaveJob>();
  */
 export function saveTab(tabId: string | null = useTabStore.getState().activeId): Promise<void> {
   if (!tabId) return Promise.resolve();
+  // An autocomplete list left open over the page would keep it frozen and hide the reload.
+  dismissEditorWidgets();
   const job = jobs.get(tabId);
   if (!job) return startSave(tabId);
   job.next ??= job.task.then(() => (getTabModel(tabId)?.getAlternativeVersionId() === job.version ? undefined : startSave(tabId)));

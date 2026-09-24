@@ -11,6 +11,7 @@ vi.mock('@/shared/monaco', () => ({
   monaco: { editor: { createModel: () => ({}) }, Uri: { from: () => ({}) } },
   languageFor: () => 'javascript',
   editorHasFocus: () => false,
+  dismissEditorWidgets: () => {},
   triggerInActiveEditor: () => {},
 }));
 

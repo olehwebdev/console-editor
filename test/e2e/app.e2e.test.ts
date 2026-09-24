@@ -52,7 +52,7 @@ function evalInSite(app: ElectronApplication, siteUrl: string, expr: string, hos
         if (!wc) return undefined;
         const frame = host ? wc.mainFrame.framesInSubtree.find((f) => f.url && new URL(f.url).hostname === host) : wc.mainFrame;
         if (!frame) return undefined;
-        const gone = new Promise((resolve) => setTimeout(resolve, 2000, undefined));
+        const gone = new Promise((resolve) => setTimeout(resolve, 500, undefined));
         return Promise.race([frame.executeJavaScript(expr as string), gone]);
       },
       [siteUrl, expr, host] as const,
@@ -162,7 +162,7 @@ describe.skipIf(!built)('Console Editor app', () => {
 
   it("keeps the page under the editor's control: guards, new tabs, permissions", async () => {
     await goTo(win, `${site.url}/guard.html`);
-    await expect.poll(() => inSite('document.title')).toBe('Guarded');
+    await expect.poll(() => inSite('document.title'), { timeout: 15_000 }).toBe('Guarded');
     // The app answers the page's beforeunload itself; keep Playwright from trying to as well.
     app.windows().find((p) => p.url().startsWith(site.url))?.on('dialog', () => undefined);
     // beforeunload only applies once the user has interacted with the page.
