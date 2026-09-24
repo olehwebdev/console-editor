@@ -239,6 +239,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 | `npm run build` / `npm start` | Production build / run the build |
 | `npm run typecheck` | TypeScript, main process and renderer |
 | `npm run lint:fsd` | [Feature-Sliced Design](https://feature-sliced.design) architecture check ([Steiger](https://github.com/feature-sliced/steiger)) |
+| `npm run lint:structure` | Code-structure check: files of at most 150 lines, one function or component each, no `switch` ([CLAUDE.md › Code structure](CLAUDE.md#code-structure)) |
 | `npm test` | Unit and renderer tests, plus the interception engine and iframes against real Chromium (skipped without it: `npx playwright install chromium`) |
 | `npm run test:e2e` | Builds the app and drives it end to end with Playwright (headless Linux: `xvfb-run npm run test:e2e`) |
 | `npm run dist` | Builds the installers for your system into `dist/` (`npm run dist -- --dir` for just the app) |
