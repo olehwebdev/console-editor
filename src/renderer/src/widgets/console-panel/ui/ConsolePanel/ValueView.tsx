@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ConsoleProperty, ConsoleValue } from '@common/types';
 import { errorMessage } from '@/shared/api';
 import { icons } from '@/shared/config';
@@ -15,13 +15,16 @@ type Expansion = { properties: ConsoleProperty[] } | { error: string } | null;
 export function ValueView({ value }: { value: ConsoleValue }) {
   const [open, setOpen] = useState(false);
   const [expansion, setExpansion] = useState<Expansion>(null);
+  /** Properties were asked for: opening again before they arrive asks nothing more. */
+  const requested = useRef(false);
   const text = <span className={cn('whitespace-pre-wrap break-words', VALUE_TONE[value.kind])}>{value.text}</span>;
   const { handle } = value;
   if (handle === undefined) return text;
 
   const toggle = () => {
     setOpen(!open);
-    if (open || expansion) return;
+    if (open || requested.current) return;
+    requested.current = true;
     loadProperties(handle).then(
       (properties) => setExpansion({ properties }),
       (err: unknown) => setExpansion({ error: errorMessage(err) }),

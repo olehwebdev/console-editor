@@ -1,5 +1,7 @@
 import type { ConsoleValue } from '../../shared/types';
+import { MAX_VALUE_TEXT } from './constants';
 import { kindOf } from './kindOf';
+import { truncate } from './truncate';
 import type { RemoteObject } from './types';
 import { valueText } from './valueText';
 
@@ -35,5 +37,5 @@ export function formatArgs(args: RemoteObject[], toValue: (arg: RemoteObject) =>
     used++;
     return SPECIFIERS[letter]!(arg);
   });
-  return [{ kind: 'string', text }, ...rest.slice(used).map(toValue)];
+  return [{ kind: 'string', text: truncate(text, MAX_VALUE_TEXT) }, ...rest.slice(used).map(toValue)];
 }

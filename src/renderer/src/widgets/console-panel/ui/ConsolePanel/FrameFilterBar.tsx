@@ -23,7 +23,8 @@ export function FrameFilterBar({ frames, labels, counts }: FrameFilterBarProps) 
       <button type="button" aria-pressed={!picked.length} onClick={showAllFrames} className={cn(CHIP, picked.length ? 'text-fg-muted hover:bg-hover' : 'bg-surface-raised text-fg')}>
         All frames
       </button>
-      {frames.map((frame) => {
+      {/* One chip per key: frames at the same address filter together. */}
+      {frames.filter((frame, index) => frames.findIndex((f) => frameKey(f) === frameKey(frame)) === index).map((frame) => {
         const key = frameKey(frame);
         const on = picked.includes(key);
         const count = counts.get(key);

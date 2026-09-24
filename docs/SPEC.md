@@ -205,7 +205,7 @@ A workspace is a saved workflow: a page (URL, title and favicon), the tabs open 
 
 **Creating** adds an empty workspace (in the first colour no other has) and switches to it, with the address bar focused; if the switch doesn't happen, the new workspace is removed again. **Deleting** asks first and removes the workspace's overrides (first: were the workspace to go first and this fail, the next start would hand them to another), then the workspace with its drafts and favicon; the active one hands over to its neighbour first, and the last one can't be deleted. The site's cookies and logins (`persist:site`) are shared by all workspaces.
 
-**Frame names.** Each workspace keeps the names you give the page's frames in the console (`frameNames`, by frame key: `top` for the top page, else the frame's address without query or hash, else its `name`), at most 200, each up to 40 characters.
+**Frame names.** Each workspace keeps the names you give the page's frames in the console (`frameNames`, by frame key: `top` for the top page, else the frame's address without query or hash, else `name:` and its `name` attribute, else `id:` and its id), at most 200, each up to 40 characters.
 
 `CONSOLE_EDITOR_USER_DATA` overrides `<userData>` (used by tests; handy for throwaway profiles).
 

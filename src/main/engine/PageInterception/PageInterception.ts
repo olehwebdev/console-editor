@@ -35,6 +35,7 @@ export class PageInterception {
       this.cdp.on(CDP.Target.detachedFromTarget, (p: { sessionId: string }) => this.removeTarget(p.sessionId)),
     );
     await this.root.attach();
+    if (this.detached) return;
     // Bounded like an iframe's setup: the page loads nothing until this returns.
     await withTimeout(this.observe(undefined, sessionTransport(this.cdp)), IFRAME_SETUP_TIMEOUT_MS, 'Setting up the page').catch(() => undefined);
     await this.cdp.send(CDP.Target.setAutoAttach, { ...IFRAME_AUTO_ATTACH });

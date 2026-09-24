@@ -1,6 +1,7 @@
 import type { ConsoleFrame } from '@common/types';
 import { hostOf, webAddress } from '@/shared/lib';
 import { frameKey } from './frameKey';
+import { givenName } from './givenName';
 
 /**
  * What a frame is called: the name you gave it, else the iframe's `name`, else
@@ -8,7 +9,7 @@ import { frameKey } from './frameKey';
  * `cart.example.com/embed`).
  */
 export function frameLabel(frame: ConsoleFrame, names: Readonly<Record<string, string>>): string {
-  const given = names[frameKey(frame)];
+  const given = givenName(names, frameKey(frame));
   if (given) return given;
   if (frame.parentId && frame.name) return frame.name;
   if (!webAddress(frame.url)) return frame.parentId ? 'frame' : 'page';

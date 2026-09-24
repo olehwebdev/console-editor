@@ -50,6 +50,7 @@ export const CDP = {
     executionContextsCleared: 'Runtime.executionContextsCleared',
   },
   Log: {
+    clear: 'Log.clear',
     disable: 'Log.disable',
     enable: 'Log.enable',
     // Events
