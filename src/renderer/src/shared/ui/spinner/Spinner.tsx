@@ -14,12 +14,15 @@ export interface SpinnerProps {
   style?: CSSProperties;
 }
 
+/** The default diameter (px), for inline use; spinners this small get a thinner ring. */
+const INLINE_SIZE = 14;
+
 /**
  * Small ring spinner in `currentColor`. Rotation is a CSS animation on the
  * compositor (no JS per frame); with reduced motion it gently pulses instead.
  */
-export function Spinner({ size = 14, label, className, style }: SpinnerProps) {
-  const stroke = size <= 14 ? 1.5 : 2;
+export function Spinner({ size = INLINE_SIZE, label, className, style }: SpinnerProps) {
+  const stroke = size <= INLINE_SIZE ? 1.5 : 2;
   const r = (size - stroke) / 2;
   const c = size / 2;
   return (

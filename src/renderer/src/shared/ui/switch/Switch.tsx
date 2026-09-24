@@ -5,6 +5,8 @@ import { cn } from '@/shared/lib';
 
 // Heavy, deliberate thumb: high mass keeps the travel weighty without wobble.
 const THUMB_SPRING = { type: 'spring', stiffness: 800, damping: 80, mass: 4 } as const;
+/** `MouseEvent.button` of the main (left) button. */
+const PRIMARY_BUTTON = 0;
 
 export type SwitchSize = 'sm' | 'md';
 export type SwitchTone = 'live' | 'accent';
@@ -87,7 +89,7 @@ export function Switch({
           if (!disabled) onCheckedChange(!checked);
         }}
         onPointerDown={(event) => {
-          if (event.button !== 0) return;
+          if (event.button !== PRIMARY_BUTTON) return;
           setPressed(true);
           // Refusal shake when a disabled switch is pressed.
           if (disabled && !reduce && thumbRef.current) animate(thumbRef.current, { x: [0, -2, 2, -1, 0] }, { duration: 0.3 });
