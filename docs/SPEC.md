@@ -83,9 +83,10 @@ src/
     appInfo.ts       app id and repository URL (shared with electron-builder.ts)
     PageController.ts  WebContentsView for the site, navigation, engine wiring
     electronTransport.ts  webContents.debugger → CdpTransport
-    engine/          PageInterception.ts (one engine per CDP session: page + iframes),
-                     InterceptionEngine.ts, transform.ts (SRI/source maps/headers),
-                     cdp.ts (transport interface), websocketTransport.ts (browser-level CDP, used by tests)
+    engine/          PageInterception/ (one engine per CDP session: page + iframes),
+                     InterceptionEngine/, transform/ (SRI/source maps/headers),
+                     cdp/ (transport interface), websocketTransport/ (browser-level CDP, used by tests),
+                     constants.ts (CDP command and event names, HTTP status classes)
     store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts
     update/          UpdateService.ts (checks, downloads, installs: §10.1), electronInstaller.ts (electron-updater)
     sitePermissions.ts  permission policy for the site view
@@ -199,7 +200,7 @@ Injected before page scripts when SRI stripping is on. It makes the `integrity` 
 
 ### 6.5 Iframes (cross-site and nested)
 
-With site isolation, a cross-site iframe runs in its own renderer process and is a **separate CDP target**. `PageInterception` (`src/main/engine/PageInterception.ts`) runs one `InterceptionEngine` per CDP session: the page's own, plus one per iframe session, recursively. Each engine gets a session-bound transport (`sessionTransport()`), so a request paused on one session is always answered on that same session. Behaviour below was probed against real Chromium; the probes are encoded in `test/integration/iframes.chromium.test.ts`.
+With site isolation, a cross-site iframe runs in its own renderer process and is a **separate CDP target**. `PageInterception` (`src/main/engine/PageInterception/`) runs one `InterceptionEngine` per CDP session: the page's own, plus one per iframe session, recursively. Each engine gets a session-bound transport (`sessionTransport()`), so a request paused on one session is always answered on that same session. Behaviour below was probed against real Chromium; the probes are encoded in `test/integration/iframes.chromium.test.ts`.
 
 | Fact (verified) | Consequence |
 |---|---|

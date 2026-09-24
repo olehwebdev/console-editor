@@ -1,57 +1,11 @@
-import type { ResourceContent, ResourceEntry } from '../../shared/types';
-import { sessionTransport, type CdpTransport } from './cdp';
-import { InterceptionEngine, type EngineOptions } from './InterceptionEngine';
-
-/**
- * Cross-site iframes run in their own renderer process (site isolation) and are
- * separate CDP targets. Auto-attach pauses each one before it loads anything,
- * so an engine can be set up on it first. Workers are deliberately excluded.
- */
-export const IFRAME_AUTO_ATTACH = {
-  autoAttach: true,
-  waitForDebuggerOnStart: true,
-  flatten: true,
-  filter: [{ type: 'iframe' }, { exclude: true }],
-} as const;
-
-/**
- * Upper bound for setting up an iframe (and for one fan-out step on it). A
- * paused iframe blocks its page, so after this we resume it regardless and
- * report that its first loads may bypass overrides.
- */
-export const IFRAME_SETUP_TIMEOUT_MS = 5000;
-
-interface AttachedToTarget {
-  sessionId: string;
-  targetInfo: { targetId: string; type: string; url: string };
-  waitingForDebugger: boolean;
-}
-
-interface ChildTarget {
-  sessionId: string;
-  /** Equal to the iframe's frame id. Chromium may reuse it for a later session of the same frame. */
-  targetId: string;
-  /** Session that attached it: undefined for the page, else a parent iframe. */
-  parentSessionId?: string;
-  depth: number;
-  engine: InterceptionEngine;
-  /** Settles every in-flight command once the session is gone (Chromium never answers them). */
-  gone(reason: Error): void;
-}
-
-class SessionGoneError extends Error {
-  constructor(sessionId: string) {
-    super(`iframe session ${sessionId} is gone`);
-  }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${what} timed out after ${ms} ms`)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
+import type { ResourceContent, ResourceEntry } from '../../../shared/types';
+import { sessionTransport, type CdpTransport } from '../cdp';
+import { CDP } from '../constants';
+import { InterceptionEngine, type EngineOptions } from '../InterceptionEngine';
+import { IFRAME_AUTO_ATTACH, IFRAME_SETUP_TIMEOUT_MS, IFRAME_TARGET_TYPE } from './constants';
+import { SessionGoneError } from './SessionGoneError';
+import type { AttachedToTarget, ChildTarget } from './types';
+import { withTimeout } from './withTimeout';
 
 /**
  * Interception for one page and all of its cross-site iframes: one
@@ -77,11 +31,11 @@ export class PageInterception {
 
   async attach(): Promise<void> {
     this.disposers.push(
-      this.cdp.on('Target.attachedToTarget', (p: AttachedToTarget, parentSessionId) => void this.onAttached(p, parentSessionId)),
-      this.cdp.on('Target.detachedFromTarget', (p: { sessionId: string }) => this.removeTarget(p.sessionId)),
+      this.cdp.on(CDP.Target.attachedToTarget, (p: AttachedToTarget, parentSessionId) => void this.onAttached(p, parentSessionId)),
+      this.cdp.on(CDP.Target.detachedFromTarget, (p: { sessionId: string }) => this.removeTarget(p.sessionId)),
     );
     await this.root.attach();
-    await this.cdp.send('Target.setAutoAttach', { ...IFRAME_AUTO_ATTACH });
+    await this.cdp.send(CDP.Target.setAutoAttach, { ...IFRAME_AUTO_ATTACH });
   }
 
   /**
@@ -93,7 +47,7 @@ export class PageInterception {
     for (const dispose of this.disposers.splice(0)) dispose();
     for (const sessionId of [...this.children.keys()]) this.removeTarget(sessionId, false);
     this.root.detach();
-    this.cdp.send('Target.setAutoAttach', { autoAttach: false, waitForDebuggerOnStart: false, flatten: true }).catch(() => undefined);
+    this.cdp.send(CDP.Target.setAutoAttach, { autoAttach: false, waitForDebuggerOnStart: false, flatten: true }).catch(() => undefined);
   }
 
   /** Applies settings on the page and every live iframe session. */
@@ -160,7 +114,7 @@ export class PageInterception {
     if (this.children.has(sessionId)) return;
     const parent = parentSessionId === undefined ? undefined : this.children.get(parentSessionId);
     const parentKnown = parentSessionId === undefined || !!parent;
-    if (this.detached || targetInfo.type !== 'iframe' || !parentKnown) {
+    if (this.detached || targetInfo.type !== IFRAME_TARGET_TYPE || !parentKnown) {
       await this.resume(sessionId);
       return;
     }
@@ -199,7 +153,7 @@ export class PageInterception {
           const parentEngine = parent?.engine ?? this.root;
           if (engine.parentFrameId) engine.setBaseDepth(parentEngine.frameDepth(engine.parentFrameId) + 1);
           // Nested cross-site iframes attach through this session.
-          if (this.children.get(sessionId) === child) await transport.send('Target.setAutoAttach', { ...IFRAME_AUTO_ATTACH });
+          if (this.children.get(sessionId) === child) await transport.send(CDP.Target.setAutoAttach, { ...IFRAME_AUTO_ATTACH });
         })(),
         IFRAME_SETUP_TIMEOUT_MS,
         'Setting up the iframe',
@@ -232,6 +186,6 @@ export class PageInterception {
   }
 
   private async resume(sessionId: string): Promise<void> {
-    await this.cdp.send('Runtime.runIfWaitingForDebugger', {}, sessionId).catch(() => undefined);
+    await this.cdp.send(CDP.Runtime.runIfWaitingForDebugger, {}, sessionId).catch(() => undefined);
   }
 }
