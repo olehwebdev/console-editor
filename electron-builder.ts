@@ -27,8 +27,11 @@ const config: Configuration = {
     enableNodeCliInspectArguments: false,
     enableEmbeddedAsarIntegrityValidation: true,
     onlyLoadAppFromAsar: true,
-    // The site view keeps logins; store its cookies encrypted, as Chrome does.
-    enableCookieEncryption: true,
+    // The site view keeps logins; store its cookies encrypted, as Chrome does. Not yet in ad-hoc signed Mac
+    // builds: their Keychain access is tied to each build's own signature, so every update would ask for
+    // the login password, and refusing would drop the logins. (Mac apps are only built on macOS.)
+    // Turning it on later is safe: plain cookies get encrypted as they're written.
+    enableCookieEncryption: signed || process.platform !== 'darwin',
     // grantFileProtocolExtraPrivileges stays on: the editor UI is loaded from file:// and starts module workers there.
   },
 

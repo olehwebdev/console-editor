@@ -14,6 +14,13 @@ import { SettingsStore } from './store/SettingsStore';
 // Allow tests and power users to keep data elsewhere (e.g. a throwaway profile).
 if (process.env.CONSOLE_EDITOR_USER_DATA) app.setPath('userData', process.env.CONSOLE_EDITOR_USER_DATA);
 
+// As Chrome does, open no debugging port onto the real profile: any local program could start the app
+// with one and read the site view's logins. With a data folder of its own (tests) it still works.
+if (app.isPackaged && !process.env.CONSOLE_EDITOR_USER_DATA) {
+  app.commandLine.removeSwitch('remote-debugging-port');
+  app.commandLine.removeSwitch('remote-debugging-pipe');
+}
+
 // Documents served from overrides would otherwise lose access to local/intranet hosts (see chromiumFlags.ts).
 app.commandLine.appendSwitch(
   'disable-features',

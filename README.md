@@ -87,11 +87,11 @@ Download the installer for your system from the **[latest release](https://githu
 
 The builds aren't signed with a publisher certificate yet, so the first launch takes one extra step:
 
-- **macOS:** open the app once, then click **Open Anyway** in **System Settings › Privacy & Security**. If macOS calls the app damaged instead, run `xattr -dr com.apple.quarantine "/Applications/Console Editor.app"`.
-- **Windows:** if SmartScreen says it protected your PC, click **More info › Run anyway**.
+- **macOS:** drag the app to Applications and open it, then click **Open Anyway** in **System Settings › Privacy & Security**. If macOS calls the app damaged instead, run `xattr -dr com.apple.quarantine "/Applications/Console Editor.app"`. Each new version asks again, as do sites' camera, microphone and location permissions.
+- **Windows:** if SmartScreen says it protected your PC, click **More info › Run anyway**. With Smart App Control on, Windows blocks unsigned apps with no way to allow just this one.
 - **Linux:** on Ubuntu 24.04 and later, use the `.deb`: it installs the AppArmor profile Chromium's sandbox needs there. An AppImage needs `chmod +x` first.
 
-Each release lists SHA-256 checksums in `SHA256SUMS.txt`. Before a release is drafted, the Apple silicon disk image, the Windows x64 installer and the x64 `.deb` are installed and tested on their systems.
+Each release lists SHA-256 checksums in `SHA256SUMS.txt`. Before a release is drafted, the disk images, the Windows installers and the `.deb` packages are each installed and tested on a machine of their architecture.
 
 ## Run from source
 

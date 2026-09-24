@@ -1,7 +1,8 @@
 name: Release
 
-# Builds the installers on macOS, Windows and Linux, installs each one and runs
-# the packaged-app smoke test against it, then drafts a GitHub release.
+# Builds the installers on macOS, Windows and Linux, installs each one on a
+# runner of its architecture and runs the packaged-app smoke test against the
+# installed app, then drafts a GitHub release.
 #
 #   - Push a tag vX.Y.Z (matching package.json) to build and draft that release.
 #   - Or run it by hand: it builds and tests the installers (downloadable from
@@ -113,36 +114,6 @@ jobs:
           sudo apt-get install -y rpm
           npx electron-builder --linux --x64 --arm64 --publish never
 
-      # Each smoke test installs the way a user would and runs the installed app.
-      - name: Install the disk image and test the app
-        if: runner.os == 'macOS'
-        run: |
-          arch=$([ "$(uname -m)" = arm64 ] && echo arm64 || echo x64)
-          codesign --verify --deep --strict --verbose=2 "dist/mac-arm64/Console Editor.app"
-          codesign --verify --deep --strict --verbose=2 "dist/mac/Console Editor.app"
-          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/dmg" dist/console-editor-*-mac-$arch.dmg
-          cp -R "$RUNNER_TEMP/dmg/Console Editor.app" "$RUNNER_TEMP/"
-          hdiutil detach "$RUNNER_TEMP/dmg"
-          npm run test:packaged -- "$RUNNER_TEMP/Console Editor.app/Contents/MacOS/Console Editor"
-
-      - name: Install and test the app
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $installer = Get-ChildItem dist -Filter 'console-editor-*-win-x64-setup.exe' | Select-Object -First 1
-          Start-Process -FilePath $installer.FullName -ArgumentList '/S', '/currentuser' -Wait
-          $app = Join-Path $env:LOCALAPPDATA 'Programs\Console Editor\Console Editor.exe'
-          if (-not (Test-Path $app)) { throw "The installer didn't put the app at $app" }
-          npm run test:packaged -- "$app"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
-      # Without relaxing Ubuntu's user-namespace restriction: the package's AppArmor profile has to cover it.
-      - name: Install the .deb and test the app
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get install -y ./dist/console-editor_*_amd64.deb
-          xvfb-run -a npm run test:packaged -- "/opt/Console Editor/console-editor"
-
       - uses: actions/upload-artifact@v7
         with:
           name: installers-${{ runner.os }}
@@ -157,17 +128,103 @@ jobs:
           # Installers are compressed already.
           compression-level: 0
 
+  # Installs each installer the way a user would, on a runner of its own architecture, and runs the
+  # packaged-app smoke test against the installed app.
+  test:
+    name: Test (${{ matrix.name }})
+    needs: installers
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS, Apple silicon
+            os: macos-latest
+            installers: installers-macOS
+          - name: macOS, Intel
+            os: macos-26-intel
+            installers: installers-macOS
+          - name: Windows x64
+            os: windows-latest
+            installers: installers-Windows
+          - name: Windows on ARM
+            os: windows-11-arm
+            installers: installers-Windows
+          - name: Linux x64
+            os: ubuntu-latest
+            installers: installers-Linux
+          - name: Linux arm64
+            os: ubuntu-24.04-arm
+            installers: installers-Linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # For the smoke test's Playwright; the app under test is the installed one.
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.installers }}
+          path: dist
+
+      - name: Install the disk image and test the app
+        if: runner.os == 'macOS'
+        run: |
+          arch=$([ "$(uname -m)" = arm64 ] && echo arm64 || echo x64)
+          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/dmg" dist/console-editor-*-mac-$arch.dmg
+          cp -R "$RUNNER_TEMP/dmg/Console Editor.app" "$RUNNER_TEMP/"
+          # Spotlight can still be reading the fresh volume.
+          hdiutil detach "$RUNNER_TEMP/dmg" || { sleep 3; hdiutil detach -force "$RUNNER_TEMP/dmg"; }
+          codesign --verify --deep --strict "$RUNNER_TEMP/Console Editor.app"
+          npm run test:packaged -- "$RUNNER_TEMP/Console Editor.app/Contents/MacOS/Console Editor"
+
+      - name: Install and test the app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+          if ($arch -eq 'x64') {
+            # The ARM installer must refuse an x64 PC rather than leave shortcuts to nothing.
+            $arm = Get-ChildItem dist -Filter 'console-editor-*-win-arm64-setup.exe' | Select-Object -First 1
+            $refused = Start-Process -FilePath $arm.FullName -ArgumentList '/S', '/currentuser' -Wait -PassThru
+            if ($refused.ExitCode -ne 2) { throw "The ARM installer exited with $($refused.ExitCode) on x64, not 2" }
+          }
+          $installer = Get-ChildItem dist -Filter "console-editor-*-win-$arch-setup.exe" | Select-Object -First 1
+          $installed = Start-Process -FilePath $installer.FullName -ArgumentList '/S', '/currentuser' -Wait -PassThru
+          if ($installed.ExitCode -ne 0) { throw "The installer exited with $($installed.ExitCode)" }
+          $app = Join-Path $env:LOCALAPPDATA 'Programs\Console Editor\Console Editor.exe'
+          if (-not (Test-Path $app)) { throw "The installer didn't put the app at $app" }
+          if (Test-Path (Join-Path $env:LOCALAPPDATA 'console-editor-updater')) { throw 'The installer left its copy in console-editor-updater' }
+          npm run test:packaged -- "$app"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      # Without relaxing Ubuntu's user-namespace restriction: the package's AppArmor profile has to cover it.
+      - name: Install the .deb and test the app
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb "./dist/console-editor_$(jq -r .version package.json)_$(dpkg --print-architecture).deb"
+          xvfb-run -a npm run test:packaged -- "/opt/Console Editor/console-editor"
+
       - name: Upload the smoke test's screenshot
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: smoke-test-${{ runner.os }}
+          name: smoke-test-${{ runner.os }}-${{ runner.arch }}
           path: test-results/
           if-no-files-found: ignore
 
   release:
     name: Draft the release
-    needs: [prepare, installers]
+    needs: [prepare, test]
     if: github.ref_type == 'tag' || inputs.draft_release
     runs-on: ubuntu-latest
     permissions:
