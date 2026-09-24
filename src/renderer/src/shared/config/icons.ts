@@ -4,6 +4,7 @@
  */
 export {
   Alert02Icon as WarningIcon,
+  AppWindowIcon as PreviewIcon,
   ArrowDown01Icon as ChevronDownIcon,
   ArrowLeft01Icon as BackIcon,
   ArrowRight01Icon as ChevronRightIcon,
@@ -39,5 +40,4 @@ export {
   SourceCodeIcon as ExplorerIcon,
   SparklesIcon,
   Tick02Icon as CheckIcon,
-  LayoutRightIcon as PreviewIcon,
 } from '@hugeicons/core-free-icons';
