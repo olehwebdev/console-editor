@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
 import { EASE_OUT, fileName } from '@/shared/lib';
 import { CodeEditor, DiffEditor } from '@/shared/monaco';
@@ -15,9 +16,6 @@ import { WhatsNewPage } from '@/features/update-app';
 import { FileHeader } from '../FileHeader';
 import { useEditorActions } from './useEditorActions';
 import { useFocusOnOpen } from './useFocusOnOpen';
-
-/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: Kbd takes a mutable `string[]`. */
-const SHORTCUT = { save: ['mod', 'S'], palette: ['mod', 'K'] } satisfies Record<string, string[]>;
 
 const STEPS: Array<{ keys?: string[]; text: string }> = [
   { text: 'Enter the site’s URL in the preview’s address bar.' },

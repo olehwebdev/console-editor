@@ -1,3 +1,4 @@
+import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
 import { Badge } from '@/shared/ui/badge';
 import { Button, Swap } from '@/shared/ui/button';
@@ -12,9 +13,6 @@ import { saveTab } from '@/features/save-override';
 import { Banners } from '../Banners';
 import { MatchRule } from '../MatchRule';
 import { Breadcrumbs } from './Breadcrumbs';
-
-/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: IconButton takes a mutable `string[]`. */
-const SHORTCUT = { format: ['shift', 'alt', 'F'], diff: ['mod', 'shift', 'D'] } satisfies Record<string, string[]>;
 
 /** The Save button's states: the key its Swap rolls on, and the label. */
 const SAVE_STATE = {

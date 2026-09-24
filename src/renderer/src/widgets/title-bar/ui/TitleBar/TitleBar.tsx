@@ -1,3 +1,4 @@
+import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
 import { cn, hostOf, pathSegments } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
@@ -7,9 +8,6 @@ import type { TooltipSide } from '@/shared/ui/tooltip';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { usePageStore } from '@/entities/page';
 import { BrandMark } from './BrandMark';
-
-/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: Kbd and IconButton take a mutable `string[]`. */
-const SHORTCUT = { palette: ['mod', 'K'], sidebar: ['mod', 'B'] } satisfies Record<string, string[]>;
 
 /** The layout toggles' tooltips open into the window, below the title bar. */
 const TOOLTIP_SIDE: TooltipSide = 'bottom';

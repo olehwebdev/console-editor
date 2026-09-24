@@ -1,4 +1,5 @@
 import { useShallow } from 'zustand/react/shallow';
+import { SHORTCUT } from '@common/constants';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { Icon } from '@/shared/ui/icon';
@@ -11,9 +12,6 @@ import { selectResourceCount, useResourceStore } from '@/entities/resource';
 import { useResourceFilter } from '@/features/filter-resources';
 import { OverrideList } from './OverrideList';
 import { ResourceTree } from './ResourceTree';
-
-/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: Kbd takes a mutable `string[]`. */
-const SHORTCUT = { palette: ['mod', 'K'] } satisfies Record<string, string[]>;
 
 /** Sidebar: filter, the user's overrides, and the files the page loaded. */
 export function Explorer() {

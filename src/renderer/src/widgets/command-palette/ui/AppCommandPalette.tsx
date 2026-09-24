@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { SHORTCUT } from '@common/constants';
 import type { ResourceKind } from '@common/types';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
@@ -18,16 +19,6 @@ import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 
 const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon };
-
-/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: the palette takes a mutable `string[]`. */
-const SHORTCUT = {
-  save: ['mod', 'S'],
-  format: ['shift', 'alt', 'F'],
-  diff: ['mod', 'shift', 'D'],
-  reload: ['mod', 'R'],
-  focusUrl: ['mod', 'L'],
-  pageDevTools: ['mod', 'shift', 'J'],
-} satisfies Record<string, string[]>;
 
 /** An override has two items: their ids are one of these prefixes and its id. */
 const OVERRIDE_ITEM_PREFIX = { open: 'open-', toggle: 'toggle-' } as const;
