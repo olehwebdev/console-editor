@@ -178,7 +178,8 @@ try {
     // The AppImage has the version in its name, so the new one sits beside where the old one was.
     let updated = executable;
     if (appImage) {
-      updated = join(dirname(appImage), basename(files.find((name) => name.endsWith('.AppImage') && name.includes(next))!));
+      // The updater names it after the release file for this architecture: the old name with the new version.
+      updated = join(dirname(appImage), basename(appImage).replace(current, next));
       if (!existsSync(updated)) throw new Error(`No updated AppImage at ${updated}`);
       if (updated !== appImage && existsSync(appImage)) throw new Error(`The old AppImage is still at ${appImage}`);
     }
