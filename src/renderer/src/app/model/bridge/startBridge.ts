@@ -12,21 +12,16 @@ import { applyResourceSnapshot } from './resources/applyResourceSnapshot';
 /** Loads the initial state and starts routing events, menu commands to `commands`. Returns a cleanup. */
 export async function startBridge(commands: PageCommands): Promise<() => void> {
   pageCommands.current = commands;
+  // Stays subscribed even if loading fails: the main process still needs its flush-session answered to close.
   const off = onAppEvent(handleAppEvent);
-  try {
-    // Each snapshot is applied as its reply arrives, in order with the events around it:
-    // one handled after that reply is newer, and must not be overwritten by it.
-    await Promise.all([
-      api.getSettings().then((settings) => useSettingsStore.getState().setSettings(settings)),
-      api.listOverrides().then((overrides) => useOverrideStore.getState().setAll(overrides)),
-      api.listResources().then(applyResourceSnapshot),
-      api.getPageState().then((page) => usePageStore.getState().setPage(page)),
-    ]);
-  } catch (err) {
-    // No cleanup reaches the caller, so stop routing here.
-    off();
-    throw err;
-  }
+  // Each snapshot is applied as its reply arrives, in order with the events around it:
+  // one handled after that reply is newer, and must not be overwritten by it.
+  await Promise.all([
+    api.getSettings().then((settings) => useSettingsStore.getState().setSettings(settings)),
+    api.listOverrides().then((overrides) => useOverrideStore.getState().setAll(overrides)),
+    api.listResources().then(applyResourceSnapshot),
+    api.getPageState().then((page) => usePageStore.getState().setPage(page)),
+  ]);
 
   // Unsaved edits are kept as drafts rather than guarded: closing never asks to discard them.
   let stopSync: (() => void) | undefined;

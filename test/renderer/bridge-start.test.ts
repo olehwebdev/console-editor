@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, type AppEvent, type OverrideMeta, type PageState, type ResourceEntry, type Settings } from '../../src/shared/types';
 import { handleAppEvent, startBridge } from '@/app/model/bridge';
-import { restoreSession, startSessionSync } from '@/app/model/session';
+import { flushSession, restoreSession, startSessionSync } from '@/app/model/session';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore } from '@/entities/resource';
 import { startUpdates } from '@/features/update-app';
 
-const api = vi.hoisted(() => ({ getSettings: vi.fn(), listOverrides: vi.fn(), listResources: vi.fn(), getPageState: vi.fn() }));
+const api = vi.hoisted(() => ({ getSettings: vi.fn(), listOverrides: vi.fn(), listResources: vi.fn(), getPageState: vi.fn(), sessionFlushed: vi.fn() }));
 const events = vi.hoisted(() => ({ listener: undefined as ((event: AppEvent) => void) | undefined, off: vi.fn() }));
 
 vi.mock('@/shared/api', () => ({
@@ -110,9 +110,12 @@ describe('start bridge', () => {
     api.listResources.mockReturnValue(resources.promise);
 
     const started = startBridge(COMMANDS);
+    // The reset is older than the list: applied after it, it would wipe the list.
+    emit({ type: 'navigated', url: 'https://site.test/' });
     emit({ type: 'resource', resource: res('https://site.test/early.js') });
     resources.resolve([res('https://site.test/a.js')]);
     const stop = await started;
+    frames.forEach((frame) => frame(0));
 
     expect(urls().sort()).toEqual(['https://site.test/a.js', 'https://site.test/early.js']);
     stop();
@@ -144,11 +147,16 @@ describe('start bridge', () => {
     stop();
   });
 
-  it('stops routing events when the initial state fails to load', async () => {
+  it('keeps answering the main process when the initial state fails to load', async () => {
     api.listOverrides.mockRejectedValueOnce(new Error('main process gone'));
+    vi.mocked(flushSession).mockResolvedValueOnce(true);
     await expect(startBridge(COMMANDS)).rejects.toThrow('main process gone');
-    expect(events.off).toHaveBeenCalledTimes(1);
     expect(restoreSession).not.toHaveBeenCalled();
+
+    // Closing the window waits for this answer; unanswered, it warns about lost edits after a timeout.
+    expect(events.off).not.toHaveBeenCalled();
+    emit({ type: 'flush-session' });
+    await vi.waitFor(() => expect(api.sessionFlushed).toHaveBeenCalledExactlyOnceWith(true));
   });
 
   it('still keeps the session in sync when restoring it failed', async () => {
