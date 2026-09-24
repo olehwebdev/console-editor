@@ -1,0 +1,172 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SETTINGS, type AppEvent, type OverrideMeta, type PageState, type ResourceEntry, type Settings } from '../../src/shared/types';
+import { handleAppEvent, startBridge } from '@/app/model/bridge';
+import { restoreSession, startSessionSync } from '@/app/model/session';
+import { useOverrideStore } from '@/entities/override';
+import { usePageStore } from '@/entities/page';
+import { useResourceStore } from '@/entities/resource';
+import { startUpdates } from '@/features/update-app';
+
+const api = vi.hoisted(() => ({ getSettings: vi.fn(), listOverrides: vi.fn(), listResources: vi.fn(), getPageState: vi.fn() }));
+const events = vi.hoisted(() => ({ listener: undefined as ((event: AppEvent) => void) | undefined, off: vi.fn() }));
+
+vi.mock('@/shared/api', () => ({
+  api,
+  onAppEvent: (listener: (event: AppEvent) => void) => {
+    events.listener = listener;
+    return events.off;
+  },
+  errorMessage: (err: unknown) => String(err),
+}));
+vi.mock('@/shared/ui/toast', () => ({ toast: Object.assign(vi.fn(), { dismiss: vi.fn(), update: vi.fn() }) }));
+vi.mock('@/shared/ui/dialog', () => ({ confirm: async () => true, isConfirmOpen: () => false }));
+vi.mock('@/shared/monaco', () => ({
+  monaco: { editor: { createModel: () => ({}) }, Uri: { from: () => ({}) } },
+  languageFor: () => 'javascript',
+  editorHasFocus: () => false,
+  dismissEditorWidgets: () => {},
+  triggerInActiveEditor: () => {},
+}));
+vi.mock('@/app/model/session', () => ({ flushSession: vi.fn(), restoreSession: vi.fn(async () => {}), startSessionSync: vi.fn() }));
+vi.mock('@/features/update-app', () => ({ openWhatsNew: vi.fn(), checkForUpdatesNow: vi.fn(), handleUpdateState: vi.fn(), startUpdates: vi.fn(async () => {}) }));
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((res, rej) => ((resolve = res), (reject = rej)));
+  return { promise, resolve, reject };
+}
+
+/** Lets pending promise callbacks run. */
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+const meta = (id: string): OverrideMeta => ({
+  id,
+  kind: 'Script',
+  sourceUrl: `https://site.test/${id}.js`,
+  match: { type: 'exact', pattern: `https://site.test/${id}.js`, ignoreQuery: false },
+  enabled: true,
+  originalHash: null,
+  createdAt: 0,
+  updatedAt: 0,
+});
+const res = (url: string): ResourceEntry => ({ url, kind: 'Script', mimeType: 'text/javascript', status: 200 });
+const PAGE: PageState = { url: 'https://site.test/', title: 'Site', loading: false, canGoBack: false, canGoForward: false };
+const urls = () => Object.values(useResourceStore.getState().byKey).map((e) => e.url);
+const emit = (event: AppEvent) => events.listener!(event);
+const COMMANDS = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn() };
+
+describe('start bridge', () => {
+  const frames: FrameRequestCallback[] = [];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    frames.length = 0;
+    events.listener = undefined;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    useResourceStore.getState().reset();
+    useOverrideStore.setState({ byId: {}, hits: {}, upstreamChanged: {} });
+    api.getSettings.mockResolvedValue(DEFAULT_SETTINGS);
+    api.listOverrides.mockResolvedValue([]);
+    api.listResources.mockResolvedValue([]);
+    api.getPageState.mockResolvedValue(PAGE);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('applies each snapshot as its reply arrives, so events that come after it win', async () => {
+    const settings = deferred<Settings>();
+    const overrides = deferred<OverrideMeta[]>();
+    const resources = deferred<ResourceEntry[]>();
+    const page = deferred<PageState>();
+    api.getSettings.mockReturnValue(settings.promise);
+    api.listOverrides.mockReturnValue(overrides.promise);
+    api.listResources.mockReturnValue(resources.promise);
+    api.getPageState.mockReturnValue(page.promise);
+
+    const started = startBridge(COMMANDS);
+    overrides.resolve([meta('o1')]);
+    resources.resolve([res('https://old.test/a.js')]);
+    await tick();
+    // Main answered those two, then the page navigated and the override was deleted, then it answered the rest.
+    emit({ type: 'navigated', url: 'https://site.test/' });
+    emit({ type: 'resource', resource: res('https://site.test/b.js') });
+    emit({ type: 'overrides-changed', overrides: [] });
+    settings.resolve(DEFAULT_SETTINGS);
+    page.resolve(PAGE);
+    const stop = await started;
+    frames.forEach((frame) => frame(0));
+
+    expect(urls()).toEqual(['https://site.test/b.js']);
+    expect(useOverrideStore.getState().byId).toEqual({});
+    expect(usePageStore.getState().page).toEqual(PAGE);
+    stop();
+  });
+
+  it('applies events that arrived before the resource snapshot first', async () => {
+    const resources = deferred<ResourceEntry[]>();
+    api.listResources.mockReturnValue(resources.promise);
+
+    const started = startBridge(COMMANDS);
+    emit({ type: 'resource', resource: res('https://site.test/early.js') });
+    resources.resolve([res('https://site.test/a.js')]);
+    const stop = await started;
+
+    expect(urls().sort()).toEqual(['https://site.test/a.js', 'https://site.test/early.js']);
+    stop();
+  });
+
+  it('routes events from the start, restores the session, then keeps it in sync; the cleanup stops both', async () => {
+    const stopSync = vi.fn();
+    vi.mocked(startSessionSync).mockReturnValue(stopSync);
+
+    const stop = await startBridge(COMMANDS);
+    expect(events.listener).toBe(handleAppEvent);
+    expect(restoreSession).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(startSessionSync).toHaveBeenCalledTimes(1));
+
+    stop();
+    expect(events.off).toHaveBeenCalledTimes(1);
+    expect(stopSync).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts updates once the session is back', async () => {
+    const restore = deferred<void>();
+    vi.mocked(restoreSession).mockReturnValueOnce(restore.promise);
+
+    const stop = await startBridge(COMMANDS);
+    await tick();
+    expect(startUpdates).not.toHaveBeenCalled();
+    restore.resolve();
+    await vi.waitFor(() => expect(startUpdates).toHaveBeenCalledTimes(1));
+    stop();
+  });
+
+  it('stops routing events when the initial state fails to load', async () => {
+    api.listOverrides.mockRejectedValueOnce(new Error('main process gone'));
+    await expect(startBridge(COMMANDS)).rejects.toThrow('main process gone');
+    expect(events.off).toHaveBeenCalledTimes(1);
+    expect(restoreSession).not.toHaveBeenCalled();
+  });
+
+  it('still keeps the session in sync when restoring it failed', async () => {
+    vi.mocked(restoreSession).mockRejectedValueOnce(new Error('corrupt session'));
+    const stop = await startBridge(COMMANDS);
+    await vi.waitFor(() => expect(startSessionSync).toHaveBeenCalledTimes(1));
+    stop();
+  });
+
+  it('does not start syncing when cleaned up before the restore finishes', async () => {
+    const restore = deferred<void>();
+    vi.mocked(restoreSession).mockReturnValueOnce(restore.promise);
+
+    const stop = await startBridge(COMMANDS);
+    stop();
+    restore.resolve();
+    await tick();
+
+    expect(startSessionSync).not.toHaveBeenCalled();
+  });
+});
