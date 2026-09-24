@@ -1,4 +1,5 @@
 import { useShallow } from 'zustand/react/shallow';
+import { SHORTCUT } from '@common/constants';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { Icon } from '@/shared/ui/icon';
@@ -37,7 +38,7 @@ export function Explorer() {
             query ? (
               <IconButton icon={icons.CloseIcon} label="Clear filter" size="sm" noTooltip onClick={() => setQuery('')} />
             ) : (
-              <Kbd keys={['mod', 'K']} />
+              <Kbd keys={SHORTCUT.palette} />
             )
           }
         />

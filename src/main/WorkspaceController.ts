@@ -1,19 +1,10 @@
 import type { WebContents } from 'electron';
 import type { AppEvent, Workspace, WorkspacePatch } from '../shared/types';
+import { HTTP_SCHEME } from './constants';
+import { parseUrl } from './parseUrl';
 import type { PageController } from './PageController';
 import type { OverrideStore } from './store/OverrideStore';
 import type { SessionStore } from './store/SessionStore';
-
-function parse(url: string): URL | null {
-  try {
-    return new URL(url);
-  } catch {
-    return null;
-  }
-}
-
-const originOf = (url: string) => parse(url)?.origin ?? '';
-const hostOf = (url: string) => parse(url)?.host ?? '';
 
 /** A page title is kept once it has stayed this long. */
 const TITLE_SETTLE_MS = 1000;
@@ -55,7 +46,7 @@ export class WorkspaceController {
 
   private titleShown(pageUrl: string, title: string): void {
     // Not about:blank's (the page left as the workspace changes) or an error page's.
-    if (!/^https?:/i.test(pageUrl)) return;
+    if (!HTTP_SCHEME.test(pageUrl)) return;
     const id = this.session.activeId;
     clearTimeout(this.titleTimers.get(id));
     // Some pages keep changing their title (a clock, an unread count): it is kept once it settles.
@@ -72,21 +63,21 @@ export class WorkspaceController {
 
   private pageShown(url: string): void {
     const id = this.session.activeId;
-    const host = hostOf(this.session.urlOf(id));
+    const host = parseUrl(this.session.urlOf(id))?.host;
     const hadIcon = !!this.session.favicon(id);
     void this.session.setUrl(url).catch(() => undefined);
     // The tile is labelled with the host, and loses the icon of a site it left.
-    if (hostOf(this.session.urlOf(id)) !== host) this.pushState();
+    if (parseUrl(this.session.urlOf(id))?.host !== host) this.pushState();
     if (hadIcon && !this.session.favicon(id)) this.send({ type: 'workspace-favicon', id, favicon: null });
   }
 
   private async faviconsFound(pageUrl: string, candidates: string[]): Promise<void> {
-    if (!/^https?:/i.test(pageUrl)) return;
+    if (!HTTP_SCHEME.test(pageUrl)) return;
     // The workspace shown when the page reported it, whatever is shown by the time it has loaded.
     const id = this.session.activeId;
     const icon = await this.page.fetchFavicon(candidates).catch(() => null);
     // Nothing loaded (keep what there is), or the workspace moved on to another site meanwhile.
-    if (!icon || originOf(this.session.urlOf(id)) !== originOf(pageUrl) || this.session.favicon(id) === icon) return;
+    if (!icon || parseUrl(this.session.urlOf(id))?.origin !== parseUrl(pageUrl)?.origin || this.session.favicon(id) === icon) return;
     await this.session.setFavicon(id, icon).catch(() => undefined);
     if (this.session.favicon(id) === icon) this.send({ type: 'workspace-favicon', id, favicon: icon });
   }

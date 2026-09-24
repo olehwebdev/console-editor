@@ -1,44 +1,22 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
-import { cva, type VariantProps } from 'class-variance-authority';
+import type { VariantProps } from 'class-variance-authority';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ComponentPropsWithRef, MouseEvent, ReactNode } from 'react';
-import { cn, DURATION, EASE_OUT, SPRING_PRESS } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, PRESS_SCALE, SPRING_PRESS } from '@/shared/lib';
 import { Spinner } from '@/shared/ui/spinner';
+import { buttonVariants } from './buttonVariants';
+import { BUTTON_ICON_SIZE } from './constants';
+
+/** The leading slot's icon and spinner grow in from, and shrink back to, this scale as they trade places. */
+const SLOT_SWAP_SCALE = 0.6;
+/** The spinner laid over a label without a leading slot grows in from this scale. */
+const OVERLAY_SPINNER_SCALE = 0.8;
 
 /** Native handlers whose signatures motion redefines on motion.* elements. */
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md';
-
-/**
- * Class recipe of the button, for elements that must look like one without
- * being a <Button> (e.g. a <label> for a file input).
- */
-export const buttonVariants = cva(
-  [
-    'relative inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap border font-medium',
-    'outline-none focus-visible:ring-2 focus-visible:ring-accent/50',
-    'transition-[color,background-color,border-color,box-shadow,filter,opacity] duration-150 ease-out-expo',
-    'disabled:pointer-events-none disabled:opacity-45',
-  ],
-  {
-    variants: {
-      variant: {
-        primary:
-          'border-transparent bg-accent-grad text-accent-fg shadow-raised hover:brightness-110 active:brightness-95 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas',
-        secondary: 'border-line bg-hover text-fg hover:border-line-strong hover:bg-pressed',
-        ghost: 'border-transparent bg-transparent text-fg-muted hover:bg-hover hover:text-fg active:bg-pressed',
-        danger: 'border-danger/25 bg-danger/12 text-danger hover:border-danger/40 hover:bg-danger/20',
-      },
-      size: {
-        sm: 'h-6 gap-1 rounded-md px-2 text-xs',
-        md: 'h-7 gap-1.5 rounded-lg px-2.5 text-[13px]',
-      },
-    },
-    defaultVariants: { variant: 'secondary', size: 'md' },
-  },
-);
 
 export interface ButtonProps extends Omit<ComponentPropsWithRef<'button'>, MotionConflicts>, VariantProps<typeof buttonVariants> {
   variant?: ButtonVariant;
@@ -74,7 +52,7 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const reduce = useReducedMotion();
-  const iconSize = size === 'sm' ? 12 : 14;
+  const iconSize = BUTTON_ICON_SIZE[size];
   const overlaySpinner = loading && !leading;
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
@@ -91,7 +69,7 @@ export function Button({
       disabled={disabled}
       aria-busy={loading || undefined}
       aria-disabled={loading || undefined}
-      whileTap={reduce || loading || disabled ? undefined : { scale: 0.97 }}
+      whileTap={reduce || loading || disabled ? undefined : { scale: PRESS_SCALE }}
       transition={SPRING_PRESS}
       onClick={handleClick}
       className={cn(buttonVariants({ variant, size }), loading && 'cursor-progress', className)}
@@ -110,10 +88,10 @@ export function Button({
               <motion.span
                 key={loading ? 'spinner' : 'leading'}
                 className="inline-flex"
-                initial={{ opacity: 0, scale: 0.6 }}
+                initial={{ opacity: 0, scale: SLOT_SWAP_SCALE }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.6 }}
-                transition={{ duration: DURATION.fast, ease: EASE_OUT }}
+                exit={{ opacity: 0, scale: SLOT_SWAP_SCALE }}
+                transition={{ duration: DURATION.short3, ease: EASE_OUT }}
               >
                 {loading ? <Spinner size={iconSize} /> : leading}
               </motion.span>
@@ -130,10 +108,10 @@ export function Button({
           <motion.span
             key="spinner"
             className="absolute inset-0 flex items-center justify-center"
-            initial={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0, scale: OVERLAY_SPINNER_SCALE }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: DURATION.fast, ease: EASE_OUT }}
+            exit={{ opacity: 0, scale: OVERLAY_SPINNER_SCALE }}
+            transition={{ duration: DURATION.short3, ease: EASE_OUT }}
           >
             <Spinner size={iconSize} />
           </motion.span>

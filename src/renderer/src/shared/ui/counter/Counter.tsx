@@ -1,7 +1,7 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { useState, type ComponentPropsWithRef } from 'react';
-import { cn, EASE_OUT, SPRING_SWAP } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, SPRING_SWAP } from '@/shared/lib';
 
 export interface CounterProps extends Omit<ComponentPropsWithRef<'span'>, 'children'> {
   /** Integer to show (rounded). Built for small counts: badges, tabs, section headers. */
@@ -12,17 +12,20 @@ export interface CounterProps extends Omit<ComponentPropsWithRef<'span'>, 'child
 
 type Direction = 'up' | 'down';
 
+/** Where a rolling digit comes from and goes to: most of its height below or above. */
+const ROLL_TRAVEL = { below: '60%', above: '-60%' } as const;
+
 // Increasing values roll up (new digit from below), decreasing roll down.
 const GLYPH: Variants = {
-  initial: (d: Direction) => ({ opacity: 0, y: d === 'up' ? '60%' : '-60%' }),
+  initial: (d: Direction) => ({ opacity: 0, y: d === 'up' ? ROLL_TRAVEL.below : ROLL_TRAVEL.above }),
   animate: { opacity: 1, y: '0%', transition: SPRING_SWAP },
-  exit: (d: Direction) => ({ opacity: 0, y: d === 'up' ? '-60%' : '60%', transition: { duration: 0.12, ease: EASE_OUT } }),
+  exit: (d: Direction) => ({ opacity: 0, y: d === 'up' ? ROLL_TRAVEL.above : ROLL_TRAVEL.below, transition: { duration: DURATION.short3, ease: EASE_OUT } }),
 };
 
 const GLYPH_REDUCED: Variants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.12 } },
-  exit: { opacity: 0, transition: { duration: 0.08 } },
+  animate: { opacity: 1, transition: { duration: DURATION.short3 } },
+  exit: { opacity: 0, transition: { duration: DURATION.short1 } },
 };
 
 /**

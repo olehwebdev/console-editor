@@ -1,118 +1,30 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import {
-  WORKSPACE_COLORS,
-  type ResourceKind,
-  type SessionDraft,
-  type SessionState,
-  type SessionTab,
-  type Workspace,
-  type WorkspaceColor,
-  type WorkspaceIcon,
-  type WorkspacePatch,
-  type WorkspacesState,
-} from '../../shared/types';
+import { MAX_WORKSPACE_NAME } from '../../shared/constants';
+import { WORKSPACE_COLORS, type SessionDraft, type SessionState, type Workspace, type WorkspacePatch, type WorkspacesState } from '../../shared/types';
+import { HTTP_SCHEME } from '../constants';
+import { parseUrl } from '../parseUrl';
+import { assertTabId } from './assertTabId';
+import { DEFAULT_WORKSPACE_ICON, MAX_TITLE, WORKSPACE_ID_BYTES } from './constants';
+import { isFavicon } from './isFavicon';
+import { isWorkspaceColor } from './isWorkspaceColor';
+import { isWorkspaceIcon } from './isWorkspaceIcon';
+import { sanitizePage } from './sanitizePage';
+import { sanitizeTabs } from './sanitizeTabs';
+import { sanitizeWorkspace } from './sanitizeWorkspace';
+import type { SessionFileState, WorkspaceRecord } from './types';
+import { writeAtomic } from './writeAtomic';
 
 const VERSION = 2;
-const KINDS = new Set<ResourceKind>(['Script', 'Stylesheet', 'Document']);
-const TAB_ID = /^[\w-]{1,64}$/;
-const WORKSPACE_ID = /^[0-9a-f]{8}$/;
-const MAX_TABS = 200;
 const MAX_WORKSPACES = 50;
-export const MAX_WORKSPACE_NAME = 40;
-const MAX_TITLE = 200;
-/** A favicon as kept: a data URL of an image (see favicon.ts for the size it is held to). */
-const FAVICON = /^data:image\/[\w.+-]+[;,]/i;
-const MAX_FAVICON_CHARS = 128 * 1024;
-
-/** A workspace as stored: its rail tile, its page and its tabs. */
-interface WorkspaceRecord {
-  id: string;
-  name: string;
-  icon: WorkspaceIcon;
-  color: WorkspaceColor;
-  /** Last page shown ('' if none), and its title. */
-  url: string;
-  title: string;
-  tabs: SessionTab[];
-  activeTabId: string | null;
-}
-
-interface State {
-  activeId: string;
-  workspaces: WorkspaceRecord[];
-}
-
-async function writeAtomic(path: string, content: string): Promise<void> {
-  const tmp = `${path}.${randomBytes(4).toString('hex')}.tmp`;
-  await writeFile(tmp, content, 'utf8');
-  await rename(tmp, path);
-}
-
-function assertTabId(id: unknown): asserts id is string {
-  if (typeof id !== 'string' || !TAB_ID.test(id)) throw new Error('Invalid tab id');
-}
-
-const isColor = (value: unknown): value is WorkspaceColor => WORKSPACE_COLORS.includes(value as WorkspaceColor);
-
-const isFavicon = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_FAVICON_CHARS && FAVICON.test(value);
-
-function originOf(url: string): string {
-  try {
-    return new URL(url).origin;
-  } catch {
-    return '';
-  }
-}
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return '';
-  }
-}
-
-/** Keeps only well-formed tabs, so a corrupt file or a bad message can't inject junk. */
-function sanitizeTabs(input: unknown): SessionTab[] {
-  if (!Array.isArray(input)) return [];
-  const tabs: SessionTab[] = [];
-  for (const t of input.slice(0, MAX_TABS) as Array<Partial<SessionTab>>) {
-    if (!t || typeof t.id !== 'string' || !TAB_ID.test(t.id) || typeof t.url !== 'string' || !KINDS.has(t.kind as ResourceKind)) continue;
-    tabs.push({
-      id: t.id,
-      url: t.url,
-      kind: t.kind as ResourceKind,
-      ...(typeof t.overrideId === 'string' ? { overrideId: t.overrideId } : {}),
-      originalHash: typeof t.originalHash === 'string' ? t.originalHash : null,
-    });
-  }
-  return tabs;
-}
-
-/** A page with its tabs, as saved (a version 1 session file has the same fields at its top level). */
-function sanitizePage(input: Partial<WorkspaceRecord>): Pick<WorkspaceRecord, 'url' | 'title' | 'tabs' | 'activeTabId'> {
-  const tabs = sanitizeTabs(input.tabs);
-  return {
-    url: typeof input.url === 'string' ? input.url : '',
-    title: typeof input.title === 'string' ? input.title.slice(0, MAX_TITLE) : '',
-    tabs,
-    activeTabId: tabs.some((t) => t.id === input.activeTabId) ? (input.activeTabId as string) : null,
-  };
-}
-
-function sanitizeWorkspace(input: unknown): WorkspaceRecord | null {
-  const w = input as Partial<WorkspaceRecord> | null;
-  if (!w || typeof w.id !== 'string' || !WORKSPACE_ID.test(w.id)) return null;
-  return {
-    id: w.id,
-    name: typeof w.name === 'string' ? w.name.slice(0, MAX_WORKSPACE_NAME) : '',
-    icon: w.icon === 'color' ? 'color' : 'favicon',
-    color: isColor(w.color) ? w.color : WORKSPACE_COLORS[0],
-    ...sanitizePage(w),
-  };
-}
+const SESSION_FILE = 'session.json';
+const DRAFTS_DIR = 'drafts';
+const FAVICONS_DIR = 'favicons';
+/** A tab's draft file, and the file of the text its editing started from. */
+const DRAFT_SUFFIX = { content: '.txt', base: '.base.txt' } as const;
+/** A workspace's favicon file: `<workspace id>.txt`. */
+const FAVICON_SUFFIX = '.txt';
 
 /**
  * The workspaces, and what each reopens: its last page, its open tabs and
@@ -127,26 +39,26 @@ function sanitizeWorkspace(input: unknown): WorkspaceRecord | null {
  * through a temp file and a rename.
  */
 export class SessionStore {
-  private state: State = { activeId: '', workspaces: [] };
+  private state: SessionFileState = { activeId: '', workspaces: [] };
   private readonly favicons = new Map<string, string>();
   private writes: Promise<void> = Promise.resolve();
 
   constructor(readonly dir: string) {}
 
   private get draftsDir(): string {
-    return join(this.dir, 'drafts');
+    return join(this.dir, DRAFTS_DIR);
   }
 
   private get faviconsDir(): string {
-    return join(this.dir, 'favicons');
+    return join(this.dir, FAVICONS_DIR);
   }
 
   private draftPath(id: string, which: 'content' | 'base'): string {
-    return join(this.draftsDir, which === 'content' ? `${id}.txt` : `${id}.base.txt`);
+    return join(this.draftsDir, `${id}${DRAFT_SUFFIX[which]}`);
   }
 
   private faviconPath(id: string): string {
-    return join(this.faviconsDir, `${id}.txt`);
+    return join(this.faviconsDir, `${id}${FAVICON_SUFFIX}`);
   }
 
   async load(): Promise<void> {
@@ -154,7 +66,7 @@ export class SessionStore {
     await mkdir(this.faviconsDir, { recursive: true });
     let saved: Record<string, unknown> | null = null;
     try {
-      saved = JSON.parse(await readFile(join(this.dir, 'session.json'), 'utf8')) as Record<string, unknown>;
+      saved = JSON.parse(await readFile(join(this.dir, SESSION_FILE), 'utf8')) as Record<string, unknown>;
     } catch {
       // Missing or corrupt: start with one empty workspace.
     }
@@ -177,7 +89,7 @@ export class SessionStore {
 
     this.favicons.clear();
     for (const file of await readdir(this.faviconsDir)) {
-      const id = file.replace(/\.txt$/, '');
+      const id = file.endsWith(FAVICON_SUFFIX) ? file.slice(0, -FAVICON_SUFFIX.length) : file;
       const icon = this.find(id) ? await readFile(join(this.faviconsDir, file), 'utf8').catch(() => '') : '';
       if (isFavicon(icon)) this.favicons.set(id, icon);
       else await rm(join(this.faviconsDir, file), { force: true });
@@ -185,7 +97,9 @@ export class SessionStore {
     // Drafts of tabs no longer open in any workspace (e.g. a crash between the two writes).
     const open = new Set(workspaces.flatMap((w) => w.tabs.map((t) => t.id)));
     for (const file of await readdir(this.draftsDir)) {
-      const id = file.replace(/(\.base)?\.txt$/, '');
+      // The base's suffix first: it also ends with the content's.
+      const suffix = [DRAFT_SUFFIX.base, DRAFT_SUFFIX.content].find((s) => file.endsWith(s));
+      const id = suffix ? file.slice(0, -suffix.length) : file;
       if (!open.has(id)) await rm(join(this.draftsDir, file), { force: true });
     }
   }
@@ -205,15 +119,15 @@ export class SessionStore {
   /** An empty workspace, in a colour none of `existing` has while there is one. */
   private blank(existing: WorkspaceRecord[]): WorkspaceRecord {
     let id: string;
-    do id = randomBytes(4).toString('hex');
+    do id = randomBytes(WORKSPACE_ID_BYTES).toString('hex');
     while (existing.some((w) => w.id === id));
     const used = new Set(existing.map((w) => w.color));
     const color = WORKSPACE_COLORS.find((c) => !used.has(c)) ?? WORKSPACE_COLORS[existing.length % WORKSPACE_COLORS.length];
-    return { id, name: '', icon: 'favicon', color, url: '', title: '', tabs: [], activeTabId: null };
+    return { id, name: '', icon: DEFAULT_WORKSPACE_ICON, color, url: '', title: '', tabs: [], activeTabId: null };
   }
 
   private info(w: WorkspaceRecord): Workspace {
-    return { id: w.id, name: w.name, host: hostOf(w.url), title: w.title, icon: w.icon, color: w.color };
+    return { id: w.id, name: w.name, host: parseUrl(w.url)?.host ?? '', title: w.title, icon: w.icon, color: w.color };
   }
 
   /** The active workspace's page and tabs. */
@@ -257,8 +171,8 @@ export class SessionStore {
    */
   setUrl(url: string): Promise<void> {
     const w = this.active;
-    if (!/^https?:/i.test(url) || url === w.url) return Promise.resolve();
-    const otherSite = originOf(url) !== originOf(w.url) && this.favicons.delete(w.id);
+    if (!HTTP_SCHEME.test(url) || url === w.url) return Promise.resolve();
+    const otherSite = parseUrl(url)?.origin !== parseUrl(w.url)?.origin && this.favicons.delete(w.id);
     this.replace({ ...w, url });
     return this.queue(async () => {
       await this.writeState();
@@ -310,8 +224,8 @@ export class SessionStore {
     if (!w) throw new Error('Unknown workspace');
     const { name, icon, color } = patch ?? {};
     if (name !== undefined && typeof name !== 'string') throw new Error('name must be a string');
-    if (icon !== undefined && icon !== 'favicon' && icon !== 'color') throw new Error(`Unsupported icon ${String(icon)}`);
-    if (color !== undefined && !isColor(color)) throw new Error(`Unsupported colour ${String(color)}`);
+    if (icon !== undefined && !isWorkspaceIcon(icon)) throw new Error(`Unsupported icon ${String(icon)}`);
+    if (color !== undefined && !isWorkspaceColor(color)) throw new Error(`Unsupported colour ${String(color)}`);
     const next: WorkspaceRecord = {
       ...w,
       ...(name !== undefined ? { name: name.slice(0, MAX_WORKSPACE_NAME) } : {}),
@@ -380,7 +294,7 @@ export class SessionStore {
 
   /** Writes the state as it is when the write runs (later changes are in it too). */
   private writeState(): Promise<void> {
-    return writeAtomic(join(this.dir, 'session.json'), `${JSON.stringify({ version: VERSION, ...this.state }, null, 2)}\n`);
+    return writeAtomic(join(this.dir, SESSION_FILE), `${JSON.stringify({ version: VERSION, ...this.state }, null, 2)}\n`);
   }
 
   private queue(write: () => Promise<void>): Promise<void> {

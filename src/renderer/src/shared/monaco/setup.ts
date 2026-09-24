@@ -9,23 +9,22 @@ import { conf as jsConf, language as jsLanguage } from 'monaco-editor/languages/
 import { LANGUAGES } from './languages';
 import { defineThemes, THEME } from './theme';
 
+/** The language worker for each Monaco language label; any other label gets the plain editor worker. */
+const LANGUAGE_WORKERS: Record<string, new () => Worker> = {
+  css: CssWorker,
+  scss: CssWorker,
+  less: CssWorker,
+  html: HtmlWorker,
+  handlebars: HtmlWorker,
+  razor: HtmlWorker,
+  typescript: TsWorker,
+  javascript: TsWorker,
+};
+
 self.MonacoEnvironment = {
   getWorker(_workerId: string, label: string) {
-    switch (label) {
-      case 'css':
-      case 'scss':
-      case 'less':
-        return new CssWorker();
-      case 'html':
-      case 'handlebars':
-      case 'razor':
-        return new HtmlWorker();
-      case 'typescript':
-      case 'javascript':
-        return new TsWorker();
-      default:
-        return new EditorWorker();
-    }
+    const LanguageWorker = Object.hasOwn(LANGUAGE_WORKERS, label) ? LANGUAGE_WORKERS[label] : EditorWorker;
+    return new LanguageWorker();
   },
 };
 

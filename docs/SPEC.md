@@ -46,7 +46,7 @@ flowchart LR
     Fmt["Format worker (js-beautify)"]
   end
   subgraph Main["Main process (Node)"]
-    IPC["ipc.ts (sender-checked handlers)"]
+    IPC["ipc/ (sender-checked handlers)"]
     PC["PageController"]
     Engine["PageInterception → one InterceptionEngine per CDP session"]
     Store["OverrideStore / SettingsStore"]
@@ -76,23 +76,31 @@ flowchart LR
 
 ```
 src/
-  shared/            types.ts (IPC + data model), matcher.ts (URL matching), minified.ts,
-                     version.ts (semver comparison), changelog.ts (CHANGELOG.md sections)
+  shared/            types.ts (IPC + data model), constants.ts (gallery hash, env var names),
+                     ipcChannels.ts (the IPC channel of each API method, for main and preload),
+                     matcher/ (URL matching), minified/, version/ (semver comparison),
+                     changelog/ (CHANGELOG.md sections)
   main/
-    index.ts         app bootstrap: single-instance lock, window, session flush on close
+    index.ts         app bootstrap: data folder, Chromium switches, single-instance lock
+    launch/          createWindow.ts (window, stores, updater, session flush on close), handOver.ts (a second
+                     launch's URL), launchState.ts (the open window they share), URL and data-folder helpers
+    constants.ts     http(s) URL patterns, file-not-found code
     appInfo.ts       app id and repository URL (shared with electron-builder.ts)
-    PageController.ts  WebContentsView for the site, navigation, engine wiring
+    PageController/  PageController.ts (WebContentsView for the site, navigation, engine wiring), normalizeUrl.ts
     WorkspaceController.ts  workspaces: switching, the page URL, title and favicon each remembers (§5.1)
-    favicon.ts       a page's favicon as a small data URL (sniffed, size-capped)
+    favicon/         a page's favicon as a small data URL (sniffed, size-capped)
     electronTransport.ts  webContents.debugger → CdpTransport
-    engine/          PageInterception.ts (one engine per CDP session: page + iframes),
-                     InterceptionEngine.ts, transform.ts (SRI/source maps/headers),
-                     cdp.ts (transport interface), websocketTransport.ts (browser-level CDP, used by tests)
-    store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts
-    update/          UpdateService.ts (checks, downloads, installs: §10.1), electronInstaller.ts (electron-updater)
-    sitePermissions.ts  permission policy for the site view
-    chromiumFlags.ts    Local Network Access switches (see §6.5, §8)
-    ipc.ts, menu.ts
+    engine/          PageInterception/ (one engine per CDP session: page + iframes),
+                     InterceptionEngine/, transform/ (SRI/source maps/headers),
+                     cdp/ (transport interface), websocketTransport/ (browser-level CDP, used by tests),
+                     constants.ts (CDP command and event names, HTTP status classes)
+    store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts, writeAtomic.ts and their helpers
+    update/          UpdateService/ (checks, downloads, installs: §10.1), electronInstaller/ (electron-updater),
+                     updateEndpoints.ts (GitHub, or a local update server in tests)
+    sitePermissions/ permission policy for the site view
+    chromiumFlags/   Local Network Access switches (see §6.5, §8)
+    ipc/             registerIpc.ts (sender-checked handlers)
+    installMenu.ts   the app menu
   preload/index.ts   contextBridge → window.consoleEditor
   renderer/src/      React UI, Feature-Sliced Design (see DESIGN_SYSTEM.md §6):
     app/             entry, providers, event bridge (main → stores), styles/tokens, component gallery
@@ -227,7 +235,7 @@ Injected before page scripts when SRI stripping is on. It makes the `integrity` 
 
 ### 6.5 Iframes (cross-site and nested)
 
-With site isolation, a cross-site iframe runs in its own renderer process and is a **separate CDP target**. `PageInterception` (`src/main/engine/PageInterception.ts`) runs one `InterceptionEngine` per CDP session: the page's own, plus one per iframe session, recursively. Each engine gets a session-bound transport (`sessionTransport()`), so a request paused on one session is always answered on that same session. Behaviour below was probed against real Chromium; the probes are encoded in `test/integration/iframes.chromium.test.ts`.
+With site isolation, a cross-site iframe runs in its own renderer process and is a **separate CDP target**. `PageInterception` (`src/main/engine/PageInterception/`) runs one `InterceptionEngine` per CDP session: the page's own, plus one per iframe session, recursively. Each engine gets a session-bound transport (`sessionTransport()`), so a request paused on one session is always answered on that same session. Behaviour below was probed against real Chromium; the probes are encoded in `test/integration/iframes.chromium.test.ts`.
 
 | Fact (verified) | Consequence |
 |---|---|
@@ -240,8 +248,8 @@ With site isolation, a cross-site iframe runs in its own renderer process and is
 | Only the iframe's own session can return its document body | `getResourceContent` routes that read to the child session |
 | Chromium reuses a target id when a frame gets a new session | Entries are scoped by **session** (`ResourceEntry.iframeId`), never by target id |
 | An iframe navigating back to its parent's site loads that document's subresources on **no** session (a Chromium gap). Reloading just that frame doesn't reliably help: Chromium 141 intercepts the reload, Chromium 153 serves the files from the renderer's memory cache, which neither `Fetch` nor the page's cache-disable reaches | Detected: an enabled override whose file arrived unmodified emits `override-missed`; the UI offers a page reload |
-| A document served via `Fetch.fulfillRequest` has no IP address space, so Chromium's Local Network Access checks treat it as public and block its requests to loopback/intranet hosts | The app disables those checks for its browser (`src/main/chromiumFlags.ts`) |
-| With the `RenderDocument` feature disabled (Playwright's Electron launcher does this), Electron 44 crashes (SIGSEGV) when a page with out-of-process iframe sessions reloads | `chromiumFlags.ts` keeps it enabled whatever else is passed in `--disable-features` |
+| A document served via `Fetch.fulfillRequest` has no IP address space, so Chromium's Local Network Access checks treat it as public and block its requests to loopback/intranet hosts | The app disables those checks for its browser (`src/main/chromiumFlags/`) |
+| With the `RenderDocument` feature disabled (Playwright's Electron launcher does this), Electron 44 crashes (SIGSEGV) when a page with out-of-process iframe sessions reloads | `withDisabledFeatures` (`chromiumFlags/`) keeps it enabled whatever else is passed in `--disable-features` |
 
 Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session; workers are excluded for now (M2).
 
@@ -277,7 +285,7 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 
 - Editor window: `contextIsolation`, `sandbox`, a strict CSP (`script-src 'self'`), no navigation, no pop-ups. It sees only `window.consoleEditor`.
 - Site view: no preload, sandboxed, separate persistent session partition (`persist:site`). It cannot reach IPC, and every IPC handler also checks that the sender is the editor window.
-- Site permissions (`sitePermissions.ts`): Electron grants everything when a session has no handler, so the site session denies by default. Fullscreen, sanitized clipboard writes and pointer lock are granted; camera/microphone, location, notifications, clipboard reads, MIDI and launching other applications ask with a native dialog naming the requesting origin (remembered until quit; launching an app is asked every time); everything else is denied.
+- Site permissions (`sitePermissions/`): Electron grants everything when a session has no handler, so the site session denies by default. Fullscreen, sanitized clipboard writes and pointer lock are granted; camera/microphone, location, notifications, clipboard reads, MIDI and launching other applications ask with a native dialog naming the requesting origin (remembered until quit; launching an app is asked every time); everything else is denied.
 - Pop-ups: `window.open` pop-ups (sign-in flows need `window.opener`) open as child windows without interception; links meant for a new tab load in the page view, where overrides apply.
 - A page's `beforeunload` guard cannot block reloads or navigation: editor-initiated reloads after a save must win, and Electron would cancel them without showing a dialog.
 - **Trade-off:** Chromium's Local Network Access checks are disabled for the whole app (feature switches are process-wide), because documents served through `Fetch.fulfillRequest` have no address space and would otherwise be blocked from reaching localhost/intranet hosts (§6.5). Any page opened in the app can therefore reach local-network addresses, as in Chrome before these checks shipped. Browse only sites you are working on.

@@ -67,15 +67,25 @@ Presets live in `shared/lib/motion.ts` (ported from beUI's `ease.ts`):
 | Preset | Use |
 |---|---|
 | `EASE_OUT` `[0.16, 1, 0.3, 1]` | anything appearing (fade/slide), 160–220 ms |
-| `SPRING_PRESS` | press feedback (scale 0.97) on buttons/rows |
+| `SPRING_PRESS` | press feedback (to `PRESS_SCALE`, 0.97) on buttons/rows; icon buttons and rail tiles go to `ICON_PRESS_SCALE`, 0.9 |
 | `SPRING_LAYOUT` | shared-layout glides: active tab pill, rail indicator, hover highlight |
 | `SPRING_PANEL` | menus, palette, dialogs entering |
 | `SPRING_SWAP` | icon/label swaps (Save → Saved ✓) |
+| `FADE_UP` | fade and 4 px rise for most appearing elements |
+| `SLIDE_IN_X` | −6 px: where list rows and sidebar views slide in from |
+
+Durations come from one scale, `DURATION`, shortest first; a component picks a step rather than writing seconds:
+
+| Step | `short1` | `short2` | `short3` | `short4` | `medium1` | `medium2` | `medium3` | `medium4` | `long1` | `long2` | `long3` |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| ms | 80 | 100 | 120 | 140 | 160 | 180 | 200 | 220 | 260 | 280 | 300 |
+
+Short steps suit exits and reduced-motion fades (a tooltip leaving: `short1`), medium ones fades and slides in (a backdrop: `medium1`), long ones the rare larger entrance (an empty state rising: `long1`). A component's own scales and offsets (how far a menu grows in from) are named constants at the top of its file.
 
 Rules:
 1. **Respect reduced motion.** `MotionConfig reducedMotion="user"` at the root; springs collapse to fades.
 2. **Only transform and opacity** on hot paths (tree rows, tabs). Height animations only for expand/collapse of sections.
-3. **Durations:** ≤ 220 ms for UI feedback, no animation longer than 320 ms.
+3. **Durations:** ≤ 220 ms (`medium4`) for UI feedback, no animation longer than 320 ms; loops such as the skeleton's shimmer are the exception.
 4. **Continuity over decoration:** one moving highlight per list (shared layout), tabs slide into place, the Save button morphs into "Saved", the switch thumb carries weight.
 5. The website is a native view drawn above the DOM, so nothing HTML can sit on top of it. `PagePreview` reports where it is (`setNativeViewRect` in `shared/lib`), and floating UI handles it one of three ways:
    - **Modal overlays** (palette, menus, dialogs) register with `useRegisterOverlay`: the view is swapped for a still snapshot while they are open.
@@ -123,7 +133,7 @@ Each component lives in its own folder with an `index.ts` public API. Props belo
 
 ```
 src/renderer/src/
-  app/        bootstrap, IPC → stores bridge (model/bridge.ts), motion config, global styles, gallery
+  app/        bootstrap, IPC → stores bridge (model/bridge/), motion config, global styles, gallery
   pages/      editor/          — composes widgets into the workspace layout; owns the layout store, the session
                                sync and workspace switching (they reopen files through features)
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
@@ -150,9 +160,9 @@ Code shared with the main process (`src/shared`: IPC types, URL matching) is imp
 - **UI-only state lives with the slice that owns the UI**, never in entities: the workspace layout in `pages/editor/model`, the palette's open state in `widgets/command-palette/model`, a feature's own transient state in that feature (`compare-changes`' diff source, `filter-resources`' query), and the overlay counter in `shared/lib`.
 - **Side effects live in features** (`features/*/model`): they call `shared/api`, then update entity stores through their actions. Widgets call `shared/api` directly only for stateless view plumbing: the native page view's bounds and snapshot (`PagePreview`) and revealing the overrides folder.
 - **Events are batched:** the bridge queues resource, navigation and iframe events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file.
-- **One IPC bridge**: `startBridge()` in `app/model/bridge.ts` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features).
+- **One IPC bridge**: `startBridge()` in `app/model/bridge/` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features) through typed handler tables, one handler per event type and per menu command.
 - **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
-- **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models.ts`, `shared/monaco/editors.ts`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode).
+- **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models/`, `shared/monaco/editors/`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode).
 
 ## 7. Accessibility
 

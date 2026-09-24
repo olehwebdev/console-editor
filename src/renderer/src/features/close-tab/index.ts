@@ -1,1 +1,1 @@
-export { closeTab } from './model/close';
+export { closeTab } from './model/closeTab';

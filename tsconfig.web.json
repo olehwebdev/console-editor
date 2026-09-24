@@ -20,6 +20,7 @@
     "skipLibCheck": true,
     "composite": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": [
         "./src/renderer/src/*"

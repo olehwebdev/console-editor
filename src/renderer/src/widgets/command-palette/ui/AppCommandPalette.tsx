@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { SHORTCUT } from '@common/constants';
 import type { ResourceKind } from '@common/types';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
@@ -19,6 +20,11 @@ import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 
 const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon };
+
+/** An override has two items: their ids are one of these prefixes and its id. */
+const OVERRIDE_ITEM_PREFIX = { open: 'open-', toggle: 'toggle-' } as const;
+/** A workspace's item id: this prefix and its id. */
+const WORKSPACE_ITEM_PREFIX = 'workspace-';
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
@@ -60,15 +66,15 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
       items: [
         ...(active
           ? [
-              { id: 'save', label: active.overrideId ? 'Save override' : 'Create override from this file', icon: icons.SaveIcon, shortcut: ['mod', 'S'], onSelect: () => void saveTab() },
-              { id: 'format', label: 'Pretty-print this file', icon: icons.PrettifyIcon, shortcut: ['shift', 'alt', 'F'], onSelect: () => void formatTab() },
-              { id: 'diff', label: 'Diff with where you started', icon: icons.DiffIcon, shortcut: ['mod', 'shift', 'D'], onSelect: toggleBaseDiff },
+              { id: 'save', label: active.overrideId ? 'Save override' : 'Create override from this file', icon: icons.SaveIcon, shortcut: SHORTCUT.save, onSelect: () => void saveTab() },
+              { id: 'format', label: 'Pretty-print this file', icon: icons.PrettifyIcon, shortcut: SHORTCUT.format, onSelect: () => void formatTab() },
+              { id: 'diff', label: 'Diff with where you started', icon: icons.DiffIcon, shortcut: SHORTCUT.diff, onSelect: toggleBaseDiff },
               ...(active.overrideId ? [{ id: 'live', label: 'Compare with the live file', icon: icons.GlobeIcon, onSelect: () => void compareWithLive() }] : []),
             ]
           : []),
-        { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: ['mod', 'R'], onSelect: () => void reloadPage() },
-        { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: ['mod', 'L'], onSelect: onFocusAddressBar },
-        { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: ['mod', 'shift', 'J'], onSelect: () => void openPageDevTools() },
+        { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
+        { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
+        { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },
         { id: 'settings', label: 'Settings', icon: icons.SettingsIcon, onSelect: onShowSettings },
         { id: 'whats-new', label: "What's New", icon: icons.WhatsNewIcon, keywords: ['release notes', 'changelog', 'version'], onSelect: openWhatsNew },
@@ -78,9 +84,9 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
     const overrideGroup: CommandGroup = {
       heading: 'Overrides',
       items: overrides.flatMap((o) => [
-        { id: `open-${o.id}`, label: fileName(o.sourceUrl), hint: hostOf(o.sourceUrl), icon: KIND_ICON[o.kind], keywords: [o.sourceUrl], onSelect: () => void openOverride(o.id) },
+        { id: `${OVERRIDE_ITEM_PREFIX.open}${o.id}`, label: fileName(o.sourceUrl), hint: hostOf(o.sourceUrl), icon: KIND_ICON[o.kind], keywords: [o.sourceUrl], onSelect: () => void openOverride(o.id) },
         {
-          id: `toggle-${o.id}`,
+          id: `${OVERRIDE_ITEM_PREFIX.toggle}${o.id}`,
           label: `${o.enabled ? 'Turn off' : 'Turn on'} override: ${fileName(o.sourceUrl)}`,
           icon: icons.LiveIcon,
           keywords: [o.sourceUrl, 'enable', 'disable'],
@@ -94,7 +100,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
         ...workspaces
           .filter((w) => w.id !== activeWorkspaceId)
           .map((w) => ({
-            id: `workspace-${w.id}`,
+            id: `${WORKSPACE_ITEM_PREFIX}${w.id}`,
             label: `Switch to ${workspaceLabel(w)}`,
             hint: workspaceDetail(w) || undefined,
             icon: icons.BrowserIcon,
