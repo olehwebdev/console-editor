@@ -1,5 +1,6 @@
 import type { CdpTransport } from '../cdp';
 import type { EngineOptions, InterceptionEngine } from '../InterceptionEngine';
+import type { ChildSessions } from './ChildSessions';
 
 /**
  * Told about every CDP session interception runs on, to add its own work to them
@@ -34,4 +35,31 @@ export interface ChildTarget {
   engine: InterceptionEngine;
   /** Settles every in-flight command once the session is gone (Chromium never answers them). */
   gone(reason: Error): void;
+}
+
+/** A live iframe session, as `PageInterception.targets` lists it. */
+export interface TargetSummary {
+  targetId: string;
+  sessionId: string;
+  parentTargetId?: string;
+  depth: number;
+}
+
+/** An iframe session's transport, and what fails its commands once the session is gone. */
+export interface AbortableTransport {
+  transport: CdpTransport;
+  /** Rejects every in-flight command, and every later one, with `reason`. */
+  gone(reason: Error): void;
+}
+
+/** What attaching an iframe session works with. */
+export interface IframeContext {
+  /** The page's transport, which carries every session. */
+  cdp: CdpTransport;
+  opts: PageInterceptionOptions;
+  /** The page's own engine. */
+  root: InterceptionEngine;
+  children: ChildSessions;
+  /** Whether interception has stopped. */
+  stopped(): boolean;
 }
