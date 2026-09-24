@@ -120,7 +120,7 @@ Each component lives in its own folder with an `index.ts` public API. Props belo
 
 ```
 src/renderer/src/
-  app/        bootstrap, IPC → stores bridge (model/bridge.ts), motion config, global styles, gallery
+  app/        bootstrap, IPC → stores bridge (model/bridge/), motion config, global styles, gallery
   pages/      editor/          — composes widgets into the workspace layout; owns the layout store
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
               command-palette
@@ -145,7 +145,7 @@ Code shared with the main process (`src/shared`: IPC types, URL matching) is imp
 - **UI-only state lives with the slice that owns the UI**, never in entities: the workspace layout in `pages/editor/model`, the palette's open state in `widgets/command-palette/model`, a feature's own transient state in that feature (`compare-changes`' diff source, `filter-resources`' query), and the overlay counter in `shared/lib`.
 - **Side effects live in features** (`features/*/model`): they call `shared/api`, then update entity stores through their actions. Widgets call `shared/api` directly only for stateless view plumbing: the native page view's bounds and snapshot (`PagePreview`) and revealing the overrides folder.
 - **Events are batched:** the bridge queues resource, navigation and iframe events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file.
-- **One IPC bridge**: `startBridge()` in `app/model/bridge.ts` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features).
+- **One IPC bridge**: `startBridge()` in `app/model/bridge/` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features) through typed handler tables, one handler per event type and per menu command.
 - **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
 - **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models.ts`, `shared/monaco/editors.ts`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode).
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OverrideMeta, ResourceEntry } from '../../src/shared/types';
 import { handleAppEvent } from '@/app/model/bridge';
+import { HIDDEN_FLUSH_MS } from '@/app/model/bridge/resources/constants';
 import { createTabModel, getTabModel, newTabId, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { useResourceStore } from '@/entities/resource';
@@ -331,7 +332,7 @@ describe('bridge: resource events', () => {
     handleAppEvent({ type: 'resource', resource: res('https://site.test/b.js') });
     expect(urls()).toEqual([]);
 
-    vi.advanceTimersByTime(250);
+    vi.advanceTimersByTime(HIDDEN_FLUSH_MS);
     expect(urls()).toEqual(['https://site.test/a.js', 'https://site.test/b.js']);
 
     // The next event schedules a new flush.
