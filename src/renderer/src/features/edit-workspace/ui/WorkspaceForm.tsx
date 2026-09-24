@@ -32,8 +32,8 @@ export function WorkspaceForm({ workspace, onDone }: WorkspaceFormProps) {
 
   return (
     <div className="flex w-[248px] flex-col gap-3" data-testid="workspace-form">
-      <div className="flex items-center gap-2.5">
-        <WorkspaceIcon workspace={{ ...workspace, name }} favicon={favicon} size="lg" />
+      <div className="flex items-center gap-2">
+        <WorkspaceIcon workspace={{ ...workspace, name }} favicon={favicon} />
         <Input
           autoFocus
           aria-label="Workspace name"
