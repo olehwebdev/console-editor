@@ -1,9 +1,10 @@
-import type { ConsoleFrame } from '../../shared/types';
-import { FRAME_SWAP_REASON } from '../engine/constants';
-import type { ExecutionContext, FrameRecord, PageFrame, PageFrameTree } from './types';
-
-/** A CDP session: undefined for the page's own. */
-type SessionKey = string | undefined;
+import type { ConsoleFrame } from '../../../shared/types';
+import { FRAME_SWAP_REASON } from '../../engine/constants';
+import type { ExecutionContext, FrameRecord, PageFrame, PageFrameTree } from '../types';
+import { SessionContexts } from './SessionContexts';
+import { subframesOf } from './subframesOf';
+import { toConsoleFrame } from './toConsoleFrame';
+import type { SessionKey } from './types';
 
 /**
  * The page's frames across its CDP sessions, and the JavaScript contexts they run in.
@@ -15,19 +16,16 @@ type SessionKey = string | undefined;
  */
 export class ConsoleFrames {
   private readonly records = new Map<string, FrameRecord>();
-  /** Per session: execution context id -> its frame, in any world (logs name the context they came from). */
-  private readonly contexts = new Map<SessionKey, Map<number, string>>();
-  /** Per session: the frame it was made for (the top page, or an iframe). */
-  private readonly roots = new Map<SessionKey, string>();
+  private readonly contexts = new SessionContexts();
 
   /** `changed` runs after every change to what `list` returns. */
   constructor(private readonly changed: () => void) {}
 
   /** A session's frames, from `Page.getFrameTree`. Its root frame is hosted there from now on. */
   seed(sessionId: SessionKey, tree: PageFrameTree): void {
-    this.roots.set(sessionId, tree.frame.id);
+    this.contexts.setRoot(sessionId, tree.frame.id);
     this.put(sessionId, tree.frame, true);
-    this.seedChildren(sessionId, tree);
+    for (const frame of subframesOf(tree)) this.put(sessionId, frame, false);
     this.changed();
   }
 
@@ -59,7 +57,7 @@ export class ConsoleFrames {
   contextCreated(sessionId: SessionKey, context: ExecutionContext): void {
     const frameId = context.auxData?.frameId;
     if (!frameId) return;
-    this.contextsOf(sessionId).set(context.id, frameId);
+    this.contexts.add(sessionId, context.id, frameId);
     // Other worlds (extensions, injected scripts) are only for telling where logs came from.
     if (!context.auxData?.isDefault) return;
     const record = this.records.get(frameId) ?? this.create(sessionId, frameId);
@@ -69,9 +67,7 @@ export class ConsoleFrames {
   }
 
   contextDestroyed(sessionId: SessionKey, contextId: number): void {
-    const contexts = this.contexts.get(sessionId);
-    const frameId = contexts?.get(contextId);
-    contexts?.delete(contextId);
+    const frameId = this.contexts.remove(sessionId, contextId);
     const record = frameId === undefined ? undefined : this.records.get(frameId);
     if (!record?.context || record.context.sessionId !== sessionId || record.context.id !== contextId) return;
     record.context = undefined;
@@ -80,7 +76,7 @@ export class ConsoleFrames {
 
   /** Every context of a session went away (its page navigated). */
   contextsCleared(sessionId: SessionKey): void {
-    this.contexts.get(sessionId)?.clear();
+    this.contexts.sessionCleared(sessionId);
     for (const record of this.records.values()) {
       if (record.context?.sessionId === sessionId) record.context = undefined;
     }
@@ -89,8 +85,7 @@ export class ConsoleFrames {
 
   /** A session went away with the frames it hosted (nested sessions report their own). */
   sessionGone(sessionId: SessionKey): void {
-    this.contexts.delete(sessionId);
-    this.roots.delete(sessionId);
+    this.contexts.sessionGone(sessionId);
     for (const record of [...this.records.values()]) {
       if (record.sessionId === sessionId) this.records.delete(record.id);
     }
@@ -100,14 +95,12 @@ export class ConsoleFrames {
   clear(): void {
     this.records.clear();
     this.contexts.clear();
-    this.roots.clear();
     this.changed();
   }
 
   /** The frame a context belongs to; a context the console doesn't know counts as the session's root frame. */
   frameOf(sessionId: SessionKey, contextId?: number): string | null {
-    const known = contextId === undefined ? undefined : this.contexts.get(sessionId)?.get(contextId);
-    return known ?? this.roots.get(sessionId) ?? null;
+    return this.contexts.frameOf(sessionId, contextId);
   }
 
   /** Where code for a frame runs: its session and main-world context, while it has one. */
@@ -116,13 +109,7 @@ export class ConsoleFrames {
   }
 
   list(): ConsoleFrame[] {
-    return [...this.records.values()].map((r) => ({
-      id: r.id,
-      ...(r.parentId ? { parentId: r.parentId } : {}),
-      url: r.url,
-      name: r.name,
-      canRun: !!r.context,
-    }));
+    return [...this.records.values()].map(toConsoleFrame);
   }
 
   /**
@@ -140,23 +127,10 @@ export class ConsoleFrames {
     record.sessionId = sessionId;
   }
 
-  private seedChildren(sessionId: SessionKey, tree: PageFrameTree): void {
-    for (const child of tree.childFrames ?? []) {
-      this.put(sessionId, child.frame, false);
-      this.seedChildren(sessionId, child);
-    }
-  }
-
   private create(sessionId: SessionKey, frameId: string): FrameRecord {
     const record: FrameRecord = { id: frameId, url: '', name: '', sessionId };
     this.records.set(frameId, record);
     return record;
-  }
-
-  private contextsOf(sessionId: SessionKey): Map<number, string> {
-    let contexts = this.contexts.get(sessionId);
-    if (!contexts) this.contexts.set(sessionId, (contexts = new Map()));
-    return contexts;
   }
 
   /** Drops a frame and every frame nested in it. */
