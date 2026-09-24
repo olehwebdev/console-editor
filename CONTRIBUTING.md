@@ -46,13 +46,16 @@ A good pull request:
 
 ## Releasing
 
-1. In [CHANGELOG.md](CHANGELOG.md), move the `[Unreleased]` notes under a dated heading for the new version (`## [0.2.0] - 2026-10-01`) and update the links at the bottom. The release's notes start with this section and the app shows it as **What's New**; the workflow refuses a version without one.
-2. Set the new version in `package.json` (`npm version 0.2.0 --no-git-tag-version`) and commit both on `main`.
-3. Push a matching tag (`git tag v0.2.0 && git push origin v0.2.0`), or run the **Release** workflow by hand with **Draft release** ticked. Either way it refuses a version that already has a release or draft.
-4. The workflow runs the checks, builds the installers on macOS, Windows and Linux, installs and smoke-tests them, updates an installed Windows app and an AppImage to a newer build, and drafts the release with the installers, the updater's `latest*.yml` and block maps, and `SHA256SUMS.txt`.
-5. Review the draft on GitHub and publish it. Installed copies find it at their next start, or within six hours.
+`main` takes changes only through pull requests ([rulesets](.github/rulesets/README.md)), so a release is one too. What gets released is the release branch's version commit, built and tested before anything is tagged:
 
-That's a release straight from `main`. For a patch release while `main` holds unreleased work, or a release that needs more than its version commit, use a `hotfix/` or `release/` branch instead ([CLAUDE.md › Branches](CLAUDE.md#branches-git-flow)).
+1. Start a `release/0.3.0` branch from `main`. In [CHANGELOG.md](CHANGELOG.md), move the `[Unreleased]` notes under a dated heading for the new version (`## [0.3.0] - 2026-10-01`) and update the links at the bottom. The release's notes start with this section and the app shows it as **What's New**; the workflow refuses a version without one.
+2. Set the new version in `package.json` (`npm version 0.3.0 --no-git-tag-version`) and commit both: this is the version commit. Open a pull request into `main`.
+3. Once CI passes, run the **Release** workflow by hand on `release/0.3.0` with **Draft release** ticked. It drafts the release on the branch's last commit, the version commit, and tags nothing yet. It refuses a version that already has a release or draft. If it fails, or you commit more to the branch (step 5's update doesn't count), delete any draft and run it again.
+4. The workflow runs the checks, builds the installers on macOS, Windows and Linux, installs and smoke-tests them, updates an installed Windows app and an AppImage to a newer build, and drafts the release with the installers, the updater's `latest*.yml` and block maps, and `SHA256SUMS.txt`.
+5. Merge the pull request with a **merge commit** (not squash or rebase), so the drafted commit stays in `main`'s history. If `main` moved meanwhile, GitHub asks you to update the branch first: use **Update branch**, not **Update with rebase**, and don't draft again, since the branch's last commit then carries `main`'s unreleased work.
+6. Check that `git ls-remote --tags origin v0.3.0` prints nothing, then review the draft on GitHub and publish it. Publishing creates the `v0.3.0` tag on the drafted commit; tags can't be moved or deleted, so don't push `v*` tags by hand. Installed copies find the release at their next start, or within six hours.
+
+A patch release while `main` holds unreleased work goes the same way from a `hotfix/0.2.1` branch started from the latest release tag ([CLAUDE.md › Branches](CLAUDE.md#branches-git-flow)). Its pull request always needs step 5's update.
 
 ## Licence
 
