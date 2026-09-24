@@ -4,7 +4,8 @@ import { Icon } from '@/shared/ui/icon';
 import { installUpdate } from '../../model/update';
 import { ITEM, ITEM_ICON_SIZE } from './constants';
 
-export function ReadyItem({ update }: { update: AvailableUpdate }) {
+/** Downloaded: restarts into it (auto), or shows the file (manual). */
+export function readyItem(update: AvailableUpdate) {
   return (
     <button type="button" className={`${ITEM} text-accent`} onClick={installUpdate} data-testid="update-status">
       <Icon icon={update.install === 'auto' ? icons.ReloadIcon : icons.DownloadIcon} size={ITEM_ICON_SIZE} />
