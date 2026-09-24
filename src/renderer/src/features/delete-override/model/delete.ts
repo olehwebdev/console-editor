@@ -1,4 +1,5 @@
 import { api, errorMessage } from '@/shared/api';
+import { TOAST_DURATION } from '@/shared/config';
 import { fileName } from '@/shared/lib';
 import { confirm } from '@/shared/ui/dialog';
 import { toast } from '@/shared/ui/toast';
@@ -30,7 +31,7 @@ export async function deleteOverride(id: string): Promise<void> {
       tabs.remove(tab.id);
       setTimeout(() => disposeTabModel(tab.id), 0);
     }
-    toast({ title: `Deleted the override for ${fileName(meta.sourceUrl)}`, tone: 'neutral', duration: 2500 });
+    toast({ title: `Deleted the override for ${fileName(meta.sourceUrl)}`, tone: 'neutral', duration: TOAST_DURATION.confirm });
     if (useSettingsStore.getState().settings.autoReloadOnSave) await api.reload();
   } catch (err) {
     toast({ title: 'Could not delete the override', description: errorMessage(err), tone: 'danger' });

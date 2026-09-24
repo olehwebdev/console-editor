@@ -1,7 +1,7 @@
-import { compileMatcher, suggestHashGlob, validateMatcher } from '@common/matcher';
+import { compileMatcher, validateMatcher } from '@common/matcher';
 import type { UrlMatcher } from '@common/types';
 import { api, errorMessage } from '@/shared/api';
-import { fileName } from '@/shared/lib';
+import { TOAST_DURATION } from '@/shared/config';
 import { confirm } from '@/shared/ui/dialog';
 import { toast } from '@/shared/ui/toast';
 import { useOverrideStore } from '@/entities/override';
@@ -25,17 +25,11 @@ export async function applyMatch(id: string, match: UrlMatcher): Promise<boolean
   }
   try {
     useOverrideStore.getState().upsert(await api.updateOverride(id, { match }));
-    toast({ title: 'Match rule updated', description: `${match.type}: ${match.pattern}`, tone: 'success', duration: 2500 });
+    toast({ title: 'Match rule updated', description: `${match.type}: ${match.pattern}`, tone: 'success', duration: TOAST_DURATION.confirm });
     if (useSettingsStore.getState().settings.autoReloadOnSave) await api.reload();
     return true;
   } catch (err) {
     toast({ title: 'Could not update the match rule', description: errorMessage(err), tone: 'danger' });
     return false;
   }
-}
-
-/** A glob that matches every build of a hash-named file, or null. */
-export function buildHashGlob(sourceUrl: string): { glob: string; label: string } | null {
-  const glob = suggestHashGlob(sourceUrl);
-  return glob ? { glob, label: fileName(glob) } : null;
 }
