@@ -45,7 +45,7 @@ A good pull request:
 ## Releasing
 
 1. Set the new version in `package.json` (`npm version 0.2.0 --no-git-tag-version`) and commit it on `main`.
-2. Push a matching tag (`git tag v0.2.0 && git push origin v0.2.0`), or run the **Release** workflow by hand with **Draft release** ticked.
+2. Push a matching tag (`git tag v0.2.0 && git push origin v0.2.0`), or run the **Release** workflow by hand with **Draft release** ticked. Either way it refuses a version that already has a release or draft.
 3. The workflow runs the checks, builds the installers on macOS, Windows and Linux, installs and smoke-tests them, and drafts the release with the installers and `SHA256SUMS.txt`.
 4. Review the draft on GitHub and publish it.
 

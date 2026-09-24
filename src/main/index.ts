@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import { join } from 'node:path';
-import appIcon from '../../build/icons/512x512.png?asset';
+import appIcon from '../../build/icons/512x512.png?asset&asarUnpack';
 import type { AppEvent } from '../shared/types';
 import { APP_ID, REPO_URL } from './appInfo';
 import { LOCAL_NETWORK_ACCESS_FEATURES, withDisabledFeatures } from './chromiumFlags';

@@ -18,6 +18,8 @@ const config: Configuration = {
   directories: { output: 'dist', buildResources: 'build' },
   // electron-vite bundles everything the app runs (dependencies included) into out/.
   files: ['out/**/*', '!node_modules/**/*'],
+  // The icon is also given to GTK (Linux About dialog), which can't read inside app.asar.
+  asarUnpack: ['out/main/chunks/*.png'],
   npmRebuild: false,
   // Uploads are the release workflow's job; this also leaves out auto-update metadata.
   publish: null,
@@ -73,14 +75,41 @@ const config: Configuration = {
     executableName: 'console-editor',
     icon: 'build/icons',
     synopsis: 'Live-patch the JavaScript, CSS and HTML of any website',
-    maintainer: 'olehwebdev',
+    maintainer: 'olehwebdev <10379680+olehwebdev@users.noreply.github.com>',
     // Names the .desktop file after package.json's desktopName, which Electron uses as the window's app id.
     syncDesktopName: true,
     artifactName: 'console-editor-${version}-linux-${arch}.${ext}',
   },
-  // Distribution packages keep their own naming conventions.
-  deb: { artifactName: '${name}_${version}_${arch}.${ext}', packageCategory: 'devel' },
-  rpm: { artifactName: '${name}-${version}.${arch}.${ext}', packageCategory: 'Development/Tools' },
+  // Without it, electron-builder's desktop entry would start the AppImage with the sandbox off. Its launcher
+  // still falls back to that by itself where the system blocks user namespaces.
+  appImage: { executableArgs: [] },
+  // Distribution packages keep their own naming conventions. Their dependencies are electron-builder's
+  // defaults plus ALSA and GBM, which Electron links against but minimal systems may lack.
+  deb: {
+    artifactName: '${name}_${version}_${arch}.${ext}',
+    packageCategory: 'devel',
+    depends: ['libgtk-3-0', 'libnotify4', 'libnss3', 'libxss1', 'libxtst6', 'xdg-utils', 'libatspi2.0-0', 'libuuid1', 'libsecret-1-0', 'libasound2', 'libgbm1'],
+  },
+  rpm: {
+    artifactName: '${name}-${version}.${arch}.${ext}',
+    packageCategory: 'Development/Tools',
+    depends: [
+      'gtk3',
+      'libnotify',
+      'nss',
+      'libXScrnSaver',
+      '(libXtst or libXtst6)',
+      'xdg-utils',
+      'at-spi2-core',
+      '(libuuid or libuuid1)',
+      '(libsecret or libsecret-1-0)',
+      '(alsa-lib or libasound2)',
+      '(mesa-libgbm or libgbm1)',
+    ],
+    // Electron's prebuilt binaries have fixed build ids; the /usr/lib/.build-id links rpm would add for
+    // them clash with every other package built on the same Electron.
+    fpm: ['--rpm-rpmbuild-define=_build_id_links none'],
+  },
 };
 
 export default config;

@@ -50,8 +50,15 @@ jobs:
             echo "::error::The tag $GITHUB_REF_NAME doesn't match package.json's version ($version)."
             exit 1
           fi
-          released=false
-          if gh release view "v$version" > /dev/null 2>&1; then released=true; fi
+          # Published releases only (this token can't see drafts); anything but "not found" is an error.
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" --silent 2> "$RUNNER_TEMP/err"; then
+            released=true
+          elif grep -q 'HTTP 404' "$RUNNER_TEMP/err"; then
+            released=false
+          else
+            cat "$RUNNER_TEMP/err"
+            exit 1
+          fi
           # Publishing a drafted release creates its tag, which can start this workflow again.
           if [ "$released" = true ] && [ "$GITHUB_REF_TYPE" = tag ]; then
             echo "::notice::v$version is already released; nothing to build."
@@ -225,7 +232,8 @@ jobs:
   release:
     name: Draft the release
     needs: [prepare, test]
-    if: github.ref_type == 'tag' || inputs.draft_release
+    # A pushed tag, or a manual run with the box ticked; never a version that is already out.
+    if: (github.event_name == 'push' && needs.prepare.outputs.released != 'true') || inputs.draft_release
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -243,6 +251,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
+          # This token sees drafts too: never add a second release for the same version.
+          if existing=$(gh release view "v$VERSION" --json isDraft --jq .isDraft 2>&1); then
+            echo "::error::v$VERSION already has a release (draft: $existing). Delete it or bump the version."
+            exit 1
+          elif [[ "$existing" != *"release not found"* ]]; then
+            echo "$existing"
+            exit 1
+          fi
           (cd dist && sha256sum * > SHA256SUMS.txt)
           sed "s/{{version}}/$VERSION/g" .github/release-notes.md > "$RUNNER_TEMP/notes.md"
           gh release create "v$VERSION" dist/* \
