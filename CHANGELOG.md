@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **A new app icon**, fitted to each system: it follows Apple's icon grid on the Mac, fills the frame on Windows, and comes in every size Linux desktops ask for.
+
 ### Fixed
 
 - **Hiding the website preview** now hides the site too. It used to stay on screen, drawn over the editor.
