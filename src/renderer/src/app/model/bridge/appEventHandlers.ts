@@ -17,6 +17,7 @@ import type { AppEventHandlers } from './types';
 export const APP_EVENT_HANDLERS: AppEventHandlers = {
   navigated: dropNavigatedResources,
   'iframe-detached': (event) => queueIframeDrop(event.iframeId),
+  'worker-detached': (event) => queueResourceOp({ type: 'drop-worker', workerId: event.workerId }),
   resource: (event) => queueResourceOp({ type: 'add', entry: event.resource }),
   'override-served': (event) => useOverrideStore.getState().hit(event.overrideId),
   'upstream-changed': warnUpstreamChanged,

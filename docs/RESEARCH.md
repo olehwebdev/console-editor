@@ -45,7 +45,7 @@ Nothing changes on the server. Only the browser inside the app sees the edits. T
 | A patched document that talks to local/intranet hosts | ✅ | A document served via CDP has no IP address, so Chromium's Local Network Access checks treat it as public and block its requests to private hosts. The app turns those checks off for its browser |
 | Full app flow: open site → pick file → pretty-print → edit → Ctrl+S → page reloads with the edit → restart app → override still there | ✅ | |
 
-Caching and service workers are handled by turning off the HTTP cache (`Network.setCacheDisabled`) and bypassing service workers (`Network.setBypassServiceWorker`) for the app's page, so an old copy can never sidestep an override.
+Caching and service workers are handled by turning off the HTTP cache (`Network.setCacheDisabled`) and bypassing service workers (`Network.setBypassServiceWorker`) for the app's page and for each worker's session that takes them (the page's settings don't reach what workers load), so an old copy of a file can't sidestep an override. A service worker's own scripts are the exception: Chromium keeps the ones it installed, so an edit reaches them only when the app's reload reinstalls the worker, and Chromium's update checks, which the app can't intercept, can put the live ones back until the next reload ([SPEC §6.6](./SPEC.md#66-workers)).
 
 ## 3. Approaches compared
 
@@ -73,7 +73,7 @@ Why it's worth building:
 What to be clear about (limits):
 1. **You edit the built output, not the original sources.** Bundled, minified JS is pretty-printed so it's readable, but variable names stay mangled. Source maps can show the original TS/JSX *read-only* (planned M4). Editing an original module and recompiling just that module is a research item, not a promise.
 2. **Only the app's browser sees the change.** It's for debugging and trying fixes; the real fix still goes through your normal build and deploy.
-3. **Workers** are separate CDP targets that aren't intercepted yet (M2). Iframes are, including cross-site and nested ones. One Chromium gap remains: when a cross-site iframe navigates back to its parent's site, that one document's files can't be intercepted; the app detects it and suggests a reload.
+3. **Workers** are separate CDP targets. They're intercepted, as are iframes, including cross-site and nested ones, except a worker started by another worker: Chromium 152+ pauses its first script on no session the app can reach (what it loads is intercepted, and the app says so). For iframes, one Chromium gap remains: when a cross-site iframe navigates back to its parent's site, that one document's files can't be intercepted; the app detects it and suggests a reload.
 4. **Scripts that verify themselves** (anti-tamper checks, hash comparisons in code) may notice. That's rare outside ads and anti-bot scripts.
 5. **Terms of use.** Changing what your own browser runs is fine for your own or your company's sites. Be thoughtful with third-party sites.
 

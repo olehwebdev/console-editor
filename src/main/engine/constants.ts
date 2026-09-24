@@ -1,3 +1,5 @@
+import type { WorkerType } from '../../shared/types';
+
 /**
  * The Chrome DevTools Protocol commands and events the engine uses, keyed by
  * domain and name as the protocol spells them: `CDP.Fetch.enable` is `Fetch.enable`.
@@ -12,12 +14,20 @@ export const CDP = {
     // Events
     requestPaused: 'Fetch.requestPaused',
   },
+  Inspector: {
+    enable: 'Inspector.enable',
+    // Events
+    targetCrashed: 'Inspector.targetCrashed',
+    targetReloadedAfterCrash: 'Inspector.targetReloadedAfterCrash',
+    workerScriptLoaded: 'Inspector.workerScriptLoaded',
+  },
   Network: {
     enable: 'Network.enable',
     getResponseBody: 'Network.getResponseBody',
     setBypassServiceWorker: 'Network.setBypassServiceWorker',
     setCacheDisabled: 'Network.setCacheDisabled',
     // Events
+    loadingFinished: 'Network.loadingFinished',
     requestWillBeSent: 'Network.requestWillBeSent',
     responseReceived: 'Network.responseReceived',
   },
@@ -35,17 +45,39 @@ export const CDP = {
     frameStoppedLoading: 'Page.frameStoppedLoading',
   },
   Runtime: {
+    evaluate: 'Runtime.evaluate',
     runIfWaitingForDebugger: 'Runtime.runIfWaitingForDebugger',
+  },
+  ServiceWorker: {
+    disable: 'ServiceWorker.disable',
+    enable: 'ServiceWorker.enable',
+    unregister: 'ServiceWorker.unregister',
+    // Events
+    workerRegistrationUpdated: 'ServiceWorker.workerRegistrationUpdated',
+    workerVersionUpdated: 'ServiceWorker.workerVersionUpdated',
   },
   Target: {
     attachToTarget: 'Target.attachToTarget',
     detachFromTarget: 'Target.detachFromTarget',
+    getTargetInfo: 'Target.getTargetInfo',
     setAutoAttach: 'Target.setAutoAttach',
+    setDiscoverTargets: 'Target.setDiscoverTargets',
     // Events
     attachedToTarget: 'Target.attachedToTarget',
     detachedFromTarget: 'Target.detachedFromTarget',
+    targetCreated: 'Target.targetCreated',
+    targetDestroyed: 'Target.targetDestroyed',
   },
 } as const;
+
+/** The CDP target types the engine tells apart: an out-of-process iframe's, and each kind of worker's. */
+export const TARGET_TYPE = {
+  iframe: 'iframe',
+  worker: 'worker',
+  sharedWorker: 'shared_worker',
+  serviceWorker: 'service_worker',
+  worklet: 'worklet',
+} as const satisfies Record<string, 'iframe' | WorkerType>;
 
 /** Where the HTTP status classes the engine tells apart start; each ends where the next one starts. */
 export const HTTP_SUCCESSFUL = 200;

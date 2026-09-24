@@ -85,7 +85,7 @@ export function ResourceTree() {
   if (!entries.length) {
     return (
       <EmptyState icon={icons.ExplorerIcon} title="No files yet" className="py-8">
-        Scripts, stylesheets and HTML the page loads show up here, including the ones inside iframes.
+        Scripts, stylesheets and HTML the page loads show up here, including the ones inside iframes and workers.
       </EmptyState>
     );
   }

@@ -82,7 +82,30 @@ export interface ResourceEntry {
    * the entry. Such entries disappear when that iframe navigates or goes away.
    */
   iframeId?: string;
+  /**
+   * Set when a worker loaded the file: the kind of worker and its script URL
+   * (a worklet's is the URL of the document that added it).
+   */
+  worker?: { type: WorkerType; url: string };
+  /**
+   * Opaque id of the worker session that reported the entry. Such entries
+   * disappear when that worker goes away; a service worker's outlive the page
+   * that registered it.
+   */
+  workerId?: string;
 }
+
+/** Kinds of worker, as CDP names their targets. */
+export type WorkerType = 'worker' | 'shared_worker' | 'service_worker' | 'worklet';
+
+/**
+ * Why an enabled override wasn't served. Without a reason, the file was
+ * already loading or was loaded on no session: a reload usually fixes it.
+ * - nested-worker: a worker started by another worker; Chromium lets no session change its first script.
+ * - service-worker-update: Chromium's update check reinstalled the service worker from the server,
+ *   out of the app's reach.
+ */
+export type MissedReason = 'nested-worker' | 'service-worker-update';
 
 export interface ResourceContent {
   url: string;
@@ -187,8 +210,10 @@ export type EngineEvent =
   | { type: 'navigated'; url: string; iframeId?: string }
   /** A cross-site iframe session went away (removed, reloaded, or moved to another process). */
   | { type: 'iframe-detached'; iframeId: string }
+  /** A worker session went away (terminated, its page left, or a new service worker version took over). */
+  | { type: 'worker-detached'; workerId: string }
   /** An enabled override matched a file the page received unmodified (e.g. a Chromium interception gap). */
-  | { type: 'override-missed'; overrideId: string; url: string }
+  | { type: 'override-missed'; overrideId: string; url: string; reason?: MissedReason }
   | { type: 'resource'; resource: ResourceEntry }
   | { type: 'override-served'; overrideId: string; url: string }
   | { type: 'upstream-changed'; overrideId: string; url: string }

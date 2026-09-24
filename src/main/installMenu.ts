@@ -51,8 +51,8 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
         { label: 'Go to File or Command…', accelerator: toAccelerator(SHORTCUT.quickOpen), visible: false, acceleratorWorksWhenHidden: true, click: command('toggle-palette') },
         { label: 'Toggle Sidebar', accelerator: toAccelerator(SHORTCUT.sidebar), click: command('toggle-sidebar') },
         { label: 'Focus Address Bar', accelerator: toAccelerator(SHORTCUT.focusUrl), click: command('focus-url') },
-        { label: 'Reload Page', accelerator: toAccelerator(SHORTCUT.reload), click: () => page.reload() },
-        { label: 'Reload Page', accelerator: toAccelerator(SHORTCUT.reloadF5), visible: false, acceleratorWorksWhenHidden: true, click: () => page.reload() },
+        { label: 'Reload Page', accelerator: toAccelerator(SHORTCUT.reload), click: () => void page.reload() },
+        { label: 'Reload Page', accelerator: toAccelerator(SHORTCUT.reloadF5), visible: false, acceleratorWorksWhenHidden: true, click: () => void page.reload() },
         { label: 'Toggle Diff', accelerator: toAccelerator(SHORTCUT.diff), click: command('toggle-diff') },
         { type: 'separator' },
         // Not F12 / Ctrl+Shift+I: Monaco uses those (go to definition / format on Linux).

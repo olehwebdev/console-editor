@@ -8,6 +8,7 @@ import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
+import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
 import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
@@ -47,14 +48,18 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
     () => ({
       heading: 'Page files',
       // Every file: the list is virtualized, so a page with thousands stays fast.
-      items: resources.map((r) => ({
-        id: r.url,
-        label: fileName(r.url),
-        hint: `${hostOf(r.url)}${pathOf(r.url)}${r.frame ? ' · iframe' : ''}`,
-        icon: KIND_ICON[r.kind],
-        keywords: [r.url, ...(r.frame ? ['iframe', r.frame.url] : [])],
-        onSelect: () => void openResource(r.url),
-      })),
+      items: resources.map((r) => {
+        const workerName = r.worker && WORKER_NAME[r.worker.type];
+        const workerUrl = workerScriptUrl(r);
+        return {
+          id: r.url,
+          label: fileName(r.url),
+          hint: `${hostOf(r.url)}${pathOf(r.url)}${r.frame ? ' · iframe' : ''}${workerName ? ` · ${workerName}` : ''}`,
+          icon: KIND_ICON[r.kind],
+          keywords: [r.url, ...(r.frame ? ['iframe', r.frame.url] : []), ...(workerName ? [workerName] : []), ...(workerUrl ? [workerUrl] : [])],
+          onSelect: () => void openResource(r.url),
+        };
+      }),
     }),
     [resources],
   );

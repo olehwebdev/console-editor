@@ -123,6 +123,93 @@ export function widgetHtml(port: number): string {
 `;
 }
 
+// --- worker fixtures -------------------------------------------------------
+// /workers/ starts every kind of worker. Each reports a value from a script it
+// loaded; the page collects them in `window.workerResults` and #results. The
+// libraries say 'original', so a test can tell when its override ran.
+
+export const WORKER_LIB_JS = `self.libValue = 'original-lib';\n`;
+export const NESTED_WORKER_JS = `importScripts('/workers/nested-lib.js');\npostMessage('original-nested:' + self.nestedLibValue);\n`;
+export const NESTED_LIB_JS = `self.nestedLibValue = 'original-nested-lib';\n`;
+export const MODULE_DEP_JS = `export const depValue = 'original-dep';\n`;
+export const SHARED_LIB_JS = `self.sharedLibValue = 'original-shared-lib';\n`;
+export const SW_JS = `importScripts('/workers/sw-lib.js');
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('message', (event) => event.source.postMessage({ sw: 'original-sw:' + self.swLibValue }));
+`;
+export const SW_LIB_JS = `self.swLibValue = 'original-sw-lib';\n`;
+export const WORKLET_JS = `registerProcessor('original-processor', class extends AudioWorkletProcessor { process() { return false; } });\n`;
+
+const WORKERS_HTML = `<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Workers fixture</title></head>
+<body>
+  <h1>Workers fixture</h1>
+  <pre id="results">{}</pre>
+  <script>
+    window.workerResults = {};
+    function report(key, value) {
+      workerResults[key] = value;
+      document.querySelector('#results').textContent = JSON.stringify(workerResults, null, 1);
+    }
+    const worker = new Worker('/workers/worker.js');
+    worker.onmessage = (e) => report(e.data.key, e.data.value);
+    const moduleWorker = new Worker('/workers/module.js', { type: 'module' });
+    moduleWorker.onmessage = (e) => report('module', e.data);
+    const shared = new SharedWorker('/workers/shared.js');
+    shared.port.onmessage = (e) => report('shared', e.data);
+    shared.port.start();
+    navigator.serviceWorker.addEventListener('message', (e) => report('sw', e.data.sw));
+    navigator.serviceWorker
+      .register('/workers/sw.js', { scope: '/workers/' })
+      .then(() => navigator.serviceWorker.ready)
+      .then((registration) => registration.active.postMessage('ping'))
+      .catch((err) => report('sw', 'error: ' + err.message));
+    const audio = new AudioContext();
+    audio.audioWorklet
+      .addModule('/workers/worklet.js')
+      .then(() => {
+        for (const name of ['original', 'patched']) {
+          try {
+            new AudioWorkletNode(audio, name + '-processor');
+            report('worklet', name);
+          } catch {}
+        }
+      })
+      .catch((err) => report('worklet', 'error: ' + err.message));
+  </script>
+</body>
+</html>
+`;
+
+// /workers-frame/ embeds a cross-site iframe (localhost) that starts /workers/'s
+// dedicated worker, which imports a script and starts a nested worker. The
+// iframe passes what they report up to the page's `window.workerResults`.
+
+export function workersFrameHtml(port: number): string {
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Workers in an iframe</title></head>
+<body>
+  <h1>Workers in a cross-site iframe</h1>
+  <script>
+    window.workerResults = {};
+    addEventListener('message', (e) => (workerResults[e.data.key] = e.data.value));
+  </script>
+  <iframe id="frame" src="http://localhost:${port}/workers-frame/frame.html" width="300" height="80"></iframe>
+</body>
+</html>
+`;
+}
+
+const WORKERS_FRAME_HTML = `<!doctype html>
+<script>
+  const worker = new Worker('/workers/worker.js');
+  worker.onmessage = (e) => parent.postMessage(e.data, '*');
+</script>
+<p>cross-site frame with a worker</p>
+`;
+
 export interface FixtureSite {
   url: string;
   server: Server;
@@ -181,6 +268,24 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   add('/frames/shared.js', 'text/javascript', SHARED_JS);
   add('/frames/back.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/back.js"></script><p>back on the top page\'s site</p>');
   add('/frames/back.js', 'text/javascript', BACK_JS);
+  add('/workers/', 'text/html; charset=utf-8', WORKERS_HTML);
+  add(
+    '/workers/worker.js',
+    'text/javascript',
+    `importScripts('/workers/lib.js');\npostMessage({ key: 'worker', value: self.libValue });\nconst nested = new Worker('/workers/nested.js');\nnested.onmessage = (e) => postMessage({ key: 'nested', value: e.data });\n`,
+  );
+  add('/workers/lib.js', 'text/javascript', WORKER_LIB_JS);
+  add('/workers/nested.js', 'text/javascript', NESTED_WORKER_JS);
+  add('/workers/nested-lib.js', 'text/javascript', NESTED_LIB_JS);
+  add('/workers/module.js', 'text/javascript', `import { depValue } from '/workers/dep.js';\npostMessage(depValue);\n`);
+  add('/workers/dep.js', 'text/javascript', MODULE_DEP_JS);
+  add('/workers/shared.js', 'text/javascript', `importScripts('/workers/shared-lib.js');\nonconnect = (e) => e.ports[0].postMessage(self.sharedLibValue);\n`);
+  add('/workers/shared-lib.js', 'text/javascript', SHARED_LIB_JS);
+  add('/workers/sw.js', 'text/javascript', SW_JS);
+  add('/workers/sw-lib.js', 'text/javascript', SW_LIB_JS);
+  add('/workers/worklet.js', 'text/javascript', WORKLET_JS);
+  add('/workers-frame/', 'text/html; charset=utf-8', workersFrameHtml(actualPort));
+  add('/workers-frame/frame.html', 'text/html; charset=utf-8', WORKERS_FRAME_HTML);
   // The demo store (README screenshots, `npm run demo-site`): a checkout with a bug in its bundle.
   add('/store/', 'text/html; charset=utf-8', STORE_HTML);
   add(STORE_BUNDLE_PATH, 'application/javascript; charset=utf-8', STORE_BUNDLE);
@@ -211,6 +316,6 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 if (process.argv[1] && /site\.ts$/.test(process.argv[1])) {
   const port = Number(process.env.PORT ?? 5174);
   startFixtureSite(port).then((site) =>
-    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes`),
+    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/workers/    dedicated, shared and service workers, and a worklet`),
   );
 }
