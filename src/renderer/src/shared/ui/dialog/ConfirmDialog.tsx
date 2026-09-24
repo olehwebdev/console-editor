@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { WarningIcon } from '@/shared/config/icons';
 import { cn, EASE_OUT, SPRING_PANEL, SPRING_PRESS, useRegisterOverlay } from '@/shared/lib';
@@ -48,23 +48,13 @@ function DialogPanel({ request, className }: { request: ConfirmRequest; classNam
   const { title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', tone = 'accent' } = request;
 
   const answered = useRef(false);
-  const answer = useCallback(
-    (value: boolean) => {
-      if (!isPresent || answered.current) return;
-      answered.current = true;
-      if (restoreTo && restoreTo !== document.body && restoreTo.isConnected) restoreTo.focus({ preventScroll: true });
-      settle(request.id, value);
-    },
-    [isPresent, restoreTo, request.id],
-  );
-  const answerRef = useRef(answer);
-  useLayoutEffect(() => {
-    answerRef.current = answer;
-  });
-
-  useEffect(() => {
-    confirmRef.current?.focus({ preventScroll: true });
-  }, []);
+  const answer = (value: boolean) => {
+    if (!isPresent || answered.current) return;
+    answered.current = true;
+    if (restoreTo && restoreTo !== document.body && restoreTo.isConnected) restoreTo.focus({ preventScroll: true });
+    settle(request.id, value);
+  };
+  const answerFromKey = useEffectEvent(answer);
 
   // Modal keyboard, captured at the window. Window-capture listeners added before this one
   // (global app hotkeys) still run first; they should bail while `isConfirmOpen()`.
@@ -75,7 +65,7 @@ function DialogPanel({ request, className }: { request: ConfirmRequest; classNam
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        answerRef.current(false);
+        answerFromKey(false);
       } else if (event.key === 'Enter') {
         if (event.isComposing) return;
         event.preventDefault();
@@ -83,7 +73,7 @@ function DialogPanel({ request, className }: { request: ConfirmRequest; classNam
         // A held Enter (e.g. the one that picked "Delete…" in a menu) must not confirm,
         // nor click the focused button natively.
         if (event.repeat || performance.now() - openedAt < ENTER_GUARD_MS) return;
-        answerRef.current(document.activeElement !== cancelRef.current);
+        answerFromKey(document.activeElement !== cancelRef.current);
       } else if (event.key === ' ' && event.repeat) {
         // Same for a held Space: a repeat would arm the focused button and its keyup would click it.
         event.preventDefault();
@@ -168,6 +158,7 @@ function DialogPanel({ request, className }: { request: ConfirmRequest; classNam
           <motion.button
             ref={confirmRef}
             type="button"
+            autoFocus
             whileTap={{ scale: 0.97 }}
             transition={SPRING_PRESS}
             onClick={() => answer(true)}

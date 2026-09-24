@@ -149,8 +149,12 @@ export function HoverHighlight({
     [measure, hide, reduce, x, y, width, height, opacity],
   );
 
-  // Keep the pill glued to its row when the list reflows or scrolls inside the container.
+  // Keep the pill glued to its row when the list reflows or scrolls inside the container; disabled, it hides.
   useEffect(() => {
+    if (disabled) {
+      hide();
+      return;
+    }
     const container = containerRef.current;
     if (!container) return;
     let frame = 0;
@@ -169,11 +173,7 @@ export function HoverHighlight({
       observer.disconnect();
       container.removeEventListener('scroll', resync, { capture: true });
     };
-  }, [moveTo]);
-
-  useEffect(() => {
-    if (disabled) hide();
-  }, [disabled, hide]);
+  }, [disabled, moveTo, hide]);
 
   const handlePointerOver = (event: PointerEvent<HTMLDivElement>) => {
     onPointerOver?.(event);
