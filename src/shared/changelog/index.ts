@@ -6,6 +6,6 @@
  * Imports carry `.ts`: scripts/release-notes.ts runs this with plain `node`.
  */
 export { changelogSection } from './changelogSection.ts';
-export { VERSION_TAG_PREFIX } from './constants.ts';
+export { CHANGELOG_FILE, RELEASE_TAG_PREFIX, VERSION_TAG_PREFIX } from './constants.ts';
 export { parseChangelog } from './parseChangelog.ts';
 export type { ChangelogEntry } from './types.ts';

@@ -23,6 +23,10 @@ const PAGE_BACKGROUND = '#ffffff';
 
 /** Chromium's net error for a navigation replaced by another one, not a real failure. */
 const ERR_ABORTED = -3;
+/** The same error in a rejected `loadURL`, whose message names it rather than giving its code. */
+const ERR_ABORTED_MESSAGE = /ERR_ABORTED/;
+/** Fetches a live file past the HTTP cache. */
+const BYPASS_CACHE = { 'Cache-Control': 'no-cache' } as const;
 
 /** Quality of the page snapshot shown under overlays. */
 const SNAPSHOT_JPEG_QUALITY = 85;
@@ -69,7 +73,7 @@ export class PageController {
       getSettings: () => this.settings.get(),
       emit: (event) => this.send(event),
       fallbackFetch: async (url) => {
-        const res = await this.siteSession.fetch(url, { credentials: 'include', headers: { 'Cache-Control': 'no-cache' } });
+        const res = await this.siteSession.fetch(url, { credentials: 'include', headers: BYPASS_CACHE });
         if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
         return res.text();
       },
@@ -129,7 +133,7 @@ export class PageController {
       await this.view.webContents.loadURL(url);
     } catch (err) {
       // Failures are reported through 'did-fail-load'.
-      if (!/ERR_ABORTED/.test(String(err))) console.warn(`loadURL(${url}) failed:`, err);
+      if (!ERR_ABORTED_MESSAGE.test(String(err))) console.warn(`loadURL(${url}) failed:`, err);
     }
   }
 

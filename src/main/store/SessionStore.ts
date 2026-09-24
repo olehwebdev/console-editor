@@ -9,6 +9,8 @@ import { writeAtomic } from './writeAtomic';
 const VERSION = 1;
 const SESSION_FILE = 'session.json';
 const DRAFTS_DIR = 'drafts';
+/** A tab's draft file, and the file of the text its editing started from. */
+const DRAFT_SUFFIX = { content: '.txt', base: '.base.txt' } as const;
 
 /**
  * What the app reopens on start: the last page, the open tabs and their
@@ -31,7 +33,7 @@ export class SessionStore {
   }
 
   private draftPath(id: string, which: 'content' | 'base'): string {
-    return join(this.draftsDir, which === 'content' ? `${id}.txt` : `${id}.base.txt`);
+    return join(this.draftsDir, `${id}${DRAFT_SUFFIX[which]}`);
   }
 
   async load(): Promise<void> {
@@ -50,7 +52,9 @@ export class SessionStore {
     // Drafts of tabs that are no longer open (e.g. a crash between the two writes).
     const open = new Set(this.state.tabs.map((t) => t.id));
     for (const file of await readdir(this.draftsDir)) {
-      const id = file.replace(/(\.base)?\.txt$/, '');
+      // The base's suffix first: it also ends with the content's.
+      const suffix = [DRAFT_SUFFIX.base, DRAFT_SUFFIX.content].find((s) => file.endsWith(s));
+      const id = suffix ? file.slice(0, -suffix.length) : file;
       if (!open.has(id)) await rm(join(this.draftsDir, file), { force: true });
     }
   }
