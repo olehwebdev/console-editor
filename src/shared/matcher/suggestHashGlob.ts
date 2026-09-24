@@ -2,6 +2,10 @@ import { GLOB_WILDCARD } from './constants';
 import { looksLikeHash } from './looksLikeHash';
 import { stripQuery } from './stripQuery';
 
+/** Vite and Rollup name chunks `[name]-[hash]` with an 8-character hash by default; shorter suffixes are likelier words. */
+const MIN_NAME_HASH_LENGTH = 8;
+const NAME_HASH = new RegExp(`^(.*[-_])([0-9A-Za-z]{${MIN_NAME_HASH_LENGTH},})$`);
+
 /**
  * Suggests a glob for cache-busted file names, e.g.
  * `https://cdn.x.com/js/main.3f9a1c2b.js` -> `https://cdn.x.com/js/main.*.js`.
@@ -22,7 +26,7 @@ export function suggestHashGlob(url: string): string | null {
   }
   // `index-BkT3x9aQ.js` (Vite / Rollup `[name]-[hash]`)
   if (!changed) {
-    const m = /^(.*[-_])([0-9A-Za-z]{8,})$/.exec(parts[0]);
+    const m = NAME_HASH.exec(parts[0]);
     if (m && looksLikeHash(m[2])) {
       parts[0] = `${m[1]}${GLOB_WILDCARD}`;
       changed = true;
