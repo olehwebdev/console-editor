@@ -74,7 +74,7 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Never loses work.** Overrides persist and can be switched on and off one by one. Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page next time.
 - **Stays fast on big bundles.** Multi-megabyte files open in a lighter highlight-only mode, and the file tree is virtualized.
 - **Keeps the site contained.** A site gets no permissions silently: camera, clipboard, location and similar ones prompt, the rest are denied. Its pop-ups stay under the editor's control, and a "Leave site?" guard can't block a reload.
-- **Keeps itself up to date.** A new release shows up as a notification with its notes on a **What's New** page, like VS Code's. One click downloads it, and **Restart to update** installs it (on Windows and with the AppImage, quitting does too); your unsaved edits come back as drafts.
+- **Keeps itself up to date.** A new release shows up as a notification with its notes on a **What's New** page, like VS Code's. On Windows and Linux (AppImage, `.deb`, `.rpm`) one click downloads it and **Restart to update** installs it (on Windows and with the AppImage, quitting does too), keeping your unsaved edits as drafts. On macOS and with the `.tar.gz` it downloads and checks the new version for you to install.
 
 ## Install
 

@@ -10,7 +10,7 @@
 | **Fedora, openSUSE** | `console-editor-{{version}}.x86_64.rpm` · `.aarch64.rpm` |
 | **Other Linux** | `.AppImage` or `.tar.gz` (x64 and arm64) |
 
-Already have Console Editor 0.2.0 or later? It tells you about this release by itself. On Windows and with the AppImage, `.deb` or `.rpm`, click **Download and install**, then **Restart to update** (the `.deb` and `.rpm` ask for your password); on macOS it downloads and checks the disk image for you.
+Console Editor 0.2.0 and later tell you about new releases by themselves. On Windows and with the AppImage, `.deb` or `.rpm`, click **Download and install**, then **Restart to update** (the `.deb` and `.rpm` ask for your password); on macOS it downloads and checks the disk image for you. Coming from 0.1.0, install this release by hand once.
 
 The disk images, the Windows installers and the `.deb` packages were each installed and tested on a machine of their architecture before this release was drafted, and an installed Windows app and AppImage were updated to a newer build.
 

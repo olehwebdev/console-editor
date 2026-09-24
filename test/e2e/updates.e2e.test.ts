@@ -5,7 +5,7 @@
  * installs one into a packaged app.
  */
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -20,6 +20,7 @@ const built = existsSync(join(root, 'out/main/index.js'));
 const sandboxArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 
 const NEXT = '9.9.9';
+const { version: VERSION } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string };
 const ASSET = manualAssetName(NEXT, process.platform, process.arch === 'arm64' ? 'arm64' : 'x64');
 const ASSET_BYTES = Buffer.alloc(2_000_000, 3);
 const NOTES = 'Faster everything, as promised.';
@@ -112,7 +113,7 @@ describe.skipIf(!built)('Updates', () => {
     await page.getByText(NOTES).waitFor();
     await expect.poll(() => page.getByTestId('update-card').getByRole('heading', { level: 2 }).textContent()).toBe(`Version ${NEXT} is available`);
     // This build's own notes, from CHANGELOG.md, marked as the one installed.
-    await page.getByRole('region', { name: 'Version 0.1.0' }).getByText('Installed').waitFor();
+    await page.getByRole('region', { name: `Version ${VERSION}` }).getByText('Installed', { exact: true }).waitFor();
     await expect.poll(() => win.getByRole('tab', { name: "What's New" }).count()).toBe(1);
   });
 

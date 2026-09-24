@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-24
+
+Console Editor now keeps itself up to date. Version 0.1.0 had no updater, so this one is installed by hand; the ones after it come to you.
+
 ### Added
 
 - **Updates.** Console Editor checks GitHub for a new release when it starts and every few hours, and tells you when there is one. One click downloads it in the background. On Windows and with the AppImage it then installs when you click **Restart to update** or quit the app; the `.deb` and `.rpm` install it when you click **Restart to update**, after asking for your password. Your unsaved edits come back as drafts. On macOS it downloads the new disk image, checks it and opens it for you to drag into Applications (installing in place needs builds signed with an Apple Developer ID); a `.tar.gz` copy gets the new archive in Downloads. Turn the checks off in **Settings**, or check any time from **Help › Check for Updates…**.
@@ -25,5 +29,6 @@ The first release.
 - **Session restore:** closing keeps unsaved edits as drafts and reopens your tabs and the last page.
 - **Installers** for macOS (Apple silicon and Intel), Windows (x64 and ARM) and Linux (AppImage, `.deb`, `.rpm`, `.tar.gz`; x64 and arm64).
 
-[Unreleased]: https://github.com/olehwebdev/console-editor/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/olehwebdev/console-editor/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/olehwebdev/console-editor/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/olehwebdev/console-editor/releases/tag/v0.1.0
