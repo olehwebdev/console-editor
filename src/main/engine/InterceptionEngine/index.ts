@@ -1,5 +1,7 @@
 export { computeFetchPatterns } from './computeFetchPatterns';
 export { InterceptionEngine } from './InterceptionEngine';
 export { isBenignCdpError } from './isBenignCdpError';
+export { isServiceWorkerOutdated } from './isServiceWorkerOutdated';
+export { originOf } from './originOf';
 export { sha256 } from './sha256';
 export type { EngineOptions, FetchPattern, ServiceWorkerState, WorkerInfo } from './types';

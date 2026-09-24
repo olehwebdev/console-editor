@@ -18,8 +18,8 @@ import { computeFetchPatterns } from './computeFetchPatterns';
 import { ANY_URL, DOCUMENT_KIND, OTHER_RESOURCE_TYPE, SCRIPT_KIND } from './constants';
 import { isBenignCdpError } from './isBenignCdpError';
 import { isKind } from './isKind';
+import { isServiceWorkerOutdated } from './isServiceWorkerOutdated';
 import { MISSED_REASONS } from './missedReasons';
-import { originOf } from './originOf';
 import { sha256 } from './sha256';
 import type { CdpCommand, EngineOptions, FetchPattern, FrameTree, RequestPausedParams, ServedScript, ServiceWorkerState, TrackedResource } from './types';
 import { WORKER_SESSIONS } from './workerSessions';
@@ -454,31 +454,14 @@ export class InterceptionEngine {
     return this.cdp.send(CDP.Fetch.enable, { patterns }).then(() => undefined);
   }
 
-  /**
-   * For a service worker: whether it runs code other than what would be
-   * served now (an override of one of its scripts was added, changed or turned
-   * off since it was installed). Chromium doesn't fetch installed scripts on
-   * reload, so it must be reinstalled. One installed before this session
-   * attached (in an earlier run, say) may run edits of any of its site's
-   * scripts, and which it imported is unknown: it counts as outdated while
-   * its site has script overrides, so it's reinstalled once, through
-   * interception.
-   */
+  /** For a service worker: whether it runs outdated code and must be reinstalled (see `isServiceWorkerOutdated`). */
   isOutdated(): boolean {
-    const worker = this.opts.worker;
-    if (worker?.type !== TARGET_TYPE.serviceWorker) return false;
-    if (!this.installSeen) {
-      const origin = originOf(this.workerUrl ?? worker.url);
-      return this.opts.getOverrides().some((o) => o.kind === SCRIPT_KIND && originOf(o.sourceUrl) === origin);
-    }
-    const scripts = [...this.resources.values()].filter((r) => r.entry.kind === SCRIPT_KIND).map((r) => r.entry.url);
-    return scripts.some((url) => {
-      const served = this.servedScripts.get(url);
-      return this.overrideVersion(url, served?.resourceType ?? SCRIPT_KIND) !== (served?.version ?? '');
-    });
+    const state = this.serviceWorkerState();
+    return !!state && isServiceWorkerOutdated(state, this.opts.getOverrides(), (url, resourceType) => this.overrideVersion(url, resourceType));
   }
 
-  private overrideVersion(url: string, resourceType: string): string {
+  /** The version of the override that would serve `url` now (`id@updatedAt`), or '' for the live file. */
+  overrideVersion(url: string, resourceType: string): string {
     const o = this.findOverride(url, resourceType);
     return o ? `${o.id}${VERSION_SEPARATOR}${o.updatedAt}` : '';
   }
