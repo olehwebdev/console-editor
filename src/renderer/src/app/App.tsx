@@ -1,5 +1,6 @@
 import { MotionConfig } from 'motion/react';
 import { useEffect } from 'react';
+import { GALLERY_HASH } from '@common/constants';
 import { ConfirmDialog } from '@/shared/ui/dialog';
 import { ToastStack } from '@/shared/ui/toast';
 import { EditorPage, pageCommands } from '@/pages/editor';
@@ -11,9 +12,9 @@ const markReady = () => {
   document.body.dataset.ready = 'true';
 };
 
-/** Root: global providers and overlays around the one page. `#gallery` shows the design system instead. */
+/** Root: global providers and overlays around the one page. The gallery hash shows the design system instead. */
 export function App() {
-  const gallery = location.hash === '#gallery';
+  const gallery = location.hash === `#${GALLERY_HASH}`;
 
   // The link to the main process lives as long as the app is mounted.
   useEffect(() => {

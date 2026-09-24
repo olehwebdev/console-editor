@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, net, shell } from 'electron';
 import { existsSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import appIcon from '../../build/icons/512x512.png?asset&asarUnpack';
+import { ENV, GALLERY_HASH } from '../shared/constants';
 import type { AppEvent } from '../shared/types';
 import { APP_ID, REPO_SLUG, REPO_URL } from './appInfo';
 import { LOCAL_NETWORK_ACCESS_FEATURES, withDisabledFeatures } from './chromiumFlags';
@@ -20,7 +21,8 @@ if (!app.isPackaged) app.setPath('userData', `${app.getPath('userData')} (dev)`)
 const defaultUserData = app.getPath('userData');
 
 // Allow tests and power users to keep data elsewhere (e.g. a throwaway profile).
-if (process.env.CONSOLE_EDITOR_USER_DATA) app.setPath('userData', resolve(process.env.CONSOLE_EDITOR_USER_DATA));
+const userDataOverride = process.env[ENV.userData];
+if (userDataOverride) app.setPath('userData', resolve(userDataOverride));
 
 /** Whether two paths name the same folder (following links; case-insensitive where the file system usually is). */
 function sameFolder(a: string, b: string): boolean {
@@ -47,7 +49,7 @@ if (app.isPackaged && !ownDataFolder) {
 }
 
 /** A local update server standing in for GitHub (tests); likewise never for the real profile. */
-const updateFeed = ownDataFolder ? process.env.CONSOLE_EDITOR_UPDATE_FEED?.replace(/\/+$/, '') || undefined : undefined;
+const updateFeed = ownDataFolder ? process.env[ENV.updateFeed]?.replace(/\/+$/, '') || undefined : undefined;
 
 // Documents served from overrides would otherwise lose access to local/intranet hosts (see chromiumFlags.ts).
 app.commandLine.appendSwitch(
@@ -61,7 +63,10 @@ if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 /** First http(s) URL among command-line arguments, e.g. `npm start -- https://example.com`. */
 const urlArgument = (args: string[]) => args.find((arg) => /^https?:\/\//i.test(arg));
 
-const initialUrl = () => urlArgument(process.argv.slice(1)) ?? process.env.CONSOLE_EDITOR_URL;
+const initialUrl = () => urlArgument(process.argv.slice(1)) ?? process.env[ENV.url];
+
+/** `CONSOLE_EDITOR_GALLERY=1` opens the design-system gallery instead of the editor. */
+const galleryMode = !!process.env[ENV.gallery];
 
 /** The open window, for a second launch to hand over to. */
 let running: { win: BrowserWindow; page: PageController } | undefined;
@@ -133,7 +138,7 @@ async function createWindow(): Promise<void> {
   // Closing keeps unsaved edits as drafts (reopened next time) instead of asking to discard them:
   // the renderer writes what it hasn't yet, then answers. Installing an update does the same first.
   // (The design-system gallery has no drafts to keep.)
-  let closeReady = !!process.env.CONSOLE_EDITOR_GALLERY;
+  let closeReady = galleryMode;
   let flushing: Promise<boolean> | undefined;
   let answerFlush: ((ok: boolean) => void) | undefined;
   /** True once drafts are written, or the user accepts losing them. */
@@ -197,7 +202,7 @@ async function createWindow(): Promise<void> {
     send: (state) => send({ type: 'update', state }),
     prepareToQuit,
     cancelQuit: () => {
-      closeReady = !!process.env.CONSOLE_EDITOR_GALLERY;
+      closeReady = galleryMode;
     },
     // A disk image opens (mounted, in Finder); anything else is shown in its folder.
     showFile: async (file) => {
@@ -214,10 +219,10 @@ async function createWindow(): Promise<void> {
 
   win.once('ready-to-show', () => win.show());
 
-  // CONSOLE_EDITOR_GALLERY=1 opens the design-system gallery instead of the editor.
-  const hash = process.env.CONSOLE_EDITOR_GALLERY ? 'gallery' : undefined;
-  if (process.env.ELECTRON_RENDERER_URL) {
-    await win.loadURL(`${process.env.ELECTRON_RENDERER_URL}${hash ? `#${hash}` : ''}`);
+  const hash = galleryMode ? GALLERY_HASH : undefined;
+  const rendererUrl = process.env[ENV.rendererUrl];
+  if (rendererUrl) {
+    await win.loadURL(`${rendererUrl}${hash ? `#${hash}` : ''}`);
   } else {
     await win.loadFile(join(__dirname, '../renderer/index.html'), { hash });
   }
