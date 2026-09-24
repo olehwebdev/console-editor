@@ -40,6 +40,8 @@ interface TabStore {
   activate(id: string): void;
   /** Closes a file tab or a page. */
   remove(id: string): void;
+  /** Closes every file tab (pages stay open). */
+  removeTabs(): void;
   patch(id: string, patch: Partial<TabMeta>): void;
   setDiff(mode: DiffMode): void;
 }
@@ -70,6 +72,7 @@ export const useTabStore = create<TabStore>()((set) => ({
         diff: s.activeId === id ? 'off' : s.diff,
       };
     }),
+  removeTabs: () => set((s) => ({ tabs: [], activeId: s.pages.some((p) => p.id === s.activeId) ? s.activeId : null, diff: 'off' })),
   patch: (id, patch) => set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
   setDiff: (diff) => set({ diff }),
 }));

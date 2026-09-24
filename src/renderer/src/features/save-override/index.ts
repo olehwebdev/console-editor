@@ -1,1 +1,1 @@
-export { saveTab } from './model/save';
+export { saveTab, savesSettled } from './model/save';

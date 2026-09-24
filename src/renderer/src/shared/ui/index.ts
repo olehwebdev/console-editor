@@ -15,6 +15,7 @@ export * from './kbd';
 export * from './markdown';
 export * from './menu';
 export * from './panel-resizer';
+export * from './popover';
 export * from './section';
 export * from './spinner';
 export * from './switch';

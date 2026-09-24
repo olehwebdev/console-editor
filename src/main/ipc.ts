@@ -6,12 +6,14 @@ import {
   type Rect,
   type SessionDraft,
   type Settings,
+  type WorkspacePatch,
 } from '../shared/types';
 import type { PageController } from './PageController';
 import type { OverrideStore } from './store/OverrideStore';
 import type { SessionStore } from './store/SessionStore';
 import type { SettingsStore } from './store/SettingsStore';
 import type { UpdateService } from './update/UpdateService';
+import type { WorkspaceController } from './WorkspaceController';
 
 interface Deps {
   win: BrowserWindow;
@@ -19,6 +21,7 @@ interface Deps {
   store: OverrideStore;
   settings: SettingsStore;
   session: SessionStore;
+  workspaces: WorkspaceController;
   updates: UpdateService;
   /** The renderer answered a `flush-session` event. */
   onSessionFlushed(ok: boolean): void;
@@ -28,7 +31,7 @@ function assertString(value: unknown, name: string): asserts value is string {
   if (typeof value !== 'string') throw new Error(`${name} must be a string`);
 }
 
-export function registerIpc({ win, page, store, settings, session, updates, onSessionFlushed }: Deps): void {
+export function registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed }: Deps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -104,8 +107,15 @@ export function registerIpc({ win, page, store, settings, session, updates, onSe
     return next;
   });
 
+  handle('workspaces:list', () => workspaces.state());
+  handle('workspaces:favicons', () => workspaces.favicons());
+  handle('workspaces:create', () => workspaces.create());
+  handle('workspaces:update', (id: unknown, patch: WorkspacePatch) => workspaces.update(id, patch));
+  handle('workspaces:delete', (id: unknown) => workspaces.remove(id));
+  handle('workspaces:switch', (id: unknown) => workspaces.switchTo(id));
+
   handle('session:get', () => session.get());
-  handle('session:tabs', (tabs: unknown, activeTabId: unknown) => session.setTabs(tabs, activeTabId));
+  handle('session:tabs', (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));
   handle('session:draft:get', (id: unknown) => session.getDraft(id));
   handle('session:draft:save', (id: unknown, draft: SessionDraft) => session.saveDraft(id, draft));
   handle('session:draft:delete', (id: unknown) => session.deleteDraft(id));

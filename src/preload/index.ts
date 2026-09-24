@@ -25,8 +25,15 @@ const api: ConsoleEditorApi = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (patch) => ipcRenderer.invoke('settings:update', patch),
 
+  getWorkspaces: () => ipcRenderer.invoke('workspaces:list'),
+  getWorkspaceFavicons: () => ipcRenderer.invoke('workspaces:favicons'),
+  createWorkspace: () => ipcRenderer.invoke('workspaces:create'),
+  updateWorkspace: (id, patch) => ipcRenderer.invoke('workspaces:update', id, patch),
+  deleteWorkspace: (id) => ipcRenderer.invoke('workspaces:delete', id),
+  switchWorkspace: (id) => ipcRenderer.invoke('workspaces:switch', id),
+
   getSession: () => ipcRenderer.invoke('session:get'),
-  saveSessionTabs: (tabs, activeTabId) => ipcRenderer.invoke('session:tabs', tabs, activeTabId),
+  saveSessionTabs: (workspaceId, tabs, activeTabId) => ipcRenderer.invoke('session:tabs', workspaceId, tabs, activeTabId),
   getDraft: (tabId) => ipcRenderer.invoke('session:draft:get', tabId),
   saveDraft: (tabId, draft) => ipcRenderer.invoke('session:draft:save', tabId, draft),
   deleteDraft: (tabId) => ipcRenderer.invoke('session:draft:delete', tabId),
