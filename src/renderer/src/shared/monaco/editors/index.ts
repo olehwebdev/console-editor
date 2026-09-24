@@ -1,0 +1,9 @@
+export { dismissEditorWidgets } from './dismissEditorWidgets';
+export { editorHasFocus } from './editorHasFocus';
+export { focusWhenFree } from './focusWhenFree';
+export { getActiveEditor } from './getActiveEditor';
+export { requestEditorFocus } from './requestEditorFocus';
+export { setActiveEditor } from './setActiveEditor';
+export { takeFocusRequest } from './takeFocusRequest';
+export { trackTreeNavigation } from './trackTreeNavigation';
+export { triggerInActiveEditor } from './triggerInActiveEditor';
