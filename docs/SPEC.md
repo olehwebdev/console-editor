@@ -34,6 +34,7 @@ A desktop app where you enter a website's URL, see every script, stylesheet and 
 | U14 | Use my own Chrome (existing profile, extensions) instead of the embedded browser | 🔜 M3 |
 | U15 | Browse original sources from source maps (read-only) and jump to the matching bundle code | 🔜 M4 |
 | U16 | I keep a workspace per site or task (its page, tabs, unsaved edits and overrides) and switch between them from the rail, which shows each one's favicon or a colour I pick | ✅ (§5.1) |
+| U17 | I read the console of the page and every iframe in it as one stream, each row tagged with its frame, and run code in the frame I pick: send an event in one service, watch another react | ✅ (§6.7) |
 
 ## 3. Architecture
 
@@ -88,9 +89,12 @@ src/
     appInfo.ts       app id and repository URL (shared with electron-builder.ts)
     PageController/  PageController.ts (WebContentsView for the site, navigation, engine wiring), normalizeUrl.ts
     WorkspaceController.ts  workspaces: switching, the page URL, title and favicon each remembers (§5.1)
+    console/         ConsoleService.ts (logs, errors and evaluation on every CDP session), ConsoleFrames.ts
+                     (the page's frames across sessions, and their JavaScript contexts), value previews (§6.7)
     favicon/         a page's favicon as a small data URL (sniffed, size-capped)
     electronTransport.ts  webContents.debugger → CdpTransport
-    engine/          PageInterception/ (one engine per CDP session: page + iframes),
+    engine/          PageInterception/ (one engine per CDP session: page + iframes; hands each session to
+                     the console too),
                      InterceptionEngine/, transform/ (SRI/source maps/headers),
                      cdp/ (transport interface), websocketTransport/ (browser-level CDP, used by tests),
                      constants.ts (CDP command and event names, HTTP status classes)
@@ -105,12 +109,15 @@ src/
   renderer/src/      React UI, Feature-Sliced Design (see DESIGN_SYSTEM.md §6):
     app/             entry, providers, event bridge (main → stores), styles/tokens, component gallery
     pages/editor/    the workspace layout and its persisted layout store; session sync and workspace switching
-    widgets/         title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel, command-palette
+    widgets/         title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel, command-palette,
+                     console-panel
     features/        open-resource, save-override, format-document, compare-changes, toggle/delete-override,
                      edit-match-rule, navigate-page, filter-resources, update-settings, close-tab,
-                     update-app (notifications, the What's New page, the status-bar entry), edit-workspace
+                     update-app (notifications, the What's New page, the status-bar entry), edit-workspace,
+                     run-in-frame, filter-console, name-frame, clear-console, expand-console-value
     entities/        page, settings, override, editor-tab (+ Monaco model registry, page tabs), resource,
-                     app-update (updater state, the bundled CHANGELOG.md), workspace (+ its rail tile)
+                     app-update (updater state, the bundled CHANGELOG.md), workspace (+ its rail tile),
+                     frame (the page's frames, their labels and colours), console-log
     shared/          api (preload bridge), ui (design system), monaco, lib (format worker, overlays, motion), config
 test/
   unit/              matcher, transform, store, engine and PageInterception (fake CDP), minified heuristic
@@ -198,9 +205,11 @@ A workspace is a saved workflow: a page (URL, title and favicon), the tabs open 
 
 **Creating** adds an empty workspace (in the first colour no other has) and switches to it, with the address bar focused; if the switch doesn't happen, the new workspace is removed again. **Deleting** asks first and removes the workspace's overrides (first: were the workspace to go first and this fail, the next start would hand them to another), then the workspace with its drafts and favicon; the active one hands over to its neighbour first, and the last one can't be deleted. The site's cookies and logins (`persist:site`) are shared by all workspaces.
 
+**Frame names.** Each workspace keeps the names you give the page's frames in the console (`frameNames`, by frame key: `top` for the top page, else the frame's address without query or hash, else its `name`), at most 200, each up to 40 characters.
+
 `CONSOLE_EDITOR_USER_DATA` overrides `<userData>` (used by tests; handy for throwaway profiles).
 
-**Settings** (all booleans; defaults in brackets): reload page on save [on] · pretty-print minified files on open [on] · strip SRI [on] · strip source maps from overrides [on] · disable HTTP cache [on] · bypass service workers [on] · bypass CSP [off].
+**Settings** (all booleans; defaults in brackets): reload page on save [on] · pretty-print minified files on open [on] · strip SRI [on] · strip source maps from overrides [on] · disable HTTP cache [on] · bypass service workers [on] · bypass CSP [off] · record the console [on] · check for updates [on].
 
 ## 6. Interception engine
 
@@ -261,6 +270,22 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 - **Missed overrides:** an enabled override whose URL arrived without being served (it was enabled after the request, or an iframe loaded it on no session, §6.5) emits `override-missed` once per override and URL until the next navigation; the UI offers "Reload page".
 - **Content for the editor:** for files served from an override, re-fetch upstream out-of-page (session cookies included) so the edited copy is never mistaken for the original. Otherwise try `Network.getResponseBody`, then `Page.getResourceContent`, then the out-of-page fetch. The result carries a sha256 hash (becomes `originalHash`).
 
+### 6.7 Console
+
+The console records the page's and every frame's logs as one stream and runs code in any frame (`src/main/console/`). It rides on the sessions interception already has: `PageInterception` hands each CDP session to a `SessionObserver` (the page's once attached, an iframe's while it is still paused, within the same setup budget), so a service's first log line is caught. The observer's failures never touch interception.
+
+| What | How |
+|---|---|
+| Recording | Per session: `Page.getFrameTree` (seeds its frames), then `Runtime.enable` and `Log.enable`. Off in Settings: `Runtime.disable` and `Log.disable` on every session, and no frames are listed |
+| Frames | Keyed by frame id, which survives a move to another process (a new session). A session hosts its root frame and its same-site descendants; `Page.frameNavigated` and each frame's main-world context (`executionContextCreated` with `isDefault`) say where a frame runs now. A frame removed from its parent (`frameDetached`, not `swap`) goes with the frames in it; a session that goes away takes the frames it hosted |
+| Rows | `Runtime.consoleAPICalled` (format directives filled in, `%c` dropped; the stack for errors, warnings, `trace` and `assert`), `Runtime.exceptionThrown` (uncaught errors and rejections), `Log.entryAdded` (the browser's own messages: failed requests, CSP, interventions), each on the frame of the context it came from (`Log` has none: the session's own frame). A frame loading a web page adds a divider row. What Electron's own scripts log in the page (`node:electron/…`, its security warnings in builds run from source) is left out |
+| Values | A preview per value (`{sku: 42}`, `[1, 2, …]`, `Map(1) {a => 1}`, an error with its stack), and a handle for objects: `getConsoleProperties` lists one level with `Runtime.getProperties`, on the session the value came from |
+| Running code | `Runtime.evaluate` on the frame's session, in its main world by `uniqueContextId`, with `replMode` (top-level `await`, redeclaring `let`), `includeCommandLineAPI` (`$0`, `copy()`), `awaitPromise` and `userGesture`. The code and its result (or what it threw) are rows too |
+| Limits | The last 5,000 rows are kept (`MAX_CONSOLE_ENTRIES`) in the main process and the panel; a row's handles go with it. Clearing drops the rows and frees the page-side values (`Runtime.discardConsoleEntries`, `releaseObjectGroup`) |
+| Delivery | Rows and frame changes go out every 50 ms at most, frames first (`frames-changed`, `console-entries`), so ten chatty services don't flood IPC; `listFrames` and `getConsoleEntries` give a (re)starting renderer the current state |
+
+**Panel** (under the editor, `Ctrl/⌘+J`): the rows with time, frame chip, value previews that open in place, stacks, and the source as `file:line`, which opens the file in an editor tab. A row after code you ran shows how long after it came (`+4ms`). Frame chips filter by frame (with each frame's error and warning counts), a menu by level (as DevTools: verbose off by default; code you ran and page loads always show), a field by text. When the top page loads another page the rows before it go, unless **Keep rows** is on. The prompt runs code in the picked frame; Up and Down go through what you ran in this workspace. Frames are labelled by the name you gave them (per workspace, §5.1), else their `name` attribute, else their host and first folder; frames that would read the same are numbered. A frame's colour comes from its key, so a service keeps it across reloads and runs.
+
 ## 7. Editor behaviour
 
 | Action | Behaviour |
@@ -301,11 +326,11 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 
 | Layer | What | Command |
 |---|---|---|
-| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion), favicon loading (recognising images, size caps) | `npm test` |
-| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened) | `npm test` |
+| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion, frame names), favicon loading (recognising images, size caps), the console service with a fake CDP transport (frames across sessions, contexts, rows and their previews, format directives, running code, properties, the cap, clearing, the setting) and the session observer (handed every session before it runs, never holding interception up) | `npm test` |
+| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened), console frames (keys, labels, colours), rows, filters, Keep rows, prompt history and frame names | `npm test` |
 | Architecture | Feature-Sliced Design layer rules | `npm run lint:fsd` |
-| Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
-| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart). Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
+| Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target. The console on a page of service iframes (same-site, and two on sites of their own): every frame's first log line on its own frame, code run in one frame and another frame's logs reacting, top-level `await` and expanding the result, uncaught errors and rejections, a frame keeping its id across a navigation | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
+| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart), the console (each frame's rows, running code in a picked frame and seeing another react, filtering by frame, naming a frame and keeping the name across a restart, clearing). Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
 | Packaged | The installed app (asar, fuses, signature) fixes the demo store's checkout through the UI, driven over `--remote-debugging-port` since the fuses disable Node's inspector. The release workflow runs it on six runners, one per architecture: macOS (from the disk image), Windows (after a silent install; the x64 runner also checks that the ARM installer refuses it) and Linux (from the installed `.deb`, with Ubuntu's user-namespace restriction left on) | `npm run test:packaged -- <app>` |
 | Update | An installed app updates itself to a build one patch higher, served by a local stand-in for GitHub: the notification, What's New, the download, **Restart to update**, the restarted app running the new version (and What's New after it). The release workflow runs it for the Windows installers (then uninstalls, checking the updater's cache goes too) and the AppImages on their four runners. The `.deb` path (as root, through `sudo`, and with the password refused) and the AppImage installing on quit were checked by hand | `npm run test:update -- <app> <newer dist>` |
 
@@ -363,13 +388,14 @@ The package manager is asked rather than electron-builder's `resources/package-t
 **M4: Sources**
 - Source-map explorer: list the original files from `sourcesContent`, open them read-only, and jump between an original line and the bundle line.
 - Research: editing an original module and recompiling only it (esbuild transform) inside a webpack/Vite bundle's module map.
-- Console panel inside the app (mirror of `Runtime.consoleAPICalled`), and quick snippets.
+- ✅ Console panel for the page and every frame in it (§6.7). Still to come: sending a message to a frame without writing code, a message log of `postMessage` between frames, waiting for a log, showing a frame in the page, reloading or retargeting one frame, snippets and scenarios, network and storage per frame.
 
 ## 12. Risks and open questions
 
 | Risk | Mitigation |
 |---|---|
 | SSO providers blocking embedded browsers | Standard Chrome user agent now; external-Chrome mode (M3) as the fallback |
+| Some anti-bot and sign-in scripts notice a debugger with `Runtime` enabled (the console turns it on in every frame) | **Record the console** in Settings turns it off; try that first when a site acts differently in the app |
 | Huge bundles (10+ MB) are slow to pretty-print and highlight | The formatter runs in a worker that shuts down when idle; files over 1 M characters open in lite mode (no TypeScript service); file contents cross IPC once. Measured on a 2.7 MB bundle: opens in ~1.5 s; the editor window grows from ~190 MB to ~560–600 MB, of which only ~130 MB is JS heap (the rest is Monaco's native line/token buffers and rendering). A small file costs ~125 MB, mostly the TypeScript service, loaded on first use |
 | Self-verifying scripts detect edits | Out of scope; document it |
 | CDP behaviour changes between Chromium versions | Integration tests run the engine against real Chromium; pin and bump Electron deliberately |
