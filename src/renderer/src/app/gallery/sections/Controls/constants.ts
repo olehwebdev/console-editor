@@ -1,7 +1,7 @@
-import type { ButtonSize } from '@/shared/ui/button';
+import { BUTTON_ICON_SIZE } from '@/shared/ui/button';
 
-/** Glyph size for an icon in a control's leading/trailing slot, by the control's size. */
-export const SLOT_ICON_SIZE = { sm: 12, md: 14 } as const satisfies Record<ButtonSize, number>;
+/** Glyph size for an icon in a control's leading/trailing slot, by the control's size: the button's own (inputs match it). */
+export const SLOT_ICON_SIZE = BUTTON_ICON_SIZE;
 
 /**
  * Shortcuts the demos show, in Kbd's notation (`mod` is ⌘ on macOS, Ctrl elsewhere).

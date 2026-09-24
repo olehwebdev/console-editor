@@ -1,6 +1,5 @@
 import * as monaco from 'monaco-editor';
-
-export const THEME = 'console-dark';
+import { THEME } from './constants';
 
 /**
  * Monaco needs hex colors; these approximate the OKLCH tokens in

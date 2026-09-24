@@ -25,8 +25,10 @@ const FADE: Transition = { duration: 0.14, ease: EASE_OUT };
 
 // The wrapper animates width (siblings slide); the content fades. The active
 // pill sits outside the fading content so it glides at full opacity.
-const WRAPPER: Variants = { hidden: { width: 0 }, shown: { width: 'auto' } };
-const CONTENT: Variants = { hidden: { opacity: 0 }, shown: { opacity: 1 } };
+/** The variants a tab animates between: its reveal completing is when it scrolls into view. */
+const VARIANT = { hidden: 'hidden', shown: 'shown' } as const;
+const WRAPPER: Variants = { [VARIANT.hidden]: { width: 0 }, [VARIANT.shown]: { width: 'auto' } };
+const CONTENT: Variants = { [VARIANT.hidden]: { opacity: 0 }, [VARIANT.shown]: { opacity: 1 } };
 
 
 const TABLIST = '[role="tablist"]';
@@ -119,13 +121,13 @@ export function EditorTab({
     <motion.div
       className="flex shrink-0"
       variants={WRAPPER}
-      initial="hidden"
-      animate="shown"
-      exit="hidden"
+      initial={VARIANT.hidden}
+      animate={VARIANT.shown}
+      exit={VARIANT.hidden}
       transition={reduce ? INSTANT : WIDTH}
       onAnimationComplete={(definition) => {
         // An entering tab only has its full scroll width once it has grown.
-        if (definition === 'shown' && active) onReveal(tabRef.current);
+        if (definition === VARIANT.shown && active) onReveal(tabRef.current);
       }}
     >
       <div

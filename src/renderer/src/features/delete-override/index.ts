@@ -1,1 +1,1 @@
-export { deleteOverride } from './model/delete';
+export { deleteOverride } from './model/deleteOverride';
