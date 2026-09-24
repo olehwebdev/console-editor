@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
-import { cn, EASE_OUT } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT } from '@/shared/lib';
 import { Icon, type IconGlyph } from '@/shared/ui/icon';
 
 type BannerTone = 'info' | 'warning';
@@ -12,7 +12,7 @@ const TONE_CLASS: Record<BannerTone, { row: string; icon: string }> = {
 };
 
 /** Expanding in or collapsing out, in seconds. */
-const EXPAND_DURATION = 0.2;
+const EXPAND_DURATION = DURATION.medium3;
 
 /** One hint under the file header: expands in, collapses out. */
 export function Banner({ tone, icon, children, action }: { tone: BannerTone; icon: IconGlyph; children: ReactNode; action?: ReactNode }) {

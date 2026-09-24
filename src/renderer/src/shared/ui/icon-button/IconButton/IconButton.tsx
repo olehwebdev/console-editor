@@ -5,6 +5,9 @@ import { Icon, type IconGlyph } from '@/shared/ui/icon';
 import { Tooltip, type TooltipSide } from '@/shared/ui/tooltip';
 import { ariaShortcut } from './ariaShortcut';
 
+/** A small icon button presses deeper than a button's PRESS_SCALE, so the press still shows. */
+const ICON_PRESS_SCALE = 0.9;
+
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
 
 export type IconButtonSize = 'sm' | 'md' | 'lg';
@@ -68,7 +71,7 @@ export function IconButton({
       aria-keyshortcuts={shortcut?.length ? ariaShortcut(shortcut) : undefined}
       disabled={disabled}
       data-active={active || undefined}
-      whileTap={reduce || disabled ? undefined : { scale: 0.9 }}
+      whileTap={reduce || disabled ? undefined : { scale: ICON_PRESS_SCALE }}
       transition={SPRING_PRESS}
       className={cn(
         'relative inline-flex shrink-0 select-none items-center justify-center text-fg-muted outline-none',

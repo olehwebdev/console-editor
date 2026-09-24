@@ -114,7 +114,7 @@ export function HoverHighlight({
 
   const hide = useCallback(() => {
     activeRow.current = null;
-    if (opacity.get() !== 0 || opacity.isAnimating()) animate(opacity, 0, { duration: DURATION.base, ease: EASE_OUT });
+    if (opacity.get() !== 0 || opacity.isAnimating()) animate(opacity, 0, { duration: DURATION.medium2, ease: EASE_OUT });
   }, [opacity]);
 
   const moveTo = useCallback(
@@ -128,7 +128,7 @@ export function HoverHighlight({
       setValue(y, box.top, glide);
       setValue(width, box.width, glide);
       setValue(height, box.height, glide);
-      if (opacity.get() !== 1 || opacity.isAnimating()) animate(opacity, 1, { duration: DURATION.fast, ease: EASE_OUT });
+      if (opacity.get() !== 1 || opacity.isAnimating()) animate(opacity, 1, { duration: DURATION.short3, ease: EASE_OUT });
     },
     [measure, hide, reduce, x, y, width, height, opacity],
   );

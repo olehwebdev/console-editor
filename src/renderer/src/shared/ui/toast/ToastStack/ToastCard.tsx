@@ -29,6 +29,9 @@ const SWIPE_EXIT_DISTANCE = 380;
 const MIN_COUNTER_SCALE = 0.05;
 /** The front card's z-index; each card behind it sits one lower. */
 const FRONT_Z = 100;
+/** A card rises in from below at a little under full size, and shrinks as it's dismissed. */
+const ENTER_FROM = { y: 20, scale: 0.96 } as const;
+const EXIT_SCALE = 0.96;
 const STACK_SPRING = { type: 'spring', stiffness: 420, damping: 34, mass: 0.75 } as const;
 /** With an action, a title or description longer than this (in characters) moves the actions to a row of their own. */
 const LONG_TEXT = { title: 32, description: 64 } as const;
@@ -199,14 +202,14 @@ export const ToastCard = memo(function ToastCard({
   return (
     <motion.li
       ref={cardRef}
-      initial={{ opacity: 0, y: reduce ? 0 : 20, scale: reduce ? 1 : 0.96 }}
+      initial={{ opacity: 0, y: reduce ? 0 : ENTER_FROM.y, scale: reduce ? 1 : ENTER_FROM.scale }}
       animate={{ opacity: hidden ? 0 : 1, y, scale }}
       exit={
         exitX
-          ? { x: exitX, opacity: 0, transition: { duration: 0.2, ease: EASE_OUT } }
-          : { opacity: 0, scale: reduce ? 1 : 0.96, transition: { duration: 0.16, ease: EASE_OUT } }
+          ? { x: exitX, opacity: 0, transition: { duration: DURATION.medium3, ease: EASE_OUT } }
+          : { opacity: 0, scale: reduce ? 1 : EXIT_SCALE, transition: { duration: DURATION.medium1, ease: EASE_OUT } }
       }
-      transition={reduce ? { duration: DURATION.fast } : { default: STACK_SPRING, opacity: { duration: DURATION.base, ease: EASE_OUT } }}
+      transition={reduce ? { duration: DURATION.short3 } : { default: STACK_SPRING, opacity: { duration: DURATION.medium2, ease: EASE_OUT } }}
       drag={hidden || stacked ? false : 'x'}
       dragSnapToOrigin
       onDragStart={() => onDragChange(true)}
@@ -233,7 +236,7 @@ export const ToastCard = memo(function ToastCard({
         ref={contentRef}
         initial={false}
         animate={{ opacity: stacked ? 0 : 1 }}
-        transition={{ duration: 0.16, ease: EASE_OUT }}
+        transition={{ duration: DURATION.medium1, ease: EASE_OUT }}
         inert={stacked || hidden}
         className="relative flex items-start gap-2.5 px-3 py-2.5"
       >

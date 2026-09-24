@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { memo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { DURATION, EASE_OUT, fileName } from '@/shared/lib';
+import { DURATION, EASE_OUT, fileName, SLIDE_IN_X } from '@/shared/lib';
 import { HoverHighlight } from '@/shared/ui/hover-highlight';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
@@ -35,10 +35,10 @@ export const OverrideList = memo(function OverrideList() {
           <motion.div
             key={o.id}
             layout="position"
-            initial={{ opacity: 0, x: -6 }}
+            initial={{ opacity: 0, x: SLIDE_IN_X }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -6 }}
-            transition={{ duration: DURATION.base, ease: EASE_OUT }}
+            exit={{ opacity: 0, x: SLIDE_IN_X }}
+            transition={{ duration: DURATION.medium2, ease: EASE_OUT }}
           >
             <OverrideRow override={o} active={o.id === activeOverrideId} />
           </motion.div>

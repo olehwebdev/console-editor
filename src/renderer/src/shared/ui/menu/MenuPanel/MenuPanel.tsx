@@ -12,7 +12,7 @@ import {
   type RefObject,
 } from 'react';
 import { CheckIcon } from '@/shared/config/icons';
-import { cn, EASE_OUT, SPRING_LAYOUT, SPRING_PANEL, useRegisterOverlay } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, SPRING_LAYOUT, SPRING_PANEL, useRegisterOverlay } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
 import { Kbd } from '@/shared/ui/kbd';
 import { isMenuSeparator } from '../isMenuSeparator';
@@ -22,6 +22,9 @@ import { initialPlacement } from './initialPlacement';
 import { MENU_KEY_HANDLERS } from './menuKeyHandlers';
 import { place } from './place';
 import type { MenuAnchor, MenuCloseReason, MenuInitialFocus, Placement } from './types';
+
+/** A menu scales in from its anchor, and a little way back as it closes. */
+const SCALE = { enterFrom: 0.92, exitTo: 0.96 } as const;
 
 const TYPEAHEAD_RESET_MS = 500;
 /** Room kept above or below the highlighted row when the panel scrolls to it, in px. */
@@ -218,10 +221,10 @@ export function MenuPanel({ id, items, anchor, initialFocus, onClose, ignoreRef,
       aria-orientation="vertical"
       tabIndex={-1}
       inert={!isPresent}
-      initial={{ opacity: 0, scale: reduce ? 1 : 0.92 }}
+      initial={{ opacity: 0, scale: reduce ? 1 : SCALE.enterFrom }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: reduce ? 1 : 0.96, transition: { duration: 0.1, ease: EASE_OUT } }}
-      transition={reduce ? { duration: 0.1 } : { default: SPRING_PANEL, opacity: { duration: 0.14, ease: EASE_OUT } }}
+      exit={{ opacity: 0, scale: reduce ? 1 : SCALE.exitTo, transition: { duration: DURATION.short2, ease: EASE_OUT } }}
+      transition={reduce ? { duration: DURATION.short2 } : { default: SPRING_PANEL, opacity: { duration: DURATION.short4, ease: EASE_OUT } }}
       style={{
         left: placement.left,
         top: placement.top,

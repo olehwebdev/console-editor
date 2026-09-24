@@ -22,6 +22,10 @@ import { layoutRows } from './layoutRows';
 import { PALETTE_KEY_HANDLERS } from './paletteKeyHandlers';
 import type { CommandPaletteProps, Direction, PaletteKeyActions } from './types';
 
+/** The panel drops in from a little smaller and higher, and lifts slightly as it goes. */
+const ENTER_FROM = { scale: 0.97, y: -8 } as const;
+const EXIT_TO = { scale: 0.98, y: -4 } as const;
+
 const MAX_LIST_H = 360;
 const PAGE_STEP = 8;
 /** Rows rendered beyond the visible ones, each way. */
@@ -152,8 +156,8 @@ export function PalettePanel({
         aria-hidden
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0, transition: { duration: DURATION.fast, ease: EASE_OUT } }}
-        transition={{ duration: 0.16, ease: EASE_OUT }}
+        exit={{ opacity: 0, transition: { duration: DURATION.short3, ease: EASE_OUT } }}
+        transition={{ duration: DURATION.medium1, ease: EASE_OUT }}
         onClick={close}
         className="absolute inset-0 bg-scrim"
       />
@@ -164,10 +168,10 @@ export function PalettePanel({
           aria-modal="true"
           aria-label="Command palette"
           inert={!isPresent}
-          initial={{ opacity: 0, scale: reduce ? 1 : 0.97, y: reduce ? 0 : -8 }}
+          initial={{ opacity: 0, scale: reduce ? 1 : ENTER_FROM.scale, y: reduce ? 0 : ENTER_FROM.y }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: reduce ? 1 : 0.98, y: reduce ? 0 : -4, transition: { duration: DURATION.fast, ease: EASE_OUT } }}
-          transition={reduce ? { duration: 0.1 } : { default: SPRING_PANEL, opacity: { duration: 0.14, ease: EASE_OUT } }}
+          exit={{ opacity: 0, scale: reduce ? 1 : EXIT_TO.scale, y: reduce ? 0 : EXIT_TO.y, transition: { duration: DURATION.short3, ease: EASE_OUT } }}
+          transition={reduce ? { duration: DURATION.short2 } : { default: SPRING_PANEL, opacity: { duration: DURATION.short4, ease: EASE_OUT } }}
           onKeyDown={onKeyDown}
           onMouseDown={keepInputFocus}
           className={cn(

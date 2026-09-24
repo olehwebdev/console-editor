@@ -2,10 +2,15 @@
 import type { VariantProps } from 'class-variance-authority';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ComponentPropsWithRef, MouseEvent, ReactNode } from 'react';
-import { cn, DURATION, EASE_OUT, SPRING_PRESS } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, PRESS_SCALE, SPRING_PRESS } from '@/shared/lib';
 import { Spinner } from '@/shared/ui/spinner';
 import { buttonVariants } from './buttonVariants';
 import { BUTTON_ICON_SIZE } from './constants';
+
+/** The leading slot's icon and spinner grow in from, and shrink back to, this scale as they trade places. */
+const SLOT_SWAP_SCALE = 0.6;
+/** The spinner laid over a label without a leading slot grows in from this scale. */
+const OVERLAY_SPINNER_SCALE = 0.8;
 
 /** Native handlers whose signatures motion redefines on motion.* elements. */
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
@@ -64,7 +69,7 @@ export function Button({
       disabled={disabled}
       aria-busy={loading || undefined}
       aria-disabled={loading || undefined}
-      whileTap={reduce || loading || disabled ? undefined : { scale: 0.97 }}
+      whileTap={reduce || loading || disabled ? undefined : { scale: PRESS_SCALE }}
       transition={SPRING_PRESS}
       onClick={handleClick}
       className={cn(buttonVariants({ variant, size }), loading && 'cursor-progress', className)}
@@ -83,10 +88,10 @@ export function Button({
               <motion.span
                 key={loading ? 'spinner' : 'leading'}
                 className="inline-flex"
-                initial={{ opacity: 0, scale: 0.6 }}
+                initial={{ opacity: 0, scale: SLOT_SWAP_SCALE }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.6 }}
-                transition={{ duration: DURATION.fast, ease: EASE_OUT }}
+                exit={{ opacity: 0, scale: SLOT_SWAP_SCALE }}
+                transition={{ duration: DURATION.short3, ease: EASE_OUT }}
               >
                 {loading ? <Spinner size={iconSize} /> : leading}
               </motion.span>
@@ -103,10 +108,10 @@ export function Button({
           <motion.span
             key="spinner"
             className="absolute inset-0 flex items-center justify-center"
-            initial={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0, scale: OVERLAY_SPINNER_SCALE }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: DURATION.fast, ease: EASE_OUT }}
+            exit={{ opacity: 0, scale: OVERLAY_SPINNER_SCALE }}
+            transition={{ duration: DURATION.short3, ease: EASE_OUT }}
           >
             <Spinner size={iconSize} />
           </motion.span>

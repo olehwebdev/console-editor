@@ -2,7 +2,10 @@
 import { animate, motion, useReducedMotion } from 'motion/react';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { MOUSE_BUTTON } from '@/shared/config';
-import { cn } from '@/shared/lib';
+import { cn, DURATION } from '@/shared/lib';
+
+/** The thumb's refusal shake when a disabled switch is pressed: keyframes in px. */
+const REFUSAL_SHAKE_X = [0, -2, 2, -1, 0];
 
 // Heavy, deliberate thumb: high mass keeps the travel weighty without wobble.
 const THUMB_SPRING = { type: 'spring', stiffness: 800, damping: 80, mass: 4 } as const;
@@ -91,7 +94,7 @@ export function Switch({
           if (event.button !== MOUSE_BUTTON.primary) return;
           setPressed(true);
           // Refusal shake when a disabled switch is pressed.
-          if (disabled && !reduce && thumbRef.current) animate(thumbRef.current, { x: [0, -2, 2, -1, 0] }, { duration: 0.3 });
+          if (disabled && !reduce && thumbRef.current) animate(thumbRef.current, { x: REFUSAL_SHAKE_X }, { duration: DURATION.long3 });
         }}
         onPointerUp={() => setPressed(false)}
         onPointerLeave={() => setPressed(false)}

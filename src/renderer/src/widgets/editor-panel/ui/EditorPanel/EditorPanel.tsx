@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
-import { EASE_OUT, fileName } from '@/shared/lib';
+import { DURATION, EASE_OUT, fileName } from '@/shared/lib';
 import { CodeEditor, DiffEditor } from '@/shared/monaco';
 import { EditorTabs } from '@/shared/ui/editor-tabs';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -28,7 +28,7 @@ const STEPS: Array<{ keys?: string[]; text: string }> = [
 const TAB_ICON_SIZE = 13;
 
 /** The empty state fading in or out, in seconds. */
-const EMPTY_FADE_DURATION = 0.2;
+const EMPTY_FADE_DURATION = DURATION.medium3;
 
 /** Tabs, file header and the Monaco editor (or diff) for the active file. */
 export function EditorPanel() {
