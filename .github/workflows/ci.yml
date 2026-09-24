@@ -33,16 +33,17 @@ jobs:
 
       - run: npm run lint:fsd
 
+      # Ubuntu 24.04 blocks the unprivileged user namespaces Chromium's sandbox uses unless an
+      # AppArmor profile allows the binary (the .deb installs one). Playwright's Chromium and
+      # Electron from node_modules have none.
+      - name: Allow Chromium's sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       # The engine and iframe tests run against real Chromium.
       - name: Install Chromium for the integration tests
         run: npx playwright-core install --with-deps chromium
 
       - run: npm test
-
-      # Ubuntu 24.04 blocks the unprivileged user namespaces Chromium's sandbox uses, unless an
-      # AppArmor profile allows the binary (the .deb installs one). Electron from node_modules has none.
-      - name: Allow Chromium's sandbox
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: End-to-end tests
         run: xvfb-run -a npm run test:e2e
