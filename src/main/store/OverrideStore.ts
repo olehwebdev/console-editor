@@ -9,6 +9,8 @@ import { writeAtomic } from './writeAtomic';
 
 const INDEX_VERSION = 1;
 const INDEX_FILE = 'overrides.json';
+/** Marks the file of the text an override was made from: `<id>.base.<ext>`. */
+const BASE_MARK = 'base';
 const FILES_DIR = 'files';
 
 /** Override ids are this many random bytes, as hex. */
@@ -51,7 +53,7 @@ export class OverrideStore {
 
   private contentPath(meta: Pick<OverrideMeta, 'id' | 'kind'>, which: 'content' | 'base'): string {
     const ext = EXTENSIONS[meta.kind];
-    return join(this.filesDir, which === 'content' ? `${meta.id}.${ext}` : `${meta.id}.base.${ext}`);
+    return join(this.filesDir, which === 'content' ? `${meta.id}.${ext}` : `${meta.id}.${BASE_MARK}.${ext}`);
   }
 
   async load(): Promise<void> {

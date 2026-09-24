@@ -3,6 +3,12 @@ import { runsFromAppImage } from './runsFromAppImage';
 import { succeeds } from './succeeds';
 import type { InstallMethod } from './types';
 
+/** Linux package managers, in the order they're asked whether they own the app's executable. */
+const PACKAGE_OWNER_QUERIES: ReadonlyArray<{ method: InstallMethod; command: string; ownerFlag: string }> = [
+  { method: 'deb', command: 'dpkg-query', ownerFlag: '-S' },
+  { method: 'rpm', command: 'rpm', ownerFlag: '-qf' },
+];
+
 /**
  * Whether this copy can install an update itself, and how: null when you install
  * the download (builds run from source, macOS, the .tar.gz).
@@ -18,7 +24,8 @@ export async function detectInstallMethod(): Promise<InstallMethod | null> {
   if (process.platform === 'win32') return 'nsis';
   if (process.platform !== 'linux') return null;
   if (runsFromAppImage()) return 'appimage';
-  if (await succeeds('dpkg-query', ['-S', process.execPath])) return 'deb';
-  if (await succeeds('rpm', ['-qf', process.execPath])) return 'rpm';
+  for (const { method, command, ownerFlag } of PACKAGE_OWNER_QUERIES) {
+    if (await succeeds(command, [ownerFlag, process.execPath])) return method;
+  }
   return null;
 }

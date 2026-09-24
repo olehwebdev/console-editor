@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { changelogSection } from '../../../shared/changelog';
+import { changelogSection, VERSION_TAG_PREFIX } from '../../../shared/changelog';
 import type { AppInfo, AvailableUpdate, UpdateState } from '../../../shared/types';
 import { isNewerVersion } from '../../../shared/version';
-import { FILE_NOT_FOUND } from '../../constants';
+import { FILE_NOT_FOUND, SHA256 } from '../../constants';
 import { errorMessage } from './errorMessage';
 import { manualAssetName } from './manualAssetName';
 import { pendingUpdate } from './pendingUpdate';
@@ -22,6 +22,14 @@ const CHECKSUMS_ASSET = 'SHA256SUMS.txt';
 
 /** Added to a manual download's name until its checksum is right. */
 const PARTIAL_DOWNLOAD_SUFFIX = '.download';
+
+/** GitHub's media type for its REST API's JSON. */
+const GITHUB_JSON = 'application/vnd.github+json';
+const CONTENT_LENGTH_HEADER = 'content-length';
+/** A SHA-256 sum in hex, as `sha256sum` writes it. */
+const SHA256_HEX = /^[0-9a-f]{64}$/i;
+/** What separates a sum from its file's name in `sha256sum` output: spaces, then `*` in binary mode. */
+const SUM_SEPARATOR = /\s+\*?/;
 
 /**
  * Checks GitHub for a newer release, downloads it and installs it. Automatic
@@ -91,7 +99,7 @@ export class UpdateService {
     try {
       const release = await this.latestRelease();
       if (superseded()) return this.current;
-      const version = release.tag_name.replace(/^v/, '');
+      const version = release.tag_name.replace(VERSION_TAG_PREFIX, '');
       if (!isNewerVersion(version, this.opts.currentVersion)) return this.set({ status: 'up-to-date', version: this.opts.currentVersion });
       const offered = pendingUpdate(before);
       // Offered already: keep its notes, unless they couldn't be fetched then.
@@ -191,7 +199,7 @@ export class UpdateService {
   }
 
   private async latestRelease(): Promise<GitHubRelease> {
-    const res = await this.opts.fetch(this.opts.endpoints.latestRelease, { headers: { Accept: 'application/vnd.github+json' } });
+    const res = await this.opts.fetch(this.opts.endpoints.latestRelease, { headers: { Accept: GITHUB_JSON } });
     if (RATE_LIMITED_STATUSES.has(res.status)) throw new Error('GitHub is limiting requests, try again later');
     if (!res.ok) throw new Error(`GitHub answered ${res.status}`);
     const release = (await res.json()) as GitHubRelease;
@@ -225,8 +233,8 @@ export class UpdateService {
     await mkdir(this.opts.downloadsDir, { recursive: true });
     const res = await this.opts.fetch(asset.browser_download_url);
     if (!res.ok || !res.body) throw new Error(`GitHub answered ${res.status}`);
-    const total = Number(res.headers.get('content-length')) || asset.size;
-    const hash = createHash('sha256');
+    const total = Number(res.headers.get(CONTENT_LENGTH_HEADER)) || asset.size;
+    const hash = createHash(SHA256);
     let received = 0;
     // Written as it arrives, and renamed into place only once its checksum is right.
     const file = await open(partial, 'w');
@@ -255,8 +263,8 @@ export class UpdateService {
     const res = await this.opts.fetch(url);
     if (!res.ok) throw new Error(`couldn't read the checksums (${res.status})`);
     for (const line of (await res.text()).split('\n')) {
-      const [hash, file] = line.trim().split(/\s+\*?/);
-      if (file === name && /^[0-9a-f]{64}$/i.test(hash)) return hash.toLowerCase();
+      const [hash, file] = line.trim().split(SUM_SEPARATOR);
+      if (file === name && SHA256_HEX.test(hash)) return hash.toLowerCase();
     }
     throw new Error(`the checksums don't list ${name}`);
   }

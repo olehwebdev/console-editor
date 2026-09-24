@@ -1,8 +1,6 @@
 import { createHash } from 'node:crypto';
-
-/** OpenSSL's name for the digest. */
-const ALGORITHM = 'sha256';
+import { SHA256 } from '../../constants';
 
 export function sha256(text: string): string {
-  return createHash(ALGORITHM).update(text, 'utf8').digest('hex');
+  return createHash(SHA256).update(text, 'utf8').digest('hex');
 }
