@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { SHORTCUT } from '@common/constants';
 import { EASE_OUT } from '@/shared/lib';
 import { isConfirmOpen } from '@/shared/ui/dialog';
 import { ActivityBar } from '@/widgets/activity-bar';
@@ -16,6 +17,7 @@ import { focusAddressBar } from './focusAddressBar';
 import { followRowWidth } from './followRowWidth';
 import { PreviewPane } from './PreviewPane';
 import { setAddressBar } from './setAddressBar';
+import { shortcutKey } from './shortcutKey';
 import { showSettings } from './showSettings';
 import { SidebarPane } from './SidebarPane';
 
@@ -24,7 +26,11 @@ const { toggleSidebar, showSidebarView, sidebarExited, togglePreview } = useLayo
 const { toggle: togglePalette } = usePalette.getState();
 
 /** Global shortcuts, by lower-cased `KeyboardEvent.key` with Ctrl/Cmd (no Alt or Shift): the app menu's accelerators. */
-const MOD_SHORTCUTS: Readonly<Record<string, () => void>> = { k: togglePalette, p: togglePalette, b: toggleSidebar };
+const MOD_SHORTCUTS: Readonly<Record<string, () => void>> = {
+  [shortcutKey(SHORTCUT.palette)]: togglePalette,
+  [shortcutKey(SHORTCUT.quickOpen)]: togglePalette,
+  [shortcutKey(SHORTCUT.sidebar)]: toggleSidebar,
+};
 
 /** Switching sidebar views, in seconds. */
 const VIEW_SWAP_DURATION = 0.16;

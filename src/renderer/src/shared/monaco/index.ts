@@ -3,4 +3,5 @@ export { languageFor, isLiteModel, LARGE_FILE_CHARS, JS_LITE } from './languages
 export { CodeEditor, type CodeEditorProps } from './CodeEditor';
 export { DiffEditor, type DiffEditorProps } from './DiffEditor';
 export { dismissEditorWidgets, editorHasFocus, getActiveEditor, requestEditorFocus, triggerInActiveEditor } from './editors';
+export { keybindingOf } from './keybindingOf';
 export { THEME } from './theme';

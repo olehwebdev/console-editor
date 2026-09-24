@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { monaco } from '@/shared/monaco';
+import { SHORTCUT } from '@common/constants';
+import { keybindingOf, type monaco } from '@/shared/monaco';
 import { toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { saveTab } from '@/features/save-override';
@@ -11,17 +12,17 @@ const ACTION_ID = { save: 'console-editor.save', format: 'console-editor.format'
 export function useEditorActions() {
   return useCallback((editor: monaco.editor.IStandaloneCodeEditor) => {
     const disposables = [
-      editor.addAction({ id: ACTION_ID.save, label: 'Save Override', keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS], run: () => void saveTab() }),
+      editor.addAction({ id: ACTION_ID.save, label: 'Save Override', keybindings: [keybindingOf(SHORTCUT.save)], run: () => void saveTab() }),
       editor.addAction({
         id: ACTION_ID.format,
         label: 'Pretty-print Document',
-        keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF],
+        keybindings: [keybindingOf(SHORTCUT.format)],
         run: () => void formatTab(),
       }),
       editor.addAction({
         id: ACTION_ID.diff,
         label: 'Toggle Diff',
-        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyD],
+        keybindings: [keybindingOf(SHORTCUT.diff)],
         run: () => toggleBaseDiff(),
       }),
     ];
