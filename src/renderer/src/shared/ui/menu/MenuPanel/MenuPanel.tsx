@@ -15,80 +15,17 @@ import { CheckIcon } from '@/shared/config/icons';
 import { cn, EASE_OUT, SPRING_LAYOUT, SPRING_PANEL, useRegisterOverlay } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
 import { Kbd } from '@/shared/ui/kbd';
-import { isMenuSeparator, type MenuAction, type MenuAlign, type MenuItem, type MenuSide } from './types';
+import { isMenuSeparator } from '../isMenuSeparator';
+import type { MenuAction, MenuItem } from '../types';
+import { INITIAL_ACTIVE } from './initialActive';
+import { initialPlacement } from './initialPlacement';
+import { MENU_KEY_HANDLERS } from './menuKeyHandlers';
+import { place } from './place';
+import type { MenuAnchor, MenuCloseReason, MenuInitialFocus, Placement } from './types';
 
-/**
- * Where the panel opens: at a point (context menu) or against an element (dropdown).
- * A point anchor may name the element it was opened on (`within`), so only
- * scrolling that moves that element closes the menu.
- */
-export type MenuAnchor =
-  | { type: 'point'; x: number; y: number; within?: Element | null }
-  | { type: 'element'; element: RefObject<HTMLElement | null>; align: MenuAlign; side: MenuSide };
-
-/**
- * Why the panel asked to close. The owner restores focus for `select`, `escape`,
- * `tab` and `dismiss` (window blur, resize, or a scroll that moved the anchor
- * while focus was in the menu); `outside` and `blur` leave focus where the user put it.
- */
-export type MenuCloseReason = 'select' | 'escape' | 'tab' | 'dismiss' | 'outside' | 'blur';
-
-/** Close reasons after which the owner should hand focus back to where it was. */
-export const RESTORES_FOCUS: ReadonlySet<MenuCloseReason> = new Set(['select', 'escape', 'tab', 'dismiss']);
-
-export type MenuInitialFocus = 'first' | 'last' | 'none';
-
-interface Placement {
-  left: number;
-  top: number;
-  originX: number;
-  originY: number;
-}
-
-const VIEWPORT_PAD = 8;
-const TRIGGER_GAP = 4;
 const TYPEAHEAD_RESET_MS = 500;
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
-
-/** Fits the panel in the viewport: flips before it shifts, and keeps the scale origin on the anchor. */
-function place(anchor: MenuAnchor, width: number, height: number): Placement {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
-  if (anchor.type === 'point') {
-    const { x, y } = anchor;
-    let left = x + width > vw - VIEWPORT_PAD ? x - width : x;
-    let top = y + height > vh - VIEWPORT_PAD ? y - height : y;
-    left = clamp(left, VIEWPORT_PAD, vw - width - VIEWPORT_PAD);
-    top = clamp(top, VIEWPORT_PAD, vh - height - VIEWPORT_PAD);
-    return { left, top, originX: clamp(x - left, 0, width), originY: clamp(y - top, 0, height) };
-  }
-
-  const el = anchor.element.current;
-  const rect = el?.getBoundingClientRect() ?? new DOMRect(vw / 2, vh / 3, 0, 0);
-  const below = rect.bottom + TRIGGER_GAP;
-  const above = rect.top - TRIGGER_GAP - height;
-  let top = anchor.side === 'bottom' ? below : above;
-  if (anchor.side === 'bottom' && below + height > vh - VIEWPORT_PAD && above >= VIEWPORT_PAD) top = above;
-  if (anchor.side === 'top' && above < VIEWPORT_PAD && below + height <= vh - VIEWPORT_PAD) top = below;
-  let left = anchor.align === 'start' ? rect.left : rect.right - width;
-  left = clamp(left, VIEWPORT_PAD, vw - width - VIEWPORT_PAD);
-  top = clamp(top, VIEWPORT_PAD, vh - height - VIEWPORT_PAD);
-  const opensDown = top >= rect.top;
-  return {
-    left,
-    top,
-    originX: clamp(rect.left + rect.width / 2 - left, 0, width),
-    originY: opensDown ? 0 : height,
-  };
-}
-
-function initialPlacement(anchor: MenuAnchor): Placement {
-  if (anchor.type === 'point') return { left: anchor.x, top: anchor.y, originX: 0, originY: 0 };
-  const rect = anchor.element.current?.getBoundingClientRect();
-  return { left: rect?.left ?? 0, top: (rect?.bottom ?? 0) + TRIGGER_GAP, originX: 0, originY: 0 };
-}
+/** Room kept above or below the highlighted row when the panel scrolls to it, in px. */
+const SCROLL_MARGIN = 4;
 
 export interface MenuPanelProps {
   id: string;
@@ -131,9 +68,7 @@ export function MenuPanel({ id, items, anchor, initialFocus, onClose, ignoreRef,
     () => items.flatMap((item, index) => (!isMenuSeparator(item) && !item.disabled ? [index] : [])),
     [items],
   );
-  const [active, setActive] = useState(() =>
-    initialFocus === 'first' ? (enabled[0] ?? -1) : initialFocus === 'last' ? (enabled[enabled.length - 1] ?? -1) : -1,
-  );
+  const [active, setActive] = useState(() => INITIAL_ACTIVE[initialFocus](enabled));
   const [placement, setPlacement] = useState<Placement>(() => initialPlacement(anchor));
 
   // Measure with offset sizes (transform-free: the panel is mid scale-in) and fit before paint.
@@ -158,8 +93,8 @@ export function MenuPanel({ id, items, anchor, initialFocus, onClose, ignoreRef,
     if (!panel || !item) return;
     const top = item.offsetTop;
     const bottom = top + item.offsetHeight;
-    if (top < panel.scrollTop) panel.scrollTop = top - 4;
-    else if (bottom > panel.scrollTop + panel.clientHeight) panel.scrollTop = bottom - panel.clientHeight + 4;
+    if (top < panel.scrollTop) panel.scrollTop = top - SCROLL_MARGIN;
+    else if (bottom > panel.scrollTop + panel.clientHeight) panel.scrollTop = bottom - panel.clientHeight + SCROLL_MARGIN;
   }, [active, isPresent]);
 
   useEffect(() => {
@@ -232,35 +167,19 @@ export function MenuPanel({ id, items, anchor, initialFocus, onClose, ignoreRef,
   };
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowUp':
-        event.preventDefault();
-        move(event.key === 'ArrowDown' ? 1 : -1);
-        return;
-      case 'Home':
-      case 'End':
-        event.preventDefault();
-        setActive((event.key === 'Home' ? enabled[0] : enabled[enabled.length - 1]) ?? -1);
-        return;
-      case 'Escape':
-        event.preventDefault();
-        event.stopPropagation();
-        onClose('escape');
-        return;
-      case 'Tab':
-        // Focus returns to the owner first, so the browser's Tab continues from there.
-        onClose('tab');
-        return;
-      case 'Enter':
-        event.preventDefault();
-        if (active >= 0) choose(active);
-        return;
-      case ' ':
-        event.preventDefault();
-        if (typeahead.current.buffer) runTypeahead(' ');
-        else if (active >= 0) choose(active);
-        return;
+    if (Object.hasOwn(MENU_KEY_HANDLERS, event.key)) {
+      MENU_KEY_HANDLERS[event.key](event, {
+        enabled,
+        setActive,
+        move,
+        chooseActive: () => {
+          if (active >= 0) choose(active);
+        },
+        typing: !!typeahead.current.buffer,
+        runTypeahead,
+        onClose,
+      });
+      return;
     }
     if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) runTypeahead(event.key);
   };

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { KEY } from '@/shared/config';
 import { cn } from '@/shared/lib';
 import { MenuPanel, RESTORES_FOCUS, type MenuAnchor, type MenuCloseReason } from './MenuPanel';
 import type { MenuItem } from './types';
@@ -28,6 +29,11 @@ export interface ContextMenuProps {
   /** Extra classes for the floating panel. */
   menuClassName?: string;
 }
+
+/** `MouseEvent.button` of a right-click. */
+const SECONDARY_BUTTON = 2;
+/** A keyboard-opened menu sits under its target, this far in from the left edge (at most half its width), in px. */
+const KEYBOARD_INSET = 16;
 
 interface Invocation {
   key: number;
@@ -84,9 +90,9 @@ export function ContextMenu({ items, children, disabled = false, onOpenChange, l
     if (!handles(event)) return;
     event.preventDefault();
     // Keyboard-generated contextmenu events carry no pointer position.
-    if (event.button !== 2 && event.clientX === 0 && event.clientY === 0) {
+    if (event.button !== SECONDARY_BUTTON && event.clientX === 0 && event.clientY === 0) {
       const rect = (event.target as HTMLElement).getBoundingClientRect();
-      openAt(rect.left + Math.min(16, rect.width / 2), rect.bottom, 'keyboard', event.target);
+      openAt(rect.left + Math.min(KEYBOARD_INSET, rect.width / 2), rect.bottom, 'keyboard', event.target);
       return;
     }
     openAt(event.clientX, event.clientY, 'pointer', event.target);
@@ -94,10 +100,10 @@ export function ContextMenu({ items, children, disabled = false, onOpenChange, l
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!handles(event)) return;
-    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+    if (event.key !== KEY.contextMenu && !(event.shiftKey && event.key === KEY.f10)) return;
     event.preventDefault();
     const rect = (event.target as HTMLElement).getBoundingClientRect();
-    openAt(rect.left + Math.min(16, rect.width / 2), rect.bottom, 'keyboard', event.target);
+    openAt(rect.left + Math.min(KEYBOARD_INSET, rect.width / 2), rect.bottom, 'keyboard', event.target);
   };
 
   const panel = useMemo(() => {
