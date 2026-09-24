@@ -3,7 +3,7 @@
   "productName": "Console Editor",
   "version": "0.1.0",
   "private": true,
-  "description": "Desktop editor for live-patching the JS/CSS/HTML of any website without rebuilding it.",
+  "description": "Desktop editor for live-patching the JS/CSS/HTML of any website (including cross-site iframes) without rebuilding it.",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -13,21 +13,42 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && vitest run -c vitest.e2e.config.ts",
-    "demo-site": "node --no-warnings test/fixtures/site.ts"
+    "demo-site": "node --no-warnings test/fixtures/site.ts",
+    "lint:fsd": "steiger ./src/renderer/src"
   },
   "devDependencies": {
+    "@feature-sliced/steiger-plugin": "^0.7.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/js-beautify": "^1.14.3",
     "@types/node": "^22.20.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.4.5",
     "electron-vite": "^5.0.0",
     "playwright-core": "^1.56.1",
+    "steiger": "^0.6.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "^7.3.6",
     "vitest": "^5.0.1"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
+    "@tanstack/react-virtual": "^3.14.13",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "js-beautify": "^2.0.3",
-    "monaco-editor": "^0.56.0"
+    "monaco-editor": "^0.56.0",
+    "motion": "^13.4.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-use-measure": "^2.1.7",
+    "tailwind-merge": "^3.7.0",
+    "zustand": "^5.0.15"
   },
   "overrides": {
     "dompurify": "^3.4.16"

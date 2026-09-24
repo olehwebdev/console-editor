@@ -1,6 +1,7 @@
 /**
  * Drives the built Electron app like a user would: open a site, pick a file,
- * edit it, save, and check that the page runs the edited code.
+ * edit it, save, and check that the page (or an iframe in it) runs the edited
+ * code.
  */
 import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -37,11 +38,50 @@ async function launch(userData: string): Promise<{ app: ElectronApplication; win
   return { app, win };
 }
 
+/**
+ * Evaluates `expr` in the website, or in the frame (at any depth, in any
+ * process) whose hostname is `host`, through Electron's WebFrameMain.
+ * Resolves undefined if the frame is replaced before it answers (a reload in
+ * progress), so a polling caller simply tries again.
+ */
+function evalInSite(app: ElectronApplication, siteUrl: string, expr: string, host?: string): Promise<unknown> {
+  return app
+    .evaluate(
+      async ({ webContents }, [siteUrl, expr, host]) => {
+        const wc = webContents.getAllWebContents().find((w) => w.getURL().startsWith(siteUrl as string));
+        if (!wc) return undefined;
+        const frame = host ? wc.mainFrame.framesInSubtree.find((f) => f.url && new URL(f.url).hostname === host) : wc.mainFrame;
+        if (!frame) return undefined;
+        const gone = new Promise((resolve) => setTimeout(resolve, 2000, undefined));
+        return Promise.race([frame.executeJavaScript(expr as string), gone]);
+      },
+      [siteUrl, expr, host] as const,
+    )
+    .catch(() => undefined);
+}
+
+async function typeAtEndOfEditor(win: Page, text: string): Promise<void> {
+  await win.click('.monaco-editor .view-lines');
+  await win.keyboard.press('Control+End');
+  await win.keyboard.press('Enter');
+  await win.keyboard.type(text);
+  await win.keyboard.press('Escape');
+}
+
+async function goTo(win: Page, url: string): Promise<void> {
+  const bar = win.getByTestId('address-bar');
+  await bar.fill(url);
+  await bar.press('Enter');
+}
+
+const fileRow = (win: Page, url: string) => win.locator(`[data-testid="resource-row"][data-url="${url}"]`);
+
 describe.skipIf(!built)('Console Editor app', () => {
   let site: FixtureSite;
   let userData: string;
   let app: ElectronApplication;
   let win: Page;
+  const inSite = (expr: string, host?: string) => evalInSite(app, site.url, expr, host);
 
   beforeAll(async () => {
     site = await startFixtureSite();
@@ -55,66 +95,76 @@ describe.skipIf(!built)('Console Editor app', () => {
     await rm(userData, { recursive: true, force: true, maxRetries: 5 });
   });
 
-  /** The website's page (the embedded view), found among the app's CDP targets. */
-  function sitePage(): Promise<Page> {
-    return waitFor(() => app.context().pages().find((p) => p.url().startsWith(site.url)), 10_000);
-  }
-
-  const evalInSite = async (expr: string) => (await sitePage()).evaluate(expr).catch(() => undefined);
-
   it('opens a website and lists its scripts, stylesheets and document', async () => {
-    await win.fill('#url', site.url);
-    await win.press('#url', 'Enter');
-    await win.locator(`.resource-row[data-url="${site.url}/app.js"]`).waitFor();
-    await expect.poll(() => win.locator('.resource-row').count()).toBe(5);
-    await expect.poll(() => evalInSite('window.appValue')).toBe('original');
+    await goTo(win, site.url);
+    await fileRow(win, `${site.url}/app.js`).waitFor();
+    await expect.poll(() => win.getByTestId('resource-row').count()).toBe(5);
+    await expect.poll(() => inSite('window.appValue')).toBe('original');
   });
 
   it('edits a script, saves it as an override, and the reloaded page runs it', async () => {
-    await win.click(`.resource-row[data-url="${site.url}/app.js"]`);
+    await fileRow(win, `${site.url}/app.js`).click();
     await win.locator('.monaco-editor .view-lines', { hasText: 'window.appValue' }).waitFor();
-    await win.click('.monaco-editor .view-lines');
-    await win.keyboard.press('Control+End');
-    await win.keyboard.press('Enter');
-    await win.keyboard.type('window.patchedByEditor = true;');
-    await win.keyboard.press('Escape');
+    await typeAtEndOfEditor(win, 'window.patchedByEditor = true;');
     await win.keyboard.press('Control+S');
 
-    await win.locator('.override-row').waitFor();
-    await expect.poll(() => evalInSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+    await win.locator('[data-override-id]').waitFor();
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
     // The rest of the (SRI-protected) file still runs.
-    await expect.poll(() => evalInSite("document.querySelector('#app').textContent")).toBe('app: original');
-    await expect.poll(() => win.locator('.override-row .hits').textContent()).toBe('1');
+    await expect.poll(() => inSite("document.querySelector('#app').textContent")).toBe('app: original');
+    await expect.poll(() => win.getByTestId('override-hits').first().textContent()).toContain('1');
   });
 
   it('pretty-prints a minified bundle and can match every build of a hashed file', async () => {
-    await win.click(`.resource-row[data-url="${site.url}${MAIN_JS_PATH}"]`);
+    await fileRow(win, `${site.url}${MAIN_JS_PATH}`).click();
     // The one-line bundle was pretty-printed: its first statements now sit on their own lines.
     await win.locator('.monaco-editor .view-line', { hasText: 'version: "1.0.0",' }).waitFor();
     await expect.poll(() => win.locator('.monaco-editor .view-line').count()).toBeGreaterThan(20);
 
-    await win.click('button:has-text("Create override")');
-    await win.locator('button:has-text("Match every build")').click();
-    await expect.poll(() => win.locator('.match-row select').inputValue()).toBe('glob');
-    await expect.poll(() => win.locator('.match-row .pattern').inputValue()).toBe(`${site.url}/static/js/main.*.js`);
-    await expect.poll(() => win.locator('.override-row').count()).toBe(2);
+    await win.getByTestId('save-button').click();
+    await win.getByRole('button', { name: /Match every build/ }).click();
+    await expect.poll(() => win.getByTestId('match-type').textContent()).toContain('glob');
+    await expect.poll(() => win.getByTestId('match-pattern').inputValue()).toBe(`${site.url}/static/js/main.*.js`);
+    await expect.poll(() => win.locator('[data-override-id]').count()).toBe(2);
   });
 
-  it('disabling an override brings back the live file', async () => {
-    const row = win.locator('.override-row', { hasText: 'app.js' });
-    await row.locator('input[type=checkbox]').uncheck();
-    await expect.poll(() => evalInSite('window.patchedByEditor'), { timeout: 15_000 }).toBeUndefined();
-    await expect.poll(() => evalInSite('window.appValue')).toBe('original');
-    await row.locator('input[type=checkbox]').check();
-    await expect.poll(() => evalInSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+  it('turning an override off brings back the live file', async () => {
+    const row = win.locator('[data-override-id]', { hasText: 'app.js' });
+    await row.getByRole('switch').click();
+    await expect.poll(() => inSite('typeof window.patchedByEditor'), { timeout: 15_000 }).toBe('undefined');
+    await expect.poll(() => inSite('window.appValue')).toBe('original');
+    await row.getByRole('switch').click();
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+  });
+
+  it('edits files inside a cross-site iframe and a nested one', async () => {
+    await goTo(win, `${site.url}/frames.html`);
+    const port = new URL(site.url).port;
+    const widgetJs = `http://localhost:${port}/frames/widget.js`;
+    await fileRow(win, widgetJs).waitFor();
+    // Marked as loaded by an iframe.
+    await expect.poll(() => fileRow(win, widgetJs).getAttribute('data-iframe')).toBe('');
+    await expect.poll(() => inSite('window.widgetValue', 'localhost')).toBe('original-widget');
+
+    await fileRow(win, widgetJs).click();
+    await win.locator('.monaco-editor .view-lines', { hasText: 'widgetValue' }).waitFor();
+    await typeAtEndOfEditor(win, 'window.patchedInIframe = true;');
+    await win.keyboard.press('Control+S');
+    await expect.poll(() => inSite('window.patchedInIframe', 'localhost'), { timeout: 15_000 }).toBe(true);
+
+    const nestedJs = `http://nested.localhost:${port}/frames/nested.js`;
+    await fileRow(win, nestedJs).click();
+    await win.locator('.monaco-editor .view-lines', { hasText: 'nestedValue' }).waitFor();
+    await typeAtEndOfEditor(win, 'window.patchedInNested = true;');
+    await win.keyboard.press('Control+S');
+    await expect.poll(() => inSite('window.patchedInNested', 'nested.localhost'), { timeout: 15_000 }).toBe(true);
   });
 
   it('keeps overrides after a restart', async () => {
     await app.close();
     ({ app, win } = await launch(userData));
-    await expect.poll(() => win.locator('.override-row').count()).toBe(2);
-    await win.fill('#url', site.url);
-    await win.press('#url', 'Enter');
-    await expect.poll(() => evalInSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => win.locator('[data-override-id]').count()).toBe(4);
+    await goTo(win, site.url);
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
   });
 });

@@ -1,0 +1,138 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import './tokens.css';
+
+@source '../../';
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-editor: var(--surface-editor);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-scrim: var(--scrim);
+  --color-hover: var(--hover);
+  --color-pressed: var(--pressed);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-live: var(--live);
+  --color-info: var(--info);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-kind-js: var(--kind-js);
+  --color-kind-css: var(--kind-css);
+  --color-kind-html: var(--kind-html);
+
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --shadow-overlay: var(--elevation-overlay);
+  --shadow-raised: var(--elevation-raised);
+  --background-image-accent-grad: var(--accent-grad);
+
+  --ease-out-expo: var(--ease-out);
+
+  --animate-pulse-live: pulse-live 2.4s var(--ease-in-out) infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-spin-slow: spin 0.9s linear infinite;
+
+  @keyframes pulse-live {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in oklch, var(--live) 55%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 4px color-mix(in oklch, var(--live) 0%, transparent);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: var(--canvas);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    user-select: text;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--accent) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--accent) 55%, transparent);
+    outline-offset: 1px;
+  }
+
+  /* Thin, quiet scrollbars everywhere except Monaco (it draws its own). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
+
+@layer components {
+  /* Caps section labels (EXPLORER, OVERRIDES, …). */
+  .label-caps {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-subtle);
+  }
+
+  .shimmer-text {
+    background: linear-gradient(90deg, var(--fg-subtle) 0%, var(--fg) 50%, var(--fg-subtle) 100%);
+    background-size: 200% 100%;
+    background-clip: text;
+    color: transparent;
+    animation: var(--animate-shimmer);
+  }
+}
+
+/* Monaco sits on the editor surface; keep its widgets in the design language. */
+.monaco-editor,
+.monaco-diff-editor {
+  --vscode-editor-background: var(--surface-editor);
+  --vscode-editorGutter-background: var(--surface-editor);
+}
+
+.monaco-editor .suggest-widget,
+.monaco-editor .monaco-hover,
+.monaco-editor .find-widget {
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: var(--elevation-overlay) !important;
+}

@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import type { CdpTransport } from '../../src/main/engine/cdp';
+import { LOCAL_NETWORK_ACCESS_FEATURES } from '../../src/main/chromiumFlags';
 import { attachToPage, CdpConnection } from '../../src/main/engine/websocketTransport';
 
 export const chromiumAvailable = (() => {
@@ -39,6 +40,9 @@ export async function launchChromium(): Promise<ChromiumHarness> {
     '--no-default-browser-check',
     // Site isolation is what puts cross-site iframes in their own process (and CDP target).
     '--site-per-process',
+    // Same as the app (src/main/index.ts): a document served via Fetch.fulfillRequest has no
+    // IP address space, so Local Network Access would block its requests to loopback hosts.
+    `--disable-features=${LOCAL_NETWORK_ACCESS_FEATURES.join(',')}`,
     ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []),
     'about:blank',
   ];

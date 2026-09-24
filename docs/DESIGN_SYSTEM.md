@@ -1,0 +1,152 @@
+# Console Editor design system
+
+The editor UI is a calm, near-black workspace in which the **code and the live page are the brightest things on screen**. Chrome is quiet: hairline borders, soft elevation, one warm accent for actions, and a lime "live" signal for anything currently being served from an override. Motion is physical and quick: springs for things you touch, ease-out for things that appear. It never makes you wait.
+
+References: the user's IDE shots (activity rail, tree explorer, pill tabs, breadcrumbs, rounded menus, warm-orange/lime accents), [beUI](https://beui.dev) motion components (MIT; ported pieces keep their license header), [Bencho](https://bencho.dev) interaction patterns (command palette, liquid toggle), and icons from [Hugeicons](https://hugeicons.com) (`@hugeicons/core-free-icons`, MIT).
+
+---
+
+## 1. Tokens
+
+All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`, exposed to Tailwind through `@theme inline`. **Components use semantic utilities only** (`bg-surface`, `text-fg-muted`, `border-line`…), never raw colors.
+
+### Surfaces (dark)
+
+| Token | Use | Value |
+|---|---|---|
+| `--canvas` | window background, title bar | `oklch(13.5% 0.004 285)` |
+| `--surface` | sidebar, page panel header | `oklch(16% 0.005 285)` |
+| `--surface-editor` | editor + Monaco background | `oklch(15% 0.004 285)` |
+| `--surface-raised` | tabs (active), inputs, cards | `oklch(20% 0.006 285)` |
+| `--surface-overlay` | menus, palette, toasts, tooltips | `oklch(21% 0.006 285 / 0.92)` + backdrop blur |
+| `--scrim` | backdrop behind the palette and dialogs | `oklch(13.5% 0.004 285 / 0.6)` |
+| `--hover` / `--pressed` | row & control states | white at 5% / 8% |
+| `--line` / `--line-strong` | hairlines / focus-adjacent borders | white at 7% / 12% |
+
+### Text
+
+| Token | Use |
+|---|---|
+| `--fg` `oklch(95% 0 0)` | primary text |
+| `--fg-muted` `oklch(70% 0.01 285)` | secondary text, inactive tabs |
+| `--fg-subtle` `oklch(52% 0.01 285)` | placeholders, captions, line numbers |
+
+### Accents and status
+
+| Token | Meaning | Value |
+|---|---|---|
+| `--accent` | primary actions, focus ring, active rail item | ember `oklch(72% 0.19 45)` |
+| `--accent-grad` | brand mark, primary button fill | `linear-gradient(135deg, oklch(78% 0.18 65), oklch(66% 0.23 30))` |
+| `--live` | override active / served, "live" dot | lime `oklch(88% 0.2 128)` |
+| `--info` | links, iframe markers | sky `oklch(76% 0.12 235)` |
+| `--warning` | upstream changed | amber `oklch(82% 0.15 80)` |
+| `--danger` | destructive, errors | `oklch(67% 0.2 25)` |
+| `--kind-js` / `--kind-css` / `--kind-html` | file-kind glyph tints | yellow / blue / orange |
+
+### Typography
+
+- **Geist Variable** for UI, **Geist Mono Variable** for code, URLs, counts (bundled via `@fontsource-variable`, no network).
+- Scale: `text-[11px]` caps labels (tracking 0.06em, `--fg-subtle`), `text-xs` (12) captions, `text-[13px]` UI body (default), `text-sm` (14) dialog body, `text-lg` empty-state title. Numbers use `tabular-nums`.
+
+### Shape and elevation
+
+- Radii: `rounded-md` (6) chips & rows, `rounded-lg` (8) inputs & buttons, `rounded-xl` (12) menus & tabs, `rounded-2xl` (16) palette & dialogs, `rounded-full` pills & switches.
+- Elevation: overlays get `shadow-overlay` (`0 24px 60px -12px rgb(0 0 0 / .65), 0 0 0 1px var(--line)`) and a 12px backdrop blur. Panels are separated by hairlines, not shadows.
+
+### Spacing and density
+
+4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px, status bar 26 px, activity rail 48 px wide.
+
+---
+
+## 2. Motion
+
+Presets live in `shared/lib/motion.ts` (ported from beUI's `ease.ts`):
+
+| Preset | Use |
+|---|---|
+| `EASE_OUT` `[0.16, 1, 0.3, 1]` | anything appearing (fade/slide), 160–220 ms |
+| `SPRING_PRESS` | press feedback (scale 0.97) on buttons/rows |
+| `SPRING_LAYOUT` | shared-layout glides: active tab pill, rail indicator, hover highlight |
+| `SPRING_PANEL` | menus, palette, dialogs entering |
+| `SPRING_SWAP` | icon/label swaps (Save → Saved ✓) |
+
+Rules:
+1. **Respect reduced motion.** `MotionConfig reducedMotion="user"` at the root; springs collapse to fades.
+2. **Only transform and opacity** on hot paths (tree rows, tabs). Height animations only for expand/collapse of sections.
+3. **Durations:** ≤ 220 ms for UI feedback, no animation longer than 320 ms.
+4. **Continuity over decoration:** one moving highlight per list (shared layout), tabs slide into place, the Save button morphs into "Saved", the switch thumb carries weight.
+5. The website is a native view drawn above the DOM, so nothing HTML can sit on top of it. `PagePreview` reports where it is (`setNativeViewRect` in `shared/lib`), and floating UI handles it one of three ways:
+   - **Modal overlays** (palette, menus, dialogs) register with `useRegisterOverlay`: the view is swapped for a still snapshot while they are open.
+   - **Tooltips** are too frequent to capture the page for, so they place themselves off the view (other side, then sliding along the edge).
+   - **Monaco's floating widgets** (hovers, suggestions, parameter hints, its context menu) can't be placed by us: `guardFloatingWidgets` freezes the page only while one of them actually overlaps the view.
+
+---
+
+## 3. Icons
+
+Hugeicons (stroke, 1.5 px) through one wrapper: `shared/ui/icon` → `<Icon icon={Search01Icon} size={16} />`. Sizes: 14 (inline), 16 (controls, default), 18 (rail). Icons inherit `currentColor`; file kinds get tinted glyphs (`JavaScriptIcon`, `CssFile01Icon`, `Html5Icon`).
+
+---
+
+## 4. Components (`src/renderer/src/shared/ui`)
+
+Each component lives in its own folder with an `index.ts` public API. Props below are the contract.
+
+| Component | API (essentials) | Notes |
+|---|---|---|
+| `Button` | `variant: 'primary' \| 'secondary' \| 'ghost' \| 'danger'`, `size: 'sm' \| 'md'`, `leading?/trailing?: ReactNode`, `loading?` | press spring; primary uses `--accent-grad` |
+| `IconButton` | `icon`, `label` (tooltip + aria-label), `active?`, `size?` | square 28 px, tooltip built in |
+| `Input` | `leading?`, `trailing?`, `size?`, `mono?` + native props | focus ring = accent at 40% |
+| `Kbd` | `keys: string[]` | renders ⌘/Ctrl per platform |
+| `Badge` | `tone: 'neutral' \| 'live' \| 'warning' \| 'info' \| 'accent'`, `dot?` | pill, 11 px |
+| `Counter` | `value: number` | digit roll (number ticker) |
+| `Switch` | `checked`, `onCheckedChange`, `size?: 'sm' \| 'md'`, `tone?: 'live' \| 'accent'` | beUI weighted-thumb switch |
+| `Tooltip` | `content`, `side?`, `shortcut?: string[]` | 400 ms open delay, instant when moving between tooltips |
+| `Menu` / `ContextMenu` | `items: MenuItem[]` (`label`, `icon?`, `shortcut?`, `danger?`, `onSelect`, `separator?`) | scale-in from pointer, keyboard nav |
+| `CommandPalette` | `open`, `onOpenChange`, `groups: {heading, items: CommandItem[]}[]`, `placeholder` | fuzzy filter, spring panel, moving highlight |
+| `ToastStack` + `toast()` | `toast({title, description?, tone?, action?})` | stacked, swipe/auto-dismiss, bottom-left of the editor |
+| `ConfirmDialog` + `confirm()` | `confirm({title, body, confirmLabel, tone}) => Promise<boolean>` | replaces `window.confirm` |
+| `HoverHighlight` | wraps a list; one pill follows the hovered row | port of beUI SharedLayoutBg |
+| `Collapsible` / `Section` | `title`, `count?`, `actions?`, `defaultOpen?` | height auto animation, caps header |
+| `Tree` | rows rendered by the caller; `TreeRow` = `depth`, `expanded?`, `onToggle?`, `selected?`, `icon`, `label`, `meta?` | 26 px rows, guide lines, chevron rotates |
+| `Tabs` (editor tabs) | `items`, `activeId`, `onSelect`, `onClose`, `renderLabel` | layout pill, enter/exit width animation |
+| `Spinner`, `Shimmer` | loading states | shimmer for "Pretty-printing…" |
+| `EmptyState` | `icon`, `title`, `children` | used by editor & preview |
+
+---
+
+## 5. Architecture: Feature-Sliced Design
+
+```
+src/renderer/src/
+  app/        bootstrap, IPC → stores bridge (model/bridge.ts), motion config, global styles, gallery
+  pages/      editor/          — composes widgets into the workspace layout; owns the layout store
+  widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
+              command-palette
+  features/   navigate-page, open-resource, save-override, toggle-override, delete-override, close-tab,
+              edit-match-rule, format-document, compare-changes, filter-resources, update-settings
+  entities/   page, resource, override, editor-tab, settings
+  shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format worker,
+              overlays, native view rect), monaco, config (icons)
+```
+
+Rules (checked by `npm run lint:fsd` with [Steiger](https://github.com/feature-sliced/steiger)):
+- A layer imports only from layers **below** it: `app → pages → widgets → features → entities → shared`.
+- Slices on the same layer never import each other.
+- Every slice exposes a public API (`index.ts`); deep imports into another slice are not allowed.
+- Segments: `ui/` (components), `model/` (stores, actions, effects), `lib/` (pure helpers), `api/` (IPC calls).
+
+Code shared with the main process (`src/shared`: IPC types, URL matching) is imported as `@common/*`; renderer code uses `@/…`.
+
+## 6. State management
+
+- **Zustand** stores, one per entity (`entities/*/model`), created with `create<State & Actions>()`. State is serializable and normalized (records keyed by id/url); actions are pure state transitions.
+- **Side effects live in features** (`features/*/model`): they call `shared/api`, then update entity stores through their actions. Components never call IPC directly.
+- **One IPC bridge**: `startBridge()` in `app/model/bridge.ts` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features).
+- **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
+- **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models.ts`, `shared/monaco/editors.ts`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode).
+
+## 7. Accessibility
+
+Visible focus rings on every control (`focus-visible:ring-2 ring-accent/50`), full keyboard support in menus, palette, tree and tabs, `aria-*` roles on switches/tabs/tree, contrast ≥ 4.5:1 for text on surfaces, and no information conveyed by color alone (live/override states also have icons or labels).

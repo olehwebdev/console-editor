@@ -9,12 +9,14 @@ const api: ConsoleEditorApi = {
   openPageDevTools: () => ipcRenderer.invoke('page:devtools'),
   getPageState: () => ipcRenderer.invoke('page:state'),
   setPageBounds: (bounds) => ipcRenderer.send('page:bounds', bounds),
+  capturePage: () => ipcRenderer.invoke('page:capture'),
 
   listResources: () => ipcRenderer.invoke('resources:list'),
   getResourceContent: (url) => ipcRenderer.invoke('resources:content', url),
 
   listOverrides: () => ipcRenderer.invoke('overrides:list'),
   getOverride: (id) => ipcRenderer.invoke('overrides:get', id),
+  getOverrideBase: (id) => ipcRenderer.invoke('overrides:base', id),
   createOverride: (input) => ipcRenderer.invoke('overrides:create', input),
   updateOverride: (id, patch) => ipcRenderer.invoke('overrides:update', id, patch),
   deleteOverride: (id) => ipcRenderer.invoke('overrides:delete', id),

@@ -50,6 +50,16 @@ describe('OverrideStore', () => {
     expect(loaded.match.type).toBe('glob');
   });
 
+  it('uses the content as the diff base when none is sent (saves a large IPC transfer)', async () => {
+    const store = new OverrideStore(dir);
+    await store.load();
+    const { base: _base, ...withoutBase } = input;
+    const o = await store.create(withoutBase);
+    expect(o.base).toBe('patched();');
+    expect(store.meta(o.id)).not.toHaveProperty('content');
+    expect(store.meta(o.id)).not.toHaveProperty('base');
+  });
+
   it('removes files on delete', async () => {
     const store = new OverrideStore(dir);
     await store.load();

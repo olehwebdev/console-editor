@@ -1,77 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <title>Console Editor</title>
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; worker-src 'self' blob:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; worker-src 'self' blob:"
     />
   </head>
   <body>
-    <div id="app">
-      <header id="toolbar">
-        <button id="btn-back" class="icon-button" title="Back">
-          <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-        </button>
-        <button id="btn-forward" class="icon-button" title="Forward">
-          <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-        </button>
-        <button id="btn-reload" class="icon-button" title="Reload page (Ctrl/Cmd+R)">
-          <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-        </button>
-        <div id="url-bar">
-          <input id="url" type="text" spellcheck="false" autocomplete="off" placeholder="Enter the website URL, e.g. https://example.com or localhost:3000" />
-        </div>
-        <button id="btn-devtools" class="icon-button" title="Open DevTools for the page (Ctrl/Cmd+Shift+J)">
-          <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6" /></svg>
-        </button>
-      </header>
-
-      <aside id="sidebar">
-        <div class="sidebar-search">
-          <input id="filter" type="search" placeholder="Filter files" spellcheck="false" />
-        </div>
-        <div id="sidebar-list"></div>
-        <div id="settings-panel" hidden></div>
-        <div class="sidebar-footer">
-          <button id="btn-settings" class="button subtle" title="Settings">Settings</button>
-          <button id="btn-folder" class="button subtle" title="Open the folder where overrides are stored">Overrides folder</button>
-        </div>
-      </aside>
-
-      <main id="editor-area">
-        <div id="tabs" role="tablist"></div>
-        <div id="file-header"></div>
-        <div id="editor-stack">
-          <div id="editor-host"></div>
-          <div id="diff-host" hidden></div>
-          <div id="empty-state">
-            <h1>Patch a live website without rebuilding it</h1>
-            <ol>
-              <li>Type the site's URL in the bar above and press <kbd>Enter</kbd>.</li>
-              <li>Pick a script, stylesheet or the HTML under <strong>Page resources</strong>. Minified files are pretty-printed.</li>
-              <li>Edit and press <kbd>Ctrl/Cmd</kbd>+<kbd>S</kbd>. The page reloads with your version of the file.</li>
-            </ol>
-            <p>Overrides are kept between sessions. Turn them on and off in the sidebar.</p>
-          </div>
-        </div>
-      </main>
-
-      <div id="splitter" title="Drag to resize"></div>
-
-      <section id="page-pane">
-        <div id="page-host">
-          <div id="page-placeholder">The website will appear here.</div>
-        </div>
-      </section>
-
-      <footer id="statusbar">
-        <span id="status-page"></span>
-        <span id="status-message"></span>
-        <span id="status-counts"></span>
-      </footer>
-    </div>
-    <script type="module" src="./src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="./src/app/index.tsx"></script>
   </body>
 </html>

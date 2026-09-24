@@ -43,11 +43,17 @@ export interface Override extends OverrideMeta {
   base: string;
 }
 
+/** An override's metadata plus the content that gets served (the diff base is fetched separately). */
+export interface OverrideWithContent extends OverrideMeta {
+  content: string;
+}
+
 export interface CreateOverrideInput {
   kind: ResourceKind;
   sourceUrl: string;
   content: string;
-  base: string;
+  /** What editing started from. Omit when identical to `content` (saves a multi-MB IPC transfer). */
+  base?: string;
   originalHash: string | null;
   match?: UrlMatcher;
 }
@@ -65,6 +71,16 @@ export interface ResourceEntry {
   status: number;
   /** Set when the response the page received was served from an override. */
   overrideId?: string;
+  /**
+   * Set when the file was loaded by an iframe rather than the top-level page:
+   * the iframe's document URL and nesting depth (1 = iframe, 2 = iframe in an iframe…).
+   */
+  frame?: { url: string; depth: number };
+  /**
+   * Opaque id of the cross-site (out-of-process) iframe session that reported
+   * the entry. Such entries disappear when that iframe navigates or goes away.
+   */
+  iframeId?: string;
 }
 
 export interface ResourceContent {
@@ -118,7 +134,12 @@ export interface Rect {
 
 /** Events emitted by the interception engine. */
 export type EngineEvent =
-  | { type: 'navigated'; url: string }
+  /** A document load started: the top-level page (no iframeId) or a cross-site iframe's own frame. */
+  | { type: 'navigated'; url: string; iframeId?: string }
+  /** A cross-site iframe session went away (removed, reloaded, or moved to another process). */
+  | { type: 'iframe-detached'; iframeId: string }
+  /** An enabled override matched a file the page received unmodified (e.g. a Chromium interception gap). */
+  | { type: 'override-missed'; overrideId: string; url: string }
   | { type: 'resource'; resource: ResourceEntry }
   | { type: 'override-served'; overrideId: string; url: string }
   | { type: 'upstream-changed'; overrideId: string; url: string }
@@ -143,14 +164,20 @@ export interface ConsoleEditorApi {
   openPageDevTools(): Promise<void>;
   getPageState(): Promise<PageState>;
   setPageBounds(bounds: Rect): void;
+  /** A still image (data URL) of the page, shown while overlays cover the native view; null if nothing is loaded. */
+  capturePage(): Promise<string | null>;
 
   listResources(): Promise<ResourceEntry[]>;
   getResourceContent(url: string): Promise<ResourceContent>;
 
   listOverrides(): Promise<OverrideMeta[]>;
-  getOverride(id: string): Promise<Override>;
-  createOverride(input: CreateOverrideInput): Promise<Override>;
-  updateOverride(id: string, patch: OverridePatch): Promise<Override>;
+  /** Metadata + served content. Large files cross IPC once, when a tab opens. */
+  getOverride(id: string): Promise<OverrideWithContent>;
+  /** The diff base, fetched only when a diff is actually shown. */
+  getOverrideBase(id: string): Promise<string>;
+  /** Returns metadata only: the content the renderer just sent is not echoed back. */
+  createOverride(input: CreateOverrideInput): Promise<OverrideMeta>;
+  updateOverride(id: string, patch: OverridePatch): Promise<OverrideMeta>;
   deleteOverride(id: string): Promise<void>;
   revealOverridesFolder(): Promise<void>;
 

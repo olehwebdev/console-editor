@@ -11,6 +11,10 @@ interface IndexFile {
   overrides: OverrideMeta[];
 }
 
+function toMeta({ content: _content, base: _base, ...meta }: Override): OverrideMeta {
+  return meta;
+}
+
 const EXTENSIONS: Record<ResourceKind, string> = { Script: 'js', Stylesheet: 'css', Document: 'html' };
 
 /** Writes via a temp file + rename so a crash never leaves a half-written file. */
@@ -75,7 +79,11 @@ export class OverrideStore {
   }
 
   metas(): OverrideMeta[] {
-    return this.list().map(({ content: _content, base: _base, ...meta }) => meta);
+    return this.list().map(toMeta);
+  }
+
+  meta(id: string): OverrideMeta {
+    return toMeta(this.get(id));
   }
 
   get(id: string): Override {
@@ -102,7 +110,7 @@ export class OverrideStore {
       createdAt: now,
       updatedAt: now,
       content: input.content,
-      base: input.base,
+      base: input.base ?? input.content,
     };
     this.overrides.set(id, override);
     await this.persist(async () => {

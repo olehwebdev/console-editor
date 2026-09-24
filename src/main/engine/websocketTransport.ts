@@ -4,6 +4,7 @@ interface Pending {
   resolve(value: unknown): void;
   reject(error: Error): void;
   method: string;
+  sessionId?: string;
 }
 
 type RawHandler = (method: string, params: unknown, sessionId: string | undefined) => void;
@@ -39,7 +40,7 @@ export class CdpConnection {
   send<T = any>(method: string, params: Record<string, unknown> = {}, sessionId?: string): Promise<T> {
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, method });
+      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, method, sessionId });
       this.ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
   }
@@ -70,7 +71,18 @@ export class CdpConnection {
       else p.resolve(msg.result);
       return;
     }
-    if (msg.method) for (const h of this.handlers) h(msg.method, msg.params, msg.sessionId);
+    if (!msg.method) return;
+    if (msg.method === 'Target.detachedFromTarget') {
+      // Chromium never answers commands that were in flight to a session that went away.
+      const gone = (msg.params as { sessionId?: string }).sessionId;
+      for (const [id, p] of this.pending) {
+        if (gone && p.sessionId === gone) {
+          this.pending.delete(id);
+          p.reject(new Error(`${p.method}: session detached`));
+        }
+      }
+    }
+    for (const h of this.handlers) h(msg.method, msg.params, msg.sessionId);
   }
 }
 
@@ -85,10 +97,19 @@ export async function attachToPage(
 ): Promise<CdpTransport & { readonly sessionId: string; detach(): Promise<void> }> {
   const { sessionId: root } = await connection.send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
   const handlers = new Map<string, Set<(params: any, sessionId?: string) => void>>();
+  // Sessions of this page: its own plus iframe sessions auto-attached below it.
+  // Other pages on the same connection are never forwarded.
+  const parentOf = new Map<string, string>([[root, '']]);
+  const forget = (sessionId: string) => {
+    parentOf.delete(sessionId);
+    for (const [child, parent] of [...parentOf]) if (parent === sessionId) forget(child);
+  };
   const off = connection.onEvent((method, params, sessionId) => {
-    // Browser-level events (no session) belong to no page.
-    if (!sessionId) return;
+    if (!sessionId || !parentOf.has(sessionId)) return;
+    const p = params as { sessionId?: string };
+    if (method === 'Target.attachedToTarget' && p.sessionId) parentOf.set(p.sessionId, sessionId);
     for (const h of handlers.get(method) ?? []) h(params, sessionId === root ? undefined : sessionId);
+    if (method === 'Target.detachedFromTarget' && p.sessionId) forget(p.sessionId);
   });
   return {
     sessionId: root,

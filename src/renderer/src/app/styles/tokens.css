@@ -1,0 +1,53 @@
+/*
+ * Design tokens. See docs/DESIGN_SYSTEM.md.
+ * Components consume these through the semantic Tailwind utilities defined in
+ * index.css (bg-surface, text-fg-muted, border-line, …), never raw values.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --canvas: oklch(13.5% 0.004 285);
+  --surface: oklch(16% 0.005 285);
+  --surface-editor: oklch(15% 0.004 285);
+  --surface-raised: oklch(20% 0.006 285);
+  --surface-overlay: oklch(21% 0.006 285 / 0.92);
+  /* Backdrop behind modal overlays (palette, dialogs). */
+  --scrim: oklch(13.5% 0.004 285 / 0.6);
+  --hover: oklch(100% 0 0 / 0.05);
+  --pressed: oklch(100% 0 0 / 0.08);
+  --line: oklch(100% 0 0 / 0.07);
+  --line-strong: oklch(100% 0 0 / 0.12);
+
+  /* Text */
+  --fg: oklch(95% 0 0);
+  --fg-muted: oklch(70% 0.01 285);
+  --fg-subtle: oklch(52% 0.01 285);
+
+  /* Accents and status */
+  --accent: oklch(72% 0.19 45);
+  --accent-fg: oklch(18% 0.03 45);
+  --accent-grad: linear-gradient(135deg, oklch(78% 0.18 65), oklch(66% 0.23 30));
+  --live: oklch(88% 0.2 128);
+  --info: oklch(76% 0.12 235);
+  --warning: oklch(82% 0.15 80);
+  --danger: oklch(67% 0.2 25);
+
+  /* File kinds */
+  --kind-js: oklch(86% 0.16 95);
+  --kind-css: oklch(74% 0.13 250);
+  --kind-html: oklch(72% 0.17 40);
+
+  /* Elevation */
+  --elevation-overlay: 0 24px 60px -12px oklch(0% 0 0 / 0.65), 0 0 0 1px var(--line);
+  --elevation-raised: 0 1px 0 0 oklch(100% 0 0 / 0.04) inset, 0 1px 2px oklch(0% 0 0 / 0.4);
+
+  /* Motion (CSS side; JS presets live in shared/lib/motion.ts) */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* Layout */
+  --titlebar-h: 44px;
+  --statusbar-h: 26px;
+  --rail-w: 48px;
+}

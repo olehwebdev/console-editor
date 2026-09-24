@@ -41,8 +41,12 @@ export function registerIpc({ win, page, store, settings }: Deps): void {
   handle('page:forward', () => page.goForward());
   handle('page:devtools', () => page.openDevTools());
   handle('page:state', () => page.state());
+  handle('page:capture', () => page.capture());
   ipcMain.on('page:bounds', (event, rect: Rect) => {
-    if (fromEditor(event)) page.setBounds(rect);
+    if (!fromEditor(event)) return;
+    // The renderer measures CSS pixels; the view is placed in window pixels (they differ when the editor is zoomed).
+    const zoom = win.webContents.getZoomFactor();
+    page.setBounds({ x: rect.x * zoom, y: rect.y * zoom, width: rect.width * zoom, height: rect.height * zoom });
   });
 
   handle('resources:list', () => page.listResources());
@@ -54,22 +58,27 @@ export function registerIpc({ win, page, store, settings }: Deps): void {
   handle('overrides:list', () => store.metas());
   handle('overrides:get', (id: unknown) => {
     assertString(id, 'id');
-    return store.get(id);
+    const { base: _base, ...withContent } = store.get(id);
+    return withContent;
+  });
+  handle('overrides:base', (id: unknown) => {
+    assertString(id, 'id');
+    return store.get(id).base;
   });
   handle('overrides:create', async (input: CreateOverrideInput) => {
     assertString(input?.sourceUrl, 'sourceUrl');
     assertString(input.content, 'content');
-    assertString(input.base, 'base');
+    if (input.base !== undefined) assertString(input.base, 'base');
     if (!RESOURCE_KINDS.includes(input.kind)) throw new Error(`Unsupported kind ${String(input.kind)}`);
     const created = await store.create(input);
     await page.overridesChanged();
-    return created;
+    return store.meta(created.id);
   });
   handle('overrides:update', async (id: unknown, patch: OverridePatch) => {
     assertString(id, 'id');
-    const updated = await store.update(id, patch);
+    await store.update(id, patch);
     await page.overridesChanged(patch.match !== undefined || patch.enabled !== undefined);
-    return updated;
+    return store.meta(id);
   });
   handle('overrides:delete', async (id: unknown) => {
     assertString(id, 'id');

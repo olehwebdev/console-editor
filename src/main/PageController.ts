@@ -1,7 +1,7 @@
 import { session, WebContentsView, type BrowserWindow, type Session } from 'electron';
 import type { AppEvent, PageState, Rect } from '../shared/types';
 import { electronTransport } from './electronTransport';
-import { InterceptionEngine } from './engine/InterceptionEngine';
+import { PageInterception } from './engine/PageInterception';
 import type { OverrideStore } from './store/OverrideStore';
 import type { SettingsStore } from './store/SettingsStore';
 
@@ -32,7 +32,7 @@ function chromeUserAgent(ua: string): string {
  */
 export class PageController {
   readonly view: WebContentsView;
-  private readonly engine: InterceptionEngine;
+  private readonly engine: PageInterception;
   private readonly siteSession: Session;
   private ready: Promise<void> = Promise.resolve();
 
@@ -56,10 +56,12 @@ export class PageController {
     wc.debugger.attach('1.3');
     const transport = electronTransport(wc.debugger);
     wc.debugger.on('detach', (_event, reason) => {
+      // Settle everything the engine is waiting on; nothing can be sent any more.
+      this.engine.detach();
       this.send({ type: 'error', message: `Interception stopped: debugger detached (${reason})` });
     });
 
-    this.engine = new InterceptionEngine({
+    this.engine = new PageInterception({
       transport,
       getOverrides: () => this.store.list(),
       getSettings: () => this.settings.get(),
@@ -127,6 +129,18 @@ export class PageController {
 
   goForward(): void {
     if (this.view.webContents.navigationHistory.canGoForward()) this.view.webContents.navigationHistory.goForward();
+  }
+
+  /** JPEG snapshot of the page (for the renderer to show while an overlay covers the view). */
+  async capture(): Promise<string | null> {
+    if (!this.state().url || this.view.getBounds().width === 0) return null;
+    try {
+      const image = await this.view.webContents.capturePage();
+      return image.isEmpty() ? null : `data:image/jpeg;base64,${image.toJPEG(85).toString('base64')}`;
+    } catch {
+      // Some GPU setups can't read the surface back; the renderer shows a plain panel instead.
+      return null;
+    }
   }
 
   openDevTools(): void {

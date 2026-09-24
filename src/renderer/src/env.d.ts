@@ -1,8 +1,7 @@
 /// <reference types="vite/client" />
-import type { ConsoleEditorApi } from '../../shared/types';
 
-declare global {
-  interface Window {
-    consoleEditor: ConsoleEditorApi;
-  }
+declare module 'monaco-editor/languages/definitions/javascript/javascript' {
+  import type { languages } from 'monaco-editor';
+  export const conf: languages.LanguageConfiguration;
+  export const language: languages.IMonarchLanguage;
 }

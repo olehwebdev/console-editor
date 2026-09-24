@@ -40,6 +40,9 @@ Nothing changes on the server. Only the browser inside the app sees the edits. T
 | Detect that the live file changed since the override was created | ✅ | Hash of the upstream body is compared on every load |
 | Stale source maps | ✅ | `sourceMappingURL` comments and `SourceMap` headers are removed from edited files |
 | Turn an override off | ✅ | The original file comes back on the next load |
+| Edit files inside a **cross-site iframe** (its own process and CDP target) and a **nested** one | ✅ | Auto-attach to iframe targets, one engine per session, set up before the frame is allowed to run (details in [SPEC §6.5](./SPEC.md#65-iframes-cross-site-and-nested)) |
+| Iframe HTML with SRI, runtime-set SRI inside an iframe, stylesheet and HTML overrides in iframes | ✅ | An iframe's document is served by its **parent's** session, its subresources by its own |
+| A patched document that talks to local/intranet hosts | ✅ | A document served via CDP has no IP address, so Chromium's Local Network Access checks treat it as public and block its requests to private hosts. The app turns those checks off for its browser |
 | Full app flow: open site → pick file → pretty-print → edit → Ctrl+S → page reloads with the edit → restart app → override still there | ✅ | |
 
 Caching and service workers are handled by turning off the HTTP cache (`Network.setCacheDisabled`) and bypassing service workers (`Network.setBypassServiceWorker`) for the app's page, so an old copy can never sidestep an override.
@@ -70,7 +73,7 @@ Why it's worth building:
 What to be clear about (limits):
 1. **You edit the built output, not the original sources.** Bundled, minified JS is pretty-printed so it's readable, but variable names stay mangled. Source maps can show the original TS/JSX *read-only* (planned M4). Editing an original module and recompiling just that module is a research item, not a promise.
 2. **Only the app's browser sees the change.** It's for debugging and trying fixes; the real fix still goes through your normal build and deploy.
-3. **Workers and cross-origin iframes** are separate CDP targets. The MVP intercepts the page and its same-site frames. Auto-attaching to workers and out-of-process iframes is milestone M2.
+3. **Workers** are separate CDP targets that aren't intercepted yet (M2). Iframes are, including cross-site and nested ones. One Chromium gap remains: when a cross-site iframe navigates back to its parent's site, that one document's files can't be intercepted; the app detects it and suggests a reload.
 4. **Scripts that verify themselves** (anti-tamper checks, hash comparisons in code) may notice. That's rare outside ads and anti-bot scripts.
 5. **Terms of use.** Changing what your own browser runs is fine for your own or your company's sites. Be thoughtful with third-party sites.
 

@@ -64,6 +64,64 @@ export function indexHtml(): string {
 `;
 }
 
+// --- iframe fixtures -------------------------------------------------------
+// Site = scheme + registrable domain, so ports don't make sites different. The
+// top page is on 127.0.0.1, the widget on `localhost` (cross-site, so it gets
+// its own process and CDP target) and the widget's own iframe on
+// `nested.localhost` (cross-site again). Chromium resolves *.localhost to
+// loopback itself, so no DNS or hosts-file setup is needed.
+
+export const SAME_FRAME_JS = `window.sameValue = 'original-same';\n`;
+export const WIDGET_JS = `window.widgetValue = 'original-widget';\ndocument.addEventListener('DOMContentLoaded', () => { document.querySelector('#widget').textContent = 'widget: ' + window.widgetValue; });\n`;
+export const WIDGET_CSS = `body { color: rgb(0, 0, 0); font-family: sans-serif; }\n`;
+export const WIDGET_LAZY_JS = `window.widgetLazyValue = 'original-widget-lazy';\n`;
+export const NESTED_JS = `window.nestedValue = 'original-nested';\n`;
+export const WIDGET2_JS = `window.widget2Value = 'original-widget2';\n`;
+/** Loaded by the top page and by the cross-site widget (one URL, two frames). */
+export const SHARED_JS = `window.sharedValue = 'original-shared';\n`;
+export const BACK_JS = `window.backValue = 'original-back';\n`;
+
+export function framesHtml(port: number): string {
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Frames fixture</title></head>
+<body>
+  <script src="http://127.0.0.1:${port}/frames/shared.js"></script>
+  <h1>Frames fixture</h1>
+  <iframe id="same" src="/frames/same.html" width="300" height="80"></iframe>
+  <iframe id="widget" src="http://localhost:${port}/frames/widget.html" width="400" height="200"></iframe>
+</body>
+</html>
+`;
+}
+
+export function widgetHtml(port: number): string {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Widget</title>
+  <link rel="stylesheet" href="/frames/widget.css">
+  <script src="/frames/widget.js" integrity="${sri(WIDGET_JS)}" crossorigin="anonymous"></script>
+  <script>
+    (function () {
+      var s = document.createElement('script');
+      s.src = '/frames/widget-lazy.js';
+      s.integrity = '${sri(WIDGET_LAZY_JS)}';
+      s.crossOrigin = 'anonymous';
+      document.head.appendChild(s);
+    })();
+  </script>
+</head>
+<body>
+  <script src="http://127.0.0.1:${port}/frames/shared.js"></script>
+  <div id="widget">widget: loading</div>
+  <iframe id="nested" src="http://nested.localhost:${port}/frames/nested.html" width="200" height="60"></iframe>
+</body>
+</html>
+`;
+}
+
 export interface FixtureSite {
   url: string;
   server: Server;
@@ -107,6 +165,21 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 
   await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
   const { port: actualPort } = server.address() as AddressInfo;
+  const add = (path: string, type: string, body: string) => bodies.set(path, { type, body });
+  add('/frames.html', 'text/html; charset=utf-8', framesHtml(actualPort));
+  add('/frames/same.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/same.js"></script><p>same-site frame</p>');
+  add('/frames/same.js', 'text/javascript', SAME_FRAME_JS);
+  add('/frames/widget.html', 'text/html; charset=utf-8', widgetHtml(actualPort));
+  add('/frames/widget.js', 'text/javascript', WIDGET_JS);
+  add('/frames/widget.css', 'text/css', WIDGET_CSS);
+  add('/frames/widget-lazy.js', 'text/javascript', WIDGET_LAZY_JS);
+  add('/frames/widget2.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/widget2.js"></script><p>widget page 2</p>');
+  add('/frames/widget2.js', 'text/javascript', WIDGET2_JS);
+  add('/frames/nested.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/nested.js"></script><p>nested frame</p>');
+  add('/frames/nested.js', 'text/javascript', NESTED_JS);
+  add('/frames/shared.js', 'text/javascript', SHARED_JS);
+  add('/frames/back.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/back.js"></script><p>back on the top page\'s site</p>');
+  add('/frames/back.js', 'text/javascript', BACK_JS);
   return {
     url: `http://127.0.0.1:${actualPort}`,
     server,

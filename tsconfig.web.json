@@ -3,7 +3,13 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker.ImportScripts"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable",
+      "WebWorker.ImportScripts"
+    ],
+    "jsx": "react-jsx",
     "types": [],
     "strict": true,
     "noUnusedLocals": true,
@@ -13,7 +19,19 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "composite": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@/*": [
+        "./src/renderer/src/*"
+      ],
+      "@common/*": [
+        "./src/shared/*"
+      ]
+    }
   },
-  "include": ["src/renderer/**/*", "src/shared/**/*"]
+  "include": [
+    "src/renderer/**/*",
+    "src/shared/**/*",
+    "test/renderer/**/*"
+  ]
 }
