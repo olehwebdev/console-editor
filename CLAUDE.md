@@ -38,6 +38,12 @@ Agents: when the environment assigns a generated branch (`claude/…`) and says 
 3. Leave other sessions' branches alone.
 4. If pushing the git flow branch is refused, push to the generated name instead and say so. Either way, name the branch in your reply.
 
+## Code structure
+
+- **One function or component per file**, named after it (`startBridge.ts`, `SaveDemo.tsx`, `useLayout.ts`). A file may instead hold data only: constants (`constants.ts`), types (`types.ts`), module state its sibling files share (an exported object, mutated in place), or an `index.ts` that only re-exports. A store (`create(...)`) or a class counts as one. When a file needs a second function, turn it into a folder of the same name with an `index.ts`, so its imports don't change. Tests are exempt.
+- **No magic values.** Name every literal that drives logic: ids, keys and prefixes, channel and event names, durations, sizes used in more than one place, and any value that has to match another system (Monaco command ids, `execCommand` names, `KeyboardEvent.key`, env vars). A constant goes at the top of the file that uses it, or in the folder's `constants.ts` when several files do; app-wide ones go in `shared/config` (renderer) or `src/shared/constants.ts` (both processes). Display copy, Tailwind classes and identity values (`0`, `1`, `''`, `true`) stay inline.
+- **No `switch`.** Dispatch through a typed table (`Record<Union, Handler>`, or a mapped type when each handler takes its own member), so a new union member fails typecheck until it's handled (see `app/model/bridge/`). An if/else chain or nested ternary over one value counts as a switch.
+
 ## React components and effects
 
 An effect is for keeping a component in step with something **outside React**: `window`/`document` listeners, observers, timers, IPC, the native page view, Monaco, a store subscription used for a side effect. Aim for none; a component needs one at most in the usual case. Before writing `useEffect` or `useLayoutEffect`, check the list below: most "needs" have a better tool.
