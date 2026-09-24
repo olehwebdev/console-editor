@@ -1,0 +1,1 @@
+export { looksMinified } from './looksMinified';
