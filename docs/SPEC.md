@@ -110,7 +110,8 @@ test/
   smoke/update.ts    an installed app updated to a newer build from a local stand-in for GitHub
   fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps, iframes
   helpers/           Chromium launcher with the app's flags, WebSocket CDP harness
-build/               icons, macOS entitlements, NSIS hooks (electron-builder's build resources)
+build/               app icon (icon.png 1024 px original, icon.icns macOS, icon.ico Windows, icons/ Linux sizes),
+                     macOS entitlements, NSIS hooks (electron-builder's build resources)
 electron-builder.ts  installer configuration
 scripts/             release-notes.ts (a release's notes from CHANGELOG.md)
 CHANGELOG.md         release notes: shown as What's New, and at the top of each GitHub release
