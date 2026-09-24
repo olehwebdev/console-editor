@@ -123,6 +123,36 @@ export function widgetHtml(port: number): string {
 `;
 }
 
+// --- console fixtures --------------------------------------------------------
+// A shell page embedding services the way a micro-frontend app does: a same-site
+// nav, and cart and billing on sites of their own (so each is a separate
+// process and CDP session). Each logs as it starts; the shell relays cart's
+// messages to billing, which logs what it gets.
+
+export function servicesHtml(port: number): string {
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Services</title></head>
+<body>
+  <script>
+    console.log('shell ready');
+    addEventListener('message', (e) => document.getElementById('billing').contentWindow.postMessage(e.data, '*'));
+  </script>
+  <iframe id="nav" name="nav" src="/services/nav.html" width="300" height="60"></iframe>
+  <iframe id="cart" name="cart" src="http://cart.localhost:${port}/services/cart.html" width="300" height="60"></iframe>
+  <iframe id="billing" name="billing" src="http://billing.localhost:${port}/services/billing.html" width="300" height="60"></iframe>
+</body>
+</html>
+`;
+}
+
+export const NAV_HTML = `<!doctype html><script>console.log('nav ready');</script><p>nav</p>`;
+export const CART_HTML = `<!doctype html><script>console.log('cart ready'); window.addItem = (sku) => parent.postMessage({ type: 'add', sku }, '*');</script><p>cart</p>`;
+export const BILLING_HTML = `<!doctype html><script>
+  console.log('billing ready');
+  addEventListener('message', (e) => console.log('billing got', JSON.stringify(e.data)));
+</script><p>billing</p>`;
+
 export interface FixtureSite {
   url: string;
   server: Server;
@@ -181,6 +211,10 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   add('/frames/shared.js', 'text/javascript', SHARED_JS);
   add('/frames/back.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/back.js"></script><p>back on the top page\'s site</p>');
   add('/frames/back.js', 'text/javascript', BACK_JS);
+  add('/services.html', 'text/html; charset=utf-8', servicesHtml(actualPort));
+  add('/services/nav.html', 'text/html; charset=utf-8', NAV_HTML);
+  add('/services/cart.html', 'text/html; charset=utf-8', CART_HTML);
+  add('/services/billing.html', 'text/html; charset=utf-8', BILLING_HTML);
   // The demo store (README screenshots, `npm run demo-site`): a checkout with a bug in its bundle.
   add('/store/', 'text/html; charset=utf-8', STORE_HTML);
   add(STORE_BUNDLE_PATH, 'application/javascript; charset=utf-8', STORE_BUNDLE);
@@ -211,6 +245,6 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 if (process.argv[1] && /site\.ts$/.test(process.argv[1])) {
   const port = Number(process.env.PORT ?? 5174);
   startFixtureSite(port).then((site) =>
-    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes`),
+    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/services.html services in iframes that log and message each other`),
   );
 }

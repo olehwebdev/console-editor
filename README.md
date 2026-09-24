@@ -59,7 +59,7 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 </td>
 <td width="50%" valign="top">
 
-**Iframes too.** Same-site, cross-site (out-of-process) and nested iframes. Each iframe is set up before it is allowed to load anything.
+**Iframes too.** Same-site, cross-site (out-of-process) and nested iframes. Each iframe is set up before it is allowed to load anything. The console (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>J</kbd>) shows every frame's logs in one list, each row tagged with its frame, and runs code in the frame you pick.
 
 <img src="docs/screenshots/iframes.png" alt="Explorer grouping files by iframe origin, with a cross-site iframe running the edited script">
 
@@ -128,6 +128,7 @@ Type a URL in the preview's address bar (`https://…` or `localhost:3000`), pic
 | `http://127.0.0.1:5174/store/` | The shop from the GIF: a checkout with a bug to fix |
 | `http://127.0.0.1:5174/` | Files built to be awkward: gzip, SRI, a hashed bundle, source maps |
 | `http://127.0.0.1:5174/frames.html` | Cross-site and nested iframes |
+| `http://127.0.0.1:5174/services.html` | Services in iframes that log and message each other (try the console) |
 
 To open a URL on start, pass it to the app (`console-editor https://example.com` after installing the Linux package) or set `CONSOLE_EDITOR_URL`: `CONSOLE_EDITOR_URL=https://example.com npm run dev`. On Linux and Windows, starting the app again with a URL opens it in the window that's already running.
 
@@ -145,6 +146,7 @@ To open a URL on start, pass it to the app (`console-editor https://example.com`
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>R</kbd> | Reload the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>L</kbd> | Focus the address bar |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>B</kbd> | Show or hide the sidebar |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>J</kbd> | Show or hide the console |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>J</kbd> | DevTools for the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Alt</kbd> + <kbd>I</kbd> | DevTools for the editor itself |
 
@@ -216,6 +218,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 
 - [x] Overrides for scripts, stylesheets and HTML; SRI, gzip, hashed names, redeploy detection
 - [x] Cross-site and nested iframes
+- [x] A console for the page and every iframe: each frame's logs in one list, and code run in the frame you pick
 - [x] Session restore with unsaved drafts
 - [x] Workspaces: a page, tabs and overrides per site or task, switched from the rail
 - [x] Installers for macOS, Windows and Linux
@@ -236,6 +239,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 | `npm run build` / `npm start` | Production build / run the build |
 | `npm run typecheck` | TypeScript, main process and renderer |
 | `npm run lint:fsd` | [Feature-Sliced Design](https://feature-sliced.design) architecture check ([Steiger](https://github.com/feature-sliced/steiger)) |
+| `npm run lint:structure` | Code-structure check: files of at most 150 lines, one function or component each, no `switch` ([CLAUDE.md › Code structure](CLAUDE.md#code-structure)) |
 | `npm test` | Unit and renderer tests, plus the interception engine and iframes against real Chromium (skipped without it: `npx playwright install chromium`) |
 | `npm run test:e2e` | Builds the app and drives it end to end with Playwright (headless Linux: `xvfb-run npm run test:e2e`) |
 | `npm run dist` | Builds the installers for your system into `dist/` (`npm run dist -- --dir` for just the app) |

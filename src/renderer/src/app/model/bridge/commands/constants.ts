@@ -16,4 +16,5 @@ export const PAGE_COMMAND_METHODS = {
   'focus-url': 'focusAddressBar',
   'toggle-palette': 'togglePalette',
   'toggle-sidebar': 'toggleSidebar',
+  'toggle-console': 'toggleConsole',
 } as const satisfies Partial<Record<MenuCommand, keyof PageCommands>>;
