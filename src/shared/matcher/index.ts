@@ -1,4 +1,5 @@
 export { compileMatcher } from './compileMatcher';
+export { CDP_WILDCARD } from './constants';
 export { defaultMatcherFor } from './defaultMatcherFor';
 export { globToRegExp } from './globToRegExp';
 export { stripQuery } from './stripQuery';

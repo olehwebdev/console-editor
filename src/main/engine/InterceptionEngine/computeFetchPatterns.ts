@@ -1,10 +1,10 @@
-import { toCdpUrlPattern } from '../../../shared/matcher';
+import { CDP_WILDCARD, toCdpUrlPattern } from '../../../shared/matcher';
 import type { Override, Settings } from '../../../shared/types';
 import { DOCUMENT_KIND } from './constants';
 import type { FetchPattern } from './types';
 
 /** A CDP URL pattern matching every request (all `toCdpUrlPattern` can offer a regex). */
-const ANY_URL = '*';
+const ANY_URL = CDP_WILDCARD;
 /** Joins a pattern and its resource type into the key patterns are deduplicated by. */
 const KEY_SEPARATOR = '|';
 
