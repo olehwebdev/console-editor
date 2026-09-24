@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
+import { clamp } from '@/shared/lib';
 import { PanelResizer } from '@/shared/ui/panel-resizer';
 import { Block } from '../../Block';
-import { clamp } from './clamp';
 
 /** Each panel's size in px: where it starts (and resets to), and its limits. */
 const SIDEBAR = { initial: 180, min: 120, max: 320 };

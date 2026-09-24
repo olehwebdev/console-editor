@@ -1,11 +1,10 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import { motion, useIsPresent, type Transition, type Variants } from 'motion/react';
 import { useRef, type DragEvent, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
-import { icons } from '@/shared/config';
+import { icons, MOUSE_BUTTON } from '@/shared/config';
 import { cn, EASE_OUT, isMac, SPRING_LAYOUT } from '@/shared/lib';
-import { Icon } from '@/shared/ui/icon';
+import { Icon, isGlyph } from '@/shared/ui/icon';
 import { EXITING_ATTR, TAB_ID_ATTR } from './constants';
-import { isGlyph } from './isGlyph';
 import type { DropSide, EditorTabItem, EditorTabsProps, EditorTabTone } from './types';
 
 const TONE: Record<EditorTabTone, string> = {
@@ -29,9 +28,6 @@ const FADE: Transition = { duration: 0.14, ease: EASE_OUT };
 const WRAPPER: Variants = { hidden: { width: 0 }, shown: { width: 'auto' } };
 const CONTENT: Variants = { hidden: { opacity: 0 }, shown: { opacity: 1 } };
 
-// `MouseEvent.button` values.
-const PRIMARY_BUTTON = 0;
-const MIDDLE_BUTTON = 1;
 
 const TABLIST = '[role="tablist"]';
 
@@ -87,8 +83,8 @@ export function EditorTab({
   // focus is already in the strip (keyboard use) does it follow the click.
   const handleMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     const tab = event.currentTarget;
-    if (event.button === PRIMARY_BUTTON) onSelect(id);
-    if (event.button === PRIMARY_BUTTON && draggable) {
+    if (event.button === MOUSE_BUTTON.primary) onSelect(id);
+    if (event.button === MOUSE_BUTTON.primary && draggable) {
       // Cancelling mousedown would also cancel the native drag, so let the
       // browser focus the tab and hand focus back in handleFocus.
       mouseFocus.current = true;
@@ -98,7 +94,7 @@ export function EditorTab({
       return;
     }
     event.preventDefault(); // also: no middle-click autoscroll (auxclick closes)
-    if (event.button === PRIMARY_BUTTON && tab.closest(TABLIST)?.contains(document.activeElement)) tab.focus({ preventScroll: true });
+    if (event.button === MOUSE_BUTTON.primary && tab.closest(TABLIST)?.contains(document.activeElement)) tab.focus({ preventScroll: true });
   };
 
   const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
@@ -147,7 +143,7 @@ export function EditorTab({
         draggable={draggable && present}
         onMouseDown={handleMouseDown}
         onAuxClick={(event) => {
-          if (event.button !== MIDDLE_BUTTON) return;
+          if (event.button !== MOUSE_BUTTON.middle) return;
           event.preventDefault();
           onClose(id);
         }}

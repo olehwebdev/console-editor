@@ -1,6 +1,5 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
-import type { NativeViewRect } from '@/shared/lib';
-import { clamp } from './clamp';
+import { clampPosition, type NativeViewRect } from '@/shared/lib';
 import { EDGE } from './constants';
 import { overlapArea } from './overlapArea';
 import { SIDE_POSITIONS } from './sidePositions';
@@ -11,18 +10,18 @@ export function positionOn(anchor: DOMRect, width: number, height: number, side:
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   let { top, left } = SIDE_POSITIONS[side](anchor, width, height);
-  top = clamp(top, EDGE, vh - EDGE - height);
-  left = clamp(left, EDGE, vw - EDGE - width);
+  top = clampPosition(top, EDGE, vh - EDGE - height);
+  left = clampPosition(left, EDGE, vw - EDGE - width);
 
   if (avoid && overlapArea({ top, left }, width, height, avoid) > 0) {
     if (side === 'top' || side === 'bottom') {
       const center = anchor.left + anchor.width / 2;
-      if (center <= avoid.x) left = clamp(Math.min(left, avoid.x - EDGE - width), EDGE, vw - EDGE - width);
-      else if (center >= avoid.x + avoid.width) left = clamp(Math.max(left, avoid.x + avoid.width + EDGE), EDGE, vw - EDGE - width);
+      if (center <= avoid.x) left = clampPosition(Math.min(left, avoid.x - EDGE - width), EDGE, vw - EDGE - width);
+      else if (center >= avoid.x + avoid.width) left = clampPosition(Math.max(left, avoid.x + avoid.width + EDGE), EDGE, vw - EDGE - width);
     } else {
       const center = anchor.top + anchor.height / 2;
-      if (center <= avoid.y) top = clamp(Math.min(top, avoid.y - EDGE - height), EDGE, vh - EDGE - height);
-      else if (center >= avoid.y + avoid.height) top = clamp(Math.max(top, avoid.y + avoid.height + EDGE), EDGE, vh - EDGE - height);
+      if (center <= avoid.y) top = clampPosition(Math.min(top, avoid.y - EDGE - height), EDGE, vh - EDGE - height);
+      else if (center >= avoid.y + avoid.height) top = clampPosition(Math.max(top, avoid.y + avoid.height + EDGE), EDGE, vh - EDGE - height);
     }
   }
   return { top: Math.round(top), left: Math.round(left) };

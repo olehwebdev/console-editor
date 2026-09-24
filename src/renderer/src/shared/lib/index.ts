@@ -1,3 +1,6 @@
+export { assignRef } from './assignRef';
+export { clamp } from './clamp';
+export { clampPosition } from './clampPosition';
 export { cn } from './cn';
 export { DURATION, EASE_IN_OUT, EASE_OUT, FADE_UP, SPRING_LAYOUT, SPRING_PANEL, SPRING_PRESS, SPRING_SWAP } from './motion';
 export { fileName, hostOf, originOf, pathOf, pathSegments } from './url';

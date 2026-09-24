@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState, type ComponentPropsWithRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { MOUSE_BUTTON } from '@/shared/config';
 import { cn } from '@/shared/lib';
 import { RESIZER_KEY_HANDLERS } from './resizerKeyHandlers';
 import type { PanelResizerOrientation } from './types';
@@ -33,8 +34,6 @@ export interface PanelResizerProps extends Omit<ComponentPropsWithRef<'div'>, 'o
 // Arrow-key steps in px, unless `step` / `largeStep` say otherwise.
 const STEP = 16;
 const LARGE_STEP = 64;
-/** `MouseEvent.button` of the main (left) button. */
-const PRIMARY_BUTTON = 0;
 /** Classes that take the handle out of flow, so it needs no negative margins. */
 const POSITIONED = /(^|\s)(absolute|fixed)(\s|$)/;
 
@@ -94,7 +93,7 @@ export function PanelResizer({
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     onPointerDown?.(event);
-    if (disabled || event.defaultPrevented || event.button !== PRIMARY_BUTTON) return;
+    if (disabled || event.defaultPrevented || event.button !== MOUSE_BUTTON.primary) return;
     event.preventDefault(); // no text selection, no focus ring from the mouse
     event.currentTarget.setPointerCapture(event.pointerId);
     const at = coord(event);
