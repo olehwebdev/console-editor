@@ -1,15 +1,14 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import { AnimatePresence } from 'motion/react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent as ReactFocusEvent } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn, useRegisterOverlay } from '@/shared/lib';
 import { useToasts } from '../store';
-import { focusableIn } from './focusableIn';
-import { focusHost } from './focusHost';
+import { stackLayout } from './stackLayout';
 import { ToastCard } from './ToastCard';
 import type { ToastStackProps } from './types';
+import { useStackFocus } from './useStackFocus';
 
-const GAP = 8;
 /** Cards shown at once when `visibleCount` isn't given. */
 const VISIBLE_COUNT = 3;
 
@@ -26,6 +25,7 @@ export function ToastStackHost({ className, visibleCount = VISIBLE_COUNT, regist
   if (toasts.length > 0 && !lingering) setLingering(true);
   useRegisterOverlay(registerOverlay && (toasts.length > 0 || lingering));
 
+  // The toasts of the last commit, for `onExitComplete` (called by motion, outside render).
   const latest = useRef(toasts);
   useLayoutEffect(() => {
     latest.current = toasts;
@@ -36,49 +36,7 @@ export function ToastStackHost({ className, visibleCount = VISIBLE_COUNT, regist
   }, []);
 
   const listRef = useRef<HTMLOListElement>(null);
-  /** Where focus was before it entered the stack; it goes back there when the stack lets go. */
-  const returnFocus = useRef<HTMLElement | null>(null);
-
-  /** Focus is leaving `card` (dismissed, or going away): to a neighbouring card, else back out. */
-  const handOffFocus = useCallback((card: HTMLElement, toNeighbour: boolean) => {
-    if (toNeighbour) {
-      const cards = Array.from(listRef.current?.children ?? []);
-      const at = cards.indexOf(card);
-      const order = at < 0 ? cards : [...cards.slice(at + 1), ...cards.slice(0, at).reverse()];
-      for (const other of order) {
-        const target = other === card ? null : focusableIn(other);
-        if (target) {
-          target.focus({ preventScroll: true });
-          return;
-        }
-      }
-    }
-    const back = returnFocus.current;
-    returnFocus.current = null;
-    if (back && back !== document.body && back.isConnected) back.focus({ preventScroll: true });
-    else if (document.activeElement instanceof HTMLElement && card.contains(document.activeElement)) document.activeElement.blur();
-  }, []);
-
-  useEffect(() => {
-    const focusFront = () => {
-      const list = listRef.current;
-      if (!list) return false;
-      let target: HTMLElement | null = null;
-      for (const card of list.children) {
-        target = focusableIn(card);
-        if (target) break;
-      }
-      if (!target) return false;
-      const active = document.activeElement;
-      if (!list.contains(active)) returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : null;
-      target.focus({ preventScroll: true });
-      return true;
-    };
-    focusHost.current = focusFront;
-    return () => {
-      if (focusHost.current === focusFront) focusHost.current = null;
-    };
-  }, []);
+  const { handOffFocus, onFocus, onBlur } = useStackFocus(listRef, setFocused);
 
   const onExitComplete = useCallback(() => {
     const live = latest.current;
@@ -95,28 +53,7 @@ export function ToastStackHost({ className, visibleCount = VISIBLE_COUNT, regist
     setHeights((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => live.some((t) => t.id === id))));
   }, []);
 
-  // Newest first: index 0 is the front card.
-  const ordered = [...toasts].reverse();
-  const shown = Math.max(1, visibleCount);
-  const frontHeight = ordered[0] ? (heights[ordered[0].id] ?? 0) : 0;
-  const offsets: number[] = [];
-  let expandedHeight = 0;
-  ordered.forEach((t, index) => {
-    offsets.push(expandedHeight);
-    if (index < shown) expandedHeight += (heights[t.id] ?? 0) + GAP;
-  });
-  expandedHeight = Math.max(0, expandedHeight - GAP);
-
-  const onFocus = (event: ReactFocusEvent<HTMLOListElement>) => {
-    setFocused(true);
-    const from = event.relatedTarget;
-    if (from instanceof Node && event.currentTarget.contains(from)) return;
-    if (from instanceof HTMLElement && from !== document.body) returnFocus.current = from;
-  };
-
-  const onBlur = (event: ReactFocusEvent<HTMLOListElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false);
-  };
+  const { ordered, shown, frontHeight, offsets, expandedHeight } = stackLayout(toasts, heights, visibleCount);
 
   return createPortal(
     <ol
