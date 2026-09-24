@@ -1,4 +1,4 @@
-import { clamp } from './clamp';
+import { clamp } from '@/shared/lib';
 import { PREVIEW_RATIO, SIDEBAR_W } from './constants';
 import { limits } from './limits';
 import { sidebarInRow } from './sidebarInRow';

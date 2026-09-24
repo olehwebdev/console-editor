@@ -1,8 +1,7 @@
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { cn, EASE_OUT } from '@/shared/lib';
-import { Icon, type IconGlyph } from '@/shared/ui/icon';
-import { isGlyph } from './isGlyph';
+import { Icon, isGlyph, type IconGlyph } from '@/shared/ui/icon';
 
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
 

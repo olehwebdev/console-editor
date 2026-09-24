@@ -14,9 +14,9 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { KEY } from '@/shared/config';
+import { assignRef } from '@/shared/lib';
 import { MenuPanel, RESTORES_FOCUS, type MenuAnchor, type MenuCloseReason, type MenuInitialFocus } from '../MenuPanel';
 import type { MenuAlign, MenuItem, MenuSide } from '../types';
-import { setRef } from './setRef';
 
 type TriggerProps = {
   ref?: Ref<HTMLElement>;
@@ -108,7 +108,7 @@ export function Menu({
   const mergedRef = useCallback(
     (node: HTMLElement | null) => {
       triggerRef.current = node;
-      setRef(childRef, node);
+      assignRef(childRef, node);
     },
     [childRef],
   );

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { clamp } from './clamp';
+import { clamp } from '@/shared/lib';
 import { DEFAULT_SIDEBAR_VIEW, PREVIEW_RATIO, SIDEBAR_W } from './constants';
 import { fitPanels } from './fitPanels';
 import { limits } from './limits';

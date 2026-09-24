@@ -11,8 +11,7 @@ import {
   type PointerEvent,
 } from 'react';
 import { KEY } from '@/shared/config';
-import { cn, DURATION, EASE_OUT } from '@/shared/lib';
-import { assignRef } from './assignRef';
+import { assignRef, cn, DURATION, EASE_OUT } from '@/shared/lib';
 import { InHoverHighlight } from './InHoverHighlight';
 import { setValue } from './setValue';
 

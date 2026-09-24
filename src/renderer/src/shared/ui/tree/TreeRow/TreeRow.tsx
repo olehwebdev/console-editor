@@ -4,8 +4,7 @@ import type { ComponentPropsWithRef, KeyboardEvent, MouseEvent, ReactNode } from
 import { icons } from '@/shared/config';
 import { cn, SPRING_SWAP } from '@/shared/lib';
 import { HOVER_ROW_ATTR, useInHoverHighlight } from '@/shared/ui/hover-highlight';
-import { Icon, type IconGlyph } from '@/shared/ui/icon';
-import { isGlyph } from './isGlyph';
+import { Icon, isGlyph, type IconGlyph } from '@/shared/ui/icon';
 import { TREE_ROW_KEY_HANDLERS } from './treeRowKeyHandlers';
 
 /** Row height (px): 26, per the design system. Use it as the virtualizer's estimateSize. */

@@ -16,4 +16,8 @@ export const KEY = {
   delete: 'Delete',
   contextMenu: 'ContextMenu',
   f10: 'F10',
+  meta: 'Meta',
+  control: 'Control',
+  shift: 'Shift',
+  alt: 'Alt',
 } as const;
