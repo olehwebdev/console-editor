@@ -1,10 +1,22 @@
 import { useState } from 'react';
-import { icons } from '@/shared/config';
+import { icons, KEY } from '@/shared/config';
 import { cn } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
 import { Spinner } from '@/shared/ui/spinner';
 import { usePageStore } from '@/entities/page';
-import { navigate } from '@/features/navigate-page';
+import { submitAddress } from './submitAddress';
+
+/** The scheme that gets the globe its "secure" colour. */
+const SECURE_SCHEME = 'https://';
+
+/** The loading spinner and the globe take turns in the same slot. */
+const STATUS_ICON_SIZE = 14;
+
+/** What a key does in the field, given the field and what is typed. */
+const KEY_ACTIONS: Readonly<Record<string, (input: HTMLInputElement, value: string) => void>> = {
+  [KEY.enter]: submitAddress,
+  [KEY.escape]: (input) => input.blur(),
+};
 
 export interface AddressBarProps {
   /** Receives the input element so "Focus Address Bar" (Ctrl/Cmd+L) can reach it. */
@@ -20,7 +32,7 @@ export function AddressBar({ inputRef, className }: AddressBarProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? url;
 
-  const secure = url.startsWith('https://');
+  const secure = url.startsWith(SECURE_SCHEME);
   return (
     <label
       className={cn(
@@ -31,9 +43,9 @@ export function AddressBar({ inputRef, className }: AddressBarProps) {
       )}
     >
       {loading ? (
-        <Spinner size={14} className="text-accent" />
+        <Spinner size={STATUS_ICON_SIZE} className="text-accent" />
       ) : (
-        <Icon icon={icons.GlobeIcon} size={14} className={secure ? 'text-live/80' : 'text-fg-subtle'} />
+        <Icon icon={icons.GlobeIcon} size={STATUS_ICON_SIZE} className={secure ? 'text-live/80' : 'text-fg-subtle'} />
       )}
       <input
         ref={inputRef}
@@ -50,12 +62,7 @@ export function AddressBar({ inputRef, className }: AddressBarProps) {
         // Leaving the field (Enter and Escape blur it) drops the draft.
         onBlur={() => setDraft(null)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && value.trim()) {
-            void navigate(value);
-            e.currentTarget.blur();
-          } else if (e.key === 'Escape') {
-            e.currentTarget.blur();
-          }
+          if (Object.hasOwn(KEY_ACTIONS, e.key)) KEY_ACTIONS[e.key](e.currentTarget, value);
         }}
         className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-fg outline-none placeholder:font-sans placeholder:text-fg-subtle"
       />

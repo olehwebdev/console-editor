@@ -1,8 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect } from 'react';
 import { icons } from '@/shared/config';
 import { EASE_OUT, fileName } from '@/shared/lib';
-import { CodeEditor, DiffEditor, monaco, requestEditorFocus } from '@/shared/monaco';
+import { CodeEditor, DiffEditor } from '@/shared/monaco';
 import { EditorTabs } from '@/shared/ui/editor-tabs';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { Icon } from '@/shared/ui/icon';
@@ -11,53 +10,27 @@ import { Kbd } from '@/shared/ui/kbd';
 import { getTabModel, selectActivePage, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { KindIcon } from '@/entities/resource';
 import { closeTab } from '@/features/close-tab';
-import { closeDiff, toggleBaseDiff, useDiffSource } from '@/features/compare-changes';
-import { formatTab } from '@/features/format-document';
-import { saveTab } from '@/features/save-override';
+import { closeDiff, useDiffSource } from '@/features/compare-changes';
 import { WhatsNewPage } from '@/features/update-app';
-import { openedTabId } from '../lib/focus';
-import { FileHeader } from './FileHeader';
+import { FileHeader } from '../FileHeader';
+import { useEditorActions } from './useEditorActions';
+import { useFocusOnOpen } from './useFocusOnOpen';
+
+/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: Kbd takes a mutable `string[]`. */
+const SHORTCUT = { save: ['mod', 'S'], palette: ['mod', 'K'] } satisfies Record<string, string[]>;
 
 const STEPS: Array<{ keys?: string[]; text: string }> = [
   { text: 'Enter the site’s URL in the preview’s address bar.' },
   { text: 'Pick a script, stylesheet or the HTML under Page resources — minified files are pretty-printed.' },
-  { keys: ['mod', 'S'], text: 'Save: the page reloads running your version of the file.' },
-  { keys: ['mod', 'K'], text: 'Jump to any file or command.' },
+  { keys: SHORTCUT.save, text: 'Save: the page reloads running your version of the file.' },
+  { keys: SHORTCUT.palette, text: 'Jump to any file or command.' },
 ];
 
-/** Monaco actions shared by the code and diff editors. */
-function useEditorActions() {
-  return useCallback((editor: monaco.editor.IStandaloneCodeEditor) => {
-    const disposables = [
-      editor.addAction({ id: 'console-editor.save', label: 'Save Override', keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS], run: () => void saveTab() }),
-      editor.addAction({
-        id: 'console-editor.format',
-        label: 'Pretty-print Document',
-        keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF],
-        run: () => void formatTab(),
-      }),
-      editor.addAction({
-        id: 'console-editor.diff',
-        label: 'Toggle Diff',
-        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyD],
-        run: () => toggleBaseDiff(),
-      }),
-    ];
-    return () => disposables.forEach((d) => d.dispose());
-  }, []);
-}
+/** Tab icons: a file's kind and a page's glyph line up. */
+const TAB_ICON_SIZE = 13;
 
-/** Opening or switching to a tab asks the editor to take focus; closing one doesn't. */
-function useFocusOnOpen() {
-  useEffect(
-    () =>
-      useTabStore.subscribe((state, prev) => {
-        const opened = openedTabId(state, prev);
-        if (opened) requestEditorFocus(getTabModel(opened));
-      }),
-    [],
-  );
-}
+/** The empty state fading in or out, in seconds. */
+const EMPTY_FADE_DURATION = 0.2;
 
 /** Tabs, file header and the Monaco editor (or diff) for the active file. */
 export function EditorPanel() {
@@ -83,12 +56,12 @@ export function EditorPanel() {
             ...tabs.map((t) => ({
               id: t.id,
               label: fileName(t.url),
-              icon: <KindIcon kind={t.kind} size={13} />,
+              icon: <KindIcon kind={t.kind} size={TAB_ICON_SIZE} />,
               dirty: t.dirty,
               italic: !t.overrideId,
               title: `${t.url}${t.overrideId ? '' : '\nNot saved as an override yet'}`,
             })),
-            ...pages.map((p) => ({ id: p.id, label: p.title, icon: <Icon icon={icons.WhatsNewIcon} size={13} className="text-accent" />, title: p.title })),
+            ...pages.map((p) => ({ id: p.id, label: p.title, icon: <Icon icon={icons.WhatsNewIcon} size={TAB_ICON_SIZE} className="text-accent" />, title: p.title })),
           ]}
           activeId={activeId}
           onSelect={activate}
@@ -132,7 +105,7 @@ export function EditorPanel() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, ease: EASE_OUT }}
+              transition={{ duration: EMPTY_FADE_DURATION, ease: EASE_OUT }}
             >
               <EmptyState icon={icons.SparklesIcon} title="Patch a live website without rebuilding it" className="max-w-[440px]">
                 <ol className="mt-3 flex flex-col gap-2.5 text-left">

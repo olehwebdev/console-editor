@@ -1,10 +1,6 @@
-import { useEffect, useReducer } from 'react';
 import type { ResourceEntry } from '@common/types';
 import { selectUniqueResources, useResourceStore } from '@/entities/resource';
-
-/** A loading page adds files every frame, and each new list re-ranks the whole palette. */
-export const FILES_REFRESH_MS = 300;
-const NONE: readonly ResourceEntry[] = [];
+import { FILES_REFRESH_MS } from './constants';
 
 /**
  * Calls `onChange` once, FILES_REFRESH_MS after the page's files first differ
@@ -21,12 +17,4 @@ export function watchPageFiles(shown: readonly ResourceEntry[], onChange: () => 
     off();
     clearTimeout(timer);
   };
-}
-
-/** The page's files while the palette is open, catching up with new ones at most every FILES_REFRESH_MS. */
-export function usePageFiles(open: boolean): readonly ResourceEntry[] {
-  const [, refresh] = useReducer((n: number) => n + 1, 0);
-  const files = open ? selectUniqueResources(useResourceStore.getState()) : NONE;
-  useEffect(() => (open ? watchPageFiles(files, refresh) : undefined), [open, files]);
-  return files;
 }

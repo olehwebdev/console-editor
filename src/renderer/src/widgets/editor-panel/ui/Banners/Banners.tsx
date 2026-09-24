@@ -1,37 +1,12 @@
-import { AnimatePresence, motion } from 'motion/react';
-import type { ReactNode } from 'react';
+import { AnimatePresence } from 'motion/react';
 import type { OverrideMeta } from '@common/types';
 import { icons } from '@/shared/config';
-import { cn, EASE_OUT } from '@/shared/lib';
 import { Button } from '@/shared/ui/button';
-import { Icon, type IconGlyph } from '@/shared/ui/icon';
+import { Icon } from '@/shared/ui/icon';
 import { useOverrideStore } from '@/entities/override';
 import { compareWithLive } from '@/features/compare-changes';
 import { applyMatch, buildHashGlob } from '@/features/edit-match-rule';
-
-function Banner({ tone, icon, children, action }: { tone: 'info' | 'warning'; icon: IconGlyph; children: ReactNode; action?: ReactNode }) {
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.2, ease: EASE_OUT }}
-      className="overflow-hidden"
-    >
-      <div
-        className={cn(
-          'flex items-center gap-2.5 border-t border-line px-3 py-2 text-[12.5px]',
-          tone === 'info' ? 'bg-info/[0.07] text-fg-muted' : 'bg-warning/[0.08] text-fg-muted',
-        )}
-      >
-        <Icon icon={icon} size={15} className={tone === 'info' ? 'text-info' : 'text-warning'} />
-        <span className="min-w-0 flex-1">{children}</span>
-        {action}
-      </div>
-    </motion.div>
-  );
-}
+import { Banner } from './Banner';
 
 /** Contextual hints under the file header: build-hash names, upstream changes, large files. */
 export function Banners({ override, lite, tabId }: { override?: OverrideMeta; lite: boolean; tabId: string }) {
