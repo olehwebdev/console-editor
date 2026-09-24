@@ -1,7 +1,7 @@
 import type { ResourceContent, ResourceEntry, WorkerType } from '../../../shared/types';
 import { sessionTransport, type CdpTransport } from '../cdp';
 import { CDP, TARGET_TYPE } from '../constants';
-import { InterceptionEngine, type EngineOptions, type ServiceWorkerState } from '../InterceptionEngine';
+import { InterceptionEngine, isServiceWorkerOutdated, originOf, type EngineOptions, type ServiceWorkerState } from '../InterceptionEngine';
 import { AUTO_ATTACH, SETUP_TIMEOUT_MS, SHARED_WORKER_HOLD_MS, UNREGISTER_TIMEOUT_MS } from './constants';
 import { SessionGoneError } from './SessionGoneError';
 import type { AttachedToTarget, ChildTarget, ChildType, PendingSharedWorker, TargetInfo, WorkerSetup } from './types';
@@ -148,36 +148,71 @@ export class PageInterception {
   }
 
   /**
-   * Call before reloading the page after overrides changed. Chromium keeps a
-   * service worker's installed scripts and doesn't fetch them on reload, so a
-   * service worker running other code than would be served now is asked to
-   * unregister: the page's `register()` then installs it afresh, through
-   * interception. (With the page bypassing service workers, the default,
-   * nothing else ever fetches them again, and nothing undoes the new install.)
+   * Call before loading `url` (reloading, or navigating) after overrides
+   * changed. Chromium keeps a service worker's installed scripts and doesn't
+   * fetch them on reload, so a service worker running other code than would be
+   * served now is asked to unregister: the page's `register()` then installs it
+   * afresh, through interception. (With the page bypassing service workers, the
+   * default, nothing else ever fetches them again, and nothing undoes the new
+   * install.) That includes one of `url`'s site that went with the page it left
+   * (switching workspaces leaves the page first, then changes the overrides).
    */
-  async prepareReload(): Promise<void> {
+  async prepareReload(url?: string): Promise<void> {
     const outdated = [...this.children.values()].filter((c) => c.type === TARGET_TYPE.serviceWorker && !c.retired && c.engine.isOutdated());
-    await Promise.all(
-      outdated.map(async (child) => {
-        // Through the browser when its scope is known (a stopped worker can't answer), else from inside it.
-        const registration = this.registrationOf.get(child.targetId);
-        const scopeURL = registration && this.scopeOf.get(registration);
-        // Its registration is gone already: unregistering by scope would hit a newer one.
-        if (registration && this.deletedRegistrations.has(registration)) return this.retire(child);
-        const unregister = scopeURL
-          ? this.cdp.send(CDP.ServiceWorker.unregister, { scopeURL }).then(() => true)
-          : child.transport
-              .send<{ result?: { value?: unknown }; exceptionDetails?: unknown }>(CDP.Runtime.evaluate, {
-                expression: UNREGISTER_EXPRESSION,
-                awaitPromise: true,
-                returnByValue: true,
-              })
-              // A rejected unregister() still answers, with exceptionDetails.
-              .then((r) => !r.exceptionDetails && r.result?.value === true);
-        // Otherwise tried again on the next reload.
-        if (await withTimeout(unregister, UNREGISTER_TIMEOUT_MS, 'Unregistering the service worker').catch(() => false)) this.retire(child);
-      }),
-    );
+    await Promise.all([...outdated.map((child) => this.unregisterAttached(child)), ...this.outdatedKept(url).map((targetId) => this.unregisterKept(targetId))]);
+  }
+
+  /** Service workers of `url`'s site whose session went away, running outdated code. */
+  private outdatedKept(url: string | undefined): string[] {
+    if (!url) return [];
+    const origin = originOf(url);
+    const attached = new Set([...this.children.values()].map((c) => c.targetId));
+    const versionOf = (script: string, resourceType: string) => this.root.overrideVersion(script, resourceType);
+    return [...this.serviceWorkers]
+      .filter(([targetId, state]) => !attached.has(targetId) && originOf(state.url) === origin)
+      .filter(([, state]) => isServiceWorkerOutdated(state, this.opts.getOverrides(), versionOf))
+      .map(([targetId]) => targetId);
+  }
+
+  /**
+   * Unregisters a service worker with no session, through the browser: only
+   * possible while its scope is known. Forgotten once done (or once its
+   * registration is gone); else kept, and handled when it attaches again.
+   */
+  private async unregisterKept(targetId: string): Promise<void> {
+    const registration = this.registrationOf.get(targetId);
+    if (registration && this.deletedRegistrations.has(registration)) {
+      this.serviceWorkers.delete(targetId);
+      return;
+    }
+    const scopeURL = registration && this.scopeOf.get(registration);
+    if (!scopeURL) return;
+    const unregister = this.cdp.send(CDP.ServiceWorker.unregister, { scopeURL }).then(() => true);
+    if (!(await withTimeout(unregister, UNREGISTER_TIMEOUT_MS, 'Unregistering the service worker').catch(() => false))) return;
+    this.serviceWorkers.delete(targetId);
+    // Chromium may attach the unregistered version again: it's left alone then, as when a session is let go.
+    this.retiredTargets.add(targetId);
+  }
+
+  /** Unregisters a service worker with a session: by scope through the browser, else from inside it. */
+  private async unregisterAttached(child: ChildTarget): Promise<void> {
+    // Through the browser when its scope is known (a stopped worker can't answer).
+    const registration = this.registrationOf.get(child.targetId);
+    const scopeURL = registration && this.scopeOf.get(registration);
+    // Its registration is gone already: unregistering by scope would hit a newer one.
+    if (registration && this.deletedRegistrations.has(registration)) return this.retire(child);
+    const unregister = scopeURL
+      ? this.cdp.send(CDP.ServiceWorker.unregister, { scopeURL }).then(() => true)
+      : child.transport
+          .send<{ result?: { value?: unknown }; exceptionDetails?: unknown }>(CDP.Runtime.evaluate, {
+            expression: UNREGISTER_EXPRESSION,
+            awaitPromise: true,
+            returnByValue: true,
+          })
+          // A rejected unregister() still answers, with exceptionDetails.
+          .then((r) => !r.exceptionDetails && r.result?.value === true);
+    // Otherwise tried again on the next reload.
+    if (await withTimeout(unregister, UNREGISTER_TIMEOUT_MS, 'Unregistering the service worker').catch(() => false)) this.retire(child);
   }
 
   /** Lets an unregistered service worker go, with its files; the reload installs it afresh. */

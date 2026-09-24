@@ -556,6 +556,25 @@ describe.skipIf(!chromiumAvailable)('workers in Chromium', () => {
     expect(hits.get('/workers/sw.js')).toBe(installs);
   });
 
+  it('reinstalls a service worker its page left when its site loads again under other overrides (switching workspaces), on that load', async () => {
+    const edit = (value: string) => makeOverride({ kind: 'Script', sourceUrl: url('/workers/sw-lib.js'), content: SW_LIB_JS.replace('original', value) });
+    await setOverrides([edit('patched')]);
+    await goto('/workers/');
+    expect(await result('sw')).toBe('original-sw:patched-sw-lib');
+    const before = await waitFor(() => entry('/workers/sw-lib.js')?.workerId);
+    // As a workspace switch does: the page leaves for a blank one (its service worker's session goes with it),
+    // then the other workspace's overrides replace this one's, then its page loads.
+    await load('Page.navigate', { url: 'about:blank' });
+    await waitFor(() => detachedIds().includes(before));
+    await setOverrides([edit('other')]);
+    const installs = hits.get('/workers/sw.js') ?? 0;
+    await interception.prepareReload(url('/workers/'));
+    await goto('/workers/');
+    expect(await result('sw')).toBe('original-sw:other-sw-lib');
+    expect(hits.get('/workers/sw.js')).toBe(installs + 1);
+    expect(missed()).toEqual([]);
+  });
+
   it('lists a service worker again when the page comes back to its site, and leaves it installed while up to date', async () => {
     await setOverrides([makeOverride({ kind: 'Script', sourceUrl: url('/workers/sw-lib.js'), content: SW_LIB_JS.replace('original', 'patched') })]);
     await goto('/workers/');

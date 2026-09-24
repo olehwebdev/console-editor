@@ -693,6 +693,86 @@ describe('PageInterception', () => {
       expect(evaluated(cdp)).toEqual(['SW3']);
     });
 
+    /** What the page's ServiceWorker domain reports about SW1's registration. */
+    const scoped = (cdp: FakeSessions, isDeleted = false) => {
+      cdp.emit('ServiceWorker.workerRegistrationUpdated', { registrations: [{ registrationId: 'R1', scopeURL: 'https://a.test/', isDeleted }] });
+      cdp.emit('ServiceWorker.workerVersionUpdated', {
+        versions: [{ versionId: 'V1', registrationId: 'R1', scriptURL: SW, runningStatus: 'running', status: 'activated', targetId: 'T-SW1' }],
+      });
+    };
+    const unregistered = (cdp: FakeSessions) => cdp.calls.filter((c) => c.method === 'ServiceWorker.unregister').map((c) => c.params);
+    /** SW1 installed, then its session gone with the page (switching workspaces loads a blank page first). */
+    async function left(overrides: Override[]) {
+      const setUp = await setup(overrides);
+      await installed(setUp.cdp);
+      scoped(setUp.cdp);
+      setUp.cdp.emit('Target.detachedFromTarget', { sessionId: 'SW1' });
+      setUp.cdp.calls = [];
+      return setUp;
+    }
+
+    it('is unregistered before its site loads again when what it runs is outdated by then (another workspace, other overrides)', async () => {
+      const overrides = [scriptOverride('lib', LIB)];
+      const { cdp, pi } = await left(overrides);
+      // The other workspace's edit of the same file.
+      overrides.splice(0, 1, scriptOverride('lib2', LIB));
+      // Not for another site's page, nor with no page named.
+      await pi.prepareReload('https://b.test/');
+      await pi.prepareReload();
+      expect(unregistered(cdp)).toEqual([]);
+      await pi.prepareReload('https://a.test/page');
+      expect(unregistered(cdp)).toEqual([{ scopeURL: 'https://a.test/' }]);
+      expect(kept(pi)).toEqual([]);
+      // Chromium attaching the unregistered version again: it's only resumed.
+      cdp.calls = [];
+      cdp.emit('Target.attachedToTarget', again('SW2'));
+      await flush();
+      expect(cdp.calls).toEqual([{ method: 'Runtime.runIfWaitingForDebugger', params: {}, sessionId: 'SW2' }]);
+      expect(pi.targets()).toEqual([]);
+    });
+
+    it('is left installed when its site loads again and nothing it runs changed', async () => {
+      const { cdp, pi } = await left([scriptOverride('lib', LIB)]);
+      await pi.prepareReload('https://a.test/');
+      expect(unregistered(cdp)).toEqual([]);
+      expect(kept(pi)).toEqual(['T-SW1']);
+    });
+
+    it("is left to its next session when its scope isn't known, or unregistering fails; forgotten once its registration is deleted", async () => {
+      const overrides = [scriptOverride('lib', LIB)];
+      const { cdp, pi } = await setup(overrides);
+      await installed(cdp);
+      cdp.emit('Target.detachedFromTarget', { sessionId: 'SW1' });
+      overrides.length = 0;
+      await pi.prepareReload('https://a.test/');
+      expect(cdp.calls.filter((c) => c.method.startsWith('ServiceWorker.unregister'))).toEqual([]);
+      expect(kept(pi)).toEqual(['T-SW1']);
+
+      scoped(cdp);
+      cdp.failing.add('page|ServiceWorker.unregister');
+      await pi.prepareReload('https://a.test/');
+      expect(unregistered(cdp)).toEqual([{ scopeURL: 'https://a.test/' }]);
+      expect(kept(pi)).toEqual(['T-SW1']);
+
+      scoped(cdp, true);
+      cdp.calls = [];
+      await pi.prepareReload('https://a.test/');
+      expect(unregistered(cdp)).toEqual([]);
+      expect(kept(pi)).toEqual([]);
+    });
+
+    it('is handled through its session while it has one again, not twice', async () => {
+      const overrides = [scriptOverride('lib', LIB)];
+      const { cdp, pi } = await left(overrides);
+      cdp.emit('Target.attachedToTarget', again('SW2'));
+      await flush();
+      overrides.length = 0;
+      cdp.calls = [];
+      await pi.prepareReload('https://a.test/');
+      expect(unregistered(cdp)).toEqual([{ scopeURL: 'https://a.test/' }]);
+      expect(cdp.calls.filter((c) => c.method === 'Target.detachFromTarget').map((c) => c.params)).toEqual([{ sessionId: 'SW2' }]);
+    });
+
     it('is known by its target id only (a new version is another worker)', async () => {
       const { cdp, pi } = await setup([scriptOverride('lib', LIB)]);
       await installed(cdp);

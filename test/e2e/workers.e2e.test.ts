@@ -85,7 +85,14 @@ async function launchUndebugged(electronBinary: string, userData: string, url: s
     env: { ...process.env, CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_URL: url },
     stdio: ['ignore', 'ignore', 'pipe'],
   });
-  const exited = new Promise<void>((done) => child.once('exit', () => done()));
+  let exitCode: number | null | undefined;
+  const exited = new Promise<void>((done) =>
+    child.once('exit', (code) => {
+      exitCode = code;
+      done();
+    }),
+  );
+  const quit = () => new Error(`The app quit (exit code ${exitCode}): a second instance hands its URL over and exits`);
   const inspectorUrl = await new Promise<string>((resolve, reject) => {
     child.stderr.on('data', (chunk) => {
       const found = /ws:\/\/\S+/.exec(String(chunk));
@@ -109,7 +116,14 @@ async function launchUndebugged(electronBinary: string, userData: string, url: s
     });
   const args = (expr: string) => JSON.stringify([new URL(url).origin, expr]);
   return {
-    inSite: (expr) => evaluate(`(${evalInSite})(process.mainModule.require('electron'), ${args(expr)})`),
+    // An app that quit never answers: say so rather than wait.
+    inSite: (expr) =>
+      exitCode !== undefined
+        ? Promise.reject(quit())
+        : Promise.race([
+            evaluate(`(${evalInSite})(process.mainModule.require('electron'), ${args(expr)})`),
+            exited.then(() => Promise.reject(quit())),
+          ]),
     close: async () => {
       inspector.close();
       child.kill();
@@ -258,9 +272,26 @@ describe.skipIf(!built)('Workers in the app', () => {
     await expect.poll(() => result('nested'), { timeout: 15_000 }).toBe(ORIGINAL_RESULTS.nested);
   });
 
+  it("runs each workspace's edit of a service worker's script as you switch between workspaces on the same site", async () => {
+    const tiles = () => win.getByTestId('workspace-tile');
+    // A new workspace has none of this one's overrides: the service worker the page gets is the live one.
+    await win.getByTestId('workspace-new').click();
+    await expect.poll(() => tiles().count()).toBe(2);
+    await goTo(win, url('/workers/'));
+    await expect.poll(() => result('sw'), { timeout: 20_000 }).toBe(ORIGINAL_RESULTS.sw);
+    // Back to the first one: its edit runs again on the load the switch makes.
+    await tiles().first().click();
+    await expect.poll(() => tiles().first().getAttribute('aria-current')).toBe('true');
+    await expect.poll(() => result('sw'), { timeout: 20_000 }).toBe('original-sw:patched-sw-lib');
+  });
+
   it('serves the edits after a restart, with no other debugger attached', async () => {
     const electronBinary = await app.evaluate(() => process.execPath);
+    // Until the old process is gone it holds the data folder's single-instance lock, and the new one would hand over and quit.
+    const old = app.process();
+    const oldExited = old.exitCode === null ? new Promise((done) => old.once('exit', done)) : Promise.resolve();
     await app.close();
+    await oldExited;
     restarted = await launchUndebugged(electronBinary, userData, url('/workers/'));
     // The service worker is the next test's.
     const { sw: _, ...others } = ORIGINAL_RESULTS;
