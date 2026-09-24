@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OverrideMeta, ResourceEntry } from '../../src/shared/types';
+import type { OverrideMeta, ResourceEntry, WorkerType } from '../../src/shared/types';
 import { handleAppEvent } from '@/app/model/bridge';
 import { HIDDEN_FLUSH_MS } from '@/app/model/bridge/resources/constants';
 import { createTabModel, getTabModel, newTabId, useTabStore } from '@/entities/editor-tab';
@@ -291,13 +291,19 @@ describe('format document', () => {
 describe('bridge: resource events', () => {
   const frames: FrameRequestCallback[] = [];
   const res = (url: string, iframeId?: string): ResourceEntry => ({ url, kind: 'Script', mimeType: 'text/javascript', status: 200, iframeId });
+  const inWorker = (type: WorkerType, workerUrl: string, workerId: string, url = workerUrl): ResourceEntry => ({
+    ...res(url),
+    worker: { type, url: workerUrl },
+    workerId,
+  });
   const urls = () => Object.values(useResourceStore.getState().byKey).map((e) => e.url);
 
   beforeEach(() => {
     frames.length = 0;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
     vi.stubGlobal('cancelAnimationFrame', () => {});
-    useResourceStore.getState().reset();
+    // Not `reset()`: that keeps service and shared workers' files.
+    useResourceStore.setState({ byKey: {} });
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -324,6 +330,34 @@ describe('bridge: resource events', () => {
 
     expect(updates).toHaveBeenCalledTimes(1);
     expect(urls().sort()).toEqual(['https://site.test/b.js', 'https://site.test/c.js', 'https://w.test/w2.js']);
+  });
+
+  it("drops a worker's files when it goes away, and only its files", () => {
+    handleAppEvent({ type: 'resource', resource: res('https://site.test/lib.js') });
+    handleAppEvent({ type: 'resource', resource: inWorker('worker', 'https://site.test/a.js', 'W1') });
+    handleAppEvent({ type: 'resource', resource: inWorker('worker', 'https://site.test/a.js', 'W1', 'https://site.test/lib.js') });
+    handleAppEvent({ type: 'resource', resource: inWorker('worker', 'https://site.test/b.js', 'W2') });
+    handleAppEvent({ type: 'worker-detached', workerId: 'W1' });
+    frames[0](0);
+    expect(urls()).toEqual(['https://site.test/lib.js', 'https://site.test/b.js']);
+  });
+
+  it("keeps a service worker's files queued before a navigation, and its going away queued before one", () => {
+    handleAppEvent({ type: 'resource', resource: inWorker('service_worker', 'https://site.test/sw.js', 'W1') });
+    handleAppEvent({ type: 'resource', resource: inWorker('worker', 'https://site.test/w.js', 'W2') });
+    handleAppEvent({ type: 'resource', resource: res('https://site.test/old.js') });
+    handleAppEvent({ type: 'navigated', url: 'https://site.test/next' });
+    handleAppEvent({ type: 'resource', resource: inWorker('service_worker', 'https://site.test/sw.js', 'W1', 'https://site.test/sw-lib.js') });
+    handleAppEvent({ type: 'resource', resource: res('https://site.test/new.js') });
+    frames[0](0);
+    expect(urls()).toEqual(['https://site.test/sw.js', 'https://site.test/sw-lib.js', 'https://site.test/new.js']);
+
+    // A new version took over, then the page navigated, in one frame.
+    handleAppEvent({ type: 'worker-detached', workerId: 'W1' });
+    handleAppEvent({ type: 'resource', resource: inWorker('service_worker', 'https://site.test/sw.js', 'W3') });
+    handleAppEvent({ type: 'navigated', url: 'https://site.test/' });
+    frames[1](0);
+    expect(Object.values(useResourceStore.getState().byKey).map((e) => `${e.workerId} ${e.url}`)).toEqual(['W3 https://site.test/sw.js']);
   });
 
   it('keeps applying events while frames are paused (hidden window)', () => {

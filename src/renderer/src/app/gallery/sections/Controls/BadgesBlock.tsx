@@ -4,7 +4,7 @@ import { Counter } from '@/shared/ui/counter';
 import { Block } from '../../Block';
 import { Row } from './Row';
 
-const { LiveIcon } = icons;
+const { IframeIcon, LiveIcon, WorkerIcon } = icons;
 
 export function BadgesBlock() {
   return (
@@ -30,6 +30,23 @@ export function BadgesBlock() {
         </Badge>
         <Badge tone="accent">
           <Counter value={12} />
+        </Badge>
+      </Row>
+      <Row label="loaded by">
+        <Badge tone="info" icon={IframeIcon}>
+          iframe
+        </Badge>
+        <Badge tone="info" icon={WorkerIcon}>
+          worker
+        </Badge>
+        <Badge tone="info" icon={WorkerIcon}>
+          shared worker
+        </Badge>
+        <Badge tone="info" icon={WorkerIcon}>
+          service worker
+        </Badge>
+        <Badge tone="info" icon={WorkerIcon}>
+          worklet
         </Badge>
       </Row>
     </Block>

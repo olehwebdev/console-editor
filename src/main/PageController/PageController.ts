@@ -138,6 +138,7 @@ export class PageController {
     const url = normalizeUrl(input);
     // Never load a site before interception is set up, or overrides would be missed.
     await this.ready;
+    await this.engine.prepareReload();
     try {
       await this.view.webContents.loadURL(url);
     } catch (err) {
@@ -182,7 +183,9 @@ export class PageController {
     });
   }
 
-  reload(): void {
+  /** Reloads the page, first asking service workers that run outdated code to unregister (see `prepareReload`). */
+  async reload(): Promise<void> {
+    await this.engine.prepareReload();
     this.view.webContents.reloadIgnoringCache();
   }
 
