@@ -1,1 +1,1 @@
-export { openResource, openOverride } from './model/open';
+export { openResource, openOverride, type OpenOptions } from './model/open';

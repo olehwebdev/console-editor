@@ -155,7 +155,34 @@ export type AppEvent =
   | EngineEvent
   | { type: 'page-state'; state: PageState }
   | { type: 'overrides-changed'; overrides: OverrideMeta[] }
-  | { type: 'command'; command: MenuCommand };
+  | { type: 'command'; command: MenuCommand }
+  /** The window is closing: write pending drafts, then call `sessionFlushed`. */
+  | { type: 'flush-session' };
+
+/** A tab as remembered between runs. Its unsaved text, if any, is a separate {@link SessionDraft}. */
+export interface SessionTab {
+  /** Stable for the tab's lifetime, across runs; also names its draft. */
+  id: string;
+  url: string;
+  kind: ResourceKind;
+  overrideId?: string;
+  originalHash: string | null;
+}
+
+/** What the app reopens on start. */
+export interface SessionState {
+  /** Last page shown ('' if none). */
+  url: string;
+  tabs: SessionTab[];
+  activeTabId: string | null;
+}
+
+/** Unsaved edits of a tab. */
+export interface SessionDraft {
+  content: string;
+  /** Text editing started from, for tabs not yet saved as an override (their base lives nowhere else). */
+  base?: string;
+}
 
 /** Menu actions the renderer implements (so they reach Monaco instead of the native text field). */
 export type MenuCommand =
@@ -197,6 +224,15 @@ export interface ConsoleEditorApi {
 
   getSettings(): Promise<Settings>;
   updateSettings(patch: Partial<Settings>): Promise<Settings>;
+
+  getSession(): Promise<SessionState>;
+  saveSessionTabs(tabs: SessionTab[], activeTabId: string | null): Promise<void>;
+  getDraft(tabId: string): Promise<SessionDraft | null>;
+  /** `base` only needs sending once per tab: it's kept when omitted. */
+  saveDraft(tabId: string, draft: SessionDraft): Promise<void>;
+  deleteDraft(tabId: string): Promise<void>;
+  /** Answers `flush-session`: `ok` false when drafts could not be written. */
+  sessionFlushed(ok: boolean): void;
 
   onEvent(listener: (event: AppEvent) => void): () => void;
 }

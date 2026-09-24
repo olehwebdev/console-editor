@@ -187,11 +187,24 @@ describe.skipIf(!built)('Console Editor app', () => {
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   });
 
-  it('keeps overrides after a restart', async () => {
+  it('reopens the page, the tabs and unsaved edits after a restart, and keeps overrides', async () => {
+    await goTo(win, site.url);
+    await fileRow(win, `${site.url}/lazy.js`).click();
+    await win.locator('.monaco-editor .view-lines', { hasText: 'lazyValue' }).waitFor();
+    // Unsaved: closing keeps it as a draft instead of asking to discard it.
+    await typeAtEndOfEditor(win, '// unsaved draft survives');
+    await expect.poll(() => win.locator('[role="tab"][data-dirty]').count()).toBe(1);
+    const tabsBefore = await win.locator('[role="tab"]').count();
+
     await app.close();
     ({ app, win } = await launch(userData));
     await expect.poll(() => win.locator('[data-override-id]').count()).toBe(4);
-    await goTo(win, site.url);
+    // The last page is loaded again, with its overrides applied.
     await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+    // So are the tabs, the active one being the one with the draft.
+    await expect.poll(() => win.locator('[role="tab"]').count()).toBe(tabsBefore);
+    await expect.poll(() => win.locator('[role="tab"][aria-selected="true"]').textContent()).toContain('lazy.js');
+    await expect.poll(() => win.locator('[role="tab"][data-dirty]').count()).toBe(1);
+    await win.locator('.monaco-editor .view-lines', { hasText: 'unsaved draft survives' }).waitFor();
   });
 });

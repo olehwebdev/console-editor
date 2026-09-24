@@ -25,6 +25,13 @@ const api: ConsoleEditorApi = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (patch) => ipcRenderer.invoke('settings:update', patch),
 
+  getSession: () => ipcRenderer.invoke('session:get'),
+  saveSessionTabs: (tabs, activeTabId) => ipcRenderer.invoke('session:tabs', tabs, activeTabId),
+  getDraft: (tabId) => ipcRenderer.invoke('session:draft:get', tabId),
+  saveDraft: (tabId, draft) => ipcRenderer.invoke('session:draft:save', tabId, draft),
+  deleteDraft: (tabId) => ipcRenderer.invoke('session:draft:delete', tabId),
+  sessionFlushed: (ok) => ipcRenderer.send('session:flushed', ok),
+
   onEvent(listener) {
     const handler = (_event: IpcRendererEvent, payload: AppEvent) => listener(payload);
     ipcRenderer.on('app:event', handler);

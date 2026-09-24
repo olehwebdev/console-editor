@@ -123,9 +123,15 @@ interface Override {
   match: UrlMatcher;      // default: { exact, sourceUrl without query, ignoreQuery: true }
   enabled: boolean;
   originalHash: string | null;  // sha256 of the upstream body at creation → redeploy detection
-  content: string;        // what gets served
-  base: string;           // what editing started from (after pretty-print) → diff view
+  content: string;        // what gets served (kept in memory: the engine needs it on every request)
   createdAt: number; updatedAt: number;
+}
+// The diff base (what editing started from, after pretty-print) stays on disk until a diff asks for it.
+
+interface SessionState {  // what the next start reopens
+  url: string;            // last page shown
+  tabs: { id: string; url: string; kind: ResourceKind; overrideId?: string; originalHash: string | null }[];
+  activeTabId: string | null;
 }
 ```
 
@@ -134,9 +140,14 @@ interface Override {
 ```
 overrides.json          { version: 1, overrides: OverrideMeta[] }   // metadata only
 files/<id>.<js|css|html>        served content
-files/<id>.base.<js|css|html>   diff base
+files/<id>.base.<js|css|html>   diff base (only when it differs from the content)
 settings.json (in <userData>)   Settings
+session/session.json            SessionState
+session/drafts/<tab>.txt        unsaved text of a tab
+session/drafts/<tab>.base.txt   what that tab's editing started from (tabs not yet saved as overrides)
 ```
+
+**Session restore.** The main process remembers the page URL on every main-frame navigation. The renderer writes the tab list 300 ms after it changes and a tab's draft 800 ms after typing pauses (the base once per tab); a draft is deleted when its tab is saved, undone back to the saved text, or closed. Closing the window runs a handshake: main sends `flush-session`, the renderer writes whatever is pending and answers `sessionFlushed(ok)`, and only then does the window close (after 5 s, or if a write failed, it asks before closing). On start, the app loads the last URL (a URL on the command line wins), then reopens each tab: an override from the store, a tab with a draft entirely from disk (no network), any other tab by fetching the file again; drafts are applied as one undoable edit, so the tab shows as unsaved and undo reveals the saved text. Tab ids are unique across runs because they name the drafts. Session syncing starts only after restoring, so a fresh start never overwrites the session being restored.
 
 `CONSOLE_EDITOR_USER_DATA` overrides `<userData>` (used by tests; handy for throwaway profiles).
 
@@ -217,7 +228,7 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 | Layout | Sidebar and preview are fitted to the window (the editor keeps at least 240 px; panel minimums give way below that, e.g. when zoomed in). Visibility and sizes are saved on every change |
 | Large files | Scripts, stylesheets and HTML over 1 M characters open in a lite mode: syntax colouring only (Monarch grammars, no language service or validation, folding, minimap or bracket colourization), shown as "Large file" |
 | Focus | Opening or switching tabs focuses the editor; closing a tab from the keyboard, typing in a field or arrowing through the Explorer never has focus pulled into the code |
-| Close with unsaved edits | Tab close confirms. App close shows a native "Discard changes?" dialog |
+| Close with unsaved edits | Closing a tab asks first. Closing the app keeps every unsaved edit as a draft and reopens it next time, with the tabs and the last page (see §5, Session restore) |
 | Menu | App menu replaces Electron's default, so Ctrl/Cmd+R reloads **the site**, not the editor. Undo/redo/select-all are routed to Monaco. Page DevTools: Ctrl/Cmd+Shift+J; editor DevTools: Ctrl/Cmd+Alt+I. Ctrl/Cmd+B toggles the sidebar |
 
 ## 8. Security

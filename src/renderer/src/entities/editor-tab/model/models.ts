@@ -13,10 +13,19 @@ interface Entry {
 
 /** Monaco models per tab id. Kept out of the store because they aren't serializable. */
 const entries = new Map<string, Entry>();
+const editListeners = new Set<(tabId: string) => void>();
 let nextId = 1;
+/** Tab ids outlive a run (they name the tab's saved draft), so they must not repeat across runs. */
+const runId = Date.now().toString(36);
 
 export function newTabId(): string {
-  return `tab-${nextId++}`;
+  return `tab-${runId}-${nextId++}`;
+}
+
+/** Called after every edit of any tab's text (the store's `dirty` flag is already up to date). */
+export function onTabEdited(listener: (tabId: string) => void): () => void {
+  editListeners.add(listener);
+  return () => editListeners.delete(listener);
 }
 
 /** Creates the tab's model and keeps the store's `dirty` flag in sync (updates only when it flips). */
@@ -30,6 +39,7 @@ export function createTabModel(tabId: string, url: string, kind: ResourceKind, t
     const dirty = model.getAlternativeVersionId() !== entry.savedVersionId;
     const tab = useTabStore.getState().tabs.find((t) => t.id === tabId);
     if (tab && tab.dirty !== dirty) useTabStore.getState().patch(tabId, { dirty });
+    for (const listener of editListeners) listener(tabId);
   });
   entries.set(tabId, { model, savedVersionId: model.getAlternativeVersionId(), base, disposeListener });
   return { lite: language !== languageFor(kind, 0) };

@@ -3,7 +3,7 @@ import { api, onAppEvent } from '@/shared/api';
 import { fileName } from '@/shared/lib';
 import { editorHasFocus, triggerInActiveEditor } from '@/shared/monaco';
 import { toast } from '@/shared/ui/toast';
-import { selectHasDirtyTabs, useTabStore } from '@/entities/editor-tab';
+import { useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore, type ResourceOp } from '@/entities/resource';
@@ -13,6 +13,7 @@ import { formatTab } from '@/features/format-document';
 import { reloadPage } from '@/features/navigate-page';
 import { saveTab } from '@/features/save-override';
 import type { PageCommands } from '@/pages/editor';
+import { flushSession, restoreSession, startSessionSync } from './session';
 
 let pageCommands: PageCommands | null = null;
 
@@ -133,6 +134,9 @@ export function handleAppEvent(event: AppEvent): void {
     case 'command':
       runCommand(event.command);
       return;
+    case 'flush-session':
+      void flushSession().then(api.sessionFlushed, () => api.sessionFlushed(false));
+      return;
   }
 }
 
@@ -152,15 +156,17 @@ export async function startBridge(): Promise<() => void> {
   useResourceStore.getState().addMany(resources);
   usePageStore.getState().setPage(page);
 
-  const beforeUnload = (e: BeforeUnloadEvent) => {
-    if (selectHasDirtyTabs(useTabStore.getState())) {
-      e.preventDefault();
-      e.returnValue = false;
-    }
-  };
-  window.addEventListener('beforeunload', beforeUnload);
+  // Unsaved edits are kept as drafts rather than guarded: closing never asks to discard them.
+  let stopSync: (() => void) | undefined;
+  let stopped = false;
+  void restoreSession()
+    .catch(() => undefined)
+    .then(() => {
+      if (!stopped) stopSync = startSessionSync();
+    });
   return () => {
+    stopped = true;
     off();
-    window.removeEventListener('beforeunload', beforeUnload);
+    stopSync?.();
   };
 }

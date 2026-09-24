@@ -23,7 +23,8 @@ interface TabStore {
   activeId: string | null;
   diff: DiffMode;
 
-  add(tab: TabMeta): void;
+  /** Adds a tab, and makes it the active one unless `activate` is false. */
+  add(tab: TabMeta, activate?: boolean): void;
   activate(id: string): void;
   remove(id: string): void;
   patch(id: string, patch: Partial<TabMeta>): void;
@@ -35,7 +36,8 @@ export const useTabStore = create<TabStore>()((set) => ({
   activeId: null,
   diff: 'off',
 
-  add: (tab) => set((s) => ({ tabs: [...s.tabs, tab], activeId: tab.id, diff: 'off' })),
+  add: (tab, activate = true) =>
+    set((s) => ({ tabs: [...s.tabs, tab], ...(activate || !s.activeId ? { activeId: tab.id, diff: 'off' as const } : {}) })),
   activate: (id) => set((s) => (s.activeId === id ? s : { activeId: id, diff: 'off' })),
   remove: (id) =>
     set((s) => {

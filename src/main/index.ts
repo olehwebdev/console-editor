@@ -6,6 +6,7 @@ import { registerIpc } from './ipc';
 import { installMenu } from './menu';
 import { PageController } from './PageController';
 import { OverrideStore } from './store/OverrideStore';
+import { SessionStore } from './store/SessionStore';
 import { SettingsStore } from './store/SettingsStore';
 
 // Allow tests and power users to keep data elsewhere (e.g. a throwaway profile).
@@ -26,7 +27,8 @@ async function createWindow(): Promise<void> {
   const userData = app.getPath('userData');
   const store = new OverrideStore(join(userData, 'workspace'));
   const settings = new SettingsStore(join(userData, 'settings.json'));
-  await Promise.all([store.load(), settings.load()]);
+  const session = new SessionStore(join(userData, 'session'));
+  await Promise.all([store.load(), settings.load(), session.load()]);
 
   const win = new BrowserWindow({
     width: 1600,
@@ -52,25 +54,48 @@ async function createWindow(): Promise<void> {
 
   const page = new PageController(win, store, settings, send);
   const attached = page.attach();
-  registerIpc({ win, page, store, settings });
   installMenu(win, page, store, send);
+
+  // Remember the page shown, so the next start reopens it.
+  const rememberUrl = (url: string) => void session.setUrl(url).catch(() => undefined);
+  page.view.webContents.on('did-navigate', (_event, url) => rememberUrl(url));
+  page.view.webContents.on('did-navigate-in-page', (_event, url, isMainFrame) => isMainFrame && rememberUrl(url));
+
+  // Closing keeps unsaved edits as drafts (reopened next time) instead of asking to discard them:
+  // the renderer writes what it hasn't yet, then answers.
+  // (The design-system gallery has no drafts to keep.)
+  let closeReady = !!process.env.CONSOLE_EDITOR_GALLERY;
+  let flushTimer: NodeJS.Timeout | undefined;
+  const finishClose = (ok: boolean) => {
+    if (!flushTimer) return;
+    clearTimeout(flushTimer);
+    flushTimer = undefined;
+    if (!ok) {
+      const choice = dialog.showMessageBoxSync(win, {
+        type: 'warning',
+        buttons: ['Close anyway', 'Cancel'],
+        defaultId: 1,
+        cancelId: 1,
+        message: 'Your unsaved edits could not be kept.',
+        detail: 'Close anyway and lose them?',
+      });
+      if (choice !== 0) return;
+    }
+    closeReady = true;
+    win.close();
+  };
+  win.on('close', (event) => {
+    if (closeReady) return;
+    event.preventDefault();
+    if (flushTimer) return;
+    send({ type: 'flush-session' });
+    flushTimer = setTimeout(() => finishClose(false), 5000);
+  });
+  registerIpc({ win, page, store, settings, session, onSessionFlushed: finishClose });
 
   // The editor UI must never navigate away or open windows.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
-
-  // The renderer blocks unload while there are unsaved edits; ask before discarding them.
-  win.webContents.on('will-prevent-unload', (event) => {
-    const choice = dialog.showMessageBoxSync(win, {
-      type: 'question',
-      buttons: ['Discard changes', 'Cancel'],
-      defaultId: 1,
-      cancelId: 1,
-      message: 'You have unsaved edits.',
-      detail: 'Close anyway and lose them?',
-    });
-    if (choice === 0) event.preventDefault();
-  });
 
   win.once('ready-to-show', () => win.show());
 
@@ -83,7 +108,7 @@ async function createWindow(): Promise<void> {
   }
 
   await attached;
-  const url = initialUrl();
+  const url = initialUrl() ?? session.get().url;
   if (url) void page.navigate(url);
 }
 
