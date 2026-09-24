@@ -5,12 +5,8 @@ import { ConfirmDialog } from '@/shared/ui/dialog';
 import { ToastStack } from '@/shared/ui/toast';
 import { EditorPage, pageCommands } from '@/pages/editor';
 import { Gallery } from './gallery/Gallery';
+import { markReady } from './lib/markReady';
 import { startBridge } from './model/bridge';
-
-/** Tests and the packaged smoke run wait for this: the initial state has loaded. */
-const markReady = () => {
-  document.body.dataset.ready = 'true';
-};
 
 /** Root: global providers and overlays around the one page. The gallery hash shows the design system instead. */
 export function App() {
