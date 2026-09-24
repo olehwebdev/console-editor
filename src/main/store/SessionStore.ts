@@ -1,39 +1,14 @@
-import { randomBytes } from 'node:crypto';
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { ResourceKind, SessionDraft, SessionState, SessionTab } from '../../shared/types';
+import type { SessionDraft, SessionState } from '../../shared/types';
+import { HTTP_SCHEME } from '../constants';
+import { assertTabId } from './assertTabId';
+import { sanitizeTabs } from './sanitizeTabs';
+import { writeAtomic } from './writeAtomic';
 
 const VERSION = 1;
-const KINDS = new Set<ResourceKind>(['Script', 'Stylesheet', 'Document']);
-const TAB_ID = /^[\w-]{1,64}$/;
-const MAX_TABS = 200;
-
-async function writeAtomic(path: string, content: string): Promise<void> {
-  const tmp = `${path}.${randomBytes(4).toString('hex')}.tmp`;
-  await writeFile(tmp, content, 'utf8');
-  await rename(tmp, path);
-}
-
-function assertTabId(id: unknown): asserts id is string {
-  if (typeof id !== 'string' || !TAB_ID.test(id)) throw new Error('Invalid tab id');
-}
-
-/** Keeps only well-formed tabs, so a corrupt file or a bad message can't inject junk. */
-function sanitizeTabs(input: unknown): SessionTab[] {
-  if (!Array.isArray(input)) return [];
-  const tabs: SessionTab[] = [];
-  for (const t of input.slice(0, MAX_TABS) as Array<Partial<SessionTab>>) {
-    if (!t || typeof t.id !== 'string' || !TAB_ID.test(t.id) || typeof t.url !== 'string' || !KINDS.has(t.kind as ResourceKind)) continue;
-    tabs.push({
-      id: t.id,
-      url: t.url,
-      kind: t.kind as ResourceKind,
-      ...(typeof t.overrideId === 'string' ? { overrideId: t.overrideId } : {}),
-      originalHash: typeof t.originalHash === 'string' ? t.originalHash : null,
-    });
-  }
-  return tabs;
-}
+const SESSION_FILE = 'session.json';
+const DRAFTS_DIR = 'drafts';
 
 /**
  * What the app reopens on start: the last page, the open tabs and their
@@ -52,7 +27,7 @@ export class SessionStore {
   constructor(readonly dir: string) {}
 
   private get draftsDir(): string {
-    return join(this.dir, 'drafts');
+    return join(this.dir, DRAFTS_DIR);
   }
 
   private draftPath(id: string, which: 'content' | 'base'): string {
@@ -62,7 +37,7 @@ export class SessionStore {
   async load(): Promise<void> {
     await mkdir(this.draftsDir, { recursive: true });
     try {
-      const saved = JSON.parse(await readFile(join(this.dir, 'session.json'), 'utf8')) as Partial<SessionState>;
+      const saved = JSON.parse(await readFile(join(this.dir, SESSION_FILE), 'utf8')) as Partial<SessionState>;
       const tabs = sanitizeTabs(saved.tabs);
       this.state = {
         url: typeof saved.url === 'string' ? saved.url : '',
@@ -86,7 +61,7 @@ export class SessionStore {
 
   /** Remembers the page shown (http(s) only: about:blank and errors aren't worth reopening). */
   setUrl(url: string): Promise<void> {
-    if (!/^https?:/i.test(url) || url === this.state.url) return Promise.resolve();
+    if (!HTTP_SCHEME.test(url) || url === this.state.url) return Promise.resolve();
     return this.queue(async () => {
       this.state = { ...this.state, url };
       await this.writeState();
@@ -138,7 +113,7 @@ export class SessionStore {
   }
 
   private writeState(): Promise<void> {
-    return writeAtomic(join(this.dir, 'session.json'), `${JSON.stringify({ version: VERSION, ...this.state }, null, 2)}\n`);
+    return writeAtomic(join(this.dir, SESSION_FILE), `${JSON.stringify({ version: VERSION, ...this.state }, null, 2)}\n`);
   }
 
   private queue(write: () => Promise<void>): Promise<void> {
