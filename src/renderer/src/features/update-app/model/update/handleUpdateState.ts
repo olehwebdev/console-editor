@@ -1,5 +1,4 @@
-import { useUpdateStore } from '@/entities/app-update';
-import type { UpdateStateOf, UpdateStatus } from './types';
+import { useUpdateStore, type UpdateStateOf, type UpdateStatus } from '@/entities/app-update';
 import { UPDATE_STATE_NOTICES } from './updateStateNotices';
 
 /**

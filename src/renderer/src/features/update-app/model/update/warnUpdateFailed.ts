@@ -1,10 +1,10 @@
 import type { UpdateState } from '@common/types';
 import { TOAST_DURATION } from '@/shared/config';
 import { toast } from '@/shared/ui/toast';
+import type { UpdateStateOf } from '@/entities/app-update';
 import { UPDATE_TOAST_ID } from './constants';
 import { downloadUpdate } from './downloadUpdate';
 import { reason } from './reason';
-import type { UpdateStateOf } from './types';
 
 /**
  * A failed download, or an install that didn't happen (e.g. the password was refused). A failed check

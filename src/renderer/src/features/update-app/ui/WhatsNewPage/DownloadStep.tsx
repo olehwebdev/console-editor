@@ -3,8 +3,8 @@ import { icons } from '@/shared/config';
 import { cn } from '@/shared/lib';
 import { Button } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icon';
+import type { UpdateStateOf } from '@/entities/app-update';
 import { availableHint, downloadLabel, downloadUpdate } from '../../model/update';
-import type { UpdateStateOf } from '../../model/update/types';
 import { CARD_ICON_SIZE } from './constants';
 
 /** Before a download, or after one failed: how it installs (or what went wrong), and the button that starts it. */

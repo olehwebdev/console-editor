@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { AvailableUpdate } from '@common/types';
-import type { UpdateStateOf, UpdateStatus } from '../../model/update/types';
+import type { UpdateStateOf, UpdateStatus } from '@/entities/app-update';
 
 export interface UpdateStepProps<S extends UpdateStatus> {
   update: AvailableUpdate;

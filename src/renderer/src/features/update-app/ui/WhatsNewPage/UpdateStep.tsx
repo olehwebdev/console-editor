@@ -1,4 +1,4 @@
-import type { UpdateStatus } from '../../model/update/types';
+import type { UpdateStatus } from '@/entities/app-update';
 import type { UpdateStepProps } from './types';
 import { UPDATE_STEPS } from './updateSteps';
 

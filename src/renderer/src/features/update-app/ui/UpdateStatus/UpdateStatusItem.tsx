@@ -1,4 +1,4 @@
-import type { UpdateStateOf, UpdateStatus } from '../../model/update/types';
+import type { UpdateStateOf, UpdateStatus } from '@/entities/app-update';
 import { UPDATE_STATUS_ITEMS } from './updateStatusItems';
 
 /** Generic so each state reaches its own item without a cast. */
