@@ -25,6 +25,9 @@ const SIZE: Record<InputSize, string> = {
   md: 'h-7 gap-2 rounded-lg px-2 text-[13px]',
 };
 
+/** Adornments that handle their own clicks (a clear button, a link); clicks on anything else focus the input. */
+const INTERACTIVE = 'button, a, input, select, textarea, [role="button"]';
+
 /**
  * Text field in a raised frame with optional adornments. The frame owns the
  * focus ring (accent at 40 %); clicking an adornment that is not itself
@@ -49,7 +52,7 @@ export function Input({
 
   const focusInput = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
-    if (target === inputRef.current || target.closest('button, a, input, select, textarea, [role="button"]')) return;
+    if (target === inputRef.current || target.closest(INTERACTIVE)) return;
     event.preventDefault();
     inputRef.current?.focus();
   };

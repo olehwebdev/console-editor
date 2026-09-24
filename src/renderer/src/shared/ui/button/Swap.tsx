@@ -14,6 +14,9 @@ export interface SwapProps {
 
 type Direction = NonNullable<SwapProps['direction']>;
 
+/** Width changes smaller than this (px) are measuring noise, not a new width. */
+const WIDTH_EPSILON = 0.5;
+
 const ROLL: Variants = {
   initial: (d: Direction) => ({ opacity: 0, y: d === 'up' ? '70%' : '-70%' }),
   animate: { opacity: 1, y: '0%', transition: SPRING_SWAP },
@@ -48,7 +51,7 @@ export function Swap({ value, children, direction = 'up', className }: SwapProps
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
       const next = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
-      setWidth((current) => (current !== undefined && Math.abs(current - next) < 0.5 ? current : next));
+      setWidth((current) => (current !== undefined && Math.abs(current - next) < WIDTH_EPSILON ? current : next));
     });
     observer.observe(el);
     return () => observer.disconnect();
