@@ -4,8 +4,9 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
 
 export default defineConfig({
-  main: {},
-  preload: {},
+  // Bundle dependencies too, so out/ is all the installers need (see electron-builder.ts).
+  main: { build: { externalizeDeps: false } },
+  preload: { build: { externalizeDeps: false } },
   renderer: {
     resolve: {
       alias: {

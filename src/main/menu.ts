@@ -1,5 +1,6 @@
 import { Menu, shell, type BrowserWindow, type MenuItemConstructorOptions } from 'electron';
 import type { AppEvent, MenuCommand } from '../shared/types';
+import { REPO_URL } from './appInfo';
 import type { PageController } from './PageController';
 import type { OverrideStore } from './store/OverrideStore';
 
@@ -61,6 +62,15 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
       ],
     },
     { role: 'windowMenu' },
+    {
+      role: 'help',
+      submenu: [
+        // On macOS "About" is in the app menu.
+        ...(isMac ? [] : [{ role: 'about' } as MenuItemConstructorOptions]),
+        { label: 'Report an Issue', click: () => void shell.openExternal(`${REPO_URL}/issues`) },
+        { label: 'Console Editor on GitHub', click: () => void shell.openExternal(REPO_URL) },
+      ],
+    },
   ];
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

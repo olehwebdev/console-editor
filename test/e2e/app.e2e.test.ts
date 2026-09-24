@@ -3,16 +3,20 @@
  * edit it, save, and check that the page (or an iframe in it) runs the edited
  * code.
  */
+import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MAIN_JS_PATH, startFixtureSite, type FixtureSite } from '../fixtures/site';
 
 const root = resolve(__dirname, '../..');
 const built = existsSync(join(root, 'out/main/index.js'));
+// Chromium's sandbox can't start as root (containers).
+const sandboxArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 
 /** Polls until `fn` returns a truthy value (usable outside tests, unlike expect.poll). */
 async function waitFor<T>(fn: () => T | undefined, timeout = 30_000): Promise<T> {
@@ -28,7 +32,7 @@ async function waitFor<T>(fn: () => T | undefined, timeout = 30_000): Promise<T>
 async function launch(userData: string): Promise<{ app: ElectronApplication; win: Page }> {
   // No executablePath: Playwright then injects its loader, which Electron apps need.
   const app = await electron.launch({
-    args: [...(process.getuid?.() === 0 ? ['--no-sandbox'] : []), root],
+    args: [...sandboxArgs, root],
     cwd: root,
     env: { ...process.env, CONSOLE_EDITOR_USER_DATA: userData } as Record<string, string>,
   });
@@ -206,5 +210,15 @@ describe.skipIf(!built)('Console Editor app', () => {
     await expect.poll(() => win.locator('[role="tab"][aria-selected="true"]').textContent()).toContain('lazy.js');
     await expect.poll(() => win.locator('[role="tab"][data-dirty]').count()).toBe(1);
     await win.locator('.monaco-editor .view-lines', { hasText: 'unsaved draft survives' }).waitFor();
+  });
+
+  it('a second launch hands its URL to the running app and quits', async () => {
+    const electronBinary = await app.evaluate(() => process.execPath);
+    await promisify(execFile)(electronBinary, [...sandboxArgs, root, `${site.url}/frames.html`], {
+      env: { ...process.env, CONSOLE_EDITOR_USER_DATA: userData },
+      timeout: 20_000,
+    });
+    await expect.poll(() => inSite('location.pathname'), { timeout: 15_000 }).toBe('/frames.html');
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   });
 });

@@ -25,6 +25,7 @@
   "license": "MIT",
   "author": "olehwebdev",
   "main": "./out/main/index.js",
+  "desktopName": "console-editor.desktop",
   "engines": {
     "node": ">=22.18"
   },
@@ -36,6 +37,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && vitest run -c vitest.e2e.config.mts",
+    "dist": "electron-vite build && electron-builder --publish never",
+    "test:packaged": "node --no-warnings test/smoke/packaged.ts",
     "demo-site": "node --no-warnings test/fixtures/site.ts",
     "lint:fsd": "steiger ./src/renderer/src"
   },
@@ -48,6 +51,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "electron": "^44.4.5",
+    "electron-builder": "^26.16.1",
     "electron-vite": "^6.0.0-beta.1",
     "playwright-core": "^1.63.0",
     "steiger": "^0.6.0",

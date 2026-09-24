@@ -1,0 +1,196 @@
+name: Release
+
+# Builds the installers on macOS, Windows and Linux, installs each one and runs
+# the packaged-app smoke test against it, then drafts a GitHub release.
+#
+#   - Push a tag vX.Y.Z (matching package.json) to build and draft that release.
+#   - Or run it by hand: it builds and tests the installers (downloadable from
+#     the run), and with "draft release" ticked also drafts vX.Y.Z from
+#     package.json. Its tag is created when you publish the draft.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      draft_release:
+        description: Also draft a GitHub release with the installers
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      released: ${{ steps.version.outputs.released }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRAFT_RELEASE: ${{ inputs.draft_release }}
+        run: |
+          version=$(jq -r .version package.json)
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME doesn't match package.json's version ($version)."
+            exit 1
+          fi
+          released=false
+          if gh release view "v$version" > /dev/null 2>&1; then released=true; fi
+          # Publishing a drafted release creates its tag, which can start this workflow again.
+          if [ "$released" = true ] && [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "::notice::v$version is already released; nothing to build."
+          fi
+          if [ "$released" = true ] && [ "$DRAFT_RELEASE" = true ]; then
+            echo "::error::v$version is already released. Bump the version in package.json first."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "released=$released" >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: prepare
+    if: needs.prepare.outputs.released != 'true' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/ci.yml
+
+  installers:
+    name: Installers (${{ matrix.name }})
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+          - name: Windows
+            os: windows-latest
+          - name: Linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      # Apple silicon and Intel disk images, signed ad hoc (see electron-builder.ts).
+      - name: Package
+        if: runner.os == 'macOS'
+        run: npx electron-builder --mac --publish never
+
+      # One installer per architecture (a combined one would be twice the download).
+      - name: Package
+        if: runner.os == 'Windows'
+        run: |
+          npx electron-builder --win --x64 --publish never
+          npx electron-builder --win --arm64 --publish never
+
+      - name: Package
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          npx electron-builder --linux --x64 --arm64 --publish never
+
+      # Each smoke test installs the way a user would and runs the installed app.
+      - name: Install the disk image and test the app
+        if: runner.os == 'macOS'
+        run: |
+          arch=$([ "$(uname -m)" = arm64 ] && echo arm64 || echo x64)
+          codesign --verify --deep --strict --verbose=2 "dist/mac-arm64/Console Editor.app"
+          codesign --verify --deep --strict --verbose=2 "dist/mac/Console Editor.app"
+          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/dmg" dist/console-editor-*-mac-$arch.dmg
+          cp -R "$RUNNER_TEMP/dmg/Console Editor.app" "$RUNNER_TEMP/"
+          hdiutil detach "$RUNNER_TEMP/dmg"
+          npm run test:packaged -- "$RUNNER_TEMP/Console Editor.app/Contents/MacOS/Console Editor"
+
+      - name: Install and test the app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist -Filter 'console-editor-*-win-x64-setup.exe' | Select-Object -First 1
+          Start-Process -FilePath $installer.FullName -ArgumentList '/S', '/currentuser' -Wait
+          $app = Join-Path $env:LOCALAPPDATA 'Programs\Console Editor\Console Editor.exe'
+          if (-not (Test-Path $app)) { throw "The installer didn't put the app at $app" }
+          npm run test:packaged -- "$app"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      # Without relaxing Ubuntu's user-namespace restriction: the package's AppArmor profile has to cover it.
+      - name: Install the .deb and test the app
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./dist/console-editor_*_amd64.deb
+          xvfb-run -a npm run test:packaged -- "/opt/Console Editor/console-editor"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installers-${{ runner.os }}
+          path: |
+            dist/*.dmg
+            dist/*-setup.exe
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+            dist/*.tar.gz
+          if-no-files-found: error
+          # Installers are compressed already.
+          compression-level: 0
+
+      - name: Upload the smoke test's screenshot
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-test-${{ runner.os }}
+          path: test-results/
+          if-no-files-found: ignore
+
+  release:
+    name: Draft the release
+    needs: [prepare, installers]
+    if: github.ref_type == 'tag' || inputs.draft_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: installers-*
+          path: dist
+          merge-multiple: true
+
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          sed "s/{{version}}/$VERSION/g" .github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          gh release create "v$VERSION" dist/* \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "Console Editor $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --generate-notes

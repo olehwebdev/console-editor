@@ -1,6 +1,8 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import { join } from 'node:path';
+import appIcon from '../../build/icons/512x512.png?asset';
 import type { AppEvent } from '../shared/types';
+import { APP_ID, REPO_URL } from './appInfo';
 import { LOCAL_NETWORK_ACCESS_FEATURES, withDisabledFeatures } from './chromiumFlags';
 import { registerIpc } from './ipc';
 import { installMenu } from './menu';
@@ -18,12 +20,25 @@ app.commandLine.appendSwitch(
   withDisabledFeatures(app.commandLine.getSwitchValue('disable-features'), LOCAL_NETWORK_ACCESS_FEATURES),
 );
 
-/** First http(s) URL on the command line, e.g. `npm start -- https://example.com`. */
-function initialUrl(): string | undefined {
-  return process.argv.slice(1).find((arg) => /^https?:\/\//i.test(arg)) ?? process.env.CONSOLE_EDITOR_URL;
-}
+// Windows ties notifications and taskbar grouping to this id; the installer's shortcuts carry the same one.
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
+
+/** First http(s) URL among command-line arguments, e.g. `npm start -- https://example.com`. */
+const urlArgument = (args: string[]) => args.find((arg) => /^https?:\/\//i.test(arg));
+
+const initialUrl = () => urlArgument(process.argv.slice(1)) ?? process.env.CONSOLE_EDITOR_URL;
+
+/** The open window, for a second launch to hand over to. */
+let running: { win: BrowserWindow; page: PageController } | undefined;
 
 async function createWindow(): Promise<void> {
+  app.setAboutPanelOptions({
+    applicationName: 'Console Editor',
+    applicationVersion: app.getVersion(),
+    copyright: '© 2026 olehwebdev · MIT License',
+    website: REPO_URL,
+    iconPath: appIcon,
+  });
   const userData = app.getPath('userData');
   const store = new OverrideStore(join(userData, 'workspace'));
   const settings = new SettingsStore(join(userData, 'settings.json'));
@@ -36,6 +51,8 @@ async function createWindow(): Promise<void> {
     minWidth: 960,
     minHeight: 600,
     title: 'Console Editor',
+    // Elsewhere the window takes the app's own icon; on Linux it has to be given one.
+    ...(process.platform === 'linux' ? { icon: appIcon } : {}),
     // Matches the --canvas token, so nothing flashes before the UI paints.
     backgroundColor: '#08080a',
     // The app menu keeps its shortcuts; on Windows/Linux Alt shows the bar.
@@ -53,6 +70,7 @@ async function createWindow(): Promise<void> {
   };
 
   const page = new PageController(win, store, settings, send);
+  running = { win, page };
   const attached = page.attach();
   installMenu(win, page, store, send);
 
@@ -112,9 +130,24 @@ async function createWindow(): Promise<void> {
   if (url) void page.navigate(url);
 }
 
-app.whenReady().then(createWindow, (err) => {
-  console.error(err);
-  app.exit(1);
-});
+// One instance per data folder: two would overwrite each other's overrides and session.
+// Launching again brings this window forward instead, opening the URL it was given, if any.
+if (!app.requestSingleInstanceLock()) {
+  console.log(`Console Editor is already running with the data folder ${app.getPath('userData')}; switching to it.`);
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    if (!running || running.win.isDestroyed()) return;
+    const { win, page } = running;
+    if (win.isMinimized()) win.restore();
+    if (win.isVisible()) win.focus();
+    const url = urlArgument(argv.slice(1));
+    if (url) void page.navigate(url);
+  });
+  app.whenReady().then(createWindow, (err) => {
+    console.error(err);
+    app.exit(1);
+  });
+}
 
 app.on('window-all-closed', () => app.quit());
