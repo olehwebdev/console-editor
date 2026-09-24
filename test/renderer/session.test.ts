@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OverrideMeta, SessionDraft, SessionState, Workspace, WorkspacesState } from '../../src/shared/types';
 import { closeSessionTabs, flushSession, restoreSession, startSessionSync } from '@/pages/editor/model/session';
-import { deleteWorkspace, switchWorkspace } from '@/pages/editor/model/workspaces';
+import { createWorkspace, deleteWorkspace, switchWorkspace } from '@/pages/editor/model/workspaces';
 import { createTabModel, disposeTabModel, getTabModel, markTabSaved, newTabId, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { useWorkspaceStore } from '@/entities/workspace';
@@ -58,6 +58,7 @@ const api = vi.hoisted(() => ({
   getWorkspaces: vi.fn<() => Promise<WorkspacesState>>(),
   listOverrides: vi.fn(async (): Promise<OverrideMeta[]> => []),
   switchWorkspace: vi.fn(async (_id: string) => {}),
+  createWorkspace: vi.fn<() => Promise<Workspace>>(),
   deleteWorkspace: vi.fn(async (_id: string) => {}),
 }));
 const toast = vi.hoisted(() => Object.assign(vi.fn(() => 'toast-1'), { dismiss: vi.fn(), update: vi.fn() }));
@@ -286,6 +287,29 @@ describe('switching workspaces', () => {
     expect(useWorkspaceStore.getState().activeId).toBe('wsa00000');
     expect(useTabStore.getState().tabs.map((t) => t.id)).toEqual([id]);
     expect(model(id).getValue()).toBe('kept');
+  });
+
+  it('writes what is typed while the drafts are being written, before the tabs close', async () => {
+    stopSync = startSessionSync();
+    const id = openTab();
+    model(id).type('first');
+    // Writing the first draft takes a moment, and typing goes on meanwhile.
+    api.saveDraft.mockImplementationOnce(async () => model(id).type('second'));
+    mainSwitchesTo('wsb00000', { url: '', tabs: [], activeTabId: null });
+
+    await switchWorkspace('wsb00000');
+
+    expect(api.saveDraft).toHaveBeenCalledTimes(2);
+    expect(api.saveDraft).toHaveBeenLastCalledWith(id, { content: 'second' });
+    expect(api.saveDraft.mock.invocationCallOrder[1]).toBeLessThan(api.switchWorkspace.mock.invocationCallOrder[0]!);
+  });
+
+  it('removes a new workspace again when it was never switched to', async () => {
+    api.createWorkspace.mockResolvedValue(workspace('wsc00000', ''));
+    api.switchWorkspace.mockRejectedValueOnce(new Error('boom'));
+    mainSwitchesTo('wsa00000', { url: '', tabs: [], activeTabId: null });
+    expect(await createWorkspace()).toBe(false);
+    expect(api.deleteWorkspace).toHaveBeenCalledWith('wsc00000');
   });
 
   it('deleting the workspace in use switches to its neighbour first', async () => {

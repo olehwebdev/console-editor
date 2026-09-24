@@ -26,7 +26,8 @@ const TITLE_SETTLE_MS = 1000;
 export class WorkspaceController {
   /** Switches and deletions run one at a time. */
   private queue: Promise<unknown> = Promise.resolve();
-  private titleTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Per workspace: switching mustn't drop the last title of the one left. */
+  private readonly titleTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(
     private readonly page: PageController,
@@ -56,13 +57,17 @@ export class WorkspaceController {
     // Not about:blank's (the page left as the workspace changes) or an error page's.
     if (!/^https?:/i.test(pageUrl)) return;
     const id = this.session.activeId;
-    clearTimeout(this.titleTimer);
+    clearTimeout(this.titleTimers.get(id));
     // Some pages keep changing their title (a clock, an unread count): it is kept once it settles.
-    this.titleTimer = setTimeout(() => {
-      if (this.session.titleOf(id) === title.trim()) return;
-      void this.session.setTitle(id, title).catch(() => undefined);
-      this.pushState();
-    }, TITLE_SETTLE_MS);
+    this.titleTimers.set(
+      id,
+      setTimeout(() => {
+        this.titleTimers.delete(id);
+        if (!this.session.has(id) || this.session.titleOf(id) === title.trim()) return;
+        void this.session.setTitle(id, title).catch(() => undefined);
+        this.pushState();
+      }, TITLE_SETTLE_MS),
+    );
   }
 
   private pageShown(url: string): void {
@@ -113,8 +118,11 @@ export class WorkspaceController {
   /** Deletes a workspace other than the active one, with its overrides. */
   remove(id: unknown): Promise<void> {
     return this.serialize(async () => {
-      await this.session.remove(id);
+      if (!this.session.has(id)) throw new Error('Unknown workspace');
+      if (id === this.session.activeId) throw new Error('The workspace in use cannot be deleted');
+      // Its overrides go first: were the workspace to go first and this fail, the next start would hand them to another.
       await this.store.removeWorkspace(id as string);
+      await this.session.remove(id);
       this.pushState();
     });
   }
@@ -126,12 +134,14 @@ export class WorkspaceController {
       if (id === this.session.activeId) return;
       // The page leaves first: until it has, what it does is the old workspace's.
       await this.page.leave();
-      await this.session.setActive(id);
+      // In memory at once, written after: a failed write is reported, but the switch is whole.
+      const saved = this.session.setActive(id);
       this.store.setWorkspace(this.session.activeId);
       await this.page.overridesChanged();
       this.pushState();
       const { url } = this.session.get();
       if (url) void this.page.navigate(url, { fresh: true });
+      await saved;
     });
   }
 

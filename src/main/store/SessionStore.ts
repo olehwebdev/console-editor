@@ -337,12 +337,13 @@ export class SessionStore {
     });
   }
 
-  async setActive(id: unknown): Promise<void> {
+  /** Active in memory at once (it throws right away for an unknown one); the promise settles once written. */
+  setActive(id: unknown): Promise<void> {
     const w = this.find(id);
     if (!w) throw new Error('Unknown workspace');
-    if (w.id === this.state.activeId) return;
+    if (w.id === this.state.activeId) return Promise.resolve();
     this.state = { ...this.state, activeId: w.id };
-    await this.queue(() => this.writeState());
+    return this.queue(() => this.writeState());
   }
 
   async getDraft(id: unknown): Promise<SessionDraft | null> {
