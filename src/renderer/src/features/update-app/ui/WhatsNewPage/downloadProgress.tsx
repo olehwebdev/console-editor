@@ -1,4 +1,5 @@
-export function DownloadProgress({ percent }: { percent: number }) {
+/** Downloading: how far along, as a bar. */
+export function downloadProgress(percent: number) {
   return (
     <div className="flex flex-1 items-center gap-3">
       <span className="text-[12.5px] text-fg-muted" aria-hidden>

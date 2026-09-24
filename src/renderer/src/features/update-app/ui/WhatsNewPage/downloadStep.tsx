@@ -8,7 +8,7 @@ import { availableHint, downloadLabel, downloadUpdate } from '../../model/update
 import { CARD_ICON_SIZE } from './constants';
 
 /** Before a download, or after one failed: how it installs (or what went wrong), and the button that starts it. */
-export function DownloadStep({ update, error }: { update: AvailableUpdate; error?: UpdateStateOf<'error'> }) {
+export function downloadStep(update: AvailableUpdate, error?: UpdateStateOf<'error'>) {
   // After a failed download or install, the same button tries again; a failed check changes nothing here.
   const retry = !!error && error.during !== 'check';
   return (

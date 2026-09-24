@@ -7,7 +7,7 @@ import { DMG_EXTENSION } from '../../model/update/constants';
 import { CARD_ICON_SIZE } from './constants';
 
 /** Downloaded: restart into it (auto), or open the file again (manual). */
-export function ReadyStep({ update, file }: { update: AvailableUpdate; file: string | undefined }) {
+export function readyStep(update: AvailableUpdate, file: string | undefined) {
   return update.install === 'auto' ? (
     <>
       <span className="flex-1 text-[12.5px] text-fg-muted">
