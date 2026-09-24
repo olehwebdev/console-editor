@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto';
-import type { EngineEvent, Override, ResourceContent, ResourceEntry, ResourceKind, Settings } from '../../shared/types';
-import { RESOURCE_KINDS } from '../../shared/types';
-import type { CdpTransport } from './cdp';
-import { compileMatcher, toCdpUrlPattern, type UrlPredicate } from '../../shared/matcher';
+import { compileMatcher, type UrlPredicate } from '../../../shared/matcher';
+import type { MatchType, Override, ResourceContent, ResourceEntry } from '../../../shared/types';
+import type { CdpTransport } from '../cdp';
+import { CDP, CONTENT_TYPE, HTML_MIME_TYPE, HTTP_REDIRECTION, HTTP_SUCCESSFUL } from '../constants';
 import {
   buildOverrideHeaders,
   buildRewrittenHeaders,
@@ -12,86 +11,40 @@ import {
   SRI_GUARD_SOURCE,
   stripIntegrityAttributes,
   stripSourceMapComments,
-  type HeaderEntry,
-} from './transform';
+} from '../transform';
+import { answersKind } from './answersKind';
+import { computeFetchPatterns } from './computeFetchPatterns';
+import { DOCUMENT_KIND } from './constants';
+import { isBenignCdpError } from './isBenignCdpError';
+import { isKind } from './isKind';
+import { sha256 } from './sha256';
+import type { EngineOptions, FrameTree, RequestPausedParams, TrackedResource } from './types';
 
-export interface FetchPattern {
-  urlPattern: string;
-  resourceType?: string;
-  requestStage: 'Request' | 'Response';
-}
+const MATCH_RANK = { exact: 0, glob: 1, regex: 2 } as const satisfies Record<MatchType, number>;
 
-export interface EngineOptions {
-  transport: CdpTransport;
-  /** Current overrides (with content). Called on every intercepted request. */
-  getOverrides(): Override[];
-  getSettings(): Settings;
-  emit(event: EngineEvent): void;
-  /** Fetches a URL outside the page (used when the page no longer holds a body). */
-  fallbackFetch?(url: string): Promise<string>;
-  /**
-   * Set for engines attached to a cross-site iframe session: `id` is stamped on
-   * its resources and `navigated` events so the UI can scope them to that
-   * session, `depth` is the iframe's nesting depth (1 = direct child of the page).
-   */
-  iframe?: { id: string; depth: number };
-}
+/** How much response data Chromium keeps for `Network.getResponseBody`, in all and per response. */
+const MAX_TOTAL_BUFFER_BYTES = 256 * 1024 * 1024;
+const MAX_RESOURCE_BUFFER_BYTES = 64 * 1024 * 1024;
 
-interface TrackedResource {
-  entry: ResourceEntry;
-  requestId: string;
-  frameId?: string;
-  loaderId?: string;
-  /** Hash of the raw upstream body when we rewrote this response (SRI stripped). */
-  upstreamHash?: string;
-}
+/** An override answers with a success, whatever upstream said. */
+const OVERRIDE_STATUS = 200;
 
-/** Subset of `Fetch.requestPaused` params that we use. */
-interface RequestPausedParams {
-  requestId: string;
-  request: { url: string; method: string };
-  resourceType: string;
-  networkId?: string;
-  responseStatusCode?: number;
-  responseErrorReason?: string;
-  responseHeaders?: HeaderEntry[];
-}
+/** Part of every HTML content type; a document whose type lacks it isn't rewritten. */
+const HTML_TYPE_MARKER = 'html';
 
-/** Errors that only mean the request's frame or session is gone (navigated away, removed, detached). */
-export function isBenignCdpError(err: unknown): boolean {
-  return /session .* is gone|Session with given id not found|No session with given id|session detached|target closed|Invalid InterceptionId|Inspected target navigated or closed/i.test(
-    String((err as Error)?.message ?? err),
-  );
-}
+/** URLs never listed: they name no file that could be overridden. */
+const UNLISTED_URL = /^(data|blob|about|chrome|devtools):/;
 
-export function sha256(text: string): string {
-  return createHash('sha256').update(text, 'utf8').digest('hex');
-}
+/** `Page.frameDetached` reason of a frame that moved to another process. */
+const SWAP_REASON = 'swap';
 
-function isKind(type: string | undefined): type is ResourceKind {
-  return !!type && (RESOURCE_KINDS as readonly string[]).includes(type);
-}
+/** Bounds the walk up `frameParents`, which a stale entry could turn into a loop. */
+const MAX_FRAME_DEPTH = 32;
 
-const MATCH_RANK = { exact: 0, glob: 1, regex: 2 } as const;
-
-/**
- * Pauses only the requests that an override (or SRI stripping) could apply to.
- * Exact/glob overrides get a precise URL pattern; regex overrides fall back to
- * "every request of this resource type".
- */
-export function computeFetchPatterns(overrides: Override[], settings: Settings): FetchPattern[] {
-  const patterns = new Map<string, FetchPattern>();
-  const add = (p: FetchPattern) => patterns.set(`${p.urlPattern}|${p.resourceType ?? ''}`, p);
-  const enabled = overrides.filter((o) => o.enabled);
-  for (const o of enabled) {
-    const urlPattern = toCdpUrlPattern(o.match);
-    add({ urlPattern, resourceType: urlPattern === '*' ? o.kind : undefined, requestStage: 'Response' });
-  }
-  if (settings.stripIntegrity && enabled.some((o) => o.kind !== 'Document')) {
-    add({ urlPattern: '*', resourceType: 'Document', requestStage: 'Response' });
-  }
-  return [...patterns.values()];
-}
+/** Joins the parts of a matcher cache key: a NUL can't occur in them (a regex may contain `|`). */
+const MATCHER_KEY_SEPARATOR = '\u0000';
+/** Joins an override id and a URL into a `missed` key. */
+const MISSED_KEY_SEPARATOR = '|';
 
 /**
  * Serves edited files in place of the originals by driving the Chrome DevTools
@@ -146,37 +99,37 @@ export class InterceptionEngine {
 
   async attach(): Promise<void> {
     this.disposers.push(
-      this.cdp.on('Fetch.requestPaused', (p: RequestPausedParams) => void this.onRequestPaused(p)),
-      this.cdp.on('Network.requestWillBeSent', (p) => this.onRequestWillBeSent(p)),
-      this.cdp.on('Network.responseReceived', (p) => this.onResponseReceived(p)),
-      this.cdp.on('Page.frameNavigated', (p: { frame: { id: string; parentId?: string; url: string; loaderId?: string } }) => {
+      this.cdp.on(CDP.Fetch.requestPaused, (p: RequestPausedParams) => void this.onRequestPaused(p)),
+      this.cdp.on(CDP.Network.requestWillBeSent, (p) => this.onRequestWillBeSent(p)),
+      this.cdp.on(CDP.Network.responseReceived, (p) => this.onResponseReceived(p)),
+      this.cdp.on(CDP.Page.frameNavigated, (p: { frame: { id: string; parentId?: string; url: string; loaderId?: string } }) => {
         this.frameUrls.set(p.frame.id, p.frame.url);
         // An iframe session's root frame has a (cross-process) parentId; it stays the root.
         if (p.frame.parentId && p.frame.id !== this.mainFrameId) this.frameParents.set(p.frame.id, p.frame.parentId);
         if (!p.frame.parentId && !this.opts.iframe) this.mainFrameId = p.frame.id;
         if (p.frame.id === this.mainFrameId) this.commitNavigation(p.frame);
       }),
-      this.cdp.on('Page.frameStoppedLoading', (p: { frameId: string }) => {
+      this.cdp.on(CDP.Page.frameStoppedLoading, (p: { frameId: string }) => {
         // Stopped without committing (download, 204, cancelled): the old page stays, and so does its list.
         if (p.frameId === this.mainFrameId && this.pending) this.pending = undefined;
       }),
-      this.cdp.on('Page.frameAttached', (p: { frameId: string; parentFrameId?: string }) => {
+      this.cdp.on(CDP.Page.frameAttached, (p: { frameId: string; parentFrameId?: string }) => {
         if (p.parentFrameId) this.frameParents.set(p.frameId, p.parentFrameId);
       }),
-      this.cdp.on('Page.frameDetached', (p: { frameId: string; reason?: string }) => {
+      this.cdp.on(CDP.Page.frameDetached, (p: { frameId: string; reason?: string }) => {
         this.frameUrls.delete(p.frameId);
         // A frame that moved to another process still has its documents reported here.
-        if (p.reason !== 'swap') this.frameParents.delete(p.frameId);
+        if (p.reason !== SWAP_REASON) this.frameParents.delete(p.frameId);
       }),
     );
-    await this.cdp.send('Page.enable');
-    const tree = await this.cdp.send<{ frameTree: FrameTree }>('Page.getFrameTree');
+    await this.cdp.send(CDP.Page.enable);
+    const tree = await this.cdp.send<{ frameTree: FrameTree }>(CDP.Page.getFrameTree);
     this.mainFrameId = tree.frameTree.frame.id;
     this.rootParentFrameId = tree.frameTree.frame.parentId;
     this.rememberFrames(tree.frameTree);
-    await this.cdp.send('Network.enable', {
-      maxTotalBufferSize: 256 * 1024 * 1024,
-      maxResourceBufferSize: 64 * 1024 * 1024,
+    await this.cdp.send(CDP.Network.enable, {
+      maxTotalBufferSize: MAX_TOTAL_BUFFER_BYTES,
+      maxResourceBufferSize: MAX_RESOURCE_BUFFER_BYTES,
     });
     await this.applySettings();
   }
@@ -185,7 +138,7 @@ export class InterceptionEngine {
     for (const dispose of this.disposers.splice(0)) dispose();
     if (this.fetchEnabled) {
       this.fetchEnabled = false;
-      this.cdp.send('Fetch.disable').catch(() => undefined);
+      this.cdp.send(CDP.Fetch.disable).catch(() => undefined);
     }
   }
 
@@ -193,14 +146,14 @@ export class InterceptionEngine {
   applySettings(): Promise<void> {
     return this.serialize(async () => {
       const s = this.opts.getSettings();
-      await this.cdp.send('Network.setCacheDisabled', { cacheDisabled: s.disableCache });
-      await this.cdp.send('Network.setBypassServiceWorker', { bypass: s.bypassServiceWorker });
-      await this.cdp.send('Page.setBypassCSP', { enabled: s.bypassCSP });
+      await this.cdp.send(CDP.Network.setCacheDisabled, { cacheDisabled: s.disableCache });
+      await this.cdp.send(CDP.Network.setBypassServiceWorker, { bypass: s.bypassServiceWorker });
+      await this.cdp.send(CDP.Page.setBypassCSP, { enabled: s.bypassCSP });
       if (s.stripIntegrity && !this.sriGuardId) {
-        const r = await this.cdp.send<{ identifier: string }>('Page.addScriptToEvaluateOnNewDocument', { source: SRI_GUARD_SOURCE });
+        const r = await this.cdp.send<{ identifier: string }>(CDP.Page.addScriptToEvaluateOnNewDocument, { source: SRI_GUARD_SOURCE });
         this.sriGuardId = r.identifier;
       } else if (!s.stripIntegrity && this.sriGuardId) {
-        await this.cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: this.sriGuardId });
+        await this.cdp.send(CDP.Page.removeScriptToEvaluateOnNewDocument, { identifier: this.sriGuardId });
         this.sriGuardId = undefined;
       }
       await this.updatePatterns();
@@ -248,7 +201,7 @@ export class InterceptionEngine {
 
   /** Reads a response body from this session by network request id. */
   async readNetworkBody(url: string, requestId: string, mimeType?: string): Promise<ResourceContent> {
-    const r = await this.cdp.send<{ body: string; base64Encoded: boolean }>('Network.getResponseBody', { requestId });
+    const r = await this.cdp.send<{ body: string; base64Encoded: boolean }>(CDP.Network.getResponseBody, { requestId });
     const content = decodeBody(r.body, r.base64Encoded, mimeType);
     return { url, content, hash: sha256(content) };
   }
@@ -269,7 +222,7 @@ export class InterceptionEngine {
     const attempts: Array<() => Promise<string>> = [];
     if (tracked && !tracked.entry.overrideId) {
       attempts.push(async () => {
-        const r = await this.cdp.send<{ body: string; base64Encoded: boolean }>('Network.getResponseBody', {
+        const r = await this.cdp.send<{ body: string; base64Encoded: boolean }>(CDP.Network.getResponseBody, {
           requestId: tracked.requestId,
         });
         return decodeBody(r.body, r.base64Encoded, tracked.entry.mimeType);
@@ -277,7 +230,7 @@ export class InterceptionEngine {
       if (tracked.frameId) {
         const frameId = tracked.frameId;
         attempts.push(async () => {
-          const r = await this.cdp.send<{ content: string; base64Encoded: boolean }>('Page.getResourceContent', {
+          const r = await this.cdp.send<{ content: string; base64Encoded: boolean }>(CDP.Page.getResourceContent, {
             frameId,
             url,
           });
@@ -324,7 +277,7 @@ export class InterceptionEngine {
   }
 
   private matcherFor(o: Override): UrlPredicate {
-    const key = `${o.id}\u0000${o.match.type}\u0000${o.match.ignoreQuery}\u0000${o.match.pattern}`;
+    const key = [o.id, o.match.type, o.match.ignoreQuery, o.match.pattern].join(MATCHER_KEY_SEPARATOR);
     let predicate = this.matcherCache.get(key);
     if (!predicate) {
       predicate = compileMatcher(o.match);
@@ -344,12 +297,12 @@ export class InterceptionEngine {
     const patterns = computeFetchPatterns(this.opts.getOverrides(), this.opts.getSettings());
     if (patterns.length === 0) {
       if (this.fetchEnabled) {
-        await this.cdp.send('Fetch.disable');
+        await this.cdp.send(CDP.Fetch.disable);
         this.fetchEnabled = false;
       }
       return;
     }
-    await this.cdp.send('Fetch.enable', { patterns });
+    await this.cdp.send(CDP.Fetch.enable, { patterns });
     this.fetchEnabled = true;
   }
 
@@ -361,13 +314,13 @@ export class InterceptionEngine {
         return;
       }
       if (
-        p.resourceType === 'Document' &&
+        p.resourceType === DOCUMENT_KIND &&
         this.opts.getSettings().stripIntegrity &&
         !p.responseErrorReason &&
         p.responseStatusCode !== undefined &&
-        p.responseStatusCode >= 200 &&
-        p.responseStatusCode < 300 &&
-        (headerValue(p.responseHeaders, 'content-type') ?? 'text/html').includes('html')
+        p.responseStatusCode >= HTTP_SUCCESSFUL &&
+        p.responseStatusCode < HTTP_REDIRECTION &&
+        (headerValue(p.responseHeaders, CONTENT_TYPE) ?? HTML_MIME_TYPE).includes(HTML_TYPE_MARKER)
       ) {
         if (await this.serveWithoutIntegrity(p)) return;
       }
@@ -384,7 +337,10 @@ export class InterceptionEngine {
   private async serveOverride(p: RequestPausedParams, override: Override): Promise<void> {
     const settings = this.opts.getSettings();
     const upstreamOk =
-      !p.responseErrorReason && p.responseStatusCode !== undefined && p.responseStatusCode >= 200 && p.responseStatusCode < 300;
+      !p.responseErrorReason &&
+      p.responseStatusCode !== undefined &&
+      p.responseStatusCode >= HTTP_SUCCESSFUL &&
+      p.responseStatusCode < HTTP_REDIRECTION;
 
     if (override.originalHash && upstreamOk) {
       const upstream = await this.readPausedBody(p);
@@ -394,7 +350,7 @@ export class InterceptionEngine {
     }
 
     let body = override.content;
-    if (override.kind === 'Document') {
+    if (override.kind === DOCUMENT_KIND) {
       if (settings.stripIntegrity) body = stripIntegrityAttributes(body).html;
     } else if (settings.stripSourceMaps) {
       body = stripSourceMapComments(body);
@@ -402,9 +358,9 @@ export class InterceptionEngine {
 
     if (p.networkId) this.servedBy.set(p.networkId, override.id);
     // An override also answers requests whose upstream failed (404, 500, offline).
-    await this.cdp.send('Fetch.fulfillRequest', {
+    await this.cdp.send(CDP.Fetch.fulfillRequest, {
       requestId: p.requestId,
-      responseCode: 200,
+      responseCode: OVERRIDE_STATUS,
       responseHeaders: buildOverrideHeaders(p.responseHeaders, override.kind, settings),
       body: Buffer.from(body, 'utf8').toString('base64'),
     });
@@ -418,10 +374,10 @@ export class InterceptionEngine {
     const stripped = stripIntegrityAttributes(html);
     if (stripped.count === 0) return false;
     if (p.networkId) this.rewritten.set(p.networkId, sha256(html));
-    await this.cdp.send('Fetch.fulfillRequest', {
+    await this.cdp.send(CDP.Fetch.fulfillRequest, {
       requestId: p.requestId,
       responseCode: p.responseStatusCode,
-      responseHeaders: buildRewrittenHeaders(p.responseHeaders, 'text/html'),
+      responseHeaders: buildRewrittenHeaders(p.responseHeaders, HTML_MIME_TYPE),
       body: Buffer.from(stripped.html, 'utf8').toString('base64'),
     });
     return true;
@@ -429,10 +385,10 @@ export class InterceptionEngine {
 
   private async readPausedBody(p: RequestPausedParams): Promise<string | undefined> {
     try {
-      const r = await this.cdp.send<{ body: string; base64Encoded: boolean }>('Fetch.getResponseBody', {
+      const r = await this.cdp.send<{ body: string; base64Encoded: boolean }>(CDP.Fetch.getResponseBody, {
         requestId: p.requestId,
       });
-      return decodeBody(r.body, r.base64Encoded, headerValue(p.responseHeaders, 'content-type'));
+      return decodeBody(r.body, r.base64Encoded, headerValue(p.responseHeaders, CONTENT_TYPE));
     } catch {
       return undefined;
     }
@@ -440,7 +396,7 @@ export class InterceptionEngine {
 
   private async continue(requestId: string): Promise<void> {
     try {
-      await this.cdp.send('Fetch.continueRequest', { requestId });
+      await this.cdp.send(CDP.Fetch.continueRequest, { requestId });
     } catch {
       // The request was cancelled (e.g. the page navigated away); nothing to do.
     }
@@ -455,7 +411,7 @@ export class InterceptionEngine {
     request: { url: string };
   }): void {
     const isMainFrameNavigation =
-      p.type === 'Document' && p.requestId === p.loaderId && (!this.mainFrameId || p.frameId === this.mainFrameId);
+      p.type === DOCUMENT_KIND && p.requestId === p.loaderId && (!this.mainFrameId || p.frameId === this.mainFrameId);
     if (!isMainFrameNavigation) return;
     // Redirects re-send the same request; keep what was already held.
     if (this.pending?.loaderId !== p.loaderId) this.pending = { loaderId: p.loaderId, held: [] };
@@ -497,12 +453,12 @@ export class InterceptionEngine {
     const upstreamHash = this.rewritten.get(p.requestId);
     this.servedBy.delete(p.requestId);
     this.rewritten.delete(p.requestId);
-    if (!isKind(p.type) || /^(data|blob|about|chrome|devtools):/.test(url)) return;
+    if (!isKind(p.type) || UNLISTED_URL.test(url)) return;
     // While a navigation is pending, only its own document counts; it's listed when it commits.
     const heldForCommit = !!this.pending && p.loaderId === this.pending.loaderId;
     if (this.pending && !heldForCommit) return;
     if (!overrideId) this.reportIfMissed(url, p.type);
-    const frame = this.frameOf(p.frameId, p.type === 'Document' ? url : undefined);
+    const frame = this.frameOf(p.frameId, p.type === DOCUMENT_KIND ? url : undefined);
     const existing = this.resources.get(url);
     // The same file loaded by the top frame and by an iframe is listed as the top frame's.
     if (existing && !existing.entry.frame && frame && existing.entry.overrideId === overrideId) return;
@@ -540,7 +496,7 @@ export class InterceptionEngine {
   /** Nesting of a frame below this session's root frame (0 = the root frame itself). */
   private localDepth(frameId: string | undefined): number {
     let depth = 0;
-    for (let id = frameId; id && id !== this.mainFrameId && depth < 32; id = this.frameParents.get(id)) depth++;
+    for (let id = frameId; id && id !== this.mainFrameId && depth < MAX_FRAME_DEPTH; id = this.frameParents.get(id)) depth++;
     return depth;
   }
 
@@ -552,18 +508,9 @@ export class InterceptionEngine {
   private reportIfMissed(url: string, resourceType: string): void {
     const override = this.findOverride(url, resourceType);
     if (!override) return;
-    const key = `${override.id}|${url}`;
+    const key = `${override.id}${MISSED_KEY_SEPARATOR}${url}`;
     if (this.missed.has(key)) return;
     this.missed.add(key);
     this.opts.emit({ type: 'override-missed', overrideId: override.id, url });
   }
-}
-
-function answersKind(kind: ResourceKind, resourceType: string): boolean {
-  return isKind(resourceType) ? kind === resourceType : kind !== 'Document';
-}
-
-interface FrameTree {
-  frame: { id: string; url: string; parentId?: string };
-  childFrames?: FrameTree[];
 }
