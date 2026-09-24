@@ -2,6 +2,7 @@ import { motion, useReducedMotion, type Variants } from 'motion/react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { cn, EASE_OUT } from '@/shared/lib';
 import { Icon, type IconGlyph } from '@/shared/ui/icon';
+import { isGlyph } from './isGlyph';
 
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
 
@@ -23,10 +24,6 @@ const SIZE: Record<EmptyStateSize, { tile: string; glyph: number; title: string;
   sm: { tile: 'size-9 rounded-xl', glyph: 18, title: 'text-[13px] font-medium', body: 'text-xs' },
   md: { tile: 'size-12 rounded-2xl', glyph: 22, title: 'text-lg font-medium tracking-tight', body: 'text-[13px]' },
 };
-
-function isGlyph(value: unknown): value is IconGlyph {
-  return Array.isArray(value) && value.length > 0 && Array.isArray(value[0]) && typeof value[0][0] === 'string';
-}
 
 const CONTAINER: Variants = { hidden: {}, shown: { transition: { staggerChildren: 0.045, delayChildren: 0.02 } } };
 const ITEM: Variants = {

@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type ComponentPropsWithRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { cn } from '@/shared/lib';
-
-export type PanelResizerOrientation = 'vertical' | 'horizontal';
+import { RESIZER_KEY_HANDLERS } from './resizerKeyHandlers';
+import type { PanelResizerOrientation } from './types';
 
 export interface PanelResizerProps extends Omit<ComponentPropsWithRef<'div'>, 'onResize' | 'children'> {
   /**
@@ -30,6 +30,14 @@ export interface PanelResizerProps extends Omit<ComponentPropsWithRef<'div'>, 'o
   disabled?: boolean;
 }
 
+// Arrow-key steps in px, unless `step` / `largeStep` say otherwise.
+const STEP = 16;
+const LARGE_STEP = 64;
+/** `MouseEvent.button` of the main (left) button. */
+const PRIMARY_BUTTON = 0;
+/** Classes that take the handle out of flow, so it needs no negative margins. */
+const POSITIONED = /(^|\s)(absolute|fixed)(\s|$)/;
+
 /**
  * Window-splitter handle. An 8 px hit area with a 2 px accent line that
  * lights up on hover (after a short intent delay), while dragging and on
@@ -44,8 +52,8 @@ export function PanelResizer({
   onResizeEnd,
   onReset,
   orientation = 'vertical',
-  step = 16,
-  largeStep = 64,
+  step = STEP,
+  largeStep = LARGE_STEP,
   value,
   min,
   max,
@@ -67,7 +75,7 @@ export function PanelResizer({
   /** The drag in progress, and the page's cursor to put back once it ends. */
   const drag = useRef<{ pointerId: number; start: number; last: number; cursor: string } | null>(null);
 
-  const positioned = /(^|\s)(absolute|fixed)(\s|$)/.test(className ?? '');
+  const positioned = POSITIONED.test(className ?? '');
 
   const coord = (event: PointerEvent) => (vertical ? event.clientX : event.clientY);
 
@@ -86,7 +94,7 @@ export function PanelResizer({
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     onPointerDown?.(event);
-    if (disabled || event.defaultPrevented || event.button !== 0) return;
+    if (disabled || event.defaultPrevented || event.button !== PRIMARY_BUTTON) return;
     event.preventDefault(); // no text selection, no focus ring from the mouse
     event.currentTarget.setPointerCapture(event.pointerId);
     const at = coord(event);
@@ -112,22 +120,22 @@ export function PanelResizer({
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     onKeyDown?.(event);
     if (disabled || event.defaultPrevented) return;
-    const amount = event.shiftKey ? largeStep : step;
-    let delta = 0;
-    if (event.key === (vertical ? 'ArrowLeft' : 'ArrowUp')) delta = -amount;
-    else if (event.key === (vertical ? 'ArrowRight' : 'ArrowDown')) delta = amount;
-    else if (event.key === 'Home' && value !== undefined && min !== undefined) delta = min - value;
-    else if (event.key === 'End' && value !== undefined && max !== undefined) delta = max - value;
-    else if (event.key === 'Enter' && onReset) {
-      event.preventDefault();
-      onReset();
-      return;
-    } else return;
-    event.preventDefault();
-    if (!delta) return;
-    // A key step is a whole resize: report it and its end (e.g. to persist), no start.
-    onResize(delta, delta);
-    onResizeEnd?.();
+    const keys = RESIZER_KEY_HANDLERS[orientation];
+    if (!Object.hasOwn(keys, event.key)) return;
+    keys[event.key](event, {
+      amount: event.shiftKey ? largeStep : step,
+      value,
+      min,
+      max,
+      onReset,
+      resize: (delta) => {
+        event.preventDefault();
+        if (!delta) return;
+        // A key step is a whole resize: report it and its end (e.g. to persist), no start.
+        onResize(delta, delta);
+        onResizeEnd?.();
+      },
+    });
   };
 
   return (

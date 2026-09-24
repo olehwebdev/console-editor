@@ -1,9 +1,7 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
-import { animate, motion, useMotionValue, useReducedMotion, type MotionValue } from 'motion/react';
+import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react';
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -11,9 +9,12 @@ import {
   type FocusEvent,
   type KeyboardEvent,
   type PointerEvent,
-  type Ref,
 } from 'react';
-import { cn, DURATION, EASE_OUT, SPRING_LAYOUT } from '@/shared/lib';
+import { KEY } from '@/shared/config';
+import { cn, DURATION, EASE_OUT } from '@/shared/lib';
+import { assignRef } from './assignRef';
+import { InHoverHighlight } from './InHoverHighlight';
+import { setValue } from './setValue';
 
 /** Rows opt in with this attribute (`data-hover-row`); `data-hover-row="false"` opts a row out. */
 export const HOVER_ROW_ATTR = 'data-hover-row';
@@ -25,15 +26,10 @@ const CONTAINER_ATTR = 'data-hover-highlight';
 /** Roles whose rows are one composite widget: the container becomes the Tab entry point. */
 const COMPOSITE_ROLES = new Set(['tree', 'listbox', 'grid', 'treegrid']);
 
-const InHoverHighlight = createContext(false);
-
-/**
- * True inside a <HoverHighlight>. Rows use it to drop their own `:hover`
- * background, since the moving pill already draws it.
- */
-export function useInHoverHighlight(): boolean {
-  return useContext(InHoverHighlight);
-}
+/** Keys that, pressed on the container itself, move focus into its rows. */
+const ENTRY_KEYS: ReadonlySet<string> = new Set([KEY.arrowDown, KEY.arrowUp, KEY.home, KEY.end]);
+/** Below this the pill counts as hidden, so it appears in place instead of gliding. */
+const VISIBLE_OPACITY = 0.05;
 
 export interface HoverHighlightProps extends ComponentPropsWithRef<'div'> {
   /** Classes for the moving pill (default: `rounded-md bg-hover`). */
@@ -51,17 +47,6 @@ export interface HoverHighlightProps extends ComponentPropsWithRef<'div'> {
 }
 
 type Box = { left: number; top: number; width: number; height: number };
-
-function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
-  if (typeof ref === 'function') ref(value);
-  else if (ref) (ref as { current: T | null }).current = value;
-}
-
-function setValue(value: MotionValue<number>, target: number, glide: boolean) {
-  if (value.get() === target && !value.isAnimating()) return;
-  if (glide) animate(value, target, SPRING_LAYOUT);
-  else value.jump(target);
-}
 
 /**
  * Wraps a vertical list and draws one pill behind the hovered row that glides
@@ -139,7 +124,7 @@ export function HoverHighlight({
       if (!box) return hide();
       activeRow.current = row;
       // Glide only while the pill is on screen; from hidden it appears in place.
-      const glide = allowGlide && !reduce && opacity.get() > 0.05;
+      const glide = allowGlide && !reduce && opacity.get() > VISIBLE_OPACITY;
       setValue(x, box.left, glide);
       setValue(y, box.top, glide);
       setValue(width, box.width, glide);
@@ -223,7 +208,7 @@ export function HoverHighlight({
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     onKeyDown?.(event);
     if (!entry || event.defaultPrevented || event.target !== event.currentTarget) return;
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+    if (ENTRY_KEYS.has(event.key)) {
       const row = pickEntryRow(event.currentTarget);
       if (row) {
         event.preventDefault();

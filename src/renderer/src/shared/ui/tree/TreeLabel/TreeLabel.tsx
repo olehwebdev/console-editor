@@ -1,8 +1,8 @@
 import { useMemo, type ComponentPropsWithRef, type ReactNode } from 'react';
 import { cn } from '@/shared/lib';
-
-/** A matched span of the text: `[start, end)` in UTF-16 indices. */
-export type TextRange = readonly [start: number, end: number];
+import { findMatches } from './findMatches';
+import { normalize } from './normalize';
+import type { TextRange } from './types';
 
 export interface TreeLabelProps extends Omit<ComponentPropsWithRef<'span'>, 'children'> {
   text: string;
@@ -12,36 +12,6 @@ export interface TreeLabelProps extends Omit<ComponentPropsWithRef<'span'>, 'chi
   ranges?: readonly TextRange[];
   /** Classes for the highlighted runs. */
   markClassName?: string;
-}
-
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** Every case-insensitive occurrence of `needle` in `text`. */
-export function findMatches(text: string, needle: string | undefined): TextRange[] {
-  const query = needle?.trim();
-  if (!query) return [];
-  const out: TextRange[] = [];
-  // A case-insensitive regex keeps indices on the original string (lower-casing can change lengths).
-  const pattern = new RegExp(escapeRegExp(query), 'gi');
-  for (let m = pattern.exec(text); m; m = pattern.exec(text)) {
-    out.push([m.index, m.index + m[0].length]);
-    if (m[0].length === 0) pattern.lastIndex++;
-  }
-  return out;
-}
-
-function normalize(ranges: readonly TextRange[], length: number): TextRange[] {
-  const sorted = ranges
-    .map(([s, e]) => [Math.max(0, Math.min(s, length)), Math.max(0, Math.min(e, length))] as const)
-    .filter(([s, e]) => e > s)
-    .sort((a, b) => a[0] - b[0]);
-  const merged: [number, number][] = [];
-  for (const [s, e] of sorted) {
-    const last = merged[merged.length - 1];
-    if (last && s <= last[1]) last[1] = Math.max(last[1], e);
-    else merged.push([s, e]);
-  }
-  return merged;
 }
 
 /**
