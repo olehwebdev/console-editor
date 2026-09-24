@@ -82,6 +82,12 @@ describe('computeFetchPatterns', () => {
     );
     expect(patterns).toEqual([{ urlPattern: '*', resourceType: 'Script', requestStage: 'Response' }]);
   });
+
+  it('keeps working with an override of a match type it does not know', () => {
+    const unknown = { type: 'prefix', pattern: 'x', ignoreQuery: false } as unknown as Override['match'];
+    const patterns = computeFetchPatterns([override({ match: unknown })], { ...DEFAULT_SETTINGS, stripIntegrity: false });
+    expect(patterns).toEqual([{ urlPattern: '*', resourceType: 'Script', requestStage: 'Response' }]);
+  });
 });
 
 describe('InterceptionEngine', () => {
