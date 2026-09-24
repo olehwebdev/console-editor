@@ -1,0 +1,11 @@
+export { availableHint } from './availableHint';
+export { checkForUpdatesNow } from './checkForUpdatesNow';
+export { WHATS_NEW_TAB } from './constants';
+export { downloadLabel } from './downloadLabel';
+export { downloadUpdate } from './downloadUpdate';
+export { handleUpdateState } from './handleUpdateState';
+export { installUpdate } from './installUpdate';
+export { manualInstallHint } from './manualInstallHint';
+export { openExternal } from './openExternal';
+export { openWhatsNew } from './openWhatsNew';
+export { startUpdates } from './startUpdates';
