@@ -78,7 +78,7 @@ src/
   shared/            types.ts (IPC + data model), constants.ts (gallery hash, env var names),
                      ipcChannels.ts (the IPC channel of each API method, for main and preload),
                      matcher/ (URL matching), minified/, version/ (semver comparison),
-                     changelog.ts (CHANGELOG.md sections)
+                     changelog/ (CHANGELOG.md sections)
   main/
     index.ts         app bootstrap: data folder, Chromium switches, single-instance lock
     launch/          createWindow.ts (window, stores, updater, session flush on close), handOver.ts (a second
