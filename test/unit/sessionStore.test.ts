@@ -96,7 +96,7 @@ describe('SessionStore workspaces', () => {
   it('starts with one workspace, and moves a version 1 session into it', async () => {
     const empty = await fresh();
     const { workspaces, activeId } = empty.workspaces();
-    expect(workspaces).toEqual([{ id: activeId, name: '', host: '', title: '', icon: 'favicon', color: 'ember' }]);
+    expect(workspaces).toEqual([{ id: activeId, name: '', host: '', title: '', icon: 'favicon', color: 'ember', frameNames: {} }]);
 
     await writeFile(join(dir, 'session.json'), JSON.stringify({ version: 1, url: 'https://a.com/page', tabs: [tab('t1')], activeTabId: 't1' }));
     await writeFile(join(dir, 'drafts', 't1.txt'), 'draft');
@@ -117,7 +117,7 @@ describe('SessionStore workspaces', () => {
     await s.saveDraft('a1', { content: 'a draft' });
 
     const second = await s.create();
-    expect(second).toEqual({ id: expect.stringMatching(/^[0-9a-f]{8}$/), name: '', host: '', title: '', icon: 'favicon', color: 'amber' });
+    expect(second).toEqual({ id: expect.stringMatching(/^[0-9a-f]{8}$/), name: '', host: '', title: '', icon: 'favicon', color: 'amber', frameNames: {} });
     await s.setActive(second.id);
     expect(s.get()).toEqual({ url: '', tabs: [], activeTabId: null });
     await s.setUrl('https://b.com/x');
@@ -161,6 +161,17 @@ describe('SessionStore workspaces', () => {
     expect((await fresh()).workspaces().workspaces[0]).toMatchObject({ name: 'x'.repeat(40), icon: 'color', color: 'violet' });
   });
 
+  it('names frames per workspace, within limits, and keeps the names across a restart', async () => {
+    const s = await fresh();
+    const other = await s.create();
+    const names = { 'https://cart.test/embed': '  Cart  ', 'https://billing.test/': 'x'.repeat(100), 'https://empty.test/': ' ', 'https://bad.test/': 7 };
+    const updated = await s.update(s.activeId, { frameNames: names as never });
+    expect(updated.frameNames).toEqual({ 'https://cart.test/embed': 'Cart', 'https://billing.test/': 'x'.repeat(40) });
+    expect(s.workspaces().workspaces.find((w) => w.id === other.id)?.frameNames).toEqual({});
+    await expect(s.update(s.activeId, { frameNames: 'cart' as never })).rejects.toThrow(/frameNames/);
+    expect((await fresh()).workspaces().workspaces[0]!.frameNames).toEqual({ 'https://cart.test/embed': 'Cart', 'https://billing.test/': 'x'.repeat(40) });
+  });
+
   it('deletes a workspace with its drafts and icon, but never the active one', async () => {
     const s = await fresh();
     const other = await s.create();
@@ -200,7 +211,7 @@ describe('SessionStore workspaces', () => {
     await writeFile(join(dir, 'favicons', '12345678.txt'), PNG);
     const s = await fresh();
     expect(s.activeId).toBe('abcdef01');
-    expect(s.workspaces().workspaces).toEqual([{ id: 'abcdef01', name: '', host: 'a.com', title: '', icon: 'favicon', color: 'ember' }]);
+    expect(s.workspaces().workspaces).toEqual([{ id: 'abcdef01', name: '', host: 'a.com', title: '', icon: 'favicon', color: 'ember', frameNames: {} }]);
     expect(s.get()).toEqual({ url: 'https://a.com/', tabs: [tab('t1')], activeTabId: null });
     expect(await readdir(join(dir, 'favicons'))).toEqual([]);
   });

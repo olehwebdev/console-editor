@@ -89,7 +89,7 @@ const override: OverrideMeta = {
   updatedAt: 0,
 };
 
-const workspace = (id: string, host: string): Workspace => ({ id, name: '', host, title: '', icon: 'favicon', color: 'ember' });
+const workspace = (id: string, host: string): Workspace => ({ id, name: '', host, title: '', icon: 'favicon', color: 'ember', frameNames: {} });
 const workspaces = [workspace('wsa00000', 'site.test'), workspace('wsb00000', 'other.test')];
 
 let stopSync: (() => void) | undefined;

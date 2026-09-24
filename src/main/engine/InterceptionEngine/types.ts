@@ -1,6 +1,10 @@
 import type { EngineEvent, Override, ResourceEntry, Settings } from '../../../shared/types';
 import type { CdpTransport } from '../cdp';
 import type { HeaderEntry } from '../transform';
+import type { FrameTracker } from './FrameTracker';
+import type { NavigationTracker } from './NavigationTracker';
+import type { OverrideMatcher } from './OverrideMatcher';
+import type { ResourceTracker } from './ResourceTracker';
 
 export interface FetchPattern {
   urlPattern: string;
@@ -47,4 +51,61 @@ export interface RequestPausedParams {
 export interface FrameTree {
   frame: { id: string; url: string; parentId?: string };
   childFrames?: FrameTree[];
+}
+
+/** Subset of `Network.requestWillBeSent` params that we use. */
+export interface RequestWillBeSentParams {
+  requestId: string;
+  loaderId: string;
+  frameId?: string;
+  type?: string;
+  documentURL: string;
+  request: { url: string };
+}
+
+/** Subset of `Network.responseReceived` params that we use. */
+export interface ResponseReceivedParams {
+  requestId: string;
+  loaderId?: string;
+  type?: string;
+  frameId?: string;
+  response: { url: string; status: number; mimeType: string };
+}
+
+/** The frame of a `Page.frameNavigated` event. */
+export interface NavigatedFrame {
+  id: string;
+  parentId?: string;
+  url: string;
+  loaderId?: string;
+}
+
+/** Subset of `Page.frameAttached` params that we use. */
+export interface FrameAttachedParams {
+  frameId: string;
+  parentFrameId?: string;
+}
+
+/** Subset of `Page.frameDetached` params that we use. */
+export interface FrameDetachedParams {
+  frameId: string;
+  reason?: string;
+}
+
+/** What a {@link ResourceTracker} works with. */
+export interface ResourceTrackerContext {
+  frames: FrameTracker;
+  navigation: NavigationTracker;
+  /** Finds the overrides a response arrived without (to report them). */
+  matcher: OverrideMatcher;
+  opts: Pick<EngineOptions, 'emit' | 'iframe'>;
+}
+
+/** What the handler of paused requests works with. */
+export interface PausedRequestContext {
+  cdp: CdpTransport;
+  opts: Pick<EngineOptions, 'getSettings' | 'emit'>;
+  matcher: OverrideMatcher;
+  /** Told which requests were answered by an override or rewritten. */
+  resources: ResourceTracker;
 }

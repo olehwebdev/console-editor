@@ -1,6 +1,6 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from 'react';
-import type { MenuAlign, MenuSide } from '../types';
+import type { MenuAlign, MenuItem, MenuSide } from '../types';
 
 /**
  * Where the panel opens: at a point (context menu) or against an element (dropdown).
@@ -19,6 +19,47 @@ export type MenuAnchor =
 export type MenuCloseReason = 'select' | 'escape' | 'tab' | 'dismiss' | 'outside' | 'blur';
 
 export type MenuInitialFocus = 'first' | 'last' | 'none';
+
+export interface MenuPanelProps {
+  id: string;
+  items: MenuItem[];
+  anchor: MenuAnchor;
+  /** Keyboard-opened menus start on the first (or, via ArrowUp, the last) item; pointer-opened ones start with no highlight. */
+  initialFocus: MenuInitialFocus;
+  onClose: (reason: MenuCloseReason) => void;
+  /** Pointer-downs and focus moves into this element don't count as "outside" (the dropdown's trigger). */
+  ignoreRef?: RefObject<HTMLElement | null>;
+  label?: string;
+  className?: string;
+}
+
+/** The panel's latest props, for the window listeners and timers, which are bound once. */
+export interface MenuLive {
+  onClose: (reason: MenuCloseReason) => void;
+  isPresent: boolean;
+  anchor: MenuAnchor;
+}
+
+/** What has been typed so far, and the timer that clears it. */
+export interface TypeaheadState {
+  buffer: string;
+  timer: number;
+}
+
+/** A focus loss with no new target, waiting to be told apart from a window blur. */
+export interface BlurCheck {
+  timer: number;
+  pending: boolean;
+}
+
+/** The panel's element and the state its listeners and timers share. */
+export interface MenuPanelRefs {
+  panelRef: RefObject<HTMLDivElement | null>;
+  ignoreRef?: RefObject<HTMLElement | null>;
+  live: RefObject<MenuLive>;
+  typeahead: RefObject<TypeaheadState>;
+  blurCheck: RefObject<BlurCheck>;
+}
 
 export interface Placement {
   left: number;

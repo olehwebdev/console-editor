@@ -6,6 +6,7 @@ import { DURATION, EASE_OUT, SLIDE_IN_X } from '@/shared/lib';
 import { isConfirmOpen } from '@/shared/ui/dialog';
 import { ActivityBar } from '@/widgets/activity-bar';
 import { AppCommandPalette, usePalette } from '@/widgets/command-palette';
+import { ConsolePanel } from '@/widgets/console-panel';
 import { EditorPanel } from '@/widgets/editor-panel';
 import { Explorer } from '@/widgets/explorer';
 import { PagePreview } from '@/widgets/page-preview';
@@ -14,6 +15,7 @@ import { StatusBar } from '@/widgets/status-bar';
 import { TitleBar } from '@/widgets/title-bar';
 import { useLayout } from '../../model/layout';
 import { focusAddressBar } from './focusAddressBar';
+import { ConsolePane } from './ConsolePane';
 import { followRowWidth } from './followRowWidth';
 import { newWorkspace } from './newWorkspace';
 import { openWorkspace } from './openWorkspace';
@@ -25,7 +27,7 @@ import { showSettings } from './showSettings';
 import { SidebarPane } from './SidebarPane';
 
 // Actions never change, so they are read once instead of subscribed to.
-const { toggleSidebar, showSidebarView, sidebarExited, togglePreview } = useLayout.getState();
+const { toggleSidebar, showSidebarView, sidebarExited, togglePreview, toggleConsole } = useLayout.getState();
 const { toggle: togglePalette } = usePalette.getState();
 
 /** Global shortcuts, by lower-cased `KeyboardEvent.key` with Ctrl/Cmd (no Alt or Shift): the app menu's accelerators. */
@@ -33,6 +35,7 @@ const MOD_SHORTCUTS: Readonly<Record<string, () => void>> = {
   [shortcutKey(SHORTCUT.palette)]: togglePalette,
   [shortcutKey(SHORTCUT.quickOpen)]: togglePalette,
   [shortcutKey(SHORTCUT.sidebar)]: toggleSidebar,
+  [shortcutKey(SHORTCUT.console)]: toggleConsole,
 };
 
 /** Switching sidebar views, in seconds. */
@@ -41,8 +44,8 @@ const VIEW_SWAP_DURATION = DURATION.medium1;
 /** The workspace: title bar, activity rail, sidebar, editor, website preview, status bar. */
 export function EditorPage() {
   // Widths change on every drag frame; only the panes below subscribe to them.
-  const { sidebar, previewVisible, resizing } = useLayout(
-    useShallow((s) => ({ sidebar: s.sidebar, previewVisible: s.previewVisible, resizing: s.resizing })),
+  const { sidebar, previewVisible, resizing, consoleVisible } = useLayout(
+    useShallow((s) => ({ sidebar: s.sidebar, previewVisible: s.previewVisible, resizing: s.resizing, consoleVisible: s.consoleVisible })),
   );
 
   // Global shortcuts. Capture phase so Monaco doesn't swallow them.
@@ -69,6 +72,8 @@ export function EditorPage() {
         previewVisible={previewVisible}
         onToggleSidebar={toggleSidebar}
         onTogglePreview={togglePreview}
+        consoleVisible={consoleVisible}
+        onToggleConsole={toggleConsole}
       />
       <div ref={followRowWidth} className="flex min-h-0 flex-1">
         <ActivityBar
@@ -100,8 +105,15 @@ export function EditorPage() {
           ) : null}
         </AnimatePresence>
 
-        <main className="min-w-0 flex-1">
-          <EditorPanel />
+        <main className="flex min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1">
+            <EditorPanel />
+          </div>
+          {consoleVisible ? (
+            <ConsolePane>
+              <ConsolePanel onClose={toggleConsole} />
+            </ConsolePane>
+          ) : null}
         </main>
 
         {previewVisible ? (
@@ -112,7 +124,7 @@ export function EditorPage() {
         ) : null}
       </div>
       <StatusBar />
-      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} onSwitchWorkspace={openWorkspace} onNewWorkspace={newWorkspace} />
+      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} onSwitchWorkspace={openWorkspace} onNewWorkspace={newWorkspace} onToggleConsole={toggleConsole} />
     </div>
   );
 }

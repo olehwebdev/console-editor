@@ -132,7 +132,7 @@ describe('app event bridge', () => {
   });
 
   it('mirrors the workspaces and their site icons', () => {
-    const workspace = { id: 'w1', name: 'Shop', host: 'a.com', title: 'A', icon: 'favicon' as const, color: 'teal' as const };
+    const workspace = { id: 'w1', name: 'Shop', host: 'a.com', title: 'A', icon: 'favicon' as const, color: 'teal' as const, frameNames: {} };
     handleAppEvent({ type: 'workspaces-changed', state: { activeId: 'w1', workspaces: [workspace] } });
     handleAppEvent({ type: 'workspace-favicon', id: 'w1', favicon: 'data:image/png;base64,AA==' });
     expect(useWorkspaceStore.getState()).toMatchObject({ activeId: 'w1', workspaces: [workspace], favicons: { w1: 'data:image/png;base64,AA==' } });
@@ -167,7 +167,7 @@ describe('app event bridge', () => {
 
 describe('menu commands', () => {
   const execCommand = vi.fn();
-  const page = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn() };
+  const page = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn() };
 
   beforeEach(() => {
     vi.stubGlobal('document', { execCommand });
@@ -192,6 +192,7 @@ describe('menu commands', () => {
     ['focus-url', 'focusAddressBar'],
     ['toggle-palette', 'togglePalette'],
     ['toggle-sidebar', 'toggleSidebar'],
+    ['toggle-console', 'toggleConsole'],
   ] as const)('asks the shown page to run %s (%s)', (name, method) => {
     pageCommands.current = page;
     command(name);
