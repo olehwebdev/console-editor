@@ -77,28 +77,33 @@ flowchart LR
 
 ```
 src/
-  shared/            types.ts (IPC + data model), constants.ts (gallery hash, env var names),
+  shared/            types/ (IPC + data model, one file per domain), constants.ts (gallery hash, env var names),
                      ipcChannels.ts (the IPC channel of each API method, for main and preload),
                      matcher/ (URL matching), minified/, version/ (semver comparison),
                      changelog/ (CHANGELOG.md sections)
   main/
     index.ts         app bootstrap: data folder, Chromium switches, single-instance lock
-    launch/          createWindow.ts (window, stores, updater, session flush on close), handOver.ts (a second
-                     launch's URL), launchState.ts (the open window they share), URL and data-folder helpers
+    launch/          createWindow.ts (window, stores, controllers, updater), CloseGuard.ts (session flush on close),
+                     handOver.ts (a second launch's URL), launchState.ts (the open window they share), URL and
+                     data-folder helpers
     constants.ts     http(s) URL patterns, file-not-found code
     appInfo.ts       app id and repository URL (shared with electron-builder.ts)
-    PageController/  PageController.ts (WebContentsView for the site, navigation, engine wiring), normalizeUrl.ts
+    PageController/  PageController.ts (WebContentsView for the site, engine and console wiring), PageLoader.ts
+                     (attach, navigate, leave), normalizeUrl.ts and view/session helpers
     WorkspaceController.ts  workspaces: switching, the page URL, title and favicon each remembers (§5.1)
-    console/         ConsoleService.ts (logs, errors and evaluation on every CDP session), ConsoleFrames.ts
-                     (the page's frames across sessions, and their JavaScript contexts), value previews (§6.7)
+    console/         ConsoleService/ (logs, errors and evaluation on every CDP session: rows, batches, handles),
+                     ConsoleFrames/ (the page's frames across sessions, and their JavaScript contexts), value
+                     previews (§6.7)
     favicon/         a page's favicon as a small data URL (sniffed, size-capped)
     electronTransport.ts  webContents.debugger → CdpTransport
     engine/          PageInterception/ (one engine per CDP session: page + iframes; hands each session to
                      the console too),
-                     InterceptionEngine/, transform/ (SRI/source maps/headers),
+                     InterceptionEngine/ (the coordinator, with frame, navigation, resource, paused-request and
+                     settings collaborators), transform/ (SRI/source maps/headers),
                      cdp/ (transport interface), websocketTransport/ (browser-level CDP, used by tests),
                      constants.ts (CDP command and event names, HTTP status classes)
-    store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts, writeAtomic.ts and their helpers
+    store/           OverrideStore/, SessionStore/ (each a store with its file and record helpers), SettingsStore.ts,
+                     WriteQueue.ts, writeAtomic.ts and shared sanitizers
     update/          UpdateService/ (checks, downloads, installs: §10.1), electronInstaller/ (electron-updater),
                      updateEndpoints.ts (GitHub, or a local update server in tests)
     sitePermissions/ permission policy for the site view
