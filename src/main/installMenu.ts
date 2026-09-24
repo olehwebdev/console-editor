@@ -4,6 +4,9 @@ import { REPO_URL } from './appInfo';
 import type { PageController } from './PageController';
 import type { OverrideStore } from './store/OverrideStore';
 
+/** Where Help › Report an Issue leads. */
+const ISSUES_URL = `${REPO_URL}/issues`;
+
 /**
  * Replaces Electron's default menu. The default one binds Ctrl/Cmd+R to reloading
  * the *editor* window, which would throw away unsaved edits.
@@ -70,7 +73,7 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
         { type: 'separator' },
         // On macOS "About" is in the app menu.
         ...(isMac ? [] : [{ role: 'about' } as MenuItemConstructorOptions]),
-        { label: 'Report an Issue', click: () => void shell.openExternal(`${REPO_URL}/issues`) },
+        { label: 'Report an Issue', click: () => void shell.openExternal(ISSUES_URL) },
         { label: 'Console Editor on GitHub', click: () => void shell.openExternal(REPO_URL) },
       ],
     },
