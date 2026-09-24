@@ -3,3 +3,4 @@ export { hostOf } from './hostOf';
 export { originOf } from './originOf';
 export { pathOf } from './pathOf';
 export { pathSegments } from './pathSegments';
+export { webAddress } from './webAddress';

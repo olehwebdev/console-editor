@@ -1,10 +1,10 @@
 import type { ResourceContent, ResourceEntry } from '../../../shared/types';
 import { sessionTransport, type CdpTransport } from '../cdp';
 import { CDP } from '../constants';
-import { InterceptionEngine, type EngineOptions } from '../InterceptionEngine';
+import { InterceptionEngine } from '../InterceptionEngine';
 import { IFRAME_AUTO_ATTACH, IFRAME_SETUP_TIMEOUT_MS, IFRAME_TARGET_TYPE } from './constants';
 import { SessionGoneError } from './SessionGoneError';
-import type { AttachedToTarget, ChildTarget } from './types';
+import type { AttachedToTarget, ChildTarget, PageInterceptionOptions } from './types';
 import { withTimeout } from './withTimeout';
 
 /**
@@ -21,7 +21,7 @@ export class PageInterception {
   private readonly disposers: Array<() => void> = [];
   private detached = false;
 
-  constructor(private readonly opts: Omit<EngineOptions, 'iframe'>) {
+  constructor(private readonly opts: PageInterceptionOptions) {
     this.root = new InterceptionEngine({ ...opts, transport: sessionTransport(opts.transport) });
   }
 
@@ -35,6 +35,8 @@ export class PageInterception {
       this.cdp.on(CDP.Target.detachedFromTarget, (p: { sessionId: string }) => this.removeTarget(p.sessionId)),
     );
     await this.root.attach();
+    // Bounded like an iframe's setup: the page loads nothing until this returns.
+    await withTimeout(this.observe(undefined, sessionTransport(this.cdp)), IFRAME_SETUP_TIMEOUT_MS, 'Setting up the page').catch(() => undefined);
     await this.cdp.send(CDP.Target.setAutoAttach, { ...IFRAME_AUTO_ATTACH });
   }
 
@@ -47,6 +49,7 @@ export class PageInterception {
     for (const dispose of this.disposers.splice(0)) dispose();
     for (const sessionId of [...this.children.keys()]) this.removeTarget(sessionId, false);
     this.root.detach();
+    this.opts.sessions?.detached(undefined);
     this.cdp.send(CDP.Target.setAutoAttach, { autoAttach: false, waitForDebuggerOnStart: false, flatten: true }).catch(() => undefined);
   }
 
@@ -145,6 +148,9 @@ export class PageInterception {
     const child: ChildTarget = { sessionId, targetId: targetInfo.targetId, parentSessionId, depth, engine, gone };
     this.children.set(sessionId, child);
 
+    // The observer sets up alongside the engine, within the same time budget.
+    const deadline = Date.now() + IFRAME_SETUP_TIMEOUT_MS;
+    const observed = this.observe(sessionId, transport);
     try {
       await withTimeout(
         (async () => {
@@ -166,6 +172,7 @@ export class PageInterception {
         });
       }
     } finally {
+      await withTimeout(observed, Math.max(0, deadline - Date.now()), 'Setting up the iframe').catch(() => undefined);
       // Always let the iframe run: a frame left paused would hang the page.
       // (A session that is already gone just answers with an error.)
       await this.resume(sessionId);
@@ -182,7 +189,13 @@ export class PageInterception {
     this.children.delete(sessionId);
     child.engine.detach();
     child.gone(new SessionGoneError(sessionId));
+    this.opts.sessions?.detached(sessionId);
     if (notify) this.opts.emit({ type: 'iframe-detached', iframeId: sessionId });
+  }
+
+  /** Hands a session to the observer; what it adds is optional, so its failures are dropped. */
+  private async observe(id: string | undefined, transport: CdpTransport): Promise<void> {
+    await this.opts.sessions?.attached(id, transport).catch(() => undefined);
   }
 
   private async resume(sessionId: string): Promise<void> {

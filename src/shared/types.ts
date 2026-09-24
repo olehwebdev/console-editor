@@ -108,6 +108,8 @@ export interface Settings {
   autoFormatMinified: boolean;
   /** Look for a newer release on GitHub at start and every few hours. */
   checkForUpdates: boolean;
+  /** Record the console of the page and its frames (off: for a site that reacts to an attached debugger). */
+  captureConsole: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -119,6 +121,7 @@ export const DEFAULT_SETTINGS: Settings = {
   bypassCSP: false,
   autoFormatMinified: true,
   checkForUpdates: true,
+  captureConsole: true,
 };
 
 export interface PageState {
@@ -164,17 +167,88 @@ export interface Workspace {
   title: string;
   icon: WorkspaceIcon;
   color: WorkspaceColor;
+  /** Names you gave the page's frames in the console, by frame address (see `frameAddress`). */
+  frameNames: Record<string, string>;
 }
 
 export interface WorkspacePatch {
   name?: string;
   icon?: WorkspaceIcon;
   color?: WorkspaceColor;
+  /** Replaces all of them. */
+  frameNames?: Record<string, string>;
 }
 
 export interface WorkspacesState {
   workspaces: Workspace[];
   activeId: string;
+}
+
+/** How serious a console row is, least first (the levels DevTools filters by). */
+export const CONSOLE_LEVELS = ['verbose', 'info', 'warning', 'error'] as const;
+
+export type ConsoleLevel = (typeof CONSOLE_LEVELS)[number];
+
+/**
+ * Where a console row came from: the page's `console` calls, an uncaught error or
+ * rejection, the browser itself (a failed request, a CSP violation), a frame
+ * loading a new document, or code you ran (`input`) and what it gave back (`result`).
+ */
+export type ConsoleSource = 'console' | 'exception' | 'browser' | 'navigation' | 'input' | 'result';
+
+/** What a logged value is, for how it is shown. */
+export type ConsoleValueKind = 'string' | 'number' | 'boolean' | 'nullish' | 'symbol' | 'function' | 'object' | 'error';
+
+/** A logged value as the console shows it: its text, and a handle when it has properties to expand. */
+export interface ConsoleValue {
+  kind: ConsoleValueKind;
+  /** The string itself, a number, or a preview such as `{sku: 42}`, `[1, 2, 3]` or an error with its stack. */
+  text: string;
+  /** Pass to `getConsoleProperties` to list its properties. */
+  handle?: number;
+}
+
+export interface ConsoleProperty {
+  name: string;
+  value: ConsoleValue;
+}
+
+/** A place in a script; line and column count from 1. */
+export interface ConsoleLocation {
+  url: string;
+  line: number;
+  column: number;
+  /** '' for top-level code. */
+  functionName: string;
+}
+
+export interface ConsoleEntry {
+  /** Grows with every entry, across frames: the order they arrived in. */
+  id: number;
+  /** The frame it came from (a `ConsoleFrame.id`); null when it can't be told. */
+  frameId: string | null;
+  level: ConsoleLevel;
+  source: ConsoleSource;
+  /** Milliseconds since the epoch. */
+  time: number;
+  values: ConsoleValue[];
+  /** Where it was logged or thrown, when known. */
+  location?: ConsoleLocation;
+  /** The call stack, innermost first: for errors, warnings, `console.trace` and `console.assert`. */
+  stack?: ConsoleLocation[];
+}
+
+/** A frame of the page: the top page (no `parentId`) or an iframe, however deeply nested. */
+export interface ConsoleFrame {
+  /** Chromium's frame id: it stays the same when the frame moves to another process. */
+  id: string;
+  parentId?: string;
+  /** Its document's URL ('' before it has one). */
+  url: string;
+  /** The iframe's `name` attribute ('' if none). */
+  name: string;
+  /** Code can run in it: it has a JavaScript context (a sandbox without `allow-scripts` has none). */
+  canRun: boolean;
 }
 
 /** Events emitted by the interception engine. */
@@ -204,6 +278,11 @@ export type AppEvent =
   /** A workspace's site icon (a data URL), or null when its page moved to another site. */
   | { type: 'workspace-favicon'; id: string; favicon: string | null }
   | { type: 'command'; command: MenuCommand }
+  /** The page's frames changed: one was added, removed or loaded a new document. */
+  | { type: 'frames-changed'; frames: ConsoleFrame[] }
+  /** New console rows, oldest first. */
+  | { type: 'console-entries'; entries: ConsoleEntry[] }
+  | { type: 'console-cleared' }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };
@@ -283,6 +362,7 @@ export type MenuCommand =
   | 'focus-url'
   | 'toggle-palette'
   | 'toggle-sidebar'
+  | 'toggle-console'
   | 'undo'
   | 'redo'
   | 'select-all'
@@ -333,6 +413,16 @@ export interface ConsoleEditorApi {
    * the ones `getSession` lists.
    */
   switchWorkspace(id: string): Promise<void>;
+
+  /** The page's frames, the top page first; empty while the console isn't recording. */
+  listFrames(): Promise<ConsoleFrame[]>;
+  /** The console rows kept so far (the most recent `MAX_CONSOLE_ENTRIES`). */
+  getConsoleEntries(): Promise<ConsoleEntry[]>;
+  /** Runs `code` in a frame, as the console does. Its input and result also arrive as entries; resolves with the result's. */
+  evaluateInFrame(frameId: string, code: string): Promise<ConsoleEntry>;
+  /** One level of an expandable value's properties. */
+  getConsoleProperties(handle: number): Promise<ConsoleProperty[]>;
+  clearConsole(): Promise<void>;
 
   /** The active workspace's page and tabs. */
   getSession(): Promise<SessionState>;

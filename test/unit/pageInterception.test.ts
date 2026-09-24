@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
 import { sha256 } from '../../src/main/engine/InterceptionEngine';
-import { IFRAME_AUTO_ATTACH, IFRAME_SETUP_TIMEOUT_MS, PageInterception } from '../../src/main/engine/PageInterception';
+import { IFRAME_AUTO_ATTACH, IFRAME_SETUP_TIMEOUT_MS, PageInterception, type SessionObserver } from '../../src/main/engine/PageInterception';
 import { DEFAULT_SETTINGS, type EngineEvent, type Override } from '../../src/shared/types';
 
 type Handler = (params: any, sessionId?: string) => void;
@@ -69,7 +69,7 @@ const override: Override = {
   content: 'patched();',
 };
 
-async function setup(overrides: Override[] = []) {
+async function setup(overrides: Override[] = [], sessions?: SessionObserver) {
   const cdp = new FakeSessions();
   const events: EngineEvent[] = [];
   const pi = new PageInterception({
@@ -77,6 +77,7 @@ async function setup(overrides: Override[] = []) {
     getOverrides: () => overrides,
     getSettings: () => DEFAULT_SETTINGS,
     emit: (e) => events.push(e),
+    sessions,
   });
   await pi.attach();
   return { cdp, pi, events };
@@ -260,5 +261,62 @@ describe('PageInterception', () => {
     cdp.emit('Target.attachedToTarget', iframe('S3'));
     await flush();
     expect(cdp.calls.map((c) => c.method)).toEqual([]);
+  });
+
+  describe('session observer (the console)', () => {
+    /** Records what it is told, and sends a command on each session it gets, as the console does. */
+    const observer = (log: string[], work: (id: string | undefined) => Promise<void> = async () => undefined): SessionObserver => ({
+      async attached(id, transport) {
+        log.push(`attached ${id ?? 'page'}`);
+        await transport.send('Runtime.enable');
+        await work(id);
+      },
+      detached: (id) => log.push(`detached ${id ?? 'page'}`),
+    });
+
+    it('gets the page once attached, and each iframe before it is resumed', async () => {
+      const log: string[] = [];
+      const { cdp } = await setup([], observer(log));
+      expect(cdp.of(undefined).indexOf('Runtime.enable')).toBeLessThan(cdp.of(undefined).indexOf('Target.setAutoAttach'));
+      cdp.emit('Target.attachedToTarget', iframe('S1'));
+      await flush();
+      const child = cdp.of('S1');
+      expect(child.indexOf('Runtime.enable')).toBeGreaterThan(-1);
+      expect(child.indexOf('Runtime.enable')).toBeLessThan(child.indexOf('Runtime.runIfWaitingForDebugger'));
+      expect(log).toEqual(['attached page', 'attached S1']);
+    });
+
+    it('never holds interception up: a failing observer changes nothing, a stuck one only until the setup timeout', async () => {
+      const failing = await setup([], observer([], async () => Promise.reject(new Error('console broke'))));
+      failing.cdp.emit('Target.attachedToTarget', iframe('S1'));
+      await flush();
+      expect(failing.cdp.of('S1').at(-1)).toBe('Runtime.runIfWaitingForDebugger');
+      expect(failing.events).toEqual([]);
+
+      vi.useFakeTimers();
+      try {
+        const stuck = await setup([], observer([], (id) => (id ? new Promise(() => undefined) : Promise.resolve())));
+        stuck.cdp.emit('Target.attachedToTarget', iframe('S1'));
+        await vi.advanceTimersByTimeAsync(IFRAME_SETUP_TIMEOUT_MS / 2);
+        expect(stuck.cdp.of('S1')).not.toContain('Runtime.runIfWaitingForDebugger');
+        await vi.advanceTimersByTimeAsync(IFRAME_SETUP_TIMEOUT_MS);
+        expect(stuck.cdp.of('S1').at(-1)).toBe('Runtime.runIfWaitingForDebugger');
+        expect(stuck.events).toEqual([]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('hears of sessions going away, nested ones first, and of interception stopping', async () => {
+      const log: string[] = [];
+      const { cdp, pi } = await setup([], observer(log));
+      cdp.emit('Target.attachedToTarget', iframe('S1'));
+      await flush();
+      cdp.emit('Target.attachedToTarget', iframe('S2'), 'S1');
+      await flush();
+      cdp.emit('Target.detachedFromTarget', { sessionId: 'S1' });
+      pi.detach();
+      expect(log.filter((l) => l.startsWith('detached'))).toEqual(['detached S2', 'detached S1', 'detached page']);
+    });
   });
 });

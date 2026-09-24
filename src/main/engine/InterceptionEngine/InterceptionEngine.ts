@@ -1,7 +1,7 @@
 import { compileMatcher, type UrlPredicate } from '../../../shared/matcher';
 import type { MatchType, Override, ResourceContent, ResourceEntry } from '../../../shared/types';
 import type { CdpTransport } from '../cdp';
-import { CDP, CONTENT_TYPE, HTML_MIME_TYPE, HTTP_REDIRECTION, HTTP_SUCCESSFUL } from '../constants';
+import { CDP, CONTENT_TYPE, FRAME_SWAP_REASON, HTML_MIME_TYPE, HTTP_REDIRECTION, HTTP_SUCCESSFUL } from '../constants';
 import {
   buildOverrideHeaders,
   buildRewrittenHeaders,
@@ -34,9 +34,6 @@ const HTML_TYPE_MARKER = 'html';
 
 /** URLs never listed: they name no file that could be overridden. */
 const UNLISTED_URL = /^(data|blob|about|chrome|devtools):/;
-
-/** `Page.frameDetached` reason of a frame that moved to another process. */
-const SWAP_REASON = 'swap';
 
 /** Bounds the walk up `frameParents`, which a stale entry could turn into a loop. */
 const MAX_FRAME_DEPTH = 32;
@@ -119,7 +116,7 @@ export class InterceptionEngine {
       this.cdp.on(CDP.Page.frameDetached, (p: { frameId: string; reason?: string }) => {
         this.frameUrls.delete(p.frameId);
         // A frame that moved to another process still has its documents reported here.
-        if (p.reason !== SWAP_REASON) this.frameParents.delete(p.frameId);
+        if (p.reason !== FRAME_SWAP_REASON) this.frameParents.delete(p.frameId);
       }),
     );
     await this.cdp.send(CDP.Page.enable);

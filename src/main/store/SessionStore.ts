@@ -11,6 +11,7 @@ import { isFavicon } from './isFavicon';
 import { isWorkspaceColor } from './isWorkspaceColor';
 import { isWorkspaceIcon } from './isWorkspaceIcon';
 import { sanitizePage } from './sanitizePage';
+import { sanitizeFrameNames } from './sanitizeFrameNames';
 import { sanitizeTabs } from './sanitizeTabs';
 import { sanitizeWorkspace } from './sanitizeWorkspace';
 import type { SessionFileState, WorkspaceRecord } from './types';
@@ -123,11 +124,19 @@ export class SessionStore {
     while (existing.some((w) => w.id === id));
     const used = new Set(existing.map((w) => w.color));
     const color = WORKSPACE_COLORS.find((c) => !used.has(c)) ?? WORKSPACE_COLORS[existing.length % WORKSPACE_COLORS.length];
-    return { id, name: '', icon: DEFAULT_WORKSPACE_ICON, color, url: '', title: '', tabs: [], activeTabId: null };
+    return { id, name: '', icon: DEFAULT_WORKSPACE_ICON, color, url: '', title: '', tabs: [], activeTabId: null, frameNames: {} };
   }
 
   private info(w: WorkspaceRecord): Workspace {
-    return { id: w.id, name: w.name, host: parseUrl(w.url)?.host ?? '', title: w.title, icon: w.icon, color: w.color };
+    return {
+      id: w.id,
+      name: w.name,
+      host: parseUrl(w.url)?.host ?? '',
+      title: w.title,
+      icon: w.icon,
+      color: w.color,
+      frameNames: w.frameNames,
+    };
   }
 
   /** The active workspace's page and tabs. */
@@ -222,15 +231,17 @@ export class SessionStore {
   async update(id: unknown, patch: WorkspacePatch): Promise<Workspace> {
     const w = this.find(id);
     if (!w) throw new Error('Unknown workspace');
-    const { name, icon, color } = patch ?? {};
+    const { name, icon, color, frameNames } = patch ?? {};
     if (name !== undefined && typeof name !== 'string') throw new Error('name must be a string');
     if (icon !== undefined && !isWorkspaceIcon(icon)) throw new Error(`Unsupported icon ${String(icon)}`);
     if (color !== undefined && !isWorkspaceColor(color)) throw new Error(`Unsupported colour ${String(color)}`);
+    if (frameNames !== undefined && (typeof frameNames !== 'object' || frameNames === null)) throw new Error('frameNames must be an object');
     const next: WorkspaceRecord = {
       ...w,
       ...(name !== undefined ? { name: name.slice(0, MAX_WORKSPACE_NAME) } : {}),
       ...(icon !== undefined ? { icon } : {}),
       ...(color !== undefined ? { color } : {}),
+      ...(frameNames !== undefined ? { frameNames: sanitizeFrameNames(frameNames) } : {}),
     };
     this.replace(next);
     await this.queue(() => this.writeState());

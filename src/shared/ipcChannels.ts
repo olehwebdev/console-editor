@@ -37,6 +37,12 @@ export const IPC_CHANNEL = {
   deleteWorkspace: 'workspaces:delete',
   switchWorkspace: 'workspaces:switch',
 
+  listFrames: 'console:frames',
+  getConsoleEntries: 'console:entries',
+  evaluateInFrame: 'console:evaluate',
+  getConsoleProperties: 'console:properties',
+  clearConsole: 'console:clear',
+
   getSession: 'session:get',
   saveSessionTabs: 'session:tabs',
   getDraft: 'session:draft:get',
