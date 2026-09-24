@@ -1,6 +1,7 @@
 import { nativeImage, session, WebContentsView, type BrowserWindow, type Session } from 'electron';
 import type { AppEvent, PageState, Rect } from '../../shared/types';
 import { HTTP_SCHEME } from '../constants';
+import { ConsoleService } from '../console';
 import { electronTransport } from '../electronTransport';
 import { PageInterception } from '../engine/PageInterception';
 import { loadFavicon } from '../favicon';
@@ -41,6 +42,8 @@ const FAVICON_SIZE = 32;
  */
 export class PageController {
   readonly view: WebContentsView;
+  /** The console of the page and its frames. */
+  readonly console: ConsoleService;
   private readonly engine: PageInterception;
   private readonly siteSession: Session;
   private ready: Promise<void> = Promise.resolve();
@@ -71,8 +74,10 @@ export class PageController {
       this.send({ type: 'error', message: `Interception stopped: debugger detached (${reason})` });
     });
 
+    this.console = new ConsoleService({ getSettings: () => this.settings.get(), send: (event) => this.send(event) });
     this.engine = new PageInterception({
       transport,
+      sessions: this.console,
       getOverrides: () => this.store.list(),
       getSettings: () => this.settings.get(),
       emit: (event) => this.send(event),
@@ -233,7 +238,7 @@ export class PageController {
     this.send({ type: 'overrides-changed', overrides: this.store.metas() });
   }
 
-  settingsChanged(): Promise<void> {
-    return this.engine.applySettings();
+  async settingsChanged(): Promise<void> {
+    await Promise.all([this.engine.applySettings(), this.console.applySettings()]);
   }
 }

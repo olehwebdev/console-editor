@@ -10,6 +10,8 @@ const api = vi.hoisted(() => ({
   getSettings: vi.fn(),
   getWorkspaces: vi.fn(),
   getWorkspaceFavicons: vi.fn(),
+  listFrames: vi.fn(),
+  getConsoleEntries: vi.fn(),
   listOverrides: vi.fn(),
   listResources: vi.fn(),
   getPageState: vi.fn(),
@@ -60,7 +62,7 @@ const res = (url: string): ResourceEntry => ({ url, kind: 'Script', mimeType: 't
 const PAGE: PageState = { url: 'https://site.test/', title: 'Site', loading: false, canGoBack: false, canGoForward: false };
 const urls = () => Object.values(useResourceStore.getState().byKey).map((e) => e.url);
 const emit = (event: AppEvent) => events.listener!(event);
-const COMMANDS = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn() };
+const COMMANDS = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn() };
 const SESSION = { restore: vi.fn(async () => {}), startSync: vi.fn(), flush: vi.fn() };
 const WORKSPACES = { activeId: 'w1', workspaces: [{ id: 'w1', name: '', host: 'site.test', title: 'Site', icon: 'favicon' as const, color: 'ember' as const }] };
 
@@ -78,6 +80,8 @@ describe('start bridge', () => {
     api.getSettings.mockResolvedValue(DEFAULT_SETTINGS);
     api.getWorkspaces.mockResolvedValue(WORKSPACES);
     api.getWorkspaceFavicons.mockResolvedValue({});
+    api.listFrames.mockResolvedValue([]);
+    api.getConsoleEntries.mockResolvedValue([]);
     api.listOverrides.mockResolvedValue([]);
     api.listResources.mockResolvedValue([]);
     api.getPageState.mockResolvedValue(PAGE);

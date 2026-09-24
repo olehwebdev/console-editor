@@ -36,6 +36,11 @@ const api: ConsoleEditorApi = {
   deleteWorkspace: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteWorkspace, id),
   switchWorkspace: (id) => ipcRenderer.invoke(IPC_CHANNEL.switchWorkspace, id),
 
+  listFrames: () => ipcRenderer.invoke(IPC_CHANNEL.listFrames),
+  getConsoleEntries: () => ipcRenderer.invoke(IPC_CHANNEL.getConsoleEntries),
+  evaluateInFrame: (frameId, code) => ipcRenderer.invoke(IPC_CHANNEL.evaluateInFrame, frameId, code),
+  getConsoleProperties: (handle) => ipcRenderer.invoke(IPC_CHANNEL.getConsoleProperties, handle),
+  clearConsole: () => ipcRenderer.invoke(IPC_CHANNEL.clearConsole),
   getSession: () => ipcRenderer.invoke(IPC_CHANNEL.getSession),
   saveSessionTabs: (workspaceId, tabs, activeTabId) => ipcRenderer.invoke(IPC_CHANNEL.saveSessionTabs, workspaceId, tabs, activeTabId),
   getDraft: (tabId) => ipcRenderer.invoke(IPC_CHANNEL.getDraft, tabId),
