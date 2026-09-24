@@ -1,4 +1,4 @@
-export const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
+import { isMac } from './constants';
 
 /** Labels for the key names shortcuts are written with, by lowercase name; any other key shows as written, a single character upper-cased. */
 const KEY_LABELS: Record<string, string> = {
