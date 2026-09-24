@@ -1,61 +1,27 @@
 import { createHash } from 'node:crypto';
 import { mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { changelogSection } from '../../shared/changelog';
-import type { AppInfo, AvailableUpdate, UpdateState } from '../../shared/types';
-import { isNewerVersion } from '../../shared/version';
+import { changelogSection } from '../../../shared/changelog';
+import type { AppInfo, AvailableUpdate, UpdateState } from '../../../shared/types';
+import { isNewerVersion } from '../../../shared/version';
+import { FILE_NOT_FOUND } from '../../constants';
+import { errorMessage } from './errorMessage';
+import { manualAssetName } from './manualAssetName';
+import { pendingUpdate } from './pendingUpdate';
+import type { AutoInstaller, GitHubRelease, UpdateServiceOptions } from './types';
 
 /** First automatic check after start, then the interval between checks. */
 export const FIRST_CHECK_MS = 10_000;
 export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
-/** The parts of a GitHub release (REST API) the updater reads. */
-export interface GitHubRelease {
-  tag_name: string;
-  html_url: string;
-  draft?: boolean;
-  prerelease?: boolean;
-  assets: Array<{ name: string; browser_download_url: string; size: number }>;
-}
+/** How GitHub answers while it is limiting requests. */
+const RATE_LIMITED_STATUSES = new Set([403, 429]);
 
-/** Installs a release the way this copy was installed (electron-updater: Windows installer, AppImage, .deb, .rpm). */
-export interface AutoInstaller {
-  /** The version it would install (from the release's latest*.yml), or null when there is none for this system. */
-  check(): Promise<string | null>;
-  download(onProgress: (percent: number) => void): Promise<void>;
-  /** Installs and quits; the app restarts afterwards. Throws when it couldn't install (e.g. the password was refused). */
-  quitAndInstall(): void;
-  /** Whether quitting after a download installs it too (no password needed). */
-  readonly installsOnQuit: boolean;
-}
+/** The release's list of SHA-256 sums, that manual downloads are checked against. */
+const CHECKSUMS_ASSET = 'SHA256SUMS.txt';
 
-export interface UpdateServiceOptions {
-  currentVersion: string;
-  platform: NodeJS.Platform;
-  arch: 'x64' | 'arm64';
-  /** False for builds run from source: nothing is checked. */
-  enabled: boolean;
-  /** GitHub by default; a local server in tests. */
-  endpoints: { latestRelease: string; changelog(version: string): string };
-  fetch(url: string, init?: RequestInit): Promise<Response>;
-  /** Installs updates for copies that can update themselves; null when you install the download. Asked once. */
-  autoInstaller(): Promise<AutoInstaller | null>;
-  /** Where manual downloads are saved. */
-  downloadsDir: string;
-  /** Remembers the last version run, to tell an update apart from a first install. */
-  stateFile: string;
-  /** The version before this one when the data folder is older than stateFile (0.1.0 kept no record); null on a first run. */
-  unrecordedVersion: string | null;
-  /** The "Check for updates" setting. */
-  autoCheck(): boolean;
-  send(state: UpdateState): void;
-  /** Saves drafts and lets the window close; false when the user chose to stay. */
-  prepareToQuit(): Promise<boolean>;
-  /** The app stays after all: closing the window saves drafts again. */
-  cancelQuit(): void;
-  /** Shows a downloaded file: opens a disk image, reveals anything else. */
-  showFile(path: string): Promise<void>;
-}
+/** Added to a manual download's name until its checksum is right. */
+const PARTIAL_DOWNLOAD_SUFFIX = '.download';
 
 /**
  * Checks GitHub for a newer release, downloads it and installs it. Automatic
@@ -87,7 +53,7 @@ export class UpdateService {
         last = (JSON.parse(await readFile(this.opts.stateFile, 'utf8')) as { lastVersion?: unknown }).lastVersion;
       } catch (err) {
         // No record yet: an update from a version that kept none, or a first run. An unreadable one: not an update.
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') last = this.opts.unrecordedVersion;
+        if ((err as NodeJS.ErrnoException).code === FILE_NOT_FOUND) last = this.opts.unrecordedVersion;
       }
       if (last !== version) {
         await mkdir(dirname(this.opts.stateFile), { recursive: true });
@@ -146,7 +112,7 @@ export class UpdateService {
       if (!manual) return this.set(before.status === 'checking' ? { status: 'idle' } : before);
       // An update found earlier stays on offer.
       const update = pendingUpdate(before);
-      return this.set({ status: 'error', during: 'check', message: `Couldn't check for updates: ${message(err)}`, ...(update ? { update } : {}) });
+      return this.set({ status: 'error', during: 'check', message: `Couldn't check for updates: ${errorMessage(err)}`, ...(update ? { update } : {}) });
     }
   }
 
@@ -169,7 +135,7 @@ export class UpdateService {
           await this.opts.showFile(file);
         }
       } catch (err) {
-        this.set({ status: 'error', during: 'download', message: `Couldn't download the update: ${message(err)}`, update });
+        this.set({ status: 'error', during: 'download', message: `Couldn't download the update: ${errorMessage(err)}`, update });
       }
     });
   }
@@ -189,7 +155,7 @@ export class UpdateService {
         installer.quitAndInstall();
       } catch (err) {
         this.opts.cancelQuit();
-        this.set({ status: 'error', during: 'install', message: `Couldn't install the update: ${message(err)}`, update: state.update });
+        this.set({ status: 'error', during: 'install', message: `Couldn't install the update: ${errorMessage(err)}`, update: state.update });
       }
     });
   }
@@ -226,7 +192,7 @@ export class UpdateService {
 
   private async latestRelease(): Promise<GitHubRelease> {
     const res = await this.opts.fetch(this.opts.endpoints.latestRelease, { headers: { Accept: 'application/vnd.github+json' } });
-    if (res.status === 403 || res.status === 429) throw new Error('GitHub is limiting requests, try again later');
+    if (RATE_LIMITED_STATUSES.has(res.status)) throw new Error('GitHub is limiting requests, try again later');
     if (!res.ok) throw new Error(`GitHub answered ${res.status}`);
     const release = (await res.json()) as GitHubRelease;
     if (typeof release?.tag_name !== 'string' || !Array.isArray(release.assets)) throw new Error('unexpected answer from GitHub');
@@ -249,13 +215,13 @@ export class UpdateService {
     if (!release) throw new Error('check for updates again');
     const name = manualAssetName(update.version, this.opts.platform, this.opts.arch);
     const asset = release.assets.find((a) => a.name === name);
-    const sums = release.assets.find((a) => a.name === 'SHA256SUMS.txt');
+    const sums = release.assets.find((a) => a.name === CHECKSUMS_ASSET);
     if (!asset) throw new Error(`the release has no ${name}`);
     if (!sums) throw new Error("the release has no checksums to verify it with");
     const expected = await this.expectedHash(sums.browser_download_url, name);
 
     const target = join(this.opts.downloadsDir, name);
-    const partial = `${target}.download`;
+    const partial = `${target}${PARTIAL_DOWNLOAD_SUFFIX}`;
     await mkdir(this.opts.downloadsDir, { recursive: true });
     const res = await this.opts.fetch(asset.browser_download_url);
     if (!res.ok || !res.body) throw new Error(`GitHub answered ${res.status}`);
@@ -294,23 +260,4 @@ export class UpdateService {
     }
     throw new Error(`the checksums don't list ${name}`);
   }
-}
-
-/** The file a manual update downloads: the disk image on macOS, the archive for a .tar.gz copy on Linux. */
-export function manualAssetName(version: string, platform: NodeJS.Platform, arch: 'x64' | 'arm64'): string {
-  if (platform === 'darwin') return `console-editor-${version}-mac-${arch}.dmg`;
-  if (platform === 'win32') return `console-editor-${version}-win-${arch}-setup.exe`;
-  return `console-editor-${version}-linux-${arch}.tar.gz`;
-}
-
-function pendingUpdate(state: UpdateState): AvailableUpdate | null {
-  if (state.status === 'available' || state.status === 'downloading' || state.status === 'ready') return state.update;
-  if (state.status === 'error') return state.update ?? null;
-  return null;
-}
-
-/** An error's first line: electron-updater's run on with stack traces and response headers. */
-function message(err: unknown): string {
-  const text = (err instanceof Error ? err.message : String(err)).split('\n')[0]!.trim();
-  return text.length > 200 ? `${text.slice(0, 199)}…` : text;
 }
