@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-24
+
 ### Added
 
 - **A console for the page and every iframe in it.** Open it under the editor with **Ctrl/⌘+J** or the new button in the title bar. The logs, errors and browser messages of every frame, even iframes from other sites, arrive in one list, each row tagged with its frame, from the first line a frame logs. Pick a frame and run code in it: send an event in one service and watch another react, with how long it took next to each row (`+4ms`). Filter by frame (each shows its errors and warnings), by level or by text; open logged objects; click where a row came from to open that file. Give frames names such as "billing", kept per workspace. **Record the console** in Settings turns it off, for a site that acts differently while it is on.
@@ -48,6 +50,7 @@ The first release.
 - **Session restore:** closing keeps unsaved edits as drafts and reopens your tabs and the last page.
 - **Installers** for macOS (Apple silicon and Intel), Windows (x64 and ARM) and Linux (AppImage, `.deb`, `.rpm`, `.tar.gz`; x64 and arm64).
 
-[Unreleased]: https://github.com/olehwebdev/console-editor/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/olehwebdev/console-editor/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/olehwebdev/console-editor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/olehwebdev/console-editor/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/olehwebdev/console-editor/releases/tag/v0.1.0
