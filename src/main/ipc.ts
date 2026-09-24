@@ -11,6 +11,7 @@ import type { PageController } from './PageController';
 import type { OverrideStore } from './store/OverrideStore';
 import type { SessionStore } from './store/SessionStore';
 import type { SettingsStore } from './store/SettingsStore';
+import type { UpdateService } from './update/UpdateService';
 
 interface Deps {
   win: BrowserWindow;
@@ -18,6 +19,7 @@ interface Deps {
   store: OverrideStore;
   settings: SettingsStore;
   session: SessionStore;
+  updates: UpdateService;
   /** The renderer answered a `flush-session` event. */
   onSessionFlushed(ok: boolean): void;
 }
@@ -26,7 +28,7 @@ function assertString(value: unknown, name: string): asserts value is string {
   if (typeof value !== 'string') throw new Error(`${name} must be a string`);
 }
 
-export function registerIpc({ win, page, store, settings, session, onSessionFlushed }: Deps): void {
+export function registerIpc({ win, page, store, settings, session, updates, onSessionFlushed }: Deps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -97,6 +99,8 @@ export function registerIpc({ win, page, store, settings, session, onSessionFlus
   handle('settings:update', async (patch: Partial<Settings>) => {
     const next = await settings.update(patch);
     await page.settingsChanged();
+    // Turning automatic checks on or off takes effect now.
+    if (patch.checkForUpdates !== undefined) updates.schedule();
     return next;
   });
 
@@ -108,4 +112,15 @@ export function registerIpc({ win, page, store, settings, session, onSessionFlus
   ipcMain.on('session:flushed', (event, ok: unknown) => {
     if (fromEditor(event)) onSessionFlushed(ok === true);
   });
+
+  handle('app:info', () => updates.appInfo());
+  handle('app:open-external', (url: unknown) => {
+    assertString(url, 'url');
+    if (!/^https?:\/\//i.test(url)) throw new Error('Only http(s) links open externally');
+    return shell.openExternal(url);
+  });
+  handle('update:state', () => updates.state());
+  handle('update:check', () => updates.check(true));
+  handle('update:download', () => updates.download());
+  handle('update:install', () => updates.install());
 }

@@ -8,6 +8,7 @@ import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectEnabledCount, selectOverrideList, useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { KIND_NAME, selectIframeCount, useResourceStore } from '@/entities/resource';
+import { UpdateStatus } from '@/features/update-app';
 
 /** Quiet one-line summary: page state, what is being served, the active file. */
 export function StatusBar() {
@@ -45,6 +46,7 @@ export function StatusBar() {
         </span>
       ) : null}
       <span className="flex-1" />
+      <UpdateStatus />
       {active ? (
         <span className="flex items-center gap-3">
           {active.lite ? <span className="text-warning/80">highlight only</span> : null}

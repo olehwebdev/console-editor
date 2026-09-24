@@ -360,6 +360,38 @@ const ToastCard = memo(function ToastCard({
   // Enter/Space activation produces a click with no pointer detail.
   const byKeyboard = (event: ReactMouseEvent) => event.detail === 0;
 
+  // Two actions, or one beside long text, get a row of their own so the text keeps its width.
+  const long = (node: unknown, max: number) => typeof node === 'string' && node.length > max;
+  const actionsBelow = !!t.secondaryAction || (!!t.action && (long(t.title, 32) || long(t.description, 64)));
+  const actions = (
+    <>
+      {t.secondaryAction ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            t.secondaryAction?.onClick();
+            dismissSelf(byKeyboard(event));
+          }}
+          className="h-6 shrink-0 self-center rounded-md px-2 text-xs font-medium text-fg-muted transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-accent/60"
+        >
+          {t.secondaryAction.label}
+        </button>
+      ) : null}
+      {t.action ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            t.action?.onClick();
+            dismissSelf(byKeyboard(event));
+          }}
+          className="h-6 shrink-0 self-center rounded-md bg-hover px-2 text-xs font-medium text-fg transition-colors hover:bg-pressed focus-visible:outline-2 focus-visible:outline-accent/60"
+        >
+          {t.action.label}
+        </button>
+      ) : null}
+    </>
+  );
+
   return (
     <motion.li
       ref={cardRef}
@@ -405,24 +437,17 @@ const ToastCard = memo(function ToastCard({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium leading-5 text-fg">{t.title}</p>
           {t.description ? <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-fg-muted">{t.description}</p> : null}
+          {actionsBelow ? <div className="-mr-6 mt-2 flex justify-end gap-1">{actions}</div> : null}
         </div>
-        {t.action ? (
-          <button
-            type="button"
-            onClick={(event) => {
-              t.action?.onClick();
-              dismissSelf(byKeyboard(event));
-            }}
-            className="h-6 shrink-0 self-center rounded-md bg-hover px-2 text-xs font-medium text-fg transition-colors hover:bg-pressed focus-visible:outline-2 focus-visible:outline-accent/60"
-          >
-            {t.action.label}
-          </button>
-        ) : null}
+        {actionsBelow ? null : actions}
         <button
           type="button"
           aria-label="Dismiss notification"
           onClick={(event) => dismissSelf(byKeyboard(event))}
-          className="-mr-1 grid size-5 shrink-0 place-items-center self-center rounded-md text-fg-subtle opacity-0 transition-opacity duration-150 hover:bg-hover hover:text-fg focus-visible:opacity-100 group-hover:opacity-100"
+          className={cn(
+            '-mr-1 grid size-5 shrink-0 place-items-center rounded-md text-fg-subtle opacity-0 transition-opacity duration-150 hover:bg-hover hover:text-fg focus-visible:opacity-100 group-hover:opacity-100',
+            actionsBelow ? 'self-start' : 'self-center',
+          )}
         >
           <Icon icon={CloseIcon} size={14} />
         </button>

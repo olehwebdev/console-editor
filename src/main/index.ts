@@ -1,9 +1,9 @@
-import { app, BrowserWindow, dialog } from 'electron';
-import { realpathSync } from 'node:fs';
+import { app, BrowserWindow, dialog, net, shell } from 'electron';
+import { existsSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import appIcon from '../../build/icons/512x512.png?asset&asarUnpack';
 import type { AppEvent } from '../shared/types';
-import { APP_ID, REPO_URL } from './appInfo';
+import { APP_ID, REPO_SLUG, REPO_URL } from './appInfo';
 import { LOCAL_NETWORK_ACCESS_FEATURES, withDisabledFeatures } from './chromiumFlags';
 import { registerIpc } from './ipc';
 import { installMenu } from './menu';
@@ -11,6 +11,8 @@ import { PageController } from './PageController';
 import { OverrideStore } from './store/OverrideStore';
 import { SessionStore } from './store/SessionStore';
 import { SettingsStore } from './store/SettingsStore';
+import { detectInstallMethod, electronAutoInstaller } from './update/electronInstaller';
+import { UpdateService } from './update/UpdateService';
 
 // Runs from source (npm run dev, npm start) keep their data apart from an installed copy's, so the two can
 // run side by side and a dev build never touches your real overrides and logins.
@@ -34,12 +36,18 @@ function sameFolder(a: string, b: string): boolean {
   return canonical(a) === canonical(b);
 }
 
+/** Tests run with a data folder of their own; so may power users. */
+const ownDataFolder = !sameFolder(app.getPath('userData'), defaultUserData);
+
 // As Chrome does, open no debugging port onto the real profile: any local program could start the app
 // with one and read the site view's logins. With a data folder of its own (tests) it still works.
-if (app.isPackaged && sameFolder(app.getPath('userData'), defaultUserData)) {
+if (app.isPackaged && !ownDataFolder) {
   app.commandLine.removeSwitch('remote-debugging-port');
   app.commandLine.removeSwitch('remote-debugging-pipe');
 }
+
+/** A local update server standing in for GitHub (tests); likewise never for the real profile. */
+const updateFeed = ownDataFolder ? process.env.CONSOLE_EDITOR_UPDATE_FEED?.replace(/\/+$/, '') || undefined : undefined;
 
 // Documents served from overrides would otherwise lose access to local/intranet hosts (see chromiumFlags.ts).
 app.commandLine.appendSwitch(
@@ -81,6 +89,8 @@ async function createWindow(): Promise<void> {
     iconPath: appIcon,
   });
   const userData = app.getPath('userData');
+  // Looked at before the stores create their folders. Data without update.json is 0.1.0's, which kept no record of its version.
+  const hadData = ['settings.json', 'session', 'workspace'].some((name) => existsSync(join(userData, name)));
   const store = new OverrideStore(join(userData, 'workspace'));
   const settings = new SettingsStore(join(userData, 'settings.json'));
   const session = new SessionStore(join(userData, 'session'));
@@ -121,36 +131,82 @@ async function createWindow(): Promise<void> {
   page.view.webContents.on('did-navigate-in-page', (_event, url, isMainFrame) => isMainFrame && rememberUrl(url));
 
   // Closing keeps unsaved edits as drafts (reopened next time) instead of asking to discard them:
-  // the renderer writes what it hasn't yet, then answers.
+  // the renderer writes what it hasn't yet, then answers. Installing an update does the same first.
   // (The design-system gallery has no drafts to keep.)
   let closeReady = !!process.env.CONSOLE_EDITOR_GALLERY;
-  let flushTimer: NodeJS.Timeout | undefined;
-  const finishClose = (ok: boolean) => {
-    if (!flushTimer) return;
-    clearTimeout(flushTimer);
-    flushTimer = undefined;
-    if (!ok) {
-      const choice = dialog.showMessageBoxSync(win, {
-        type: 'warning',
-        buttons: ['Close anyway', 'Cancel'],
-        defaultId: 1,
-        cancelId: 1,
-        message: 'Your unsaved edits could not be kept.',
-        detail: 'Close anyway and lose them?',
-      });
-      if (choice !== 0) return;
-    }
-    closeReady = true;
-    win.close();
+  let flushing: Promise<boolean> | undefined;
+  let answerFlush: ((ok: boolean) => void) | undefined;
+  /** True once drafts are written, or the user accepts losing them. */
+  const prepareToQuit = (): Promise<boolean> => {
+    if (closeReady) return Promise.resolve(true);
+    flushing ??= new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => answerFlush?.(false), 5000);
+      answerFlush = (ok) => {
+        clearTimeout(timer);
+        answerFlush = undefined;
+        resolve(ok);
+      };
+      send({ type: 'flush-session' });
+    }).then((ok) => {
+      flushing = undefined;
+      if (!ok && !win.isDestroyed()) {
+        const choice = dialog.showMessageBoxSync(win, {
+          type: 'warning',
+          buttons: ['Close anyway', 'Cancel'],
+          defaultId: 1,
+          cancelId: 1,
+          message: 'Your unsaved edits could not be kept.',
+          detail: 'Close anyway and lose them?',
+        });
+        if (choice !== 0) return false;
+      }
+      closeReady = true;
+      return true;
+    });
+    return flushing;
   };
   win.on('close', (event) => {
     if (closeReady) return;
     event.preventDefault();
-    if (flushTimer) return;
-    send({ type: 'flush-session' });
-    flushTimer = setTimeout(() => finishClose(false), 5000);
+    void prepareToQuit().then((ok) => {
+      if (ok && !win.isDestroyed()) win.close();
+    });
   });
-  registerIpc({ win, page, store, settings, session, onSessionFlushed: finishClose });
+
+  const updates = new UpdateService({
+    currentVersion: app.getVersion(),
+    platform: process.platform,
+    // An Intel build running under Rosetta updates to the Apple silicon one.
+    arch: process.arch === 'arm64' || app.runningUnderARM64Translation ? 'arm64' : 'x64',
+    enabled: app.isPackaged || !!updateFeed,
+    endpoints: updateFeed
+      ? { latestRelease: `${updateFeed}/releases/latest`, changelog: (v) => `${updateFeed}/changelog/v${v}` }
+      : {
+          latestRelease: `https://api.github.com/repos/${REPO_SLUG}/releases/latest`,
+          changelog: (v) => `https://raw.githubusercontent.com/${REPO_SLUG}/v${v}/CHANGELOG.md`,
+        },
+    fetch: (url, init) => net.fetch(url, init),
+    autoInstaller: async () => {
+      const method = await detectInstallMethod();
+      return method ? electronAutoInstaller(method, updateFeed) : null;
+    },
+    downloadsDir: updateFeed ? join(userData, 'downloads') : app.getPath('downloads'),
+    stateFile: join(userData, 'update.json'),
+    unrecordedVersion: hadData ? '0.1.0' : null,
+    autoCheck: () => settings.get().checkForUpdates,
+    send: (state) => send({ type: 'update', state }),
+    prepareToQuit,
+    cancelQuit: () => {
+      closeReady = !!process.env.CONSOLE_EDITOR_GALLERY;
+    },
+    // A disk image opens (mounted, in Finder); anything else is shown in its folder.
+    showFile: async (file) => {
+      if (file.endsWith('.dmg')) await shell.openPath(file);
+      else shell.showItemInFolder(file);
+    },
+  });
+  win.on('closed', () => updates.dispose());
+  registerIpc({ win, page, store, settings, session, updates, onSessionFlushed: (ok) => answerFlush?.(ok) });
 
   // The editor UI must never navigate away or open windows.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -170,6 +226,7 @@ async function createWindow(): Promise<void> {
   const url = handedUrl ?? initialUrl() ?? session.get().url;
   started = true;
   if (url) void page.navigate(url);
+  updates.schedule();
 }
 
 // One instance per data folder: two would overwrite each other's overrides and session.

@@ -15,6 +15,8 @@ export interface ToastOptions {
   description?: ReactNode;
   tone?: ToastTone;
   action?: ToastAction;
+  /** A quieter second choice, shown before `action`. */
+  secondaryAction?: ToastAction;
   /** Milliseconds on screen. Default 4000 (6000 for `danger`); `0` or `Infinity` stays until dismissed. */
   duration?: number;
 }

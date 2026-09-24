@@ -10,15 +10,13 @@
  * The build's fuses turn Node's inspector off, so the app is driven over
  * Chromium's remote debugging port rather than Playwright's Electron support.
  */
-import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { chromium, type Browser, type Page } from 'playwright-core';
 import { STORE_BUNDLE_PATH } from '../fixtures/demoStore.ts';
 import { startFixtureSite } from '../fixtures/site.ts';
+import { launchApp, pages, waitFor, type RunningApp } from './lib.ts';
 
 const root = resolve(import.meta.dirname, '../..');
 
@@ -34,27 +32,6 @@ function defaultExecutable(): string {
   }
 }
 
-async function freePort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
-  const { port } = server.address() as { port: number };
-  await new Promise((done) => server.close(done));
-  return port;
-}
-
-/** Polls `fn` until it returns a truthy value. */
-async function waitFor<T>(what: string, fn: () => Promise<T | undefined> | T | undefined, timeout = 30_000): Promise<T> {
-  const deadline = Date.now() + timeout;
-  for (;;) {
-    const value = await fn();
-    if (value) return value;
-    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${what}`);
-    await new Promise((r) => setTimeout(r, 250));
-  }
-}
-
-const pages = (browser: Browser): Page[] => browser.contexts().flatMap((c) => c.pages());
-
 const executable = resolve(process.argv[2] ?? defaultExecutable());
 if (!existsSync(executable)) {
   console.error(`No app at ${executable}. Build one with \`npm run dist -- --dir\`, or pass its path.`);
@@ -64,39 +41,12 @@ if (!existsSync(executable)) {
 const site = await startFixtureSite();
 const storeUrl = `${site.url}/store/`;
 const userData = await mkdtemp(join(tmpdir(), 'console-editor-smoke-'));
-const port = await freePort();
-const args = [`--remote-debugging-port=${port}`];
-// Chromium's sandbox can't start as root (containers); CI runners aren't root.
-if (process.platform === 'linux' && process.getuid?.() === 0) args.push('--no-sandbox');
 
-console.log(`Starting ${executable}`);
-const app = spawn(executable, args, {
-  env: { ...process.env, CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_URL: storeUrl },
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
-let output = '';
-app.stdout.on('data', (d) => (output += d));
-app.stderr.on('data', (d) => (output += d));
-let exited = false;
-app.on('exit', (code, signal) => {
-  exited = true;
-  output += `\n[app exited: ${signal ?? code}]`;
-});
-
-let browser: Browser | undefined;
+let running: RunningApp | undefined;
 let failed = false;
 try {
-  browser = await waitFor(
-    'the remote debugging port',
-    async () => {
-      if (exited) throw new Error('The app exited during startup');
-      return chromium.connectOverCDP(`http://127.0.0.1:${port}`).catch(() => undefined);
-    },
-    60_000,
-  );
-  const connected = browser;
-  const editor = await waitFor('the editor window', () => pages(connected).find((p) => p.url().endsWith('/renderer/index.html')));
-  await editor.waitForSelector('body[data-ready]', { timeout: 30_000 });
+  running = await launchApp(executable, { CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_URL: storeUrl });
+  const { browser: connected, editor } = running;
 
   // The app opens CONSOLE_EDITOR_URL: the checkout shows $NaN until its bundle is fixed.
   const store = await waitFor('the store page', () => pages(connected).find((p) => p.url() === storeUrl));
@@ -122,10 +72,10 @@ try {
 } catch (err) {
   failed = true;
   console.error(err);
-  console.error(`--- app output ---\n${output.slice(-6000)}`);
+  if (running) console.error(`--- app output ---\n${running.output().slice(-6000)}`);
 } finally {
-  await browser?.close().catch(() => undefined);
-  app.kill();
+  await running?.browser.close().catch(() => undefined);
+  running?.process.kill();
   await new Promise((r) => setTimeout(r, 1000));
   await site.close();
   // Windows can hold the profile's files for a moment after the app exits.

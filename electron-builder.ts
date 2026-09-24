@@ -21,8 +21,10 @@ const config: Configuration = {
   // The icon is also given to GTK (Linux About dialog), which can't read inside app.asar.
   asarUnpack: ['out/main/chunks/*.png'],
   npmRebuild: false,
-  // Uploads are the release workflow's job; this also leaves out auto-update metadata.
-  publish: null,
+  // Where installed copies look for updates: electron-builder writes it into the app (app-update.yml) and
+  // writes the latest*.yml feed files beside the installers. Uploading them is the release workflow's job
+  // (it builds with --publish never).
+  publish: { provider: 'github', owner: 'olehwebdev', repo: 'console-editor', releaseType: 'release' },
   electronFuses: {
     runAsNode: false,
     enableNodeOptionsEnvironmentVariable: false,
@@ -64,7 +66,8 @@ const config: Configuration = {
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
-    differentialPackage: false,
+    // One installer per architecture, built in one run so latest.yml lists both; the updater picks by arch.
+    buildUniversalInstaller: false,
     // Overrides and drafts are yours: uninstalling keeps them.
     deleteAppDataOnUninstall: false,
   },

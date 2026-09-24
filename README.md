@@ -74,6 +74,7 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Never loses work.** Overrides persist and can be switched on and off one by one. Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page next time.
 - **Stays fast on big bundles.** Multi-megabyte files open in a lighter highlight-only mode, and the file tree is virtualized.
 - **Keeps the site contained.** A site gets no permissions silently: camera, clipboard, location and similar ones prompt, the rest are denied. Its pop-ups stay under the editor's control, and a "Leave site?" guard can't block a reload.
+- **Keeps itself up to date.** A new release shows up as a notification with its notes on a **What's New** page, like VS Code's. On Windows and Linux one click downloads it and it installs when you restart; your unsaved edits come back as drafts.
 
 ## Install
 
@@ -91,7 +92,20 @@ The builds aren't signed with a publisher certificate yet, so the first launch t
 - **Windows:** if SmartScreen says it protected your PC, click **More info › Run anyway**. With Smart App Control on, Windows blocks unsigned apps with no way to allow just this one.
 - **Linux:** on Ubuntu 24.04 and later, use the `.deb`: it installs the AppArmor profile Chromium's sandbox needs there. An AppImage needs `chmod +x` and the FUSE 2 library (`libfuse2`, or `libfuse2t64` on Ubuntu 24.04 and later; `fuse-libs` on Fedora).
 
-Each release lists SHA-256 checksums in `SHA256SUMS.txt`. Before a release is drafted, the disk images, the Windows installers and the `.deb` packages are each installed and tested on a machine of their architecture.
+Each release lists SHA-256 checksums in `SHA256SUMS.txt`. Before a release is drafted, the disk images, the Windows installers and the `.deb` packages are each installed and tested on a machine of their architecture, and an installed Windows app and AppImage are updated to a newer build.
+
+### Updates
+
+Console Editor checks GitHub for a new release when it starts and every six hours, and tells you when there is one. **What's New** (in the Help menu) shows what changed; it also opens by itself after an update.
+
+| Installed from | What happens |
+|---|---|
+| **Windows** installer, **AppImage** | Downloads in the background (only what changed, when it can) and installs when you restart or quit |
+| **`.deb`**, **`.rpm`** | Downloads in the background; **Restart to update** asks for your password and installs it with `dpkg` or `rpm` |
+| **macOS** disk image | Downloads the new disk image, checks it against the release's SHA-256 checksums and opens it: drag the app into Applications. Installing in place needs builds signed with an Apple Developer ID, which these aren't yet |
+| **`.tar.gz`** | Downloads the new archive to your Downloads folder, checked the same way, to unpack over this copy |
+
+Downloads are verified before anything is installed (SHA-512 for automatic updates, SHA-256 for the others). Turn the checks off under **Settings › Check for updates**, and check any time from **Help › Check for Updates…**. Version 0.1.0 has no updater: install the next release by hand once.
 
 ## Run from source
 
@@ -178,12 +192,13 @@ Is the idea sound? The trade-offs are in **[docs/RESEARCH.md](docs/RESEARCH.md)*
 
 ## Your data
 
-Everything stays on your machine: no telemetry, no uploads.
+Everything stays on your machine: no telemetry, no uploads. The only request the app makes on its own is the update check: it asks GitHub for the latest release (and that release's notes and files when there is one), sending nothing about you or your work. **Settings › Check for updates** turns it off.
 
 | | Where (under the app's data folder) |
 |---|---|
 | Overrides: your file, the text you started from, the match rule, on/off | `workspace/` (<kbd>File › Reveal Overrides Folder</kbd>) |
 | Settings | `settings.json` |
+| The last version run, to know when to show What's New | `update.json` |
 | Open tabs, unsaved drafts, last page | `session/` |
 | The site's cookies, logins, storage | A persistent browser profile used only by the site view |
 
@@ -207,7 +222,8 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [ ] Response header overrides and request blocking
 - [ ] Search across every file the page loaded
 - [ ] Drive your own Chrome over CDP
-- [ ] Signed and notarized builds, and auto-update
+- [x] Update notifications, What's New, and installing updates on Windows and Linux
+- [ ] Signed and notarized builds (and with them, installing updates in place on macOS)
 - [ ] Source-map explorer: open the original sources behind a bundle
 
 ## Development
@@ -222,6 +238,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 | `npm run test:e2e` | Builds the app and drives it end to end with Playwright (headless Linux: `xvfb-run npm run test:e2e`) |
 | `npm run dist` | Builds the installers for your system into `dist/` (`npm run dist -- --dir` for just the app) |
 | `npm run test:packaged` | Drives the packaged app end to end: pass the app's executable, or run it after `npm run dist` |
+| `npm run test:update` | Updates an installed app (or an AppImage) to a newer build served locally: pass its executable and the newer build's `dist` folder |
 | `npm run demo-site` | Serves the demo site on port 5174 |
 
 - **Main process** (`src/main`): the interception engine (`engine/InterceptionEngine.ts`, one per CDP session) and its iframe coordinator (`engine/PageInterception.ts`), the embedded page, persistence and IPC.

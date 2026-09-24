@@ -4,7 +4,12 @@ import { disposeTabModel, useTabStore } from '@/entities/editor-tab';
 
 /** Closes a tab, asking first when it has unsaved edits. */
 export async function closeTab(tabId: string): Promise<void> {
-  const tab = useTabStore.getState().tabs.find((t) => t.id === tabId);
+  const { tabs, pages, remove } = useTabStore.getState();
+  if (pages.some((p) => p.id === tabId)) {
+    remove(tabId);
+    return;
+  }
+  const tab = tabs.find((t) => t.id === tabId);
   if (!tab) return;
   if (tab.dirty) {
     const ok = await confirm({

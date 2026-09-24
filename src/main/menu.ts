@@ -65,6 +65,9 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
     {
       role: 'help',
       submenu: [
+        { label: "What's New", click: command('whats-new') },
+        { label: 'Check for Updates…', click: command('check-updates') },
+        { type: 'separator' },
         // On macOS "About" is in the app menu.
         ...(isMac ? [] : [{ role: 'about' } as MenuItemConstructorOptions]),
         { label: 'Report an Issue', click: () => void shell.openExternal(`${REPO_URL}/issues`) },

@@ -13,6 +13,7 @@ import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
 import { setOverrideEnabled } from '@/features/toggle-override';
+import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
 import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 
@@ -65,6 +66,8 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar }: AppComm
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: ['mod', 'shift', 'J'], onSelect: () => void openPageDevTools() },
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },
         { id: 'settings', label: 'Settings', icon: icons.SettingsIcon, onSelect: onShowSettings },
+        { id: 'whats-new', label: "What's New", icon: icons.WhatsNewIcon, keywords: ['release notes', 'changelog', 'version'], onSelect: openWhatsNew },
+        { id: 'check-updates', label: 'Check for updates', icon: icons.DownloadIcon, keywords: ['update', 'upgrade', 'version'], onSelect: () => void checkForUpdatesNow() },
       ],
     };
     const overrideGroup: CommandGroup = {

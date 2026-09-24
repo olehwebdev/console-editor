@@ -12,6 +12,7 @@ import { toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { reloadPage } from '@/features/navigate-page';
 import { saveTab } from '@/features/save-override';
+import { checkForUpdatesNow, handleUpdateState, openWhatsNew, startUpdates } from '@/features/update-app';
 import type { PageCommands } from '@/pages/editor';
 import { flushSession, restoreSession, startSessionSync } from './session';
 
@@ -50,6 +51,12 @@ function runCommand(command: MenuCommand): void {
     case 'select-all':
       if (editorHasFocus()) triggerInActiveEditor('editor.action.selectAll');
       else document.execCommand('selectAll');
+      return;
+    case 'whats-new':
+      openWhatsNew();
+      return;
+    case 'check-updates':
+      void checkForUpdatesNow();
       return;
   }
 }
@@ -137,6 +144,9 @@ export function handleAppEvent(event: AppEvent): void {
     case 'flush-session':
       void flushSession().then(api.sessionFlushed, () => api.sessionFlushed(false));
       return;
+    case 'update':
+      handleUpdateState(event.state);
+      return;
   }
 }
 
@@ -162,7 +172,10 @@ export async function startBridge(): Promise<() => void> {
   void restoreSession()
     .catch(() => undefined)
     .then(() => {
-      if (!stopped) stopSync = startSessionSync();
+      if (stopped) return;
+      stopSync = startSessionSync();
+      // After the tabs are back, so that What's New (opened right after an update) is the one in front.
+      void startUpdates().catch(() => undefined);
     });
   return () => {
     stopped = true;

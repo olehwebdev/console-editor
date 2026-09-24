@@ -32,6 +32,13 @@ const api: ConsoleEditorApi = {
   deleteDraft: (tabId) => ipcRenderer.invoke('session:draft:delete', tabId),
   sessionFlushed: (ok) => ipcRenderer.send('session:flushed', ok),
 
+  getAppInfo: () => ipcRenderer.invoke('app:info'),
+  getUpdateState: () => ipcRenderer.invoke('update:state'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
+
   onEvent(listener) {
     const handler = (_event: IpcRendererEvent, payload: AppEvent) => listener(payload);
     ipcRenderer.on('app:event', handler);

@@ -5,14 +5,16 @@ import { EASE_OUT, fileName } from '@/shared/lib';
 import { CodeEditor, DiffEditor, monaco, requestEditorFocus } from '@/shared/monaco';
 import { EditorTabs } from '@/shared/ui/editor-tabs';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
-import { getTabModel, selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { getTabModel, selectActivePage, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { KindIcon } from '@/entities/resource';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, toggleBaseDiff, useDiffSource } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { saveTab } from '@/features/save-override';
+import { WhatsNewPage } from '@/features/update-app';
 import { openedTabId } from '../lib/focus';
 import { FileHeader } from './FileHeader';
 
@@ -61,8 +63,10 @@ function useFocusOnOpen() {
 export function EditorPanel() {
   // Select the store's own array (a stable reference); new objects from a selector would re-render forever.
   const tabs = useTabStore((s) => s.tabs);
+  const pages = useTabStore((s) => s.pages);
   const activeId = useTabStore((s) => s.activeId);
   const active = useTabStore(selectActiveTab);
+  const activePage = useTabStore(selectActivePage);
   const diff = useTabStore((s) => s.diff);
   const original = useDiffSource((s) => s.original);
   const originalLabel = useDiffSource((s) => s.label);
@@ -73,16 +77,19 @@ export function EditorPanel() {
 
   return (
     <section className="flex h-full min-w-0 flex-col bg-surface-editor" aria-label="Editor" data-testid="editor-panel">
-      {tabs.length ? (
+      {tabs.length || pages.length ? (
         <EditorTabs
-          items={tabs.map((t) => ({
-            id: t.id,
-            label: fileName(t.url),
-            icon: <KindIcon kind={t.kind} size={13} />,
-            dirty: t.dirty,
-            italic: !t.overrideId,
-            title: `${t.url}${t.overrideId ? '' : '\nNot saved as an override yet'}`,
-          }))}
+          items={[
+            ...tabs.map((t) => ({
+              id: t.id,
+              label: fileName(t.url),
+              icon: <KindIcon kind={t.kind} size={13} />,
+              dirty: t.dirty,
+              italic: !t.overrideId,
+              title: `${t.url}${t.overrideId ? '' : '\nNot saved as an override yet'}`,
+            })),
+            ...pages.map((p) => ({ id: p.id, label: p.title, icon: <Icon icon={icons.WhatsNewIcon} size={13} className="text-accent" />, title: p.title })),
+          ]}
           activeId={activeId}
           onSelect={activate}
           onClose={(id) => void closeTab(id)}
@@ -111,8 +118,14 @@ export function EditorPanel() {
           <CodeEditor model={model} onMount={onMount} />
         </div>
 
+        {activePage ? (
+          <div className="absolute inset-0">
+            <WhatsNewPage />
+          </div>
+        ) : null}
+
         <AnimatePresence>
-          {!active ? (
+          {!active && !activePage ? (
             <motion.div
               key="empty"
               className="absolute inset-0 flex items-center justify-center bg-surface-editor"

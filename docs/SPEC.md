@@ -75,7 +75,8 @@ flowchart LR
 
 ```
 src/
-  shared/            types.ts (IPC + data model), matcher.ts (URL matching), minified.ts
+  shared/            types.ts (IPC + data model), matcher.ts (URL matching), minified.ts,
+                     version.ts (semver comparison), changelog.ts (CHANGELOG.md sections)
   main/
     index.ts         app bootstrap: single-instance lock, window, session flush on close
     appInfo.ts       app id and repository URL (shared with electron-builder.ts)
@@ -85,6 +86,7 @@ src/
                      InterceptionEngine.ts, transform.ts (SRI/source maps/headers),
                      cdp.ts (transport interface), websocketTransport.ts (browser-level CDP, used by tests)
     store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts
+    update/          UpdateService.ts (checks, downloads, installs: §10.1), electronInstaller.ts (electron-updater)
     sitePermissions.ts  permission policy for the site view
     chromiumFlags.ts    Local Network Access switches (see §6.5, §8)
     ipc.ts, menu.ts
@@ -94,8 +96,10 @@ src/
     pages/editor/    the workspace layout and its persisted layout store
     widgets/         title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel, command-palette
     features/        open-resource, save-override, format-document, compare-changes, toggle/delete-override,
-                     edit-match-rule, navigate-page, filter-resources, update-settings, close-tab
-    entities/        page, settings, override, editor-tab (+ Monaco model registry), resource
+                     edit-match-rule, navigate-page, filter-resources, update-settings, close-tab,
+                     update-app (notifications, the What's New page, the status-bar entry)
+    entities/        page, settings, override, editor-tab (+ Monaco model registry, page tabs), resource,
+                     app-update (updater state, the bundled CHANGELOG.md)
     shared/          api (preload bridge), ui (design system), monaco, lib (format worker, overlays, motion), config
 test/
   unit/              matcher, transform, store, engine and PageInterception (fake CDP), minified heuristic
@@ -103,11 +107,14 @@ test/
   integration/       engine and iframe sessions against real Chromium + fixture site
   e2e/               the built Electron app driven by Playwright
   smoke/packaged.ts  a packaged build (installed app) driven over the remote debugging port
+  smoke/update.ts    an installed app updated to a newer build from a local stand-in for GitHub
   fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps, iframes
   helpers/           Chromium launcher with the app's flags, WebSocket CDP harness
-build/               icons, macOS entitlements (electron-builder's build resources)
+build/               icons, macOS entitlements, NSIS hooks (electron-builder's build resources)
 electron-builder.ts  installer configuration
-.github/workflows/   ci.yml (checks, tests), release.yml (installers on three systems, draft release)
+scripts/             release-notes.ts (a release's notes from CHANGELOG.md)
+CHANGELOG.md         release notes: shown as What's New, and at the top of each GitHub release
+.github/workflows/   ci.yml (checks, tests), release.yml (installers on three systems, update tests, draft release)
 ```
 
 ## 5. Data model
@@ -249,18 +256,20 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 - One instance per data folder (`app.requestSingleInstanceLock`), so two processes never write the same overrides and session files. A second launch hands its URL to the running window and exits; if the first is still starting, that URL replaces the one it was about to open. On macOS, where Finder and `open` reopen the running app instead of starting a second process, the app also takes URLs from `open-url` the same way (following Electron's documentation; not yet checked on a Mac). Runs from source use a separate `… (dev)` data folder, so they never share one with an installed copy.
 - IPC inputs are type-checked; matchers are validated before storage; settings are filtered to known boolean keys.
 - The site sees a standard Chrome user agent (Electron tokens removed).
-- All data stays local: nothing is uploaded, and there are no telemetry or network calls besides the page and out-of-page fetches for the files you open.
+- All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open, the only network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
+- Updates are verified before they are installed: electron-updater checks the SHA-512 in the release's `latest*.yml`, and manual downloads are checked against the release's `SHA256SUMS.txt` before they are kept. Both come from the same GitHub release, so this guards against damaged downloads, not a compromised release; signed builds would add that (§11). Release notes are Markdown rendered with `marked` and sanitized with DOMPurify (no images, styles, forms or frames), and their links open in the default browser (http and https only). `CONSOLE_EDITOR_UPDATE_FEED` (a local update server, for tests) is honoured only with a data folder of its own, like the debugging port.
 
 ## 9. Testing
 
 | Layer | What | Command |
 |---|---|---|
-| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic | `npm test` |
-| Renderer | Resource tree building and filtering, command-palette fuzzy matching | `npm test` |
+| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule) | `npm test` |
+| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs | `npm test` |
 | Architecture | Feature-Sliced Design layer rules | `npm run lint:fsd` |
 | Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
-| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
+| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL. Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
 | Packaged | The installed app (asar, fuses, signature) fixes the demo store's checkout through the UI, driven over `--remote-debugging-port` since the fuses disable Node's inspector. The release workflow runs it on six runners, one per architecture: macOS (from the disk image), Windows (after a silent install; the x64 runner also checks that the ARM installer refuses it) and Linux (from the installed `.deb`, with Ubuntu's user-namespace restriction left on) | `npm run test:packaged -- <app>` |
+| Update | An installed app updates itself to a build one patch higher, served by a local stand-in for GitHub: the notification, What's New, the download, **Restart to update**, the restarted app running the new version (and What's New after it). The release workflow runs it for the Windows installers (then uninstalls, checking the updater's cache goes too) and the AppImages on their four runners; the `.deb` path was checked by hand | `npm run test:update -- <app> <newer dist>` |
 
 ## 10. Packaging and releases
 
@@ -269,10 +278,27 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 | System | Installers | Notes |
 |---|---|---|
 | macOS | `.dmg`, Apple silicon and Intel | Signed ad hoc unless a Developer ID certificate is configured (`CSC_LINK`/`CSC_NAME`): Apple silicon refuses unsigned code. Hardened runtime with JIT, camera, microphone and location entitlements (also for the helpers, where Chromium captures media) and the matching usage descriptions, without which macOS ends the app when a site asks. Not notarized, so Gatekeeper asks on first launch, and since an ad-hoc signature changes with every build, each new version is asked about again (as are sites' camera, microphone and location permissions) |
-| Windows | NSIS installer per architecture (x64, ARM64) | Per-user or per-machine; the app sets the same AppUserModelID as its shortcuts. `build/installer.nsh` makes the ARM64 installer refuse an x64 PC (electron-builder would otherwise leave shortcuts to nothing) and deletes the installer copy electron-builder keeps for an updater the app doesn't use. Unsigned, so SmartScreen may warn, and Smart App Control blocks it |
+| Windows | NSIS installer per architecture (x64, ARM64), built in one run so `latest.yml` lists both | Per-user or per-machine; the app sets the same AppUserModelID as its shortcuts. `build/installer.nsh` makes the ARM64 installer refuse an x64 PC (electron-builder would otherwise leave shortcuts to nothing), and removes `%LOCALAPPDATA%\console-editor-updater` on uninstall but not when an update runs the old uninstaller: it holds the installer copy differential updates start from, and the new installer may be running from it. Unsigned, so SmartScreen may warn, and Smart App Control blocks it |
 | Linux | AppImage, `.deb`, `.rpm`, `.tar.gz`, x64 and arm64 | `desktopName` names the `.desktop` file and Electron's window class, so docks match the window to the launcher. The `.deb`/`.rpm` install an AppArmor profile, which Ubuntu 24.04+ requires for Chromium's sandbox, and depend on ALSA and GBM too (Electron links them; electron-builder's defaults leave them out). The `.rpm` has no `/usr/lib/.build-id` links, which would clash with other packages built on the same Electron. The AppImage keeps the sandbox on (electron-builder's default desktop entry turns it off) and uses electron-builder's stable runtime, which needs FUSE 2 (`libfuse2`) |
 
-`.github/workflows/release.yml` builds on macOS, Windows and Linux runners after the CI checks. It then installs the disk images, Windows installers and `.deb` packages the way a user would, each on a runner of its own architecture (Apple silicon and Intel Macs, Windows x64 and ARM, Linux x64 and arm64), runs the packaged smoke test against the installed app, and drafts a GitHub release with `SHA256SUMS.txt`. It runs on a `vX.Y.Z` tag matching `package.json` or by hand (optionally drafting the release, whose tag is created on publishing). Signing, notarization and auto-update are not set up yet.
+`.github/workflows/release.yml` builds on macOS, Windows and Linux runners after the CI checks. It then installs the disk images, Windows installers and `.deb` packages the way a user would, each on a runner of its own architecture (Apple silicon and Intel Macs, Windows x64 and ARM, Linux x64 and arm64), runs the packaged smoke test against the installed app, updates the installed Windows app and the AppImage to a build one patch higher (§9), and drafts a GitHub release with the updater's `latest*.yml` and block maps and `SHA256SUMS.txt`. The release's notes start with its `CHANGELOG.md` section (`scripts/release-notes.ts`); the workflow refuses to build a release that has none. It runs on a `vX.Y.Z` tag matching `package.json` or by hand (optionally drafting the release, whose tag is created on publishing). Signing and notarization are not set up yet.
+
+### 10.1 Updates
+
+`UpdateService` (main process) checks 10 seconds after start and every 6 hours while **Check for updates** is on, and on demand (**Help › Check for Updates…**, the command palette). It reads `releases/latest` from GitHub's API (published releases only: drafts and pre-releases are never offered) and compares the tag with the running version. For a newer one it fetches that tag's `CHANGELOG.md` and offers the update with its section as notes. Automatic checks fail quietly (offline, rate-limited); a manual one says why.
+
+How an update installs depends on how the app was installed, decided once and lazily:
+
+| Installed from | Detected by | Update |
+|---|---|---|
+| Windows installer | a packaged app on Windows | electron-updater's `NsisUpdater`: downloads the installer for the running architecture from `latest.yml` (differentially against the installer copy the last install kept, when the release has block maps), verifies its SHA-512, and runs it silently with `--updated --force-run` on **Restart to update**, or silently on quit |
+| AppImage | `APPIMAGE`, set by the AppImage runtime, when the executable is inside that runtime's `APPDIR` (programs started from another AppImage inherit its variables) | `AppImageUpdater`: downloads only the changed blocks (the AppImage embeds its block map), then replaces the file, on restart or quit. A file named with its version is replaced by one named with the new version |
+| `.deb`, `.rpm` | `dpkg-query -S` or `rpm -qf` on the executable | `DebUpdater`/`RpmUpdater`: downloads the package; **Restart to update** installs it through `pkexec` (or `sudo`), which asks for a password once, and restarts. For the `.deb` that one elevated shell runs `dpkg -i`, then `apt-get install -f` if new dependencies are missing (electron-updater would ask again for the second). Not on quit: a password prompt while quitting would surprise. A refused password leaves the app running and says so |
+| macOS disk image, `.tar.gz`, a build from source | anything else | The release's `.dmg` (for the Mac's own architecture, also under Rosetta) or `.tar.gz` is streamed to Downloads, checked against `SHA256SUMS.txt` (kept only when it matches), then opened (`.dmg`) or shown in its folder. macOS can't install in place until the app is signed with a Developer ID (Squirrel.Mac requires it) |
+
+The package manager is asked rather than electron-builder's `resources/package-type` marker: the `.deb` and `.rpm` are built side by side from one folder, so the marker can name the other package, or end up in the AppImage and `.tar.gz`. Before restarting, the app asks the renderer to write unsaved edits as drafts (the same handshake as closing the window), so the session comes back in the new version.
+
+`update.json` in the data folder records the last version run. When it differs from the running one, the app has just been updated and opens **What's New**: a page tab (not a file; saving, formatting and diffs ignore it) listing the bundled `CHANGELOG.md`'s released sections, with the offered update and its download state above them. Version 0.1.0 kept no record, so a data folder of its with no `update.json` counts as an update from 0.1.0.
 
 ## 11. Milestones
 
@@ -290,7 +316,8 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 **M3: Your own Chrome, and distribution**
 - External Chrome mode: launch Chrome with a dedicated `--user-data-dir` plus `--remote-debugging-port`, or connect to a running one; `WebSocketTransport` implementing `CdpTransport`; one engine per tab.
 - ✅ Installers with electron-builder, built and smoke-tested on all three systems by the release workflow (§10).
-- Signed and notarized builds, plus auto-update.
+- ✅ Update notifications, What's New, and installing updates on Windows and Linux (§10.1).
+- Signed and notarized builds, and with them installing updates in place on macOS.
 
 **M4: Sources**
 - Source-map explorer: list the original files from `sourcesContent`, open them read-only, and jump between an original line and the bundle line.

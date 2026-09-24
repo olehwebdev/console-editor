@@ -12,6 +12,7 @@ export * from './icon';
 export * from './icon-button';
 export * from './input';
 export * from './kbd';
+export * from './markdown';
 export * from './menu';
 export * from './panel-resizer';
 export * from './section';

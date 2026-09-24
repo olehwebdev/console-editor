@@ -14,22 +14,17 @@
   !endif
 !macroend
 
-; electron-builder stores a copy of the installer for electron-updater, which this app doesn't
-; use, and never deletes it. Remove it after installing and when uninstalling.
-!macro removeInstallerCopy
-  ${if} $installMode == "all"
-    SetShellVarContext current
-  ${endif}
-  RMDir /r "$LOCALAPPDATA\console-editor-updater"
-  ${if} $installMode == "all"
-    SetShellVarContext all
-  ${endif}
-!macroend
-
-!macro customInstall
-  !insertmacro removeInstallerCopy
-!macroend
-
+; The installer keeps a copy of itself in %LOCALAPPDATA%\console-editor-updater, where the app also
+; downloads updates: the next update downloads only what changed against it. Uninstalling removes the
+; folder, except when an update runs the old uninstaller (the new installer may be running from it).
 !macro customUnInstall
-  !insertmacro removeInstallerCopy
+  ${ifNot} ${isUpdated}
+    ${if} $installMode == "all"
+      SetShellVarContext current
+    ${endif}
+    RMDir /r "$LOCALAPPDATA\console-editor-updater"
+    ${if} $installMode == "all"
+      SetShellVarContext all
+    ${endif}
+  ${endif}
 !macroend

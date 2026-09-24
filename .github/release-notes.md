@@ -10,7 +10,9 @@
 | **Fedora, openSUSE** | `console-editor-{{version}}.x86_64.rpm` · `.aarch64.rpm` |
 | **Other Linux** | `.AppImage` or `.tar.gz` (x64 and arm64) |
 
-The disk images, the Windows installers and the `.deb` packages were each installed and tested on a machine of their architecture before this release was drafted.
+Already have Console Editor 0.2.0 or later? It finds this release by itself: on Windows and with the AppImage, `.deb` or `.rpm` it installs it when you restart, and on macOS it downloads and checks the disk image for you.
+
+The disk images, the Windows installers and the `.deb` packages were each installed and tested on a machine of their architecture before this release was drafted, and an installed Windows app and AppImage were updated to a newer build.
 
 ### First launch
 
