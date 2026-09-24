@@ -75,8 +75,9 @@ flowchart LR
 
 ```
 src/
-  shared/            types.ts (IPC + data model), matcher.ts (URL matching), minified.ts,
-                     version.ts (semver comparison), changelog.ts (CHANGELOG.md sections)
+  shared/            types.ts (IPC + data model), constants.ts (gallery hash, env var names),
+                     matcher.ts (URL matching), minified.ts, version.ts (semver comparison),
+                     changelog.ts (CHANGELOG.md sections)
   main/
     index.ts         app bootstrap: single-instance lock, window, session flush on close
     appInfo.ts       app id and repository URL (shared with electron-builder.ts)

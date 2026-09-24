@@ -1,5 +1,5 @@
 /**
- * Constants shared between the main process, the preload bridge and the renderer.
+ * Constants shared between the main process and the renderer.
  * Keep this file free of runtime imports so every bundle can include it.
  */
 
