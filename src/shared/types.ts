@@ -164,8 +164,8 @@ export type AppEvent =
   | { type: 'update'; state: UpdateState };
 
 /**
- * How an update gets installed.
- * - auto: the app downloads it and installs it on restart (Windows installer, AppImage, .deb, .rpm).
+ * How an update gets installed, once you've asked for it to be downloaded.
+ * - auto: on Restart to update (Windows installer, AppImage, .deb, .rpm).
  * - manual: the app downloads and checks it, you install it (macOS until builds are signed
  *   with a Developer ID, which Apple's updater requires; a copy unpacked from .tar.gz).
  */
@@ -178,6 +178,11 @@ export interface AvailableUpdate {
   /** The release's page on GitHub. */
   releaseUrl: string;
   install: UpdateInstall;
+  /**
+   * An auto install also happens when the app quits (Windows installer, AppImage). A .deb or .rpm
+   * installs only from Restart to update, which asks for a password.
+   */
+  installsOnQuit: boolean;
 }
 
 /** Where the updater is; pushed to the renderer as `update` events. */

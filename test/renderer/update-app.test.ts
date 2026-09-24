@@ -31,11 +31,12 @@ interface ToastCall {
 }
 const lastToast = () => (toast.mock.calls.at(-1) as unknown as [ToastCall])[0];
 
-const update = (install: 'auto' | 'manual' = 'auto', version = '0.2.0'): AvailableUpdate => ({
+const update = (install: 'auto' | 'manual' = 'auto', version = '0.2.0', installsOnQuit = install === 'auto'): AvailableUpdate => ({
   version,
   notes: '- New things.',
   releaseUrl: `https://github.com/olehwebdev/console-editor/releases/tag/v${version}`,
   install,
+  installsOnQuit,
 });
 
 beforeEach(async () => {
@@ -71,6 +72,14 @@ describe('update notifications', () => {
     handleUpdateState({ status: 'available', update: update('auto', '0.3.0') });
     expect(toast).toHaveBeenCalledTimes(2);
     expect(lastToast().title).toBe('Console Editor 0.3.0 is available');
+  });
+
+  it('says a .deb or .rpm installs on restart, after a password, and not on quit', () => {
+    handleUpdateState({ status: 'available', update: update('auto', '0.2.0', false) });
+    expect(lastToast().description).toBe('It downloads in the background; restarting installs it, after asking for your password.');
+    handleUpdateState({ status: 'downloading', update: update('auto', '0.2.0', false), percent: 99 });
+    handleUpdateState({ status: 'ready', update: update('auto', '0.2.0', false) });
+    expect(lastToast().description).toBe('Restart to install it (it asks for your password). Unsaved edits are kept as drafts.');
   });
 
   it('only offers a download where the app cannot install it itself', () => {

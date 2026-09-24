@@ -61,7 +61,9 @@ class DebInstaller extends DebUpdater {
       return false;
     }
     try {
-      this.runCommandWithSudoIfNeeded(['dpkg', '-i', file, '||', 'apt-get', 'install', '-f', '-y']);
+      // apt-get adds missing dependencies and finishes the install; dpkg runs again so that any other failure
+      // (a file another package owns, say) still fails here instead of restarting into the old version.
+      this.runCommandWithSudoIfNeeded(['dpkg', '-i', file, '||', '(apt-get', 'install', '-f', '-y', '&&', 'dpkg', '-i', `${file})`]);
     } catch (err) {
       this.dispatchError(err instanceof Error ? err : new Error(String(err)));
       return false;
@@ -97,6 +99,7 @@ export function electronAutoInstaller(method: InstallMethod, feed?: string): Aut
   updater.disableWebInstaller = true;
   if (feed) updater.setFeedURL({ provider: 'generic', url: `${feed}/download`, useMultipleRangeRequest: false });
   return {
+    installsOnQuit: updater.autoInstallOnAppQuit,
     async check() {
       const result = await updater.checkForUpdates();
       return result?.isUpdateAvailable ? result.updateInfo.version : null;

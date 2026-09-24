@@ -8,7 +8,7 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { Icon } from '@/shared/ui/icon';
 import { Markdown } from '@/shared/ui/markdown';
 import { RELEASES, selectOfferedUpdate, useUpdateStore } from '@/entities/app-update';
-import { downloadLabel, downloadUpdate, installUpdate, manualInstallHint, openExternal } from '../model/update';
+import { availableHint, downloadLabel, downloadUpdate, installUpdate, manualInstallHint, openExternal } from '../model/update';
 
 function formatDate(date: string | null): string | null {
   if (!date) return null;
@@ -74,7 +74,9 @@ function UpdateStep({ update, state }: { update: AvailableUpdate; state: UpdateS
   if (state.status === 'ready') {
     return update.install === 'auto' ? (
       <>
-        <span className="flex-1 text-[12.5px] text-fg-muted">Downloaded. Unsaved edits are kept as drafts across the restart.</span>
+        <span className="flex-1 text-[12.5px] text-fg-muted">
+          Downloaded.{update.installsOnQuit ? '' : ' Restarting asks for your password.'} Unsaved edits are kept as drafts across the restart.
+        </span>
         <Button variant="primary" size="sm" leading={<Icon icon={icons.ReloadIcon} size={12} />} onClick={installUpdate}>
           Restart to update
         </Button>
@@ -96,7 +98,7 @@ function UpdateStep({ update, state }: { update: AvailableUpdate; state: UpdateS
         {state.status === 'error'
           ? state.message
           : update.install === 'auto'
-            ? 'It downloads in the background and installs when you restart.'
+            ? availableHint(update)
             : 'The download is checked against the release’s SHA-256 checksums.'}
       </span>
       <Button variant="primary" size="sm" leading={<Icon icon={icons.DownloadIcon} size={12} />} onClick={downloadUpdate}>

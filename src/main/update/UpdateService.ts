@@ -25,6 +25,8 @@ export interface AutoInstaller {
   download(onProgress: (percent: number) => void): Promise<void>;
   /** Installs and quits; the app restarts afterwards. Throws when it couldn't install (e.g. the password was refused). */
   quitAndInstall(): void;
+  /** Whether quitting after a download installs it too (no password needed). */
+  readonly installsOnQuit: boolean;
 }
 
 export interface UpdateServiceOptions {
@@ -137,7 +139,7 @@ export class UpdateService {
       this.release = release;
       return this.set({
         status: 'available',
-        update: { version, notes: notes || (offered?.version === version ? offered.notes : ''), releaseUrl: release.html_url, install: installer ? 'auto' : 'manual' },
+        update: { version, notes: notes || (offered?.version === version ? offered.notes : ''), releaseUrl: release.html_url, install: installer ? 'auto' : 'manual', installsOnQuit: !!installer?.installsOnQuit },
       });
     } catch (err) {
       if (superseded()) return this.current;

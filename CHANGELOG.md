@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- **Updates.** Console Editor checks GitHub for a new release when it starts and every few hours, and tells you when there is one. On Windows and with the AppImage it downloads the update in the background and installs it when you restart or quit; the `.deb` and `.rpm` install it when you click **Restart to update**, after asking for your password. Your unsaved edits come back as drafts. On macOS it downloads the new disk image, checks it and opens it for you to drag into Applications (installing in place needs builds signed with an Apple Developer ID); a `.tar.gz` copy gets the new archive in Downloads. Turn the checks off in **Settings**, or check any time from **Help › Check for Updates…**.
+- **Updates.** Console Editor checks GitHub for a new release when it starts and every few hours, and tells you when there is one. One click downloads it in the background. On Windows and with the AppImage it then installs when you click **Restart to update** or quit the app; the `.deb` and `.rpm` install it when you click **Restart to update**, after asking for your password. Your unsaved edits come back as drafts. On macOS it downloads the new disk image, checks it and opens it for you to drag into Applications (installing in place needs builds signed with an Apple Developer ID); a `.tar.gz` copy gets the new archive in Downloads. Turn the checks off in **Settings**, or check any time from **Help › Check for Updates…**.
 - **What's New.** After an update the app opens a page with what changed, like the one you're reading. Open it again from **Help › What's New** or the command palette.
 
 ## [0.1.0] - 2026-09-24

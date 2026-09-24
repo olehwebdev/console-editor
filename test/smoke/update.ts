@@ -15,7 +15,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { createReadStream, existsSync, readdirSync, readFileSync, readlinkSync, statSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
@@ -183,14 +183,15 @@ try {
       if (updated !== appImage && existsSync(appImage)) throw new Error(`The old AppImage is still at ${appImage}`);
     }
 
-    // Started again by hand: it runs the new version, and opens What's New when this is its first start.
+    // Started again by hand: it runs the new version, and opens What's New as on its first start after an update.
+    // (Where the restart kept this test's data folder, that start already happened there, with no debugging port
+    // to look at it: the record goes back to the old version so this start is the first one again.)
+    if (restartedIn === userData) await writeFile(join(userData, 'update.json'), `${JSON.stringify({ lastVersion: current })}\n`);
     running = await launchApp(updated, { CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_UPDATE_FEED: base });
     const info = await running.editor.evaluate<{ version: string; updatedFrom: string | null }>('window.consoleEditor.getAppInfo()');
     if (info.version !== next) throw new Error(`The app runs ${info.version} after the update, not ${next}`);
-    if (restartedIn !== userData) {
-      if (info.updatedFrom !== current) throw new Error(`Expected "updated from ${current}", got ${info.updatedFrom}`);
-      await running.editor.locator('[data-testid="whats-new"]').getByText(`updated from ${current}`).waitFor({ timeout: 10_000 });
-    }
+    if (info.updatedFrom !== current) throw new Error(`Expected "updated from ${current}", got ${info.updatedFrom}`);
+    await running.editor.locator('[data-testid="whats-new"]').getByText(`updated from ${current}`).waitFor({ timeout: 10_000 });
     console.log(`Update OK on ${process.platform}-${process.arch}: ${current} → ${next}, installed and restarted.`);
   }
 } catch (err) {

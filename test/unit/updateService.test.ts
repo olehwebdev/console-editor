@@ -70,6 +70,7 @@ function fakeInstaller(overrides: Partial<AutoInstaller> = {}): AutoInstaller {
       onProgress(100);
     }),
     quitAndInstall: vi.fn(),
+    installsOnQuit: true,
     ...overrides,
   };
 }
@@ -101,14 +102,16 @@ describe('UpdateService.check', () => {
     const state = await updates.check(true);
     expect(state).toEqual({
       status: 'available',
-      update: { version: '0.2.0', notes: '### Added\n\n- Updates.', releaseUrl: 'https://github.test/releases/v0.2.0', install: 'manual' },
+      update: { version: '0.2.0', notes: '### Added\n\n- Updates.', releaseUrl: 'https://github.test/releases/v0.2.0', install: 'manual', installsOnQuit: false },
     });
     expect(sent.map((s) => s.status)).toEqual(['checking', 'available']);
   });
 
-  it('offers to install it when this copy can update itself', async () => {
+  it('offers to install it when this copy can update itself, saying whether quitting installs it too', async () => {
     const state = await service({ autoInstaller: async () => fakeInstaller() }).check(false);
-    expect(state.status === 'available' && state.update.install).toBe('auto');
+    expect(state.status === 'available' && state.update).toMatchObject({ install: 'auto', installsOnQuit: true });
+    const deb = await service({ autoInstaller: async () => fakeInstaller({ installsOnQuit: false }) }).check(false);
+    expect(deb.status === 'available' && deb.update).toMatchObject({ install: 'auto', installsOnQuit: false });
   });
 
   it('says it is up to date when the latest release is this version or older', async () => {
