@@ -1,7 +1,7 @@
 import { motion, useIsPresent, useReducedMotion } from 'motion/react';
 import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { WarningIcon } from '@/shared/config/icons';
-import { cn, EASE_OUT, SPRING_PANEL, SPRING_PRESS, useRegisterOverlay } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, SPRING_PANEL, SPRING_PRESS, useRegisterOverlay } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
 import { settle, type ConfirmRequest } from '../store';
 import { DIALOG_KEY_HANDLERS } from './dialogKeyHandlers';
@@ -69,8 +69,8 @@ export function DialogPanel({ request, className }: { request: ConfirmRequest; c
         inert={!isPresent}
         initial={{ opacity: 0, scale: reduce ? 1 : 0.94, y: reduce ? 0 : 6 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: reduce ? 1 : 0.97, transition: { duration: 0.12, ease: EASE_OUT } }}
-        transition={reduce ? { duration: 0.12 } : { default: SPRING_PANEL, opacity: { duration: 0.16, ease: EASE_OUT } }}
+        exit={{ opacity: 0, scale: reduce ? 1 : 0.97, transition: { duration: DURATION.fast, ease: EASE_OUT } }}
+        transition={reduce ? { duration: DURATION.fast } : { default: SPRING_PANEL, opacity: { duration: 0.16, ease: EASE_OUT } }}
         className={cn(
           'relative w-full max-w-[400px] rounded-2xl bg-surface-overlay p-5 text-fg shadow-overlay backdrop-blur-xl will-change-transform',
           className,

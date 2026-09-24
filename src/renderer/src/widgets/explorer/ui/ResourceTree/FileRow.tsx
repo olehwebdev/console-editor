@@ -6,7 +6,7 @@ import { Tooltip } from '@/shared/ui/tooltip';
 import { TreeLabel, TreeRow } from '@/shared/ui/tree';
 import { describeFrame, KindIcon, type ResourceRow } from '@/entities/resource';
 import { openResource } from '@/features/open-resource';
-import { ROW_ICON_SIZE } from './constants';
+import { ROW_ICON_SIZE } from '../constants';
 import { fileMenu } from './fileMenu';
 import type { RowNav } from './types';
 

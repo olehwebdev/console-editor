@@ -17,7 +17,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { KEY } from '@/shared/config';
-import { cn, EASE_OUT } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT } from '@/shared/lib';
 import { Kbd } from '@/shared/ui/kbd';
 import { computePlacement } from './computePlacement';
 import { isWarm } from './isWarm';
@@ -79,7 +79,7 @@ const VARIANTS: Variants = {
 
 const REDUCED_VARIANTS: Variants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.12 } },
+  animate: { opacity: 1, transition: { duration: DURATION.fast } },
   exit: { opacity: 0, transition: { duration: 0.08 } },
 };
 

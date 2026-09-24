@@ -1,7 +1,7 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { cn, EASE_OUT, SPRING_SWAP } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, SPRING_SWAP } from '@/shared/lib';
 
 export interface SwapProps {
   /** Identity of the current content; changing it plays the swap. */
@@ -23,13 +23,13 @@ const ROLL: Variants = {
   exit: (d: Direction) => ({
     opacity: 0,
     y: d === 'up' ? '-70%' : '70%',
-    transition: { duration: 0.12, ease: EASE_OUT },
+    transition: { duration: DURATION.fast, ease: EASE_OUT },
   }),
 };
 
 const FADE: Variants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.12 } },
+  animate: { opacity: 1, transition: { duration: DURATION.fast } },
   exit: { opacity: 0, transition: { duration: 0.08 } },
 };
 

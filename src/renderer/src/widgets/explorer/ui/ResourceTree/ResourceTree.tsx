@@ -8,7 +8,7 @@ import { TreeRow, treeKeyTarget, treePositions } from '@/shared/ui/tree';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { buildResourceRows, selectUniqueResources, useResourceStore } from '@/entities/resource';
 import { useResourceFilter } from '@/features/filter-resources';
-import { ROW_ICON_SIZE } from './constants';
+import { ROW_ICON_SIZE } from '../constants';
 import { FileRow } from './FileRow';
 import type { RowNav } from './types';
 
