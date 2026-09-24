@@ -1,49 +1,53 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import { IPC_CHANNEL } from '../shared/ipcChannels';
 import type { AppEvent, ConsoleEditorApi } from '../shared/types';
 
+/** The global the renderer reaches the API through (`window.consoleEditor`, declared in its shared/api). */
+const API_GLOBAL = 'consoleEditor';
+
 const api: ConsoleEditorApi = {
-  navigate: (url) => ipcRenderer.invoke('page:navigate', url),
-  reload: () => ipcRenderer.invoke('page:reload'),
-  goBack: () => ipcRenderer.invoke('page:back'),
-  goForward: () => ipcRenderer.invoke('page:forward'),
-  openPageDevTools: () => ipcRenderer.invoke('page:devtools'),
-  getPageState: () => ipcRenderer.invoke('page:state'),
-  setPageBounds: (bounds) => ipcRenderer.send('page:bounds', bounds),
-  capturePage: () => ipcRenderer.invoke('page:capture'),
+  navigate: (url) => ipcRenderer.invoke(IPC_CHANNEL.navigate, url),
+  reload: () => ipcRenderer.invoke(IPC_CHANNEL.reload),
+  goBack: () => ipcRenderer.invoke(IPC_CHANNEL.goBack),
+  goForward: () => ipcRenderer.invoke(IPC_CHANNEL.goForward),
+  openPageDevTools: () => ipcRenderer.invoke(IPC_CHANNEL.openPageDevTools),
+  getPageState: () => ipcRenderer.invoke(IPC_CHANNEL.getPageState),
+  setPageBounds: (bounds) => ipcRenderer.send(IPC_CHANNEL.setPageBounds, bounds),
+  capturePage: () => ipcRenderer.invoke(IPC_CHANNEL.capturePage),
 
-  listResources: () => ipcRenderer.invoke('resources:list'),
-  getResourceContent: (url) => ipcRenderer.invoke('resources:content', url),
+  listResources: () => ipcRenderer.invoke(IPC_CHANNEL.listResources),
+  getResourceContent: (url) => ipcRenderer.invoke(IPC_CHANNEL.getResourceContent, url),
 
-  listOverrides: () => ipcRenderer.invoke('overrides:list'),
-  getOverride: (id) => ipcRenderer.invoke('overrides:get', id),
-  getOverrideBase: (id) => ipcRenderer.invoke('overrides:base', id),
-  createOverride: (input) => ipcRenderer.invoke('overrides:create', input),
-  updateOverride: (id, patch) => ipcRenderer.invoke('overrides:update', id, patch),
-  deleteOverride: (id) => ipcRenderer.invoke('overrides:delete', id),
-  revealOverridesFolder: () => ipcRenderer.invoke('overrides:reveal'),
+  listOverrides: () => ipcRenderer.invoke(IPC_CHANNEL.listOverrides),
+  getOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.getOverride, id),
+  getOverrideBase: (id) => ipcRenderer.invoke(IPC_CHANNEL.getOverrideBase, id),
+  createOverride: (input) => ipcRenderer.invoke(IPC_CHANNEL.createOverride, input),
+  updateOverride: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateOverride, id, patch),
+  deleteOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteOverride, id),
+  revealOverridesFolder: () => ipcRenderer.invoke(IPC_CHANNEL.revealOverridesFolder),
 
-  getSettings: () => ipcRenderer.invoke('settings:get'),
-  updateSettings: (patch) => ipcRenderer.invoke('settings:update', patch),
+  getSettings: () => ipcRenderer.invoke(IPC_CHANNEL.getSettings),
+  updateSettings: (patch) => ipcRenderer.invoke(IPC_CHANNEL.updateSettings, patch),
 
-  getSession: () => ipcRenderer.invoke('session:get'),
-  saveSessionTabs: (tabs, activeTabId) => ipcRenderer.invoke('session:tabs', tabs, activeTabId),
-  getDraft: (tabId) => ipcRenderer.invoke('session:draft:get', tabId),
-  saveDraft: (tabId, draft) => ipcRenderer.invoke('session:draft:save', tabId, draft),
-  deleteDraft: (tabId) => ipcRenderer.invoke('session:draft:delete', tabId),
-  sessionFlushed: (ok) => ipcRenderer.send('session:flushed', ok),
+  getSession: () => ipcRenderer.invoke(IPC_CHANNEL.getSession),
+  saveSessionTabs: (tabs, activeTabId) => ipcRenderer.invoke(IPC_CHANNEL.saveSessionTabs, tabs, activeTabId),
+  getDraft: (tabId) => ipcRenderer.invoke(IPC_CHANNEL.getDraft, tabId),
+  saveDraft: (tabId, draft) => ipcRenderer.invoke(IPC_CHANNEL.saveDraft, tabId, draft),
+  deleteDraft: (tabId) => ipcRenderer.invoke(IPC_CHANNEL.deleteDraft, tabId),
+  sessionFlushed: (ok) => ipcRenderer.send(IPC_CHANNEL.sessionFlushed, ok),
 
-  getAppInfo: () => ipcRenderer.invoke('app:info'),
-  getUpdateState: () => ipcRenderer.invoke('update:state'),
-  checkForUpdates: () => ipcRenderer.invoke('update:check'),
-  downloadUpdate: () => ipcRenderer.invoke('update:download'),
-  installUpdate: () => ipcRenderer.invoke('update:install'),
-  openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
+  getAppInfo: () => ipcRenderer.invoke(IPC_CHANNEL.getAppInfo),
+  getUpdateState: () => ipcRenderer.invoke(IPC_CHANNEL.getUpdateState),
+  checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNEL.checkForUpdates),
+  downloadUpdate: () => ipcRenderer.invoke(IPC_CHANNEL.downloadUpdate),
+  installUpdate: () => ipcRenderer.invoke(IPC_CHANNEL.installUpdate),
+  openExternal: (url) => ipcRenderer.invoke(IPC_CHANNEL.openExternal, url),
 
   onEvent(listener) {
     const handler = (_event: IpcRendererEvent, payload: AppEvent) => listener(payload);
-    ipcRenderer.on('app:event', handler);
-    return () => ipcRenderer.off('app:event', handler);
+    ipcRenderer.on(IPC_CHANNEL.onEvent, handler);
+    return () => ipcRenderer.off(IPC_CHANNEL.onEvent, handler);
   },
 };
 
-contextBridge.exposeInMainWorld('consoleEditor', api);
+contextBridge.exposeInMainWorld(API_GLOBAL, api);

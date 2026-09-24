@@ -1,0 +1,1 @@
+export { registerIpc } from './registerIpc';
