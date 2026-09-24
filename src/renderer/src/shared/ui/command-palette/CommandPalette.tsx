@@ -231,10 +231,6 @@ function PalettePanel({
     row.result.item.onSelect();
   };
 
-  useEffect(() => {
-    inputRef.current?.focus({ preventScroll: true });
-  }, []);
-
   // Closed from outside (hotkey toggle, parent state): hand focus back if it is still ours.
   useEffect(() => {
     if (isPresent) return;
@@ -331,6 +327,7 @@ function PalettePanel({
             <Icon icon={SearchIcon} size={16} className="text-fg-subtle" />
             <input
               ref={inputRef}
+              autoFocus
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);

@@ -140,6 +140,8 @@ export const useLayout = create<LayoutStore>()((set) => ({
 
 export const selectSidebarWidth = (s: Layout) => fitPanels(s).sidebar;
 export const selectPreviewWidth = (s: Layout) => fitPanels(s).preview;
+/** The preview's width, held at where it was while a panel is dragged. */
+export const selectSettledPreviewWidth = (s: Layout) => s.dragStart?.preview ?? fitPanels(s).preview;
 
 const serialize = ({ sidebar, sidebarWidth, previewVisible, previewRatio }: SavedLayout) =>
   JSON.stringify({ sidebar, sidebarWidth, previewVisible, previewRatio });

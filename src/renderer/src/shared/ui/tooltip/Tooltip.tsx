@@ -5,6 +5,7 @@ import {
   isValidElement,
   useCallback,
   useEffect,
+  useEffectEvent,
   useId,
   useLayoutEffect,
   useRef,
@@ -271,40 +272,38 @@ export function Tooltip({
     setPlacement((prev) => (prev && prev.top === next.top && prev.left === next.left && prev.side === next.side ? prev : next));
   }, [side]);
 
-  // Measure before paint (the surface renders hidden until placed), and again
-  // whenever its size changes (content swap, font load).
+  const dismiss = useEffectEvent(() => hide());
+
+  // While open: placed before paint (the surface renders hidden until then) and
+  // again whenever its size changes (content swap, font load); Escape, scroll,
+  // resize and window blur dismiss it. A pinned (controlled) tooltip cannot be
+  // dismissed from here, so it follows its trigger instead.
   useLayoutEffect(() => {
     if (!open) return;
     place();
     const surface = surfaceRef.current;
-    if (!surface) return;
     const observer = new ResizeObserver(place);
-    observer.observe(surface);
-    return () => observer.disconnect();
-  }, [open, place]);
-
-  // Dismiss on Escape, scroll, resize and window blur. A pinned (controlled)
-  // tooltip cannot be dismissed from here, so it follows its trigger instead.
-  useEffect(() => {
-    if (!open) return;
+    if (surface) observer.observe(surface);
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') hide();
+      if (event.key === 'Escape') dismiss();
     };
     const onMove = () => {
       place();
-      hide();
+      dismiss();
     };
+    const onBlur = () => dismiss();
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('scroll', onMove, { capture: true, passive: true });
     window.addEventListener('resize', onMove);
-    window.addEventListener('blur', hide);
+    window.addEventListener('blur', onBlur);
     return () => {
+      observer.disconnect();
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('scroll', onMove, { capture: true });
       window.removeEventListener('resize', onMove);
-      window.removeEventListener('blur', hide);
+      window.removeEventListener('blur', onBlur);
     };
-  }, [open, hide, place]);
+  }, [open, place]);
 
   if (!isValidElement(children)) return children;
   if (!hasContent) return children;

@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **Hiding the website preview** now hides the site too. It used to stay on screen, drawn over the editor.
+
 ## [0.2.0] - 2026-09-24
 
 Console Editor now keeps itself up to date. Version 0.1.0 had no updater, so this one is installed by hand; the ones after it come to you.

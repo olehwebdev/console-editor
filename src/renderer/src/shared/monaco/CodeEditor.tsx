@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { cn } from '@/shared/lib';
 import { focusWhenFree, getActiveEditor, setActiveEditor, takeFocusRequest, trackTreeNavigation } from './editors';
 import { guardFloatingWidgets } from './floatingGuard';
@@ -24,8 +24,7 @@ export interface CodeEditorProps {
 export function CodeEditor({ model, onMount, className }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
-  const onMountRef = useRef(onMount);
-  onMountRef.current = onMount;
+  const mounted = useEffectEvent((editor: Editor) => onMount?.(editor));
 
   useEffect(() => {
     const editor = monaco.editor.create(host.current!, { ...EDITOR_OPTIONS, model: null, theme: THEME });
@@ -34,7 +33,7 @@ export function CodeEditor({ model, onMount, className }: CodeEditorProps) {
     const focus = editor.onDidFocusEditorText(() => setActiveEditor(editor));
     const unguard = guardFloatingWidgets(host.current!, [editor]);
     const untrack = trackTreeNavigation();
-    const cleanup = onMountRef.current?.(editor);
+    const cleanup = mounted(editor);
     return () => {
       cleanup?.();
       untrack();

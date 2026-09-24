@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentPropsWithRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type ComponentPropsWithRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { cn } from '@/shared/lib';
 
 export type PanelResizerOrientation = 'vertical' | 'horizontal';
@@ -64,42 +64,25 @@ export function PanelResizer({
 }: PanelResizerProps) {
   const vertical = orientation === 'vertical';
   const [dragging, setDragging] = useState(false);
-  const drag = useRef<{ pointerId: number; start: number; last: number } | null>(null);
-  // Latest callbacks, so a drag in progress never calls a stale closure.
-  const callbacks = useRef({ onResize, onResizeEnd });
-  useLayoutEffect(() => {
-    callbacks.current = { onResize, onResizeEnd };
-  });
+  /** The drag in progress, and the page's cursor to put back once it ends. */
+  const drag = useRef<{ pointerId: number; start: number; last: number; cursor: string } | null>(null);
 
   const positioned = /(^|\s)(absolute|fixed)(\s|$)/.test(className ?? '');
-
-  // Keep the resize cursor while the pointer outruns the handle.
-  useEffect(() => {
-    if (!dragging) return;
-    const root = document.documentElement;
-    const previous = root.style.cursor;
-    root.style.cursor = vertical ? 'col-resize' : 'row-resize';
-    return () => {
-      root.style.cursor = previous;
-    };
-  }, [dragging, vertical]);
-
-  // Unmounted mid-drag (panel closed): still report the end.
-  useEffect(
-    () => () => {
-      if (drag.current) callbacks.current.onResizeEnd?.();
-    },
-    [],
-  );
 
   const coord = (event: PointerEvent) => (vertical ? event.clientX : event.clientY);
 
   const endDrag = () => {
-    if (!drag.current) return;
+    const current = drag.current;
+    if (!current) return;
     drag.current = null;
+    document.documentElement.style.cursor = current.cursor;
     setDragging(false);
-    callbacks.current.onResizeEnd?.();
+    onResizeEnd?.();
   };
+
+  // Unmounted mid-drag (panel closed): still end it.
+  const endDragOnUnmount = useEffectEvent(endDrag);
+  useEffect(() => () => endDragOnUnmount(), []);
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     onPointerDown?.(event);
@@ -107,7 +90,10 @@ export function PanelResizer({
     event.preventDefault(); // no text selection, no focus ring from the mouse
     event.currentTarget.setPointerCapture(event.pointerId);
     const at = coord(event);
-    drag.current = { pointerId: event.pointerId, start: at, last: at };
+    const root = document.documentElement;
+    drag.current = { pointerId: event.pointerId, start: at, last: at, cursor: root.style.cursor };
+    // Keep the resize cursor while the pointer outruns the handle.
+    root.style.cursor = vertical ? 'col-resize' : 'row-resize';
     setDragging(true);
     onResizeStart?.();
   };
@@ -120,7 +106,7 @@ export function PanelResizer({
     const delta = at - current.last;
     if (!delta) return;
     current.last = at;
-    callbacks.current.onResize(delta, at - current.start);
+    onResize(delta, at - current.start);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
