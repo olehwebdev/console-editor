@@ -34,6 +34,25 @@ const ORIGINAL_RESULTS = {
   worklet: 'original',
 };
 
+/** The files /workers/ lists, and the kind of worker each is marked with (null: the page). */
+function workersPageFiles(siteUrl: string): Record<string, string | null> {
+  const kinds: Record<string, string | null> = {
+    '': null,
+    'worker.js': 'worker',
+    'lib.js': 'worker',
+    'nested.js': 'worker',
+    'nested-lib.js': 'worker',
+    'module.js': 'worker',
+    'dep.js': 'worker',
+    'shared.js': 'shared_worker',
+    'shared-lib.js': 'shared_worker',
+    'sw.js': 'service_worker',
+    'sw-lib.js': 'service_worker',
+    'worklet.js': 'worklet',
+  };
+  return Object.fromEntries(Object.entries(kinds).map(([file, kind]) => [`${siteUrl}/workers/${file}`, kind]));
+}
+
 /** Polls until `fn` returns a truthy value (usable outside tests, unlike expect.poll). */
 async function waitFor<T>(fn: () => T | undefined, timeout = 30_000): Promise<T> {
   const deadline = Date.now() + timeout;
@@ -140,6 +159,13 @@ async function typeAtEndOfEditor(win: Page, text: string): Promise<void> {
   await win.keyboard.press('Escape');
 }
 
+async function replaceEditorText(win: Page, text: string): Promise<void> {
+  await win.click('.monaco-editor .view-lines');
+  await win.keyboard.press('Control+A');
+  await win.keyboard.type(text);
+  await win.keyboard.press('Escape');
+}
+
 async function goTo(win: Page, url: string): Promise<void> {
   const bar = win.getByTestId('address-bar');
   await bar.fill(url);
@@ -147,6 +173,22 @@ async function goTo(win: Page, url: string): Promise<void> {
 }
 
 const fileRow = (win: Page, url: string) => win.locator(`[data-testid="resource-row"][data-url="${url}"]`);
+
+/** Opens a file, lets `edit` change it and saves it as a new override (which reloads the page). */
+async function saveNewOverride(win: Page, fileUrl: string, loaded: string, edit: () => Promise<void>): Promise<void> {
+  const overrides = await win.locator('[data-override-id]').count();
+  await fileRow(win, fileUrl).click();
+  await win.locator('.monaco-editor .view-lines', { hasText: loaded }).waitFor();
+  await edit();
+  await win.keyboard.press('Control+S');
+  await expect.poll(() => win.locator('[data-override-id]').count()).toBe(overrides + 1);
+}
+
+/** Every file row's URL, and the kind of worker it's marked with (null: loaded by the page). */
+const listedFiles = (win: Page) =>
+  win.evaluate(
+    `Object.fromEntries([...document.querySelectorAll('[data-testid="resource-row"]')].map((row) => [row.dataset.url, row.getAttribute('data-worker')]))`,
+  );
 
 describe.skipIf(!built)('Workers in the app', () => {
   let site: FixtureSite;
@@ -180,14 +222,7 @@ describe.skipIf(!built)('Workers in the app', () => {
   });
 
   /** Opens a file, appends `line` and saves it as a new override (which reloads the page). */
-  async function editAndSave(path: string, loaded: string, line: string): Promise<void> {
-    const overrides = await win.locator('[data-override-id]').count();
-    await fileRow(win, url(path)).click();
-    await win.locator('.monaco-editor .view-lines', { hasText: loaded }).waitFor();
-    await typeAtEndOfEditor(win, line);
-    await win.keyboard.press('Control+S');
-    await expect.poll(() => win.locator('[data-override-id]').count()).toBe(overrides + 1);
-  }
+  const editAndSave = (path: string, loaded: string, line: string) => saveNewOverride(win, url(path), loaded, () => typeAtEndOfEditor(win, line));
 
   it('runs every kind of worker with no other debugger to resume them', async () => {
     // The app used to leave dedicated workers and worklets paused forever.
@@ -206,25 +241,7 @@ describe.skipIf(!built)('Workers in the app', () => {
     await goTo(win, url('/workers/'));
     await expect.poll(() => inSite('window.workerResults'), { timeout: 15_000 }).toEqual(ORIGINAL_RESULTS);
 
-    // Every file row's URL, and the kind of worker it's marked with.
-    const rows = () =>
-      win.evaluate(
-        `Object.fromEntries([...document.querySelectorAll('[data-testid="resource-row"]')].map((row) => [row.dataset.url, row.getAttribute('data-worker')]))`,
-      );
-    await expect.poll(rows).toEqual({
-      [url('/workers/')]: null,
-      [url('/workers/worker.js')]: 'worker',
-      [url('/workers/lib.js')]: 'worker',
-      [url('/workers/nested.js')]: 'worker',
-      [url('/workers/nested-lib.js')]: 'worker',
-      [url('/workers/module.js')]: 'worker',
-      [url('/workers/dep.js')]: 'worker',
-      [url('/workers/shared.js')]: 'shared_worker',
-      [url('/workers/shared-lib.js')]: 'shared_worker',
-      [url('/workers/sw.js')]: 'service_worker',
-      [url('/workers/sw-lib.js')]: 'service_worker',
-      [url('/workers/worklet.js')]: 'worklet',
-    });
+    await expect.poll(() => listedFiles(win)).toEqual(workersPageFiles(site.url));
 
     const badge = (path: string) => fileRow(win, url(path)).locator('.worker-badge');
     expect(await badge('/workers/lib.js').textContent()).toBe('worker');
@@ -307,5 +324,178 @@ describe.skipIf(!built)('Workers in the app', () => {
     await restarted!.inSite('setTimeout(() => location.reload(), 0)');
     // Installed with the edited sw-lib.js, which it keeps.
     await expect.poll(() => restarted!.inSite('window.workerResults?.sw'), { timeout: 15_000 }).toBe('original-sw:patched-sw-lib');
+  });
+});
+
+/**
+ * Edits of every kind of script a worker runs, in an app of its own: the
+ * first scripts of workers and worklets, static module imports, a service
+ * worker's own script (edited twice, turned off and on, deleted), a worker in
+ * a cross-site iframe, and service workers the page doesn't bypass.
+ */
+describe.skipIf(!built)('Editing what workers run, in the app', () => {
+  let site: FixtureSite;
+  let userData: string;
+  let app: ElectronApplication;
+  let win: Page;
+  const hits = new Map<string, number>();
+  const url = (path: string) => `${site.url}${path}`;
+  const inSite = (expr: string) => app.evaluate(evalInSite, [site.url, expr] as const).catch(() => undefined);
+  const result = (key: string) => inSite(`window.workerResults?.${key}`);
+  const overrideRow = (file: string) => win.locator('[data-override-id]', { hasText: file });
+  const reloadPage = () => win.getByRole('region', { name: 'Website preview' }).getByRole('button', { name: 'Reload page' }).click();
+  /** Marks the current document, so a poll can tell the one a reload brings. */
+  const markDocument = () => inSite('window.beforeReload = true');
+  const inNewDocument = (key: string) => inSite(`!window.beforeReload && window.workerResults?.${key}`);
+  /** What the page's active service worker answers now (the page asks it only once, on load). */
+  const askServiceWorker = () =>
+    inSite(`new Promise((answer) => {
+      navigator.serviceWorker.addEventListener('message', (e) => answer(e.data.sw), { once: true });
+      navigator.serviceWorker.getRegistration('/workers/').then((r) => r.active.postMessage('ping'));
+    })`);
+
+  beforeAll(async () => {
+    site = await startFixtureSite();
+    site.server.on('request', (req) => {
+      const path = new URL(req.url ?? '/', 'http://localhost').pathname;
+      hits.set(path, (hits.get(path) ?? 0) + 1);
+    });
+    userData = await mkdtemp(join(tmpdir(), 'console-editor-e2e-worker-edits-'));
+    ({ app, win } = await launch(userData));
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    await site?.close();
+    await rm(userData, { recursive: true, force: true, maxRetries: 5 });
+  });
+
+  it("serves an edited static import of a module worker (loaded as 'Other')", async () => {
+    await goTo(win, url('/workers/'));
+    await expect.poll(() => inSite('window.workerResults'), { timeout: 15_000 }).toEqual(ORIGINAL_RESULTS);
+    await saveNewOverride(win, url('/workers/dep.js'), 'depValue', () => replaceEditorText(win, "export const depValue = 'patched-dep';"));
+    await expect.poll(() => result('module'), { timeout: 15_000 }).toBe('patched-dep');
+  });
+
+  it("serves an edited first script of a dedicated worker, and it still starts its nested worker", async () => {
+    await saveNewOverride(win, url('/workers/worker.js'), 'libValue', () =>
+      typeAtEndOfEditor(win, "postMessage({ key: 'main', value: 'patched-worker' });"),
+    );
+    await expect.poll(() => result('main'), { timeout: 15_000 }).toBe('patched-worker');
+    await expect.poll(() => result('worker')).toBe(ORIGINAL_RESULTS.worker);
+    await expect.poll(() => result('nested')).toBe(ORIGINAL_RESULTS.nested);
+  });
+
+  it('serves an edited worklet module', async () => {
+    await saveNewOverride(win, url('/workers/worklet.js'), 'registerProcessor', () =>
+      typeAtEndOfEditor(win, "registerProcessor('patched-processor', class extends AudioWorkletProcessor { process() { return false; } });"),
+    );
+    await expect.poll(() => result('worklet'), { timeout: 15_000 }).toBe('patched');
+  });
+
+  it('serves an edited first script of a shared worker', async () => {
+    await saveNewOverride(win, url('/workers/shared.js'), 'onconnect', () => typeAtEndOfEditor(win, "self.sharedLibValue = 'patched-shared-main';"));
+    await expect.poll(() => result('shared'), { timeout: 15_000 }).toBe('patched-shared-main');
+  });
+
+  it("reinstalls a service worker whose own script was edited, on the save's reload", async () => {
+    const installs = hits.get('/workers/sw.js') ?? 0;
+    await saveNewOverride(win, url('/workers/sw.js'), 'swLibValue', () => typeAtEndOfEditor(win, "self.swLibValue = 'patched-sw-main';"));
+    await expect.poll(() => result('sw'), { timeout: 20_000 }).toBe('original-sw:patched-sw-main');
+    expect(hits.get('/workers/sw.js') ?? 0).toBeGreaterThan(installs);
+  });
+
+  it('reinstalls it again when the override is edited again', async () => {
+    const overrides = await win.locator('[data-override-id]').count();
+    // The saved file's tab is still open, now showing the override.
+    await typeAtEndOfEditor(win, "self.swLibValue = 'patched-again';");
+    await win.keyboard.press('Control+S');
+    await expect.poll(() => result('sw'), { timeout: 20_000 }).toBe('original-sw:patched-again');
+    expect(await win.locator('[data-override-id]').count()).toBe(overrides);
+  });
+
+  it('turning the override off brings back the live service worker, and on brings back the edit', async () => {
+    await overrideRow('sw.js').getByRole('switch').click();
+    await expect.poll(() => result('sw'), { timeout: 20_000 }).toBe(ORIGINAL_RESULTS.sw);
+    await overrideRow('sw.js').getByRole('switch').click();
+    await expect.poll(() => result('sw'), { timeout: 20_000 }).toBe('original-sw:patched-again');
+  });
+
+  it('keeps one entry per file, marked with its worker, and the worker count, across those reloads', async () => {
+    await markDocument();
+    await reloadPage();
+    await expect.poll(() => inNewDocument('sw'), { timeout: 15_000 }).toBe('original-sw:patched-again');
+    await expect.poll(() => listedFiles(win)).toEqual(workersPageFiles(site.url));
+    expect(await win.getByTestId('resource-row').count()).toBe(Object.keys(workersPageFiles(site.url)).length);
+    await expect.poll(() => win.getByTestId('status-workers').getAttribute('data-count')).toBe('6');
+  });
+
+  it('deleting the override brings back the live service worker', async () => {
+    await overrideRow('sw.js').getByRole('button', { name: 'Delete override' }).click();
+    await win.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+    await expect.poll(() => overrideRow('sw.js').count()).toBe(0);
+    await expect.poll(() => result('sw'), { timeout: 20_000 }).toBe(ORIGINAL_RESULTS.sw);
+    // The other edits still apply.
+    await expect.poll(() => result('module')).toBe('patched-dep');
+    await expect.poll(() => result('shared')).toBe('patched-shared-main');
+  });
+
+  it("with the page not bypassing service workers, says when Chromium's update check brings back the live script, and Reload fixes it", async () => {
+    await saveNewOverride(win, url('/workers/sw-lib.js'), 'swLibValue', () => typeAtEndOfEditor(win, "self.swLibValue = 'patched-sw-lib';"));
+    await expect.poll(() => result('sw'), { timeout: 20_000 }).toBe('original-sw:patched-sw-lib');
+
+    await win.getByTestId('rail-settings').click();
+    await win.getByRole('switch', { name: 'Bypass service workers' }).click();
+    await expect.poll(() => win.getByRole('switch', { name: 'Bypass service workers' }).getAttribute('aria-checked')).toBe('false');
+    await win.getByTestId('rail-explorer').click();
+    try {
+      // Now a navigation goes through the service worker (the app's reloads bypass the cache and it), and
+      // Chromium checks it for updates a moment later: it fetches its scripts out of the app's reach.
+      await markDocument();
+      await goTo(win, url('/workers/'));
+      await expect.poll(() => inNewDocument('sw'), { timeout: 15_000 }).toBe('original-sw:patched-sw-lib');
+      const toast = win.locator('[aria-label="Notifications"]').getByText('The service worker reinstalled the live sw-lib.js');
+      await toast.waitFor({ timeout: 20_000 });
+      expect(await askServiceWorker()).toBe(ORIGINAL_RESULTS.sw);
+      // Its Reload installs the edit again.
+      await markDocument();
+      await win.locator('[aria-label="Notifications"]').getByRole('button', { name: 'Reload page' }).first().click();
+      await expect.poll(() => inNewDocument('sw'), { timeout: 20_000 }).toBe('original-sw:patched-sw-lib');
+      expect(await askServiceWorker()).toBe('original-sw:patched-sw-lib');
+    } finally {
+      await win.getByTestId('rail-settings').click();
+      await win.getByRole('switch', { name: 'Bypass service workers' }).click();
+      await win.getByTestId('rail-explorer').click();
+    }
+  });
+
+  it('edits a file that a worker started by a cross-site iframe imports', async () => {
+    await goTo(win, url('/workers-frame/'));
+    const port = new URL(site.url).port;
+    const frameLib = `http://localhost:${port}/workers/lib.js`;
+    await expect.poll(() => result('worker'), { timeout: 15_000 }).toBe(ORIGINAL_RESULTS.worker);
+    await expect.poll(() => fileRow(win, frameLib).getAttribute('data-worker')).toBe('worker');
+    await saveNewOverride(win, frameLib, 'libValue', () => typeAtEndOfEditor(win, "self.libValue = 'patched-frame-lib';"));
+    await expect.poll(() => result('worker'), { timeout: 15_000 }).toBe('patched-frame-lib');
+    // Its nested worker still runs, and the edited worker.js of the other site doesn't apply here.
+    await expect.poll(() => result('nested')).toBe(ORIGINAL_RESULTS.nested);
+    expect(await inSite('window.workerResults.main ?? null')).toBeNull();
+  });
+
+  it("drops a page's workers' files when it navigates away, and its site's service worker's when it leaves the site", async () => {
+    await goTo(win, url('/workers/'));
+    await expect.poll(() => win.getByTestId('status-workers').getAttribute('data-count'), { timeout: 15_000 }).toBe('6');
+    const workerFiles = () =>
+      win.evaluate(`[...document.querySelectorAll('[data-testid="resource-row"][data-worker]')].map((row) => row.dataset.url).sort()`);
+    // Another page of the site: Chromium keeps the site's service worker attached to it.
+    await goTo(win, url('/'));
+    await expect.poll(workerFiles, { timeout: 15_000 }).toEqual([url('/workers/sw-lib.js'), url('/workers/sw.js')]);
+    await expect.poll(() => win.getByTestId('status-workers').getAttribute('data-count')).toBe('1');
+    // Another site: nothing of the workers is left.
+    const port = new URL(site.url).port;
+    await goTo(win, `http://localhost:${port}/`);
+    await expect.poll(workerFiles, { timeout: 15_000 }).toEqual([]);
+    await expect.poll(() => win.getByTestId('status-workers').count()).toBe(0);
+    await expect.poll(() => win.getByTestId('resource-row').count()).toBe(5);
   });
 });
