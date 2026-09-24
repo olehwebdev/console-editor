@@ -7,6 +7,9 @@
 
 export const STORE_BUNDLE_PATH = '/store/assets/app.7c1e9f4a.js';
 export const STORE_CSS_PATH = '/store/assets/store.css';
+export const STORE_ICON_PATH = '/store/assets/icon.svg';
+/** The store's favicon (a workspace on the store shows it on its rail tile). */
+export const STORE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#2b59ff"/><path d="M16 6l9 10-9 10-9-10z" fill="#fff"/></svg>`;
 
 export const STORE_HTML = `<!doctype html>
 <html lang="en">
@@ -14,6 +17,7 @@ export const STORE_HTML = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Acme Store · Checkout</title>
+<link rel="icon" href="${STORE_ICON_PATH}">
 <link rel="stylesheet" href="${STORE_CSS_PATH}">
 </head>
 <body>

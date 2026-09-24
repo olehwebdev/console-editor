@@ -122,6 +122,65 @@ describe('OverrideStore', () => {
   });
 });
 
+describe('OverrideStore workspaces', () => {
+  const input = (sourceUrl: string) => ({ kind: 'Script' as const, sourceUrl, content: 'patched();', originalHash: null });
+
+  it("lists and serves only the active workspace's overrides, and creates in the one active when asked", async () => {
+    const store = new OverrideStore(dir);
+    await store.load();
+    store.setWorkspace('aaaaaaaa');
+    const a = await store.create(input('https://a.com/a.js'));
+    // Asked for while A was active: lands in A even though B is active by the time it is written.
+    const late = store.create(input('https://a.com/late.js'));
+    store.setWorkspace('bbbbbbbb');
+    const b = await store.create(input('https://a.com/b.js'));
+    const lateMeta = await late;
+    expect(store.list().map((o) => o.id)).toEqual([b.id]);
+    expect(store.metas()).toEqual([store.meta(b.id)]);
+    expect(store.metas()[0]).not.toHaveProperty('workspaceId');
+    // Any override can still be read and updated (a save that began in another workspace).
+    await store.update(a.id, { content: 'v2();' });
+    expect(store.get(a.id).content).toBe('v2();');
+    store.setWorkspace('aaaaaaaa');
+    expect(store.list().map((o) => o.id).sort()).toEqual([a.id, lateMeta.id].sort());
+
+    const again = new OverrideStore(dir);
+    await again.load();
+    again.setWorkspace('bbbbbbbb');
+    expect(again.list().map((o) => o.id)).toEqual([b.id]);
+  });
+
+  it('gives overrides of no known workspace (saved before workspaces) to the fallback, once', async () => {
+    const store = new OverrideStore(dir);
+    await store.load();
+    const old = await store.create(input('https://a.com/old.js'));
+    const index = JSON.parse(await readFile(join(dir, 'overrides.json'), 'utf8'));
+    delete index.overrides[0].workspaceId;
+    await writeFile(join(dir, 'overrides.json'), JSON.stringify(index));
+
+    const loaded = new OverrideStore(dir);
+    await loaded.load();
+    await loaded.adopt(new Set(['aaaaaaaa']), 'aaaaaaaa');
+    loaded.setWorkspace('aaaaaaaa');
+    expect(loaded.list().map((o) => o.id)).toEqual([old.id]);
+    expect(JSON.parse(await readFile(join(dir, 'overrides.json'), 'utf8')).overrides[0].workspaceId).toBe('aaaaaaaa');
+  });
+
+  it("deletes a workspace's overrides with their files, and no one else's", async () => {
+    const store = new OverrideStore(dir);
+    await store.load();
+    store.setWorkspace('aaaaaaaa');
+    const kept = await store.create(input('https://a.com/kept.js'));
+    store.setWorkspace('bbbbbbbb');
+    await store.create({ ...input('https://a.com/gone.js'), base: 'original();' });
+    await store.removeWorkspace('bbbbbbbb');
+    expect(store.list()).toEqual([]);
+    expect(await readdir(join(dir, 'files'))).toEqual([`${kept.id}.js`]);
+    store.setWorkspace('aaaaaaaa');
+    expect(store.list().map((o) => o.id)).toEqual([kept.id]);
+  });
+});
+
 describe('SettingsStore', () => {
   it('uses defaults, persists updates and ignores unknown keys', async () => {
     const path = join(dir, 'settings.json');

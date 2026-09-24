@@ -1,8 +1,9 @@
-import { session, WebContentsView, type BrowserWindow, type Session } from 'electron';
+import { nativeImage, session, WebContentsView, type BrowserWindow, type Session } from 'electron';
 import type { AppEvent, PageState, Rect } from '../../shared/types';
 import { HTTP_SCHEME } from '../constants';
 import { electronTransport } from '../electronTransport';
 import { PageInterception } from '../engine/PageInterception';
+import { loadFavicon } from '../favicon';
 import { installSitePermissions } from '../sitePermissions';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { SettingsStore } from '../store/SettingsStore';
@@ -30,6 +31,9 @@ const BYPASS_CACHE = { 'Cache-Control': 'no-cache' } as const;
 
 /** Quality of the page snapshot shown under overlays. */
 const SNAPSHOT_JPEG_QUALITY = 85;
+
+/** The longest side, in pixels, of a site icon kept for its workspace. */
+const FAVICON_SIZE = 32;
 
 /**
  * Owns the embedded browser view that shows the website, and the interception
@@ -92,7 +96,7 @@ export class PageController {
       return { action: 'deny' };
     });
 
-    const pushState = () => this.send({ type: 'page-state', state: this.state() });
+    const pushState = () => this.pushState();
     wc.on('did-start-loading', pushState);
     wc.on('did-stop-loading', pushState);
     wc.on('did-navigate', pushState);
@@ -113,6 +117,10 @@ export class PageController {
     return this.ready;
   }
 
+  private pushState(): void {
+    this.send({ type: 'page-state', state: this.state() });
+  }
+
   state(): PageState {
     const wc = this.view.webContents;
     const url = wc.getURL();
@@ -125,7 +133,8 @@ export class PageController {
     };
   }
 
-  async navigate(input: string): Promise<void> {
+  /** Loads `input`. With `fresh`, what came before it is dropped from Back once it has loaded (a workspace's page). */
+  async navigate(input: string, { fresh = false } = {}): Promise<void> {
     const url = normalizeUrl(input);
     // Never load a site before interception is set up, or overrides would be missed.
     await this.ready;
@@ -135,6 +144,42 @@ export class PageController {
       // Failures are reported through 'did-fail-load'.
       if (!ERR_ABORTED_MESSAGE.test(String(err))) console.warn(`loadURL(${url}) failed:`, err);
     }
+    if (fresh) this.clearHistory();
+  }
+
+  /**
+   * Leaves the page for an empty one with no history, as the workspace shown
+   * changes: the page's unload runs, and nothing it does afterwards (an
+   * in-page navigation, a new favicon) is taken for the next workspace's.
+   */
+  async leave(): Promise<void> {
+    await this.ready;
+    await this.view.webContents.loadURL(BLANK_PAGE).catch(() => undefined);
+    this.clearHistory();
+  }
+
+  private clearHistory(): void {
+    this.view.webContents.navigationHistory.clear();
+    // Back/Forward changed without a navigation event.
+    this.pushState();
+  }
+
+  /** The site's icon as a small data URL, from the candidates in `page-favicon-updated`; null if none loads. */
+  fetchFavicon(candidates: string[]): Promise<string | null> {
+    return loadFavicon(candidates, {
+      // Through the site's session, like the page's own request for it (an intranet site may want its cookies).
+      fetch: (url) => this.siteSession.fetch(url, { credentials: 'include' }),
+      shrink: (bytes) => {
+        const image = nativeImage.createFromBuffer(bytes);
+        if (image.isEmpty()) return null;
+        const { width, height } = image.getSize();
+        const small =
+          Math.max(width, height) > FAVICON_SIZE
+            ? image.resize(width >= height ? { width: FAVICON_SIZE, quality: 'best' } : { height: FAVICON_SIZE, quality: 'best' })
+            : image;
+        return small.toDataURL();
+      },
+    });
   }
 
   reload(): void {

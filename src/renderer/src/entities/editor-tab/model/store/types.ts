@@ -39,6 +39,8 @@ export interface TabStore {
   activate(id: string): void;
   /** Closes a file tab or a page. */
   remove(id: string): void;
+  /** Closes every file tab (pages stay open). */
+  removeTabs(): void;
   patch(id: string, patch: Partial<TabMeta>): void;
   setDiff(mode: DiffMode): void;
 }

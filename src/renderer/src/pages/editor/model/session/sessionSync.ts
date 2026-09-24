@@ -1,5 +1,8 @@
 interface SessionSync {
-  syncing: boolean;
+  /** The workspace whose tabs are being kept, while syncing. */
+  syncing: string | null;
+  /** Ends the running sync's subscriptions. */
+  unsubscribe: (() => void) | null;
   tabsTimer: ReturnType<typeof setTimeout> | undefined;
   draftTimers: Map<string, ReturnType<typeof setTimeout>>;
   /** Tabs with a draft on disk. */
@@ -20,7 +23,8 @@ interface SessionSync {
  * (importers can't reassign another module's bindings).
  */
 export const sessionSync: SessionSync = {
-  syncing: false,
+  syncing: null,
+  unsubscribe: null,
   tabsTimer: undefined,
   draftTimers: new Map(),
   drafted: new Set(),

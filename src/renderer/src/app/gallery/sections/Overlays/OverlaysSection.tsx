@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { icons, TOAST_DURATION } from '@/shared/config';
+import { icons, KEY, TOAST_DURATION } from '@/shared/config';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { confirm, isConfirmOpen } from '@/shared/ui/dialog';
 import { Icon } from '@/shared/ui/icon';
+import { Input } from '@/shared/ui/input';
 import { Kbd } from '@/shared/ui/kbd';
 import { ContextMenu, Menu, type MenuItem } from '@/shared/ui/menu';
+import { Popover } from '@/shared/ui/popover';
 import { focusToasts, toast } from '@/shared/ui/toast';
 import { DemoButton } from './DemoButton';
 import { Row } from './Row';
@@ -51,6 +53,8 @@ export function OverlaysSection() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [wordWrap, setWordWrap] = useState(true);
   const [answer, setAnswer] = useState<string>('—');
+  const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   // Gallery-only hotkeys; the app binds its own. Held keys and an open confirm dialog are ignored.
   useEffect(() => {
@@ -165,6 +169,24 @@ export function OverlaysSection() {
             Right-click anywhere in here
           </div>
         </ContextMenu>
+      </Row>
+
+      <Row title="Popover" note="A few controls beside an element. Not modal: Esc, a press or focus outside it close it.">
+        <DemoButton
+          data-state={popoverOpen ? 'open' : 'closed'}
+          onClick={(e) => {
+            setPopoverAnchor(e.currentTarget);
+            setPopoverOpen(true);
+          }}
+        >
+          Rename…
+        </DemoButton>
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen} anchor={popoverAnchor} side="bottom" label="Rename">
+          <div className="flex w-[220px] flex-col gap-2">
+            <span className="label-caps">Name</span>
+            <Input autoFocus defaultValue="Checkout fix" onKeyDown={(e) => e.key === KEY.enter && setPopoverOpen(false)} />
+          </div>
+        </Popover>
       </Row>
 
       <Row title="Command palette" note="Fuzzy filter, 2 000 virtualized resources.">

@@ -8,9 +8,11 @@ import { track } from './track';
 export function saveTabs(): void {
   clearTimeout(sessionSync.tabsTimer);
   sessionSync.tabsTimer = undefined;
+  const { syncing } = sessionSync;
+  if (!syncing) return;
   const state = useTabStore.getState();
   track(
-    api.saveSessionTabs(state.tabs.map(toSessionTab), activeFileId(state)).then(
+    api.saveSessionTabs(syncing, state.tabs.map(toSessionTab), activeFileId(state)).then(
       () => {
         sessionSync.tabsFailed = false;
       },

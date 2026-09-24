@@ -30,6 +30,13 @@ export const IPC_CHANNEL = {
   getSettings: 'settings:get',
   updateSettings: 'settings:update',
 
+  getWorkspaces: 'workspaces:list',
+  getWorkspaceFavicons: 'workspaces:favicons',
+  createWorkspace: 'workspaces:create',
+  updateWorkspace: 'workspaces:update',
+  deleteWorkspace: 'workspaces:delete',
+  switchWorkspace: 'workspaces:switch',
+
   getSession: 'session:get',
   saveSessionTabs: 'session:tabs',
   getDraft: 'session:draft:get',

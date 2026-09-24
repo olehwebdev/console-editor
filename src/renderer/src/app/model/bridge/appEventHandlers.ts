@@ -1,5 +1,6 @@
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
+import { useWorkspaceStore } from '@/entities/workspace';
 import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
 import { answerFlushSession } from './events/answerFlushSession';
@@ -23,6 +24,8 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   error: showAppError,
   'page-state': (event) => usePageStore.getState().setPage(event.state),
   'overrides-changed': syncOverrides,
+  'workspaces-changed': (event) => useWorkspaceStore.getState().setAll(event.state),
+  'workspace-favicon': (event) => useWorkspaceStore.getState().setFavicon(event.id, event.favicon),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),

@@ -2,7 +2,7 @@ import { api } from '@/shared/api';
 import { useTabStore } from '@/entities/editor-tab';
 import { reopen } from './reopen';
 
-/** Reopens the tabs (and their unsaved edits) of the last run. */
+/** Reopens the active workspace's tabs and their unsaved edits: at start, and when it is switched to. */
 export async function restoreSession(): Promise<void> {
   const session = await api.getSession();
   for (const tab of session.tabs) await reopen(tab).catch(() => undefined);

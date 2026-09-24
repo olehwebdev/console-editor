@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OverrideMeta, SessionDraft, SessionState } from '../../src/shared/types';
-import { flushSession, restoreSession, startSessionSync } from '@/app/model/session';
+import type { OverrideMeta, SessionDraft, SessionState, Workspace, WorkspacesState } from '../../src/shared/types';
+import { closeSessionTabs, flushSession, restoreSession, startSessionSync } from '@/pages/editor/model/session';
+import { createWorkspace, deleteWorkspace, switchWorkspace } from '@/pages/editor/model/workspaces';
 import { createTabModel, disposeTabModel, getTabModel, markTabSaved, newTabId, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
+import { useWorkspaceStore } from '@/entities/workspace';
 
 /** Just enough of a Monaco text model: text, an alternative version id, change listeners. */
 const { FakeModel } = vi.hoisted(() => {
@@ -53,6 +55,11 @@ const api = vi.hoisted(() => ({
   deleteDraft: vi.fn(async () => {}),
   getOverride: vi.fn(),
   getResourceContent: vi.fn(),
+  getWorkspaces: vi.fn<() => Promise<WorkspacesState>>(),
+  listOverrides: vi.fn(async (): Promise<OverrideMeta[]> => []),
+  switchWorkspace: vi.fn(async (_id: string) => {}),
+  createWorkspace: vi.fn<() => Promise<Workspace>>(),
+  deleteWorkspace: vi.fn(async (_id: string) => {}),
 }));
 const toast = vi.hoisted(() => Object.assign(vi.fn(() => 'toast-1'), { dismiss: vi.fn(), update: vi.fn() }));
 
@@ -82,13 +89,19 @@ const override: OverrideMeta = {
   updatedAt: 0,
 };
 
+const workspace = (id: string, host: string): Workspace => ({ id, name: '', host, title: '', icon: 'favicon', color: 'ember' });
+const workspaces = [workspace('wsa00000', 'site.test'), workspace('wsb00000', 'other.test')];
+
 let stopSync: (() => void) | undefined;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Forgets the previous test's tabs and drafts (without deleting anything).
+  closeSessionTabs();
   for (const t of useTabStore.getState().tabs) disposeTabModel(t.id);
   useTabStore.setState({ tabs: [], pages: [], activeId: null, diff: 'off' });
   useOverrideStore.getState().setAll([override]);
+  useWorkspaceStore.setState({ workspaces, activeId: 'wsa00000', favicons: {}, switchingTo: null });
 });
 
 afterEach(() => {
@@ -144,7 +157,7 @@ describe('session sync', () => {
     const id = openTab();
     await vi.advanceTimersByTimeAsync(400);
     expect(api.saveSessionTabs).toHaveBeenCalledTimes(1);
-    expect(api.saveSessionTabs).toHaveBeenLastCalledWith([expect.objectContaining({ id, url: `https://site.test/${id}.js` })], id);
+    expect(api.saveSessionTabs).toHaveBeenLastCalledWith('wsa00000', [expect.objectContaining({ id, url: `https://site.test/${id}.js` })], id);
 
     model(id).type('edit 1');
     model(id).type('edit 2');
@@ -173,7 +186,7 @@ describe('session sync', () => {
     createTabModel(id, `https://site.test/${id}.js`, 'Script', 'x', 'x');
     useTabStore.getState().add({ id, url: `https://site.test/${id}.js`, kind: 'Script', originalHash: null, lite: false, dirty: false, saving: false }, false);
     await vi.advanceTimersByTimeAsync(400);
-    expect(api.saveSessionTabs).toHaveBeenLastCalledWith(expect.any(Array), a);
+    expect(api.saveSessionTabs).toHaveBeenLastCalledWith('wsa00000', expect.any(Array), a);
   });
 
   it('deletes the draft once the tab is saved, or closed', async () => {
@@ -208,5 +221,102 @@ describe('session sync', () => {
     expect(await flushSession()).toBe(true);
     expect(api.saveDraft).toHaveBeenLastCalledWith(id, { content: 'again' });
     await tick();
+  });
+});
+
+describe('switching workspaces', () => {
+  function openTab() {
+    const id = newTabId();
+    const url = `https://site.test/${id}.js`;
+    createTabModel(id, url, 'Script', 'base();', 'base();');
+    useTabStore.getState().add({ id, url, kind: 'Script', originalHash: null, lite: false, dirty: false, saving: false });
+    return id;
+  }
+
+  /** What main has once the switch to B went through. */
+  function mainSwitchesTo(id: string, session: SessionState, drafts: Record<string, SessionDraft> = {}) {
+    api.getWorkspaces.mockResolvedValue({ workspaces, activeId: id });
+    api.getSession.mockResolvedValue(session);
+    api.getDraft.mockImplementation(async (tabId) => drafts[tabId] ?? null);
+  }
+
+  it("writes this workspace's pending edits, closes its tabs keeping their drafts, and reopens the other's", async () => {
+    vi.useFakeTimers();
+    stopSync = startSessionSync();
+    const leaving = openTab();
+    model(leaving).type('typed just before switching');
+    mainSwitchesTo(
+      'wsb00000',
+      { url: 'https://other.test/', tabs: [{ id: 'tab-b1', url: 'https://other.test/b.js', kind: 'Script', originalHash: 'hb' }], activeTabId: 'tab-b1' },
+      { 'tab-b1': { content: 'b draft', base: 'b base' } },
+    );
+
+    await switchWorkspace('wsb00000');
+
+    // Written before the switch, and to the workspace being left.
+    expect(api.saveDraft).toHaveBeenCalledWith(leaving, { content: 'typed just before switching', base: 'base();' });
+    expect(api.saveSessionTabs).toHaveBeenCalledWith('wsa00000', [expect.objectContaining({ id: leaving })], leaving);
+    expect(api.saveDraft.mock.invocationCallOrder[0]).toBeLessThan(api.switchWorkspace.mock.invocationCallOrder[0]!);
+    expect(api.switchWorkspace).toHaveBeenCalledWith('wsb00000');
+    // Closing the tab kept its draft for when the workspace is switched back to.
+    expect(api.deleteDraft).not.toHaveBeenCalled();
+
+    const { tabs, activeId } = useTabStore.getState();
+    expect(tabs.map((t) => [t.id, t.dirty])).toEqual([['tab-b1', true]]);
+    expect(activeId).toBe('tab-b1');
+    expect(model('tab-b1').getValue()).toBe('b draft');
+    expect(useWorkspaceStore.getState()).toMatchObject({ activeId: 'wsb00000', switchingTo: null });
+
+    // From now on the tabs are kept for B.
+    api.saveSessionTabs.mockClear();
+    openTab();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(api.saveSessionTabs).toHaveBeenLastCalledWith('wsb00000', expect.any(Array), expect.any(String));
+  });
+
+  it('reopens the workspace it was leaving when the switch fails', async () => {
+    stopSync = startSessionSync();
+    const id = openTab();
+    model(id).type('kept');
+    api.switchWorkspace.mockRejectedValueOnce(new Error('boom'));
+    mainSwitchesTo('wsa00000', { url: 'https://site.test/', tabs: [{ id, url: `https://site.test/${id}.js`, kind: 'Script', originalHash: null }], activeTabId: id }, { [id]: { content: 'kept', base: 'base();' } });
+
+    await switchWorkspace('wsb00000');
+
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Could not switch workspaces', tone: 'danger' }));
+    expect(useWorkspaceStore.getState().activeId).toBe('wsa00000');
+    expect(useTabStore.getState().tabs.map((t) => t.id)).toEqual([id]);
+    expect(model(id).getValue()).toBe('kept');
+  });
+
+  it('writes what is typed while the drafts are being written, before the tabs close', async () => {
+    stopSync = startSessionSync();
+    const id = openTab();
+    model(id).type('first');
+    // Writing the first draft takes a moment, and typing goes on meanwhile.
+    api.saveDraft.mockImplementationOnce(async () => model(id).type('second'));
+    mainSwitchesTo('wsb00000', { url: '', tabs: [], activeTabId: null });
+
+    await switchWorkspace('wsb00000');
+
+    expect(api.saveDraft).toHaveBeenCalledTimes(2);
+    expect(api.saveDraft).toHaveBeenLastCalledWith(id, { content: 'second' });
+    expect(api.saveDraft.mock.invocationCallOrder[1]).toBeLessThan(api.switchWorkspace.mock.invocationCallOrder[0]!);
+  });
+
+  it('removes a new workspace again when it was never switched to', async () => {
+    api.createWorkspace.mockResolvedValue(workspace('wsc00000', ''));
+    api.switchWorkspace.mockRejectedValueOnce(new Error('boom'));
+    mainSwitchesTo('wsa00000', { url: '', tabs: [], activeTabId: null });
+    expect(await createWorkspace()).toBe(false);
+    expect(api.deleteWorkspace).toHaveBeenCalledWith('wsc00000');
+  });
+
+  it('deleting the workspace in use switches to its neighbour first', async () => {
+    mainSwitchesTo('wsb00000', { url: '', tabs: [], activeTabId: null });
+    await deleteWorkspace('wsa00000');
+    expect(api.switchWorkspace).toHaveBeenCalledWith('wsb00000');
+    expect(api.deleteWorkspace).toHaveBeenCalledWith('wsa00000');
+    expect(api.switchWorkspace.mock.invocationCallOrder[0]).toBeLessThan(api.deleteWorkspace.mock.invocationCallOrder[0]!);
   });
 });

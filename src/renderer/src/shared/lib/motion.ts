@@ -34,6 +34,8 @@ export const DURATION = {
 
 /** How far a pressed button or row shrinks, with SPRING_PRESS. */
 export const PRESS_SCALE = 0.97;
+/** Small icon buttons and rail tiles press deeper than PRESS_SCALE, so the press still shows. */
+export const ICON_PRESS_SCALE = 0.9;
 
 /** Where a list row or sidebar view slides in from, and back out to (px). */
 export const SLIDE_IN_X = -6;

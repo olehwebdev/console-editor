@@ -9,3 +9,6 @@ export const SHA256 = 'sha256';
 
 /** Node's error code for a file or folder that doesn't exist. */
 export const FILE_NOT_FOUND = 'ENOENT';
+
+/** A data URL of an image: a site icon as kept. */
+export const IMAGE_DATA_URL = /^data:image\/[\w.+-]+[;,]/i;

@@ -2,7 +2,7 @@ export { assignRef } from './assignRef';
 export { clamp } from './clamp';
 export { clampPosition } from './clampPosition';
 export { cn } from './cn';
-export { DURATION, EASE_IN_OUT, EASE_OUT, FADE_UP, PRESS_SCALE, SLIDE_IN_X, SPRING_LAYOUT, SPRING_PANEL, SPRING_PRESS, SPRING_SWAP } from './motion';
+export { DURATION, EASE_IN_OUT, EASE_OUT, FADE_UP, ICON_PRESS_SCALE, PRESS_SCALE, SLIDE_IN_X, SPRING_LAYOUT, SPRING_PANEL, SPRING_PRESS, SPRING_SWAP } from './motion';
 export { fileName, hostOf, originOf, pathOf, pathSegments } from './url';
 export { isMac, keyLabel } from './platform';
 export { formatCode, looksMinified } from './format';

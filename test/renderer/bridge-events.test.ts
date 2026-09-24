@@ -3,13 +3,14 @@ import type { AppEvent, MenuCommand, OverrideMeta, PageState, ResourceEntry, Upd
 import { handleAppEvent } from '@/app/model/bridge';
 import { APP_EVENT_HANDLERS } from '@/app/model/bridge/appEventHandlers';
 import { pageCommands } from '@/app/model/bridge/commands/pageCommands';
+import { pageSession } from '@/app/model/bridge/pageSession';
 import type { MenuCommandHandlers } from '@/app/model/bridge/commands/types';
 import type { AppEventHandlers, AppEventOf } from '@/app/model/bridge/types';
-import { flushSession } from '@/app/model/session';
 import { useTabStore, type TabMeta } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore } from '@/entities/resource';
+import { useWorkspaceStore } from '@/entities/workspace';
 import { toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { saveTab } from '@/features/save-override';
@@ -33,7 +34,6 @@ vi.mock('@/features/save-override', () => ({ saveTab: vi.fn(async () => {}) }));
 vi.mock('@/features/format-document', () => ({ formatTab: vi.fn(async () => {}) }));
 vi.mock('@/features/compare-changes', () => ({ toggleBaseDiff: vi.fn() }));
 vi.mock('@/features/update-app', () => ({ openWhatsNew: vi.fn(), checkForUpdatesNow: vi.fn(async () => {}), handleUpdateState: vi.fn(), startUpdates: vi.fn(async () => {}) }));
-vi.mock('@/app/model/session', () => ({ flushSession: vi.fn(async () => true), restoreSession: async () => {}, startSessionSync: () => () => {} }));
 
 const meta = (id: string): OverrideMeta => ({
   id,
@@ -66,6 +66,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  pageSession.current = null;
 });
 
 describe('app event bridge', () => {
@@ -120,9 +121,23 @@ describe('app event bridge', () => {
     ['a draft could not be written', async () => false, false],
     ['flushing threw', async () => Promise.reject(new Error('disk full')), false],
   ])('answers flush-session when %s', async (_, flush, ok) => {
-    vi.mocked(flushSession).mockImplementationOnce(flush);
+    pageSession.current = { restore: async () => {}, startSync: () => () => {}, flush };
     handleAppEvent({ type: 'flush-session' });
     await vi.waitFor(() => expect(api.sessionFlushed).toHaveBeenCalledWith(ok));
+  });
+
+  it('answers flush-session before the bridge has a session: there is nothing to write', async () => {
+    handleAppEvent({ type: 'flush-session' });
+    await vi.waitFor(() => expect(api.sessionFlushed).toHaveBeenCalledWith(true));
+  });
+
+  it('mirrors the workspaces and their site icons', () => {
+    const workspace = { id: 'w1', name: 'Shop', host: 'a.com', title: 'A', icon: 'favicon' as const, color: 'teal' as const };
+    handleAppEvent({ type: 'workspaces-changed', state: { activeId: 'w1', workspaces: [workspace] } });
+    handleAppEvent({ type: 'workspace-favicon', id: 'w1', favicon: 'data:image/png;base64,AA==' });
+    expect(useWorkspaceStore.getState()).toMatchObject({ activeId: 'w1', workspaces: [workspace], favicons: { w1: 'data:image/png;base64,AA==' } });
+    handleAppEvent({ type: 'workspace-favicon', id: 'w1', favicon: null });
+    expect(useWorkspaceStore.getState().favicons).toEqual({});
   });
 
   it('drops the resource changes queued before a top-level navigation', () => {
