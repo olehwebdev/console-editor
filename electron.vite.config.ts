@@ -15,7 +15,8 @@ export default defineConfig({
     },
     plugins: [react(), tailwindcss()],
     // Monaco's language workers are large; keep them as separate files.
-    build: { chunkSizeWarningLimit: 8000 },
+    // Its plugin-timing report flags Vite's own worker and CSS plugins, not something to act on.
+    build: { chunkSizeWarningLimit: 8000, rolldownOptions: { checks: { pluginTimings: false } } },
     worker: { format: 'es' },
   },
 });
