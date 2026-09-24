@@ -22,7 +22,7 @@ npm run dev            # the app, with hot reload
 npm run demo-site      # in another terminal: pages to try it on (port 5174)
 ```
 
-Node.js 22.18 or newer is required. On Linux as root (containers), start Electron without its sandbox: `npm run dev -- --noSandbox`.
+Node.js 22.18 or newer is required. Runs from source keep their data in a `Console Editor (dev)` folder, apart from an installed copy's, so both can run at once. On Linux as root (containers), start Electron without its sandbox: `npm run dev -- --noSandbox`.
 
 ## Before opening a pull request
 

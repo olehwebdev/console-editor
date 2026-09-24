@@ -114,7 +114,7 @@ Type a URL in the preview's address bar (`https://…` or `localhost:3000`), pic
 | `http://127.0.0.1:5174/` | Files built to be awkward: gzip, SRI, a hashed bundle, source maps |
 | `http://127.0.0.1:5174/frames.html` | Cross-site and nested iframes |
 
-To open a URL on start, pass it to the app (`console-editor https://example.com` after installing the Linux package) or set `CONSOLE_EDITOR_URL`: `CONSOLE_EDITOR_URL=https://example.com npm run dev`. Launching the app again while it runs opens the URL in the existing window.
+To open a URL on start, pass it to the app (`console-editor https://example.com` after installing the Linux package) or set `CONSOLE_EDITOR_URL`: `CONSOLE_EDITOR_URL=https://example.com npm run dev`. On Linux and Windows, starting the app again with a URL opens it in the window that's already running.
 
 <details>
 <summary><b>Keyboard shortcuts</b></summary>
@@ -187,7 +187,7 @@ Everything stays on your machine: no telemetry, no uploads.
 | Open tabs, unsaved drafts, last page | `session/` |
 | The site's cookies, logins, storage | A persistent browser profile used only by the site view |
 
-The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application Support/Console Editor` on macOS and `%APPDATA%\Console Editor` on Windows. Uninstalling the app keeps it. Set `CONSOLE_EDITOR_USER_DATA` to use another one.
+The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application Support/Console Editor` on macOS and `%APPDATA%\Console Editor` on Windows. Uninstalling the app keeps it. Running from source uses a separate `Console Editor (dev)` folder next to it, so a dev build never touches your real data. Set `CONSOLE_EDITOR_USER_DATA` to use another folder.
 
 ## Limitations
 

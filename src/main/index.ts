@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog } from 'electron';
-import { join } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import appIcon from '../../build/icons/512x512.png?asset&asarUnpack';
 import type { AppEvent } from '../shared/types';
 import { APP_ID, REPO_URL } from './appInfo';
@@ -11,12 +12,31 @@ import { OverrideStore } from './store/OverrideStore';
 import { SessionStore } from './store/SessionStore';
 import { SettingsStore } from './store/SettingsStore';
 
+// Runs from source (npm run dev, npm start) keep their data apart from an installed copy's, so the two can
+// run side by side and a dev build never touches your real overrides and logins.
+if (!app.isPackaged) app.setPath('userData', `${app.getPath('userData')} (dev)`);
+const defaultUserData = app.getPath('userData');
+
 // Allow tests and power users to keep data elsewhere (e.g. a throwaway profile).
-if (process.env.CONSOLE_EDITOR_USER_DATA) app.setPath('userData', process.env.CONSOLE_EDITOR_USER_DATA);
+if (process.env.CONSOLE_EDITOR_USER_DATA) app.setPath('userData', resolve(process.env.CONSOLE_EDITOR_USER_DATA));
+
+/** Whether two paths name the same folder (following links; case-insensitive where the file system usually is). */
+function sameFolder(a: string, b: string): boolean {
+  const canonical = (path: string) => {
+    let real: string;
+    try {
+      real = realpathSync.native(path);
+    } catch {
+      real = resolve(path);
+    }
+    return process.platform === 'linux' ? real : real.toLowerCase();
+  };
+  return canonical(a) === canonical(b);
+}
 
 // As Chrome does, open no debugging port onto the real profile: any local program could start the app
 // with one and read the site view's logins. With a data folder of its own (tests) it still works.
-if (app.isPackaged && !process.env.CONSOLE_EDITOR_USER_DATA) {
+if (app.isPackaged && sameFolder(app.getPath('userData'), defaultUserData)) {
   app.commandLine.removeSwitch('remote-debugging-port');
   app.commandLine.removeSwitch('remote-debugging-pipe');
 }
@@ -37,6 +57,20 @@ const initialUrl = () => urlArgument(process.argv.slice(1)) ?? process.env.CONSO
 
 /** The open window, for a second launch to hand over to. */
 let running: { win: BrowserWindow; page: PageController } | undefined;
+/** Set once the first page load has been chosen; a URL handed over before that replaces it. */
+let started = false;
+let handedUrl: string | undefined;
+
+/** Brings the window forward and opens `url` in it: a second launch's URL, or one macOS sends. */
+function handOver(url: string | undefined): void {
+  if (running && !running.win.isDestroyed()) {
+    if (running.win.isMinimized()) running.win.restore();
+    if (running.win.isVisible()) running.win.focus();
+  }
+  if (!url) return;
+  if (started && running) void running.page.navigate(url);
+  else handedUrl = url;
+}
 
 async function createWindow(): Promise<void> {
   app.setAboutPanelOptions({
@@ -133,7 +167,8 @@ async function createWindow(): Promise<void> {
   }
 
   await attached;
-  const url = initialUrl() ?? session.get().url;
+  const url = handedUrl ?? initialUrl() ?? session.get().url;
+  started = true;
   if (url) void page.navigate(url);
 }
 
@@ -143,13 +178,12 @@ if (!app.requestSingleInstanceLock()) {
   console.log(`Console Editor is already running with the data folder ${app.getPath('userData')}; switching to it.`);
   app.quit();
 } else {
-  app.on('second-instance', (_event, argv) => {
-    if (!running || running.win.isDestroyed()) return;
-    const { win, page } = running;
-    if (win.isMinimized()) win.restore();
-    if (win.isVisible()) win.focus();
-    const url = urlArgument(argv.slice(1));
-    if (url) void page.navigate(url);
+  app.on('second-instance', (_event, argv) => handOver(urlArgument(argv.slice(1))));
+  // macOS starts no second process when the app is opened again (Finder, `open -a`): it sends the URL here.
+  app.on('open-url', (event, url) => {
+    if (!/^https?:\/\//i.test(url)) return;
+    event.preventDefault();
+    handOver(url);
   });
   app.whenReady().then(createWindow, (err) => {
     console.error(err);

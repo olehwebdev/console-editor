@@ -221,4 +221,23 @@ describe.skipIf(!built)('Console Editor app', () => {
     await expect.poll(() => inSite('location.pathname'), { timeout: 15_000 }).toBe('/frames.html');
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
   });
+
+  it("a URL handed over while the app is still starting wins over the one it was starting with", async () => {
+    const electronBinary = await app.evaluate(() => process.execPath);
+    await app.close();
+    // Not waiting for the window: the second launch arrives while the first is loading its stores and UI.
+    app = await electron.launch({
+      args: [...sandboxArgs, root],
+      cwd: root,
+      env: { ...process.env, CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_URL: `${site.url}/store/` } as Record<string, string>,
+    });
+    await promisify(execFile)(electronBinary, [...sandboxArgs, root, `${site.url}/?from=second-launch`], {
+      env: { ...process.env, CONSOLE_EDITOR_USER_DATA: userData },
+      timeout: 20_000,
+    });
+    await expect.poll(() => inSite('location.search'), { timeout: 15_000 }).toBe('?from=second-launch');
+    // And stays there: the startup URL doesn't replace it afterwards.
+    await new Promise((r) => setTimeout(r, 2000));
+    expect(await inSite('location.search')).toBe('?from=second-launch');
+  });
 });
