@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { SHORTCUT } from '@common/constants';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { EASE_OUT, selectAnyOverlayOpen, setNativeViewRect, useOverlayStore } from '@/shared/lib';
@@ -16,9 +17,6 @@ const SETTLE_FRAMES = 10;
 const CAPTURE_FAILED = 'unavailable';
 /** The empty state fading in or out, in seconds. */
 const EMPTY_FADE_DURATION = 0.2;
-
-/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: IconButton takes a mutable `string[]`. */
-const SHORTCUT = { reload: ['mod', 'R'], pageDevTools: ['mod', 'shift', 'J'] } satisfies Record<string, string[]>;
 
 export interface PagePreviewProps {
   /** Hide the native view (e.g. while a panel is being resized: it would swallow the drag). */

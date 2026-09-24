@@ -19,3 +19,28 @@ export const ENV = {
   /** Set by electron-vite in development: the renderer's dev-server URL. */
   rendererUrl: 'ELECTRON_RENDERER_URL',
 } as const;
+
+/**
+ * The app's keyboard shortcuts, as the renderer's hints write them (`mod` is ⌘ on macOS, Ctrl elsewhere).
+ * The menu's accelerators are built from the same entries, so a hint can't name a key that does something else.
+ * Not `as const`: Kbd, Tooltip and IconButton take a mutable `string[]`.
+ */
+export const SHORTCUT = {
+  save: ['mod', 'S'],
+  format: ['shift', 'alt', 'F'],
+  undo: ['mod', 'Z'],
+  /** macOS; elsewhere `redoCtrlY`. */
+  redo: ['shift', 'cmd', 'Z'],
+  redoCtrlY: ['ctrl', 'Y'],
+  selectAll: ['mod', 'A'],
+  palette: ['mod', 'K'],
+  /** A second key for the palette, as in VS Code. */
+  quickOpen: ['mod', 'P'],
+  sidebar: ['mod', 'B'],
+  focusUrl: ['mod', 'L'],
+  reload: ['mod', 'R'],
+  reloadF5: ['F5'],
+  diff: ['mod', 'shift', 'D'],
+  pageDevTools: ['mod', 'shift', 'J'],
+  editorDevTools: ['mod', 'alt', 'I'],
+} satisfies Record<string, string[]>;

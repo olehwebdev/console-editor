@@ -1,9 +1,7 @@
+import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
 import { selectEnabledCount, useOverrideStore } from '@/entities/override';
 import { RailItem } from './RailItem';
-
-/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: IconButton takes a mutable `string[]`. */
-const SHORTCUT = { palette: ['mod', 'K'] } satisfies Record<string, string[]>;
 
 export type SidebarView = 'explorer' | 'settings';
 
