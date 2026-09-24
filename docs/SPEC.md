@@ -203,7 +203,7 @@ With site isolation, a cross-site iframe runs in its own renderer process and is
 | No detach event is sent for grandchildren when a parent session goes away | Detach cascades through the recorded parent chain |
 | Only the iframe's own session can return its document body | `getResourceContent` routes that read to the child session |
 | Chromium reuses a target id when a frame gets a new session | Entries are scoped by **session** (`ResourceEntry.iframeId`), never by target id |
-| An iframe navigating back to its parent's site loads that document's subresources on **no** session (a Chromium gap) | Detected: an enabled override whose file arrived unmodified emits `override-missed`; the UI offers a reload |
+| An iframe navigating back to its parent's site loads that document's subresources on **no** session (a Chromium gap). Reloading just that frame doesn't reliably help: Chromium 141 intercepts the reload, Chromium 153 serves the files from the renderer's memory cache, which neither `Fetch` nor the page's cache-disable reaches | Detected: an enabled override whose file arrived unmodified emits `override-missed`; the UI offers a page reload |
 | A document served via `Fetch.fulfillRequest` has no IP address space, so Chromium's Local Network Access checks treat it as public and block its requests to loopback/intranet hosts | The app disables those checks for its browser (`src/main/chromiumFlags.ts`) |
 | With the `RenderDocument` feature disabled (Playwright's Electron launcher does this), Electron 44 crashes (SIGSEGV) when a page with out-of-process iframe sessions reloads | `chromiumFlags.ts` keeps it enabled whatever else is passed in `--disable-features` |
 

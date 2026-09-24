@@ -268,13 +268,18 @@ describe.skipIf(!chromiumAvailable)('iframes in Chromium', () => {
     await (await frame('localhost')).evaluate(`location.href = '${site.url}/frames/back.html'`);
     // Chromium may or may not intercept this first load; either way the user hears about it.
     await waitFor(() => events.some((e) => (e.type === 'override-served' || e.type === 'override-missed') && e.url === back));
-    // A reload of that frame is always intercepted.
-    const backFrame = await waitFor(() => page.frames().find((f) => f.url().endsWith('/frames/back.html')));
-    await backFrame.evaluate('location.reload()').catch(() => undefined);
-    await waitFor(async () => {
-      const f = page.frames().find((fr) => fr.url().endsWith('/frames/back.html'));
-      return (await f?.evaluate('window.backValue').catch(() => undefined)) === 'patched-back';
+    // Reloading just that frame differs by version: Chromium 141 intercepts the reload, 153 serves the script
+    // from the renderer's memory cache, out of reach of Fetch and of the page's cache-disable. Either way the
+    // frame never runs the original file while nothing told the user.
+    const backFrame = () => page.frames().find((f) => f.url().endsWith('/frames/back.html'));
+    await (await waitFor(backFrame)).evaluate('window.beforeReload = true; location.reload()').catch(() => undefined);
+    const value = await waitFor(async () => {
+      const state = await backFrame()
+        ?.evaluate("window.beforeReload || document.readyState !== 'complete' ? undefined : String(window.backValue)")
+        .catch(() => undefined);
+      return state as string | undefined;
     });
+    expect(value === 'patched-back' || events.some((e) => e.type === 'override-missed' && e.url === back)).toBe(true);
   });
 
   it('reports a changed live file from inside an iframe', async () => {
