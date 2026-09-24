@@ -9,43 +9,12 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
-  type ReactElement,
-  type Ref,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { KEY } from '@/shared/config';
 import { assignRef } from '@/shared/lib';
 import { MenuPanel, RESTORES_FOCUS, type MenuAnchor, type MenuCloseReason, type MenuInitialFocus } from '../MenuPanel';
-import type { MenuAlign, MenuItem, MenuSide } from '../types';
-
-type TriggerProps = {
-  ref?: Ref<HTMLElement>;
-  onClick?: (event: ReactMouseEvent<HTMLElement>) => void;
-  onKeyDown?: (event: ReactKeyboardEvent<HTMLElement>) => void;
-};
-
-export interface MenuProps {
-  items: MenuItem[];
-  /**
-   * The trigger: one element that accepts `ref`, `onClick`, `onKeyDown` and
-   * `aria-*` props (a native button, or `Button`/`IconButton`). It receives
-   * `aria-haspopup`, `aria-expanded`, `aria-controls` and `data-state`.
-   */
-  children: ReactElement;
-  /** Horizontal alignment against the trigger. Default `start`. */
-  align?: MenuAlign;
-  /** Preferred side; flips when there is no room. Default `bottom`. */
-  side?: MenuSide;
-  /** Controlled open state (optional). */
-  open?: boolean;
-  defaultOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  disabled?: boolean;
-  /** Accessible name of the menu. */
-  label?: string;
-  /** Extra classes for the floating panel. */
-  className?: string;
-}
+import type { MenuProps, TriggerProps } from './types';
 
 // WAI-ARIA menu button: ArrowDown opens on the first item, ArrowUp on the last.
 const OPENING_KEYS: Record<string, MenuInitialFocus> = {

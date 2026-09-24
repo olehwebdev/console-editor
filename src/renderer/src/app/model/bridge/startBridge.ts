@@ -1,8 +1,10 @@
 import { api, onAppEvent } from '@/shared/api';
 import { useOverrideStore } from '@/entities/override';
+import { useFrameStore } from '@/entities/frame';
 import { usePageStore } from '@/entities/page';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
+import { receiveEntries } from '@/features/filter-console';
 import { startUpdates } from '@/features/update-app';
 import type { PageCommands, PageSession } from '@/pages/editor';
 import { pageCommands } from './commands/pageCommands';
@@ -28,6 +30,11 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     api.listOverrides().then((overrides) => useOverrideStore.getState().setAll(overrides)),
     api.listResources().then(applyResourceSnapshot),
     api.getPageState().then((page) => usePageStore.getState().setPage(page)),
+    // Frames first: the rows name them.
+    api.listFrames().then(async (frames) => {
+      useFrameStore.getState().setAll(frames);
+      receiveEntries(await api.getConsoleEntries());
+    }),
   ]);
 
   // Unsaved edits are kept as drafts rather than guarded: closing never asks to discard them.

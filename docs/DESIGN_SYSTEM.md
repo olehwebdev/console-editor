@@ -42,7 +42,7 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 | `--warning` | upstream changed | amber `oklch(82% 0.15 80)` |
 | `--danger` | destructive, errors | `oklch(67% 0.2 25)` |
 | `--kind-js` / `--kind-css` / `--kind-html` | file-kind glyph tints | yellow / blue / orange |
-| `--workspace-ember` … `--workspace-rose` | the colour picked for a workspace's rail tile (ember, amber, lime, teal, sky, indigo, violet, rose): the tile is the colour at 15 % with a 35 % ring, the letter in full | `oklch(68–86% 0.12–0.19 …)` |
+| `--workspace-ember` … `--workspace-rose` | the colour picked for a workspace's rail tile (ember, amber, lime, teal, sky, indigo, violet, rose): the tile is the colour at 15 % with a 35 % ring, the letter in full. The console gives each frame one of them too (from the frame's key, so a service keeps its colour): its chip is the colour at 15 % with the name in full | `oklch(68–86% 0.12–0.19 …)` |
 
 ### Typography
 
@@ -137,11 +137,12 @@ src/renderer/src/
   pages/      editor/          — composes widgets into the workspace layout; owns the layout store, the session
                                sync and workspace switching (they reopen files through features)
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
-              command-palette
+              command-palette, console-panel
   features/   navigate-page, open-resource, save-override, toggle-override, delete-override, close-tab,
               edit-match-rule, format-document, compare-changes, filter-resources, update-settings,
-              update-app, edit-workspace
-  entities/   page, resource, override, editor-tab, settings, app-update, workspace
+              update-app, edit-workspace, run-in-frame, filter-console, name-frame, clear-console,
+              expand-console-value
+  entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format worker,
               overlays, native view rect), monaco, config (icons)
 ```
@@ -159,7 +160,7 @@ Code shared with the main process (`src/shared`: IPC types, URL matching) is imp
 - **Zustand** stores, one per entity (`entities/*/model`), created with `create<State & Actions>()`. State is serializable and normalized (records keyed by id/url); actions are pure state transitions.
 - **UI-only state lives with the slice that owns the UI**, never in entities: the workspace layout in `pages/editor/model`, the palette's open state in `widgets/command-palette/model`, a feature's own transient state in that feature (`compare-changes`' diff source, `filter-resources`' query), and the overlay counter in `shared/lib`.
 - **Side effects live in features** (`features/*/model`): they call `shared/api`, then update entity stores through their actions. Widgets call `shared/api` directly only for stateless view plumbing: the native page view's bounds and snapshot (`PagePreview`) and revealing the overrides folder.
-- **Events are batched:** the bridge queues resource, navigation, iframe and worker events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file.
+- **Events are batched:** the bridge queues resource, navigation, iframe and worker events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file. Console rows already come batched from the main process (every 50 ms at most), so each batch is one store update.
 - **One IPC bridge**: `startBridge()` in `app/model/bridge/` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features) through typed handler tables, one handler per event type and per menu command.
 - **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
 - **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models/`, `shared/monaco/editors/`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode).

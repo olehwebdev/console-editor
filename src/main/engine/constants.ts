@@ -45,8 +45,26 @@ export const CDP = {
     frameStoppedLoading: 'Page.frameStoppedLoading',
   },
   Runtime: {
+    disable: 'Runtime.disable',
+    discardConsoleEntries: 'Runtime.discardConsoleEntries',
+    enable: 'Runtime.enable',
     evaluate: 'Runtime.evaluate',
+    getProperties: 'Runtime.getProperties',
+    releaseObjectGroup: 'Runtime.releaseObjectGroup',
     runIfWaitingForDebugger: 'Runtime.runIfWaitingForDebugger',
+    // Events
+    consoleAPICalled: 'Runtime.consoleAPICalled',
+    exceptionThrown: 'Runtime.exceptionThrown',
+    executionContextCreated: 'Runtime.executionContextCreated',
+    executionContextDestroyed: 'Runtime.executionContextDestroyed',
+    executionContextsCleared: 'Runtime.executionContextsCleared',
+  },
+  Log: {
+    clear: 'Log.clear',
+    disable: 'Log.disable',
+    enable: 'Log.enable',
+    // Events
+    entryAdded: 'Log.entryAdded',
   },
   ServiceWorker: {
     disable: 'ServiceWorker.disable',
@@ -78,6 +96,9 @@ export const TARGET_TYPE = {
   serviceWorker: 'service_worker',
   worklet: 'worklet',
 } as const satisfies Record<string, 'iframe' | WorkerType>;
+
+/** `Page.frameDetached` reason of a frame that moved to another process (it still exists). */
+export const FRAME_SWAP_REASON = 'swap';
 
 /** Where the HTTP status classes the engine tells apart start; each ends where the next one starts. */
 export const HTTP_SUCCESSFUL = 200;

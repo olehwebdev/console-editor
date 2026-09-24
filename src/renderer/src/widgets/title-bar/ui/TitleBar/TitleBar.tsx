@@ -5,6 +5,7 @@ import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
 import type { TooltipSide } from '@/shared/ui/tooltip';
+import { selectErrorCount, useConsoleStore } from '@/entities/console-log';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { usePageStore } from '@/entities/page';
 import { BrandMark } from './BrandMark';
@@ -18,14 +19,18 @@ export interface TitleBarProps {
   previewVisible: boolean;
   onToggleSidebar(): void;
   onTogglePreview(): void;
+  consoleVisible: boolean;
+  onToggleConsole(): void;
 }
 
 /** Brand, site and file location, command palette trigger, layout toggles. */
-export function TitleBar({ onOpenPalette, sidebarVisible, previewVisible, onToggleSidebar, onTogglePreview }: TitleBarProps) {
+export function TitleBar({ onOpenPalette, sidebarVisible, previewVisible, onToggleSidebar, onTogglePreview, consoleVisible, onToggleConsole }: TitleBarProps) {
   const url = usePageStore((s) => s.page.url);
   const title = usePageStore((s) => s.page.title);
   const activeUrl = useTabStore((s) => selectActiveTab(s)?.url ?? null);
   const segments = activeUrl ? pathSegments(activeUrl) : [];
+  // A dot on the console button while it is closed and something went wrong.
+  const errors = useConsoleStore(selectErrorCount);
 
   return (
     <header className="flex h-[var(--titlebar-h)] shrink-0 items-center gap-3 border-b border-line bg-canvas px-3" data-testid="title-bar">
@@ -70,6 +75,16 @@ export function TitleBar({ onOpenPalette, sidebarVisible, previewVisible, onTogg
 
       <div className="flex items-center gap-0.5">
         <IconButton icon={icons.SidebarLeftIcon} label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'} shortcut={SHORTCUT.sidebar} aria-pressed={sidebarVisible} onClick={onToggleSidebar} tooltipSide={TOOLTIP_SIDE} />
+        <IconButton
+          icon={icons.ConsoleIcon}
+          label={consoleVisible ? 'Hide console' : 'Show console'}
+          shortcut={SHORTCUT.console}
+          aria-pressed={consoleVisible}
+          onClick={onToggleConsole}
+          tooltipSide={TOOLTIP_SIDE}
+          data-testid="console-toggle"
+          badge={!consoleVisible && errors ? <span className="size-1.5 rounded-full bg-danger" /> : undefined}
+        />
         <IconButton icon={icons.PreviewIcon} label={previewVisible ? 'Hide website preview' : 'Show website preview'} aria-pressed={previewVisible} onClick={onTogglePreview} tooltipSide={TOOLTIP_SIDE} />
       </div>
     </header>

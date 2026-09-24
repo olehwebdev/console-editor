@@ -43,6 +43,8 @@ export type Row =
   | { kind: 'heading'; key: string; heading: string }
   | { kind: 'item'; key: string; result: Result; ordinal: number; group: number };
 
+export type ItemRow = Extract<Row, { kind: 'item' }>;
+
 /** Down the list (1) or up it (-1). */
 export type Direction = 1 | -1;
 
@@ -54,6 +56,19 @@ export interface PaletteKeyActions {
   page: (direction: Direction) => void;
   /** Runs the highlighted row, if any. */
   runActive: () => void;
+  close: () => void;
+}
+
+/** The panel's current results and moves, which the key actions are bound to. */
+export interface PaletteNavigation {
+  /** How many options the list has. */
+  count: number;
+  /** The highlighted option's ordinal; -1 for none. */
+  current: number;
+  /** Highlights an option and scrolls it into view. */
+  moveTo: (ordinal: number, direction: Direction) => void;
+  /** Closes the palette and runs an option. */
+  run: (ordinal: number) => void;
   close: () => void;
 }
 

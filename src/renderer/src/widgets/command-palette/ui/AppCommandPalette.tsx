@@ -32,10 +32,11 @@ export interface AppCommandPaletteProps {
   onFocusAddressBar(): void;
   onSwitchWorkspace(id: string): void;
   onNewWorkspace(): void;
+  onToggleConsole(): void;
 }
 
 /** Ctrl/Cmd+K: jump to any file the page loaded, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace }: AppCommandPaletteProps) {
+export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
@@ -78,6 +79,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
             ]
           : []),
         { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
+        { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },
@@ -116,7 +118,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
       ],
     };
     return [files, overrideGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, overrides, active, workspaces, activeWorkspaceId, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace]);
+  }, [open, files, overrides, active, workspaces, activeWorkspaceId, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

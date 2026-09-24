@@ -5,8 +5,8 @@ import type { SavedLayout } from './types';
 export function load(): SavedLayout {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<SavedLayout>;
-    const { sidebar, sidebarWidth, previewVisible, previewRatio } = { ...DEFAULTS, ...saved };
-    return { sidebar, sidebarWidth, previewVisible, previewRatio };
+    const { sidebar, sidebarWidth, previewVisible, previewRatio, consoleVisible, consoleHeight } = { ...DEFAULTS, ...saved };
+    return { sidebar, sidebarWidth, previewVisible, previewRatio, consoleVisible, consoleHeight };
   } catch {
     return DEFAULTS;
   }
