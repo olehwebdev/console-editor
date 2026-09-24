@@ -8,6 +8,25 @@ import {
   validateMatcher,
 } from '../../src/shared/matcher';
 
+describe('a match type this build does not know', () => {
+  // A newer version's type, or a hand edit of overrides.json, must not take down interception.
+  const unknown = { type: 'prefix', pattern: 'https://a.com/', ignoreQuery: false } as unknown as Parameters<typeof compileMatcher>[0];
+
+  it('compiles to a matcher that matches nothing', () => {
+    expect(compileMatcher(unknown)('https://a.com/app.js')).toBe(false);
+  });
+
+  it('pauses broadly, as a regex does, and leaves the decision to the matcher', () => {
+    expect(toCdpUrlPattern(unknown)).toBe('*');
+  });
+
+  it('is not mistaken for an Object.prototype member', () => {
+    const inherited = { ...unknown, type: 'toString' } as unknown as typeof unknown;
+    expect(compileMatcher(inherited)('https://a.com/')).toBe(false);
+    expect(toCdpUrlPattern(inherited)).toBe('*');
+  });
+});
+
 describe('stripQuery', () => {
   it('removes query and fragment', () => {
     expect(stripQuery('https://a.com/x.js?v=1#h')).toBe('https://a.com/x.js');

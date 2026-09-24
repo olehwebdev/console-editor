@@ -1,0 +1,9 @@
+export { createTabModel } from './createTabModel';
+export { disposeTabModel } from './disposeTabModel';
+export { getTabBase } from './getTabBase';
+export { getTabModel } from './getTabModel';
+export { markTabSaved } from './markTabSaved';
+export { newTabId } from './newTabId';
+export { onTabEdited } from './onTabEdited';
+export { replaceTabText } from './replaceTabText';
+export { setTabBase } from './setTabBase';

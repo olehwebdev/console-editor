@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { cn } from '@/shared/lib';
 import { focusWhenFree, getActiveEditor, setActiveEditor, takeFocusRequest, trackTreeNavigation } from './editors';
-import { guardFloatingWidgets } from './floatingGuard';
+import { guardFloatingWidgets } from './guardFloatingWidgets';
 import { EDITOR_OPTIONS, FULL_EDITOR_OPTIONS, LITE_EDITOR_OPTIONS } from './options';
 import { isLiteModel } from './languages';
 import { monaco } from './setup';

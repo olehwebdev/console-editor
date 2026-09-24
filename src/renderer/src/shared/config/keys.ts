@@ -1,0 +1,23 @@
+/** `KeyboardEvent.key` values the UI handles. `event.key` is a plain string, so these names are what keeps a typo from compiling. */
+export const KEY = {
+  enter: 'Enter',
+  escape: 'Escape',
+  space: ' ',
+  tab: 'Tab',
+  arrowUp: 'ArrowUp',
+  arrowDown: 'ArrowDown',
+  arrowLeft: 'ArrowLeft',
+  arrowRight: 'ArrowRight',
+  home: 'Home',
+  end: 'End',
+  pageUp: 'PageUp',
+  pageDown: 'PageDown',
+  backspace: 'Backspace',
+  delete: 'Delete',
+  contextMenu: 'ContextMenu',
+  f10: 'F10',
+  meta: 'Meta',
+  control: 'Control',
+  shift: 'Shift',
+  alt: 'Alt',
+} as const;

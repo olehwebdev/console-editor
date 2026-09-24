@@ -243,7 +243,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 | `npm run test:update` | Updates an installed app (or an AppImage) to a newer build served locally: pass its executable and the newer build's `dist` folder |
 | `npm run demo-site` | Serves the demo site on port 5174 |
 
-- **Main process** (`src/main`): the interception engine (`engine/InterceptionEngine.ts`, one per CDP session) and its iframe coordinator (`engine/PageInterception.ts`), the embedded page, persistence and IPC.
+- **Main process** (`src/main`): the interception engine (`engine/InterceptionEngine/`, one per CDP session) and its iframe coordinator (`engine/PageInterception/`), the embedded page, persistence and IPC.
 - **Renderer** (`src/renderer/src`): React 19 organized with Feature-Sliced Design (`app → pages → widgets → features → entities → shared`), Zustand stores per entity, and a design system with Motion animations and [Hugeicons](https://hugeicons.com). Tokens, motion rules and components are in **[docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)**; `CONSOLE_EDITOR_GALLERY=1 npm run dev` opens the component gallery.
 - **Shared** (`src/shared`): IPC types and URL matching used by both.
 

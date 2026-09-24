@@ -1,1 +1,1 @@
-export { formatTab } from './model/format';
+export { formatTab } from './model/formatTab';

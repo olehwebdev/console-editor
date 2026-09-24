@@ -142,10 +142,12 @@ export const WORKSPACE_COLORS = ['ember', 'amber', 'lime', 'teal', 'sky', 'indig
 export type WorkspaceColor = (typeof WORKSPACE_COLORS)[number];
 
 /**
- * What a workspace's rail tile shows: the site's favicon (its colour stands in
+ * What a workspace's rail tile can show: the site's favicon (its colour stands in
  * until the site has one), or its colour with the first letter of its name.
  */
-export type WorkspaceIcon = 'favicon' | 'color';
+export const WORKSPACE_ICONS = ['favicon', 'color'] as const;
+
+export type WorkspaceIcon = (typeof WORKSPACE_ICONS)[number];
 
 /**
  * A saved workflow: a page, the tabs open on it with their unsaved edits, and

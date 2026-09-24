@@ -1,1 +1,1 @@
-export { setSetting } from './model/settings';
+export { setSetting } from './model/setSetting';

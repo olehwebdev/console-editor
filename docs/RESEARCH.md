@@ -57,7 +57,7 @@ Caching and service workers are handled by turning off the HTTP cache (`Network.
 | **Desktop app with its own Chromium (Electron) + CDP** ← *this project* | CDP `Fetch` on the embedded page | Monaco (VS Code's editor) with a list of the page's files, pretty-print, diff | Separate cookie jar: you log in once inside the app (sessions persist). ~100 MB app. A few SSO providers are wary of embedded browsers (mitigated by a standard Chrome user agent; see the external-Chrome mode below) |
 | **Desktop app driving your own Chrome over CDP** (roadmap M3) | Same engine, over a WebSocket | Same | Since Chrome 136, `--remote-debugging-port` is ignored for the *default* profile, so this needs a dedicated Chrome profile (log in once there) |
 
-The engine is written against a two-method CDP interface (`src/main/engine/cdp.ts`), so the embedded-browser mode (built) and the external-Chrome mode (planned) share all the interception logic.
+The engine is written against a two-method CDP interface (`src/main/engine/cdp/`), so the embedded-browser mode (built) and the external-Chrome mode (planned) share all the interception logic.
 
 **Try first:** if your need is occasional and DevTools Local Overrides is enough for it, use that. This app is for when you do this regularly, on minified bundles, across redeploys, or with SRI in the way.
 

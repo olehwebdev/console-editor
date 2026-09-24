@@ -1,14 +1,22 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CreateOverrideInput, Override, OverrideMeta, OverridePatch, ResourceKind } from '../../shared/types';
 import { defaultMatcherFor, validateMatcher } from '../../shared/matcher';
+import { FILE_NOT_FOUND } from '../constants';
+import { toIndexEntry } from './toIndexEntry';
+import { toMeta } from './toMeta';
+import type { StoredOverride } from './types';
+import { writeAtomic } from './writeAtomic';
 
 const INDEX_VERSION = 1;
+const INDEX_FILE = 'overrides.json';
+/** Marks the file of the text an override was made from: `<id>.base.<ext>`. */
+const BASE_MARK = 'base';
+const FILES_DIR = 'files';
 
-/** An override as kept here, with the workspace it belongs to. */
-export type StoredOverride = Override & { workspaceId: string };
-type IndexEntry = OverrideMeta & { workspaceId: string };
+/** Override ids are this many random bytes, as hex. */
+const ID_BYTES = 4;
 
 interface IndexFile {
   version: number;
@@ -16,22 +24,7 @@ interface IndexFile {
   overrides: Array<OverrideMeta & { workspaceId?: string }>;
 }
 
-function toMeta({ content: _content, workspaceId: _workspaceId, ...meta }: StoredOverride): OverrideMeta {
-  return meta;
-}
-
-function toIndexEntry({ content: _content, ...entry }: StoredOverride): IndexEntry {
-  return entry;
-}
-
 const EXTENSIONS: Record<ResourceKind, string> = { Script: 'js', Stylesheet: 'css', Document: 'html' };
-
-/** Writes via a temp file + rename so a crash never leaves a half-written file. */
-async function writeAtomic(path: string, content: string): Promise<void> {
-  const tmp = `${path}.${randomBytes(4).toString('hex')}.tmp`;
-  await writeFile(tmp, content, 'utf8');
-  await rename(tmp, path);
-}
 
 /**
  * Persists overrides on disk:
@@ -59,16 +52,16 @@ export class OverrideStore {
   constructor(readonly dir: string) {}
 
   private get indexPath(): string {
-    return join(this.dir, 'overrides.json');
+    return join(this.dir, INDEX_FILE);
   }
 
   get filesDir(): string {
-    return join(this.dir, 'files');
+    return join(this.dir, FILES_DIR);
   }
 
   private contentPath(meta: Pick<OverrideMeta, 'id' | 'kind'>, which: 'content' | 'base'): string {
     const ext = EXTENSIONS[meta.kind];
-    return join(this.filesDir, which === 'content' ? `${meta.id}.${ext}` : `${meta.id}.base.${ext}`);
+    return join(this.filesDir, which === 'content' ? `${meta.id}.${ext}` : `${meta.id}.${BASE_MARK}.${ext}`);
   }
 
   async load(): Promise<void> {
@@ -77,7 +70,7 @@ export class OverrideStore {
     try {
       index = JSON.parse(await readFile(this.indexPath, 'utf8')) as IndexFile;
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+      if ((err as NodeJS.ErrnoException).code === FILE_NOT_FOUND) return;
       throw new Error(`Could not read ${this.indexPath}: ${(err as Error).message}`);
     }
     this.overrides.clear();
@@ -121,7 +114,7 @@ export class OverrideStore {
     try {
       return await readFile(this.contentPath(o, 'base'), 'utf8');
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return o.content;
+      if ((err as NodeJS.ErrnoException).code === FILE_NOT_FOUND) return o.content;
       throw err;
     }
   }
@@ -134,7 +127,7 @@ export class OverrideStore {
     const { workspaceId } = this;
     return this.mutate(async (overrides) => {
       let id: string;
-      do id = randomBytes(4).toString('hex');
+      do id = randomBytes(ID_BYTES).toString('hex');
       while (overrides.has(id));
       const now = Date.now();
       const override: StoredOverride = {

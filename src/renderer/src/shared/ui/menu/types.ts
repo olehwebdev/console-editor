@@ -26,7 +26,3 @@ export type MenuItem = MenuAction | MenuSeparator;
 
 export type MenuAlign = 'start' | 'end';
 export type MenuSide = 'bottom' | 'top';
-
-export function isMenuSeparator(item: MenuItem): item is MenuSeparator {
-  return item.separator === true;
-}

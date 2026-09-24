@@ -11,14 +11,19 @@ export interface MarkdownProps {
   onOpenLink?(url: string): void;
 }
 
+/** No scripts, styles, images or forms; links stay, and clicks on them are handled below. */
+const SANITIZE = {
+  FORBID_TAGS: ['img', 'style', 'form', 'input', 'button', 'iframe'],
+  FORBID_ATTR: ['style', 'class', 'id'],
+};
+/** Links the caller may open; any other href is ignored. */
+const WEB_LINK = /^https?:\/\//i;
+
 /** Markdown (release notes) rendered to sanitized HTML: no scripts, styles, images or forms. */
 export function Markdown({ source, className, onOpenLink }: MarkdownProps) {
   const html = useMemo(
     () =>
-      DOMPurify.sanitize(marked.parse(source, { async: false, gfm: true }), {
-        FORBID_TAGS: ['img', 'style', 'form', 'input', 'button', 'iframe'],
-        FORBID_ATTR: ['style', 'class', 'id'],
-      }),
+      DOMPurify.sanitize(marked.parse(source, { async: false, gfm: true }), SANITIZE),
     [source],
   );
 
@@ -27,7 +32,7 @@ export function Markdown({ source, className, onOpenLink }: MarkdownProps) {
     if (!link) return;
     event.preventDefault();
     const href = link.getAttribute('href') ?? '';
-    if (/^https?:\/\//i.test(href)) onOpenLink?.(href);
+    if (WEB_LINK.test(href)) onOpenLink?.(href);
   };
 
   // Sanitized above; links are handled by the click listener.

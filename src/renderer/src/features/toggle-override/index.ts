@@ -1,1 +1,1 @@
-export { setOverrideEnabled } from './model/toggle';
+export { setOverrideEnabled } from './model/setOverrideEnabled';

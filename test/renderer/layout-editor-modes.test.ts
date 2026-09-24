@@ -3,7 +3,7 @@ import type { ResourceKind } from '../../src/shared/types';
 import { useOverlayStore } from '@/shared/lib';
 import { focusWhenFree, requestEditorFocus, takeFocusRequest, trackTreeNavigation } from '@/shared/monaco/editors';
 import { isLiteModel, LARGE_FILE_CHARS, languageFor } from '@/shared/monaco/languages';
-import { openedTabId } from '@/widgets/editor-panel/lib/focus';
+import { openedTabId } from '@/widgets/editor-panel/lib/openedTabId';
 
 const KINDS: ResourceKind[] = ['Script', 'Stylesheet', 'Document'];
 

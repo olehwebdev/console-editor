@@ -40,6 +40,12 @@ Agents: when the environment assigns a generated branch (`claude/…`) and says 
 3. Leave other sessions' branches alone. Don't merge pull requests, create `v*` tags or change releases: that's the maintainer's call. Agents push as the maintainer, so GitHub's rules can't tell them apart.
 4. If pushing the git flow branch is refused, push to the generated name instead and say so. Either way, name the branch in your reply.
 
+## Code structure
+
+- **One function or component per file**, named after it (`startBridge.ts`, `SaveDemo.tsx`, `useLayout.ts`). A file may instead hold data only: constants (`constants.ts`), types (`types.ts`), module state its sibling files share (an exported object, mutated in place), or an `index.ts` that only re-exports. A store (`create(...)`) or a class counts as one. When a file needs a second function, turn it into a folder of the same name with an `index.ts`, so its imports don't change. The entry points the build names (`src/main/index.ts`, `src/preload/index.ts`, `src/renderer/src/app/index.tsx`) hold startup statements instead. Tests are exempt.
+- **No magic values.** Name every literal that drives logic: ids, keys and prefixes, the app's own channel and event names (IPC channels, `AppEvent` types), durations (a step of `DURATION` in `shared/lib/motion.ts`), sizes used in more than one place, and any value that has to match another system (Monaco command ids, `execCommand` names, `KeyboardEvent.key`, env vars). The platform's own event names (`'keydown'`, `'did-navigate'`), which its typed listeners check, stay inline. A constant goes at the top of the file that uses it, or in the folder's `constants.ts` when several files do; app-wide ones go in `shared/config` (renderer) or `src/shared/constants.ts` (both processes). Display copy, Tailwind classes and identity values (`0`, `1`, `''`, `true`) stay inline.
+- **No `switch`.** Dispatch through a typed table (`Record<Union, Handler>`, or a mapped type when each handler takes its own member), so a new union member fails typecheck until it's handled (see `app/model/bridge/`). An if/else chain or nested ternary over one value counts as a switch.
+
 ## Commits and pull requests
 
 They go out as the maintainer's own work, with no agent credited in them:

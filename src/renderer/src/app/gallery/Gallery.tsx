@@ -2,10 +2,13 @@ import { type ComponentType, lazy, Suspense } from 'react';
 import { ControlsSection } from './sections/Controls';
 import { OverlaysSection } from './sections/Overlays';
 
+/** The optional section's module: the glob below must name it too (it takes a literal only). */
+const STRUCTURE_MODULE = './sections/Structure/index.ts';
+
 // Optional sections are picked up when present (they're added as components land).
-const optional = import.meta.glob<{ StructureSection?: ComponentType }>('./sections/Structure.tsx');
-const StructureSection = optional['./sections/Structure.tsx']
-  ? lazy(async () => ({ default: (await optional['./sections/Structure.tsx']()).StructureSection ?? (() => null) }))
+const optional = import.meta.glob<{ StructureSection?: ComponentType }>('./sections/Structure/index.ts');
+const StructureSection = optional[STRUCTURE_MODULE]
+  ? lazy(async () => ({ default: (await optional[STRUCTURE_MODULE]()).StructureSection ?? (() => null) }))
   : null;
 
 /**
