@@ -195,6 +195,11 @@ export function stopSessionSync(): void {
   unsubscribe = null;
 }
 
+/** Edits or tab changes are waiting to be written (they came in while a flush ran, say). */
+export function sessionPending(): boolean {
+  return !!syncing && (tabsTimer !== undefined || draftTimers.size > 0);
+}
+
 /**
  * Closes the file tabs as the workspace is left, keeping their drafts on disk
  * (flush first). Pages such as What's New stay open.

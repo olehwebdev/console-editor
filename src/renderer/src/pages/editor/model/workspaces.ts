@@ -4,7 +4,7 @@ import { toast } from '@/shared/ui/toast';
 import { useOverrideStore } from '@/entities/override';
 import { useWorkspaceStore, workspaceLabel } from '@/entities/workspace';
 import { savesSettled } from '@/features/save-override';
-import { closeSessionTabs, flushSession, restoreSession, startSessionSync, stopSessionSync } from './session';
+import { closeSessionTabs, flushSession, restoreSession, sessionPending, startSessionSync } from './session';
 
 /** A switch is running (they take turns: each one closes and reopens every tab). */
 let busy = false;
@@ -22,19 +22,19 @@ export async function switchWorkspace(id: string): Promise<void> {
   try {
     // A save still running belongs to the workspace it started in.
     await savesSettled();
-    stopSessionSync();
-    if (!(await flushSession())) {
+    // Still synced meanwhile: what is typed while the drafts are written is written too.
+    let flushed = await flushSession();
+    while (flushed && sessionPending()) flushed = await flushSession();
+    if (!flushed) {
       const ok = await confirm({
         title: 'Your unsaved edits could not be kept',
         body: 'Switch workspaces anyway and lose them?',
         confirmLabel: 'Switch anyway',
         tone: 'danger',
       });
-      if (!ok) {
-        startSessionSync();
-        return;
-      }
+      if (!ok) return;
     }
+    // In the same task as the last check: nothing can be typed in between.
     closeSessionTabs();
     try {
       await api.switchWorkspace(id);
@@ -64,7 +64,10 @@ export async function createWorkspace(): Promise<boolean> {
   try {
     const created = await api.createWorkspace();
     await switchWorkspace(created.id);
-    return useWorkspaceStore.getState().activeId === created.id;
+    if (useWorkspaceStore.getState().activeId === created.id) return true;
+    // Not switched to (cancelled, or it failed): an empty workspace nobody asked to keep.
+    await api.deleteWorkspace(created.id).catch(() => undefined);
+    return false;
   } catch (err) {
     toast({ title: 'Could not add a workspace', description: errorMessage(err), tone: 'danger' });
     return false;
