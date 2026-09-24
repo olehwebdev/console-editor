@@ -28,6 +28,14 @@
   --color-kind-js: var(--kind-js);
   --color-kind-css: var(--kind-css);
   --color-kind-html: var(--kind-html);
+  --color-workspace-ember: var(--workspace-ember);
+  --color-workspace-amber: var(--workspace-amber);
+  --color-workspace-lime: var(--workspace-lime);
+  --color-workspace-teal: var(--workspace-teal);
+  --color-workspace-sky: var(--workspace-sky);
+  --color-workspace-indigo: var(--workspace-indigo);
+  --color-workspace-violet: var(--workspace-violet);
+  --color-workspace-rose: var(--workspace-rose);
 
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;

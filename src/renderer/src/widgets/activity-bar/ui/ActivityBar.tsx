@@ -4,6 +4,7 @@ import { icons } from '@/shared/config';
 import { SPRING_LAYOUT } from '@/shared/lib';
 import { IconButton } from '@/shared/ui/icon-button';
 import { selectEnabledCount, useOverrideStore } from '@/entities/override';
+import { WorkspaceList } from './WorkspaceList';
 
 export type SidebarView = 'explorer' | 'settings';
 
@@ -11,6 +12,9 @@ export interface ActivityBarProps {
   view: SidebarView | null;
   onViewChange(view: SidebarView): void;
   onOpenPalette(): void;
+  onSwitchWorkspace(id: string): void;
+  onNewWorkspace(): void;
+  onDeleteWorkspace(id: string): void;
 }
 
 function RailItem({ id, icon, label, active, onClick, shortcut, badge }: { id: string; icon: IconGlyph; label: string; active: boolean; onClick(): void; shortcut?: string[]; badge?: React.ReactNode }) {
@@ -24,8 +28,8 @@ function RailItem({ id, icon, label, active, onClick, shortcut, badge }: { id: s
   );
 }
 
-/** Left rail: switches the sidebar view and opens the palette. */
-export function ActivityBar({ view, onViewChange, onOpenPalette }: ActivityBarProps) {
+/** Left rail: switches the sidebar view, opens the palette, and switches workspaces. */
+export function ActivityBar({ view, onViewChange, onOpenPalette, onSwitchWorkspace, onNewWorkspace, onDeleteWorkspace }: ActivityBarProps) {
   const liveCount = useOverrideStore(selectEnabledCount);
   return (
     <nav className="flex h-full w-[var(--rail-w)] shrink-0 flex-col items-center gap-1 border-r border-line bg-canvas py-2" aria-label="Views">
@@ -38,7 +42,9 @@ export function ActivityBar({ view, onViewChange, onOpenPalette }: ActivityBarPr
         badge={liveCount ? <span className="size-1.5 rounded-full bg-live shadow-[0_0_6px_var(--live)]" /> : undefined}
       />
       <RailItem id="search" icon={icons.SearchIcon} label="Search files and commands" active={false} onClick={onOpenPalette} shortcut={['mod', 'K']} />
-      <div className="flex-1" />
+      <div role="separator" className="my-1 h-px w-6 shrink-0 bg-line" />
+      <WorkspaceList onSwitch={onSwitchWorkspace} onCreate={onNewWorkspace} onDelete={onDeleteWorkspace} />
+      <div className="min-h-2 flex-1" />
       <RailItem id="settings" icon={icons.SettingsIcon} label="Settings" active={view === 'settings'} onClick={() => onViewChange('settings')} />
     </nav>
   );

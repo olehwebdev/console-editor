@@ -31,6 +31,11 @@ export function saveTab(tabId: string | null = useTabStore.getState().activeId):
   return job.next;
 }
 
+/** Resolves once the saves running now, and those queued behind them, have finished. */
+export function savesSettled(): Promise<void> {
+  return Promise.allSettled([...jobs.values()].map((job) => job.next ?? job.task)).then(() => undefined);
+}
+
 function startSave(tabId: string): Promise<void> {
   // doSave snapshots the model before its first await, so this is the version it sends.
   const version = getTabModel(tabId)?.getAlternativeVersionId();

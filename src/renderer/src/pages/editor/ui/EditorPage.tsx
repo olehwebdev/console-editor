@@ -13,6 +13,7 @@ import { SettingsPanel } from '@/widgets/settings-panel';
 import { StatusBar } from '@/widgets/status-bar';
 import { TitleBar } from '@/widgets/title-bar';
 import { selectPreviewWidth, selectSettledPreviewWidth, selectSidebarWidth, useLayout } from '../model/layout';
+import { createWorkspace, deleteWorkspace, switchWorkspace } from '../model/workspaces';
 
 // Actions never change, so they are read once instead of subscribed to.
 const { setSidebar, toggleSidebar, showSidebarView, sidebarExited, togglePreview, resizeSidebar, resizePreview, setResizing, setRowWidth } = useLayout.getState();
@@ -35,6 +36,14 @@ function focusAddressBar(): void {
     addressBar?.select();
   });
 }
+
+const openWorkspace = (id: string) => void switchWorkspace(id);
+const removeWorkspace = (id: string) => void deleteWorkspace(id);
+/** A new workspace starts on an empty page: its address is the first thing to give it. */
+const newWorkspace = () =>
+  void createWorkspace().then((shown) => {
+    if (shown) focusAddressBar();
+  });
 
 /** Ref callback: panels are fitted to the row, so the layout follows its width for as long as it exists. */
 function followRowWidth(row: HTMLDivElement) {
@@ -101,7 +110,14 @@ export function EditorPage() {
         onTogglePreview={togglePreview}
       />
       <div ref={followRowWidth} className="flex min-h-0 flex-1">
-        <ActivityBar view={sidebar} onViewChange={showSidebarView} onOpenPalette={togglePalette} />
+        <ActivityBar
+          view={sidebar}
+          onViewChange={showSidebarView}
+          onOpenPalette={togglePalette}
+          onSwitchWorkspace={openWorkspace}
+          onNewWorkspace={newWorkspace}
+          onDeleteWorkspace={removeWorkspace}
+        />
 
         {/* Until the sidebar has animated out, the preview doesn't grow into its room (the row would overflow). */}
         <AnimatePresence initial={false} onExitComplete={sidebarExited}>
@@ -135,7 +151,7 @@ export function EditorPage() {
         ) : null}
       </div>
       <StatusBar />
-      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} />
+      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} onSwitchWorkspace={openWorkspace} onNewWorkspace={newWorkspace} />
     </div>
   );
 }

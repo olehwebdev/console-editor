@@ -32,6 +32,8 @@ export {
   LinkSquare02Icon as ExternalLinkIcon,
   MagicWand01Icon as PrettifyIcon,
   NewReleasesIcon as WhatsNewIcon,
+  PencilEdit02Icon as EditIcon,
+  PlusSignIcon as AddIcon,
   PuzzleIcon as IframeIcon,
   RefreshIcon as ReloadIcon,
   Search01Icon as SearchIcon,

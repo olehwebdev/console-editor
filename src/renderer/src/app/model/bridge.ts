@@ -8,16 +8,18 @@ import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore, type ResourceOp } from '@/entities/resource';
 import { useSettingsStore } from '@/entities/settings';
+import { useWorkspaceStore } from '@/entities/workspace';
 import { toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { reloadPage } from '@/features/navigate-page';
 import { saveTab } from '@/features/save-override';
 import { checkForUpdatesNow, handleUpdateState, openWhatsNew, startUpdates } from '@/features/update-app';
-import type { PageCommands } from '@/pages/editor';
-import { flushSession, restoreSession, startSessionSync } from './session';
+import type { PageCommands, PageSession } from '@/pages/editor';
 
 /** What menu commands like "Focus Address Bar" do on the page; given to `startBridge`. */
 let pageCommands: PageCommands | null = null;
+/** The page's open tabs and drafts, kept on disk; given to `startBridge`. */
+let pageSession: PageSession | null = null;
 
 function runCommand(command: MenuCommand): void {
   switch (command) {
@@ -134,11 +136,17 @@ export function handleAppEvent(event: AppEvent): void {
         if (tab.overrideId && !event.overrides.some((o) => o.id === tab.overrideId)) useTabStore.getState().patch(tab.id, { overrideId: undefined });
       }
       return;
+    case 'workspaces-changed':
+      useWorkspaceStore.getState().setAll(event.state);
+      return;
+    case 'workspace-favicon':
+      useWorkspaceStore.getState().setFavicon(event.id, event.favicon);
+      return;
     case 'command':
       runCommand(event.command);
       return;
     case 'flush-session':
-      void flushSession().then(api.sessionFlushed, () => api.sessionFlushed(false));
+      void (pageSession?.flush() ?? Promise.resolve(true)).then(api.sessionFlushed, () => api.sessionFlushed(false));
       return;
     case 'update':
       handleUpdateState(event.state);
@@ -146,17 +154,25 @@ export function handleAppEvent(event: AppEvent): void {
   }
 }
 
-/** Loads the initial state and starts routing events, menu commands to `commands`. Returns a cleanup. */
-export async function startBridge(commands: PageCommands): Promise<() => void> {
+/**
+ * Loads the initial state and starts routing events, menu commands to
+ * `commands`; reopens `session` and keeps it synced. Returns a cleanup.
+ */
+export async function startBridge(commands: PageCommands, session: PageSession): Promise<() => void> {
   pageCommands = commands;
+  pageSession = session;
   const off = onAppEvent(handleAppEvent);
-  const [settings, overrides, resources, page] = await Promise.all([
+  const [settings, overrides, resources, page, workspaces, favicons] = await Promise.all([
     api.getSettings(),
     api.listOverrides(),
     api.listResources(),
     api.getPageState(),
+    api.getWorkspaces(),
+    api.getWorkspaceFavicons(),
   ]);
   useSettingsStore.getState().setSettings(settings);
+  useWorkspaceStore.getState().setAll(workspaces);
+  useWorkspaceStore.getState().setFavicons(favicons);
   useOverrideStore.getState().setAll(overrides);
   // Events queued while loading are older than this snapshot.
   flushResourceOps();
@@ -166,11 +182,12 @@ export async function startBridge(commands: PageCommands): Promise<() => void> {
   // Unsaved edits are kept as drafts rather than guarded: closing never asks to discard them.
   let stopSync: (() => void) | undefined;
   let stopped = false;
-  void restoreSession()
+  void session
+    .restore()
     .catch(() => undefined)
     .then(() => {
       if (stopped) return;
-      stopSync = startSessionSync();
+      stopSync = session.startSync();
       // After the tabs are back, so that What's New (opened right after an update) is the one in front.
       void startUpdates().catch(() => undefined);
     });

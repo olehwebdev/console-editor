@@ -42,6 +42,7 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 | `--warning` | upstream changed | amber `oklch(82% 0.15 80)` |
 | `--danger` | destructive, errors | `oklch(67% 0.2 25)` |
 | `--kind-js` / `--kind-css` / `--kind-html` | file-kind glyph tints | yellow / blue / orange |
+| `--workspace-ember` … `--workspace-rose` | the colour picked for a workspace's rail tile (ember, amber, lime, teal, sky, indigo, violet, rose): the tile is the colour at 15 % with a 35 % ring, the letter in full | `oklch(68–86% 0.12–0.19 …)` |
 
 ### Typography
 
@@ -55,7 +56,7 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 
 ### Spacing and density
 
-4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px, status bar 26 px, activity rail 48 px wide.
+4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px, status bar 26 px, activity rail 48 px wide. The rail holds the views (Explorer, Search), a hairline, the workspaces (28 px tiles in 36 px hit areas; the active one gets a `--fg` bar on the left, gliding with `SPRING_LAYOUT`, the others sit at 65 % opacity), +, and Settings at the bottom.
 
 ---
 
@@ -107,6 +108,7 @@ Each component lives in its own folder with an `index.ts` public API. Props belo
 | `CommandPalette` | `open`, `onOpenChange`, `groups: {heading, items: CommandItem[]}[]`, `placeholder` | fuzzy filter, spring panel, moving highlight |
 | `ToastStack` + `toast()` | `toast({title, description?, tone?, action?})` | stacked, swipe/auto-dismiss, bottom-left of the editor; its width is capped by `--preview-w` (published by the preview pane) so it never reaches the native page view |
 | `ConfirmDialog` + `confirm()` | `confirm({title, body, confirmLabel, tone}) => Promise<boolean>` | replaces `window.confirm` |
+| `Popover` | `open`, `onOpenChange`, `anchor: HTMLElement \| null`, `side?: 'right' \| 'bottom'`, `label` | a few controls beside an element (editing a workspace's tile); not modal: Esc (focus back on the anchor), a press or focus outside, window blur or resize close it; registers as an overlay like menus |
 | `HoverHighlight` | wraps a list; one pill follows the hovered row | port of beUI SharedLayoutBg |
 | `Collapsible` / `Section` | `title`, `count?`, `actions?`, `defaultOpen?` | height auto animation, caps header |
 | `Tree` | rows rendered by the caller; `TreeRow` = `depth`, `expanded?`, `onToggle?`, `selected?`, `icon`, `label`, `meta?` | 26 px rows, guide lines, chevron rotates |
@@ -121,12 +123,14 @@ Each component lives in its own folder with an `index.ts` public API. Props belo
 ```
 src/renderer/src/
   app/        bootstrap, IPC → stores bridge (model/bridge.ts), motion config, global styles, gallery
-  pages/      editor/          — composes widgets into the workspace layout; owns the layout store
+  pages/      editor/          — composes widgets into the workspace layout; owns the layout store, the session
+                               sync and workspace switching (they reopen files through features)
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
               command-palette
   features/   navigate-page, open-resource, save-override, toggle-override, delete-override, close-tab,
-              edit-match-rule, format-document, compare-changes, filter-resources, update-settings
-  entities/   page, resource, override, editor-tab, settings
+              edit-match-rule, format-document, compare-changes, filter-resources, update-settings,
+              update-app, edit-workspace
+  entities/   page, resource, override, editor-tab, settings, app-update, workspace
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format worker,
               overlays, native view rect), monaco, config (icons)
 ```

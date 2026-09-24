@@ -2,7 +2,7 @@ import { MotionConfig } from 'motion/react';
 import { useEffect } from 'react';
 import { ConfirmDialog } from '@/shared/ui/dialog';
 import { ToastStack } from '@/shared/ui/toast';
-import { EditorPage, pageCommands } from '@/pages/editor';
+import { EditorPage, pageCommands, pageSession } from '@/pages/editor';
 import { Gallery } from './gallery/Gallery';
 import { startBridge } from './model/bridge';
 
@@ -20,7 +20,7 @@ export function App() {
     if (gallery) return markReady();
     let stop: (() => void) | undefined;
     let cancelled = false;
-    void startBridge(pageCommands).then((off) => {
+    void startBridge(pageCommands, pageSession).then((off) => {
       if (cancelled) return off();
       stop = off;
       markReady();

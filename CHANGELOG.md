@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Workspaces.** Keep one for each site or task you're working on, and switch between them from the left rail. Each has its own page, open tabs, unsaved edits and overrides, so a fix in progress on one never shows up in another, even on the same site. A workspace's tile shows the site's icon, or the first letter of its name on a colour you pick: click the current tile, or right-click any, to name it or change its icon. **+** adds a workspace, and the command palette switches between them too. Everything you had before is in the first one.
+
 ### Changed
 
 - **A new app icon**, fitted to each system: it follows Apple's icon grid on the Mac, fills the frame on Windows, and comes in every size Linux desktops ask for.
