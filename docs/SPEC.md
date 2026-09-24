@@ -77,13 +77,14 @@ flowchart LR
 src/
   shared/            types.ts (IPC + data model), matcher.ts (URL matching), minified.ts
   main/
-    index.ts         app bootstrap, window, unsaved-changes prompt
+    index.ts         app bootstrap: single-instance lock, window, session flush on close
+    appInfo.ts       app id and repository URL (shared with electron-builder.ts)
     PageController.ts  WebContentsView for the site, navigation, engine wiring
     electronTransport.ts  webContents.debugger → CdpTransport
     engine/          PageInterception.ts (one engine per CDP session: page + iframes),
                      InterceptionEngine.ts, transform.ts (SRI/source maps/headers),
                      cdp.ts (transport interface), websocketTransport.ts (browser-level CDP, used by tests)
-    store/           OverrideStore.ts, SettingsStore.ts
+    store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts
     sitePermissions.ts  permission policy for the site view
     chromiumFlags.ts    Local Network Access switches (see §6.5, §8)
     ipc.ts, menu.ts
@@ -101,8 +102,12 @@ test/
   renderer/          resource tree building, palette fuzzy matching
   integration/       engine and iframe sessions against real Chromium + fixture site
   e2e/               the built Electron app driven by Playwright
+  smoke/packaged.ts  a packaged build (installed app) driven over the remote debugging port
   fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps, iframes
   helpers/           Chromium launcher with the app's flags, WebSocket CDP harness
+build/               icons, macOS entitlements (electron-builder's build resources)
+electron-builder.ts  installer configuration
+.github/workflows/   ci.yml (checks, tests), release.yml (installers on three systems, draft release)
 ```
 
 ## 5. Data model
@@ -239,6 +244,8 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 - Pop-ups: `window.open` pop-ups (sign-in flows need `window.opener`) open as child windows without interception; links meant for a new tab load in the page view, where overrides apply.
 - A page's `beforeunload` guard cannot block reloads or navigation: editor-initiated reloads after a save must win, and Electron would cancel them without showing a dialog.
 - **Trade-off:** Chromium's Local Network Access checks are disabled for the whole app (feature switches are process-wide), because documents served through `Fetch.fulfillRequest` have no address space and would otherwise be blocked from reaching localhost/intranet hosts (§6.5). Any page opened in the app can therefore reach local-network addresses, as in Chrome before these checks shipped. Browse only sites you are working on.
+- Packaged builds flip Electron's fuses: `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and the `--inspect` switches are ignored, the app loads only from its `app.asar`, whose integrity is checked on macOS and Windows, and the site view's cookies are encrypted with the OS keystore. `file://` keeps its extra privileges because the editor UI and its module workers load from it.
+- One instance per data folder (`app.requestSingleInstanceLock`), so two processes never write the same overrides and session files. A second launch hands its URL to the running window and exits.
 - IPC inputs are type-checked; matchers are validated before storage; settings are filtered to known boolean keys.
 - The site sees a standard Chrome user agent (Electron tokens removed).
 - All data stays local: nothing is uploaded, and there are no telemetry or network calls besides the page and out-of-page fetches for the files you open.
@@ -251,9 +258,22 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 | Renderer | Resource tree building and filtering, command-palette fuzzy matching | `npm test` |
 | Architecture | Feature-Sliced Design layer rules | `npm run lint:fsd` |
 | Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
-| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
+| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
+| Packaged | The installed app (asar, fuses, signature) fixes the demo store's checkout through the UI, driven over `--remote-debugging-port` since the fuses disable Node's inspector. The release workflow runs it on macOS (from the disk image), Windows (after a silent install) and Linux (from the installed `.deb`, with Ubuntu's user-namespace restriction left on) | `npm run test:packaged -- <app>` |
 
-## 10. Milestones
+## 10. Packaging and releases
+
+`electron-builder.ts` configures electron-builder; `npm run dist` builds the current system's installers into `dist/`. electron-vite bundles everything the app runs, dependencies included, into `out/`, so the package holds only `out/` and `package.json` (about 26 MB before Electron itself).
+
+| System | Installers | Notes |
+|---|---|---|
+| macOS | `.dmg`, Apple silicon and Intel | Signed ad hoc unless a Developer ID certificate is configured (`CSC_LINK`/`CSC_NAME`): Apple silicon refuses unsigned code. Hardened runtime with JIT, camera, microphone and location entitlements (also for the helpers, where Chromium captures media) and the matching usage descriptions, without which macOS ends the app when a site asks. Not notarized, so Gatekeeper asks once on first launch |
+| Windows | NSIS installer per architecture (x64, ARM64) | Per-user or per-machine; the app sets the same AppUserModelID as its shortcuts. Unsigned, so SmartScreen may warn |
+| Linux | AppImage, `.deb`, `.rpm`, `.tar.gz`, x64 and arm64 | `desktopName` names the `.desktop` file and Electron's window class, so docks match the window to the launcher. The `.deb`/`.rpm` install an AppArmor profile, which Ubuntu 24.04+ requires for Chromium's sandbox |
+
+`.github/workflows/release.yml` builds on macOS, Windows and Linux runners after the CI checks, installs each installer the way a user would, runs the packaged smoke test against the installed app, and drafts a GitHub release with `SHA256SUMS.txt`. It runs on a `vX.Y.Z` tag matching `package.json` or by hand (optionally drafting the release, whose tag is created on publishing). Signing, notarization and auto-update are not set up yet.
+
+## 11. Milestones
 
 **M1: MVP (done).** Everything marked ✅ above.
 
@@ -268,14 +288,15 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 
 **M3: Your own Chrome, and distribution**
 - External Chrome mode: launch Chrome with a dedicated `--user-data-dir` plus `--remote-debugging-port`, or connect to a running one; `WebSocketTransport` implementing `CdpTransport`; one engine per tab.
-- Packaging with electron-builder (macOS dmg with notarization, Windows NSIS, Linux AppImage), plus auto-update.
+- ✅ Installers with electron-builder, built and smoke-tested on all three systems by the release workflow (§10).
+- Signed and notarized builds, plus auto-update.
 
 **M4: Sources**
 - Source-map explorer: list the original files from `sourcesContent`, open them read-only, and jump between an original line and the bundle line.
 - Research: editing an original module and recompiling only it (esbuild transform) inside a webpack/Vite bundle's module map.
 - Console panel inside the app (mirror of `Runtime.consoleAPICalled`), and quick snippets.
 
-## 11. Risks and open questions
+## 12. Risks and open questions
 
 | Risk | Mitigation |
 |---|---|

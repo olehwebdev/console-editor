@@ -9,6 +9,7 @@
 Open any site, pick a file it loaded, edit it in VS Code's editor and press <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd>.<br>
 The page reloads running your version. Nothing changes on the server; your edit lives only in the app.
 
+[![Download](https://img.shields.io/badge/download-macOS%20·%20Windows%20·%20Linux-f97316)](https://github.com/olehwebdev/console-editor/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-f97316)](LICENSE)
 [![Electron 44](https://img.shields.io/badge/Electron-44-47848f?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -74,7 +75,25 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Stays fast on big bundles.** Multi-megabyte files open in a lighter highlight-only mode, and the file tree is virtualized.
 - **Keeps the site contained.** A site gets no permissions silently: camera, clipboard, location and similar ones prompt, the rest are denied. Its pop-ups stay under the editor's control, and a "Leave site?" guard can't block a reload.
 
-## Quick start
+## Install
+
+Download the installer for your system from the **[latest release](https://github.com/olehwebdev/console-editor/releases/latest)**:
+
+| System | File |
+|---|---|
+| **macOS** | `…-mac-arm64.dmg` (Apple silicon) or `…-mac-x64.dmg` (Intel) |
+| **Windows** | `…-win-x64-setup.exe`, or `…-win-arm64-setup.exe` on ARM |
+| **Linux** | `.deb` (Ubuntu, Debian), `.rpm` (Fedora, openSUSE), `.AppImage` or `.tar.gz`, each for x64 and arm64 |
+
+The builds aren't signed with a publisher certificate yet, so the first launch takes one extra step:
+
+- **macOS:** open the app once, then click **Open Anyway** in **System Settings › Privacy & Security**. If macOS calls the app damaged instead, run `xattr -dr com.apple.quarantine "/Applications/Console Editor.app"`.
+- **Windows:** if SmartScreen says it protected your PC, click **More info › Run anyway**.
+- **Linux:** on Ubuntu 24.04 and later, use the `.deb`: it installs the AppArmor profile Chromium's sandbox needs there. An AppImage needs `chmod +x` first.
+
+Each release lists SHA-256 checksums in `SHA256SUMS.txt`. Before a release is drafted, the Apple silicon disk image, the Windows x64 installer and the x64 `.deb` are installed and tested on their systems.
+
+## Run from source
 
 Requires [Node.js](https://nodejs.org/) 22.18 or newer.
 
@@ -95,7 +114,7 @@ Type a URL in the preview's address bar (`https://…` or `localhost:3000`), pic
 | `http://127.0.0.1:5174/` | Files built to be awkward: gzip, SRI, a hashed bundle, source maps |
 | `http://127.0.0.1:5174/frames.html` | Cross-site and nested iframes |
 
-To open a URL on start: `CONSOLE_EDITOR_URL=https://example.com npm run dev`. Installers are on the [roadmap](#roadmap); for now the app runs from source. It is built on Electron for macOS, Windows and Linux, and has been tested on Linux so far.
+To open a URL on start, pass it to the app (`console-editor https://example.com` after installing the Linux package) or set `CONSOLE_EDITOR_URL`: `CONSOLE_EDITOR_URL=https://example.com npm run dev`. Launching the app again while it runs opens the URL in the existing window.
 
 <details>
 <summary><b>Keyboard shortcuts</b></summary>
@@ -168,7 +187,7 @@ Everything stays on your machine: no telemetry, no uploads.
 | Open tabs, unsaved drafts, last page | `session/` |
 | The site's cookies, logins, storage | A persistent browser profile used only by the site view |
 
-The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application Support/Console Editor` on macOS and `%APPDATA%\Console Editor` on Windows. Set `CONSOLE_EDITOR_USER_DATA` to use another one.
+The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application Support/Console Editor` on macOS and `%APPDATA%\Console Editor` on Windows. Uninstalling the app keeps it. Set `CONSOLE_EDITOR_USER_DATA` to use another one.
 
 ## Limitations
 
@@ -182,11 +201,13 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Overrides for scripts, stylesheets and HTML; SRI, gzip, hashed names, redeploy detection
 - [x] Cross-site and nested iframes
 - [x] Session restore with unsaved drafts
+- [x] Installers for macOS, Windows and Linux
 - [ ] Workers and service workers
 - [ ] Edit in your own editor (watch the overrides folder), and export/import patch sets for teammates
 - [ ] Response header overrides and request blocking
 - [ ] Search across every file the page loaded
-- [ ] Drive your own Chrome over CDP; installers for macOS, Windows and Linux
+- [ ] Drive your own Chrome over CDP
+- [ ] Signed and notarized builds, and auto-update
 - [ ] Source-map explorer: open the original sources behind a bundle
 
 ## Development
@@ -199,6 +220,8 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 | `npm run lint:fsd` | [Feature-Sliced Design](https://feature-sliced.design) architecture check ([Steiger](https://github.com/feature-sliced/steiger)) |
 | `npm test` | Unit and renderer tests, plus the interception engine and iframes against real Chromium (skipped without it: `npx playwright install chromium`) |
 | `npm run test:e2e` | Builds the app and drives it end to end with Playwright (headless Linux: `xvfb-run npm run test:e2e`) |
+| `npm run dist` | Builds the installers for your system into `dist/` (`npm run dist -- --dir` for just the app) |
+| `npm run test:packaged` | Drives the packaged app end to end: pass the app's executable, or run it after `npm run dist` |
 | `npm run demo-site` | Serves the demo site on port 5174 |
 
 - **Main process** (`src/main`): the interception engine (`engine/InterceptionEngine.ts`, one per CDP session) and its iframe coordinator (`engine/PageInterception.ts`), the embedded page, persistence and IPC.

@@ -33,12 +33,21 @@ npm test               # unit, renderer, and engine tests in real Chromium (npx 
 npm run test:e2e       # the built app end to end (headless Linux: xvfb-run npm run test:e2e)
 ```
 
+If you change packaging (`electron-builder.ts`, `build/`, anything the installed app loads), also build and drive the packaged app: `npm run dist -- --dir && npm run test:packaged` (headless Linux: `xvfb-run npm run test:packaged`).
+
 A good pull request:
 
 - **fixes one thing** and explains why, with a test that fails without the change (behaviour of Chromium or CDP is best pinned in `test/integration`);
 - **follows the architecture**: the renderer uses [Feature-Sliced Design](https://feature-sliced.design) (`app → pages → widgets → features → entities → shared`, checked by `npm run lint:fsd`); UI uses the tokens and components in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md);
 - **matches the surrounding code**: naming, comment density (short comments that explain *why*), and no unrelated refactors;
 - **updates the docs** when behaviour changes: [docs/SPEC.md](docs/SPEC.md) describes how the app works, including Chromium facts verified in tests.
+
+## Releasing
+
+1. Set the new version in `package.json` (`npm version 0.2.0 --no-git-tag-version`) and commit it on `main`.
+2. Push a matching tag (`git tag v0.2.0 && git push origin v0.2.0`), or run the **Release** workflow by hand with **Draft release** ticked.
+3. The workflow runs the checks, builds the installers on macOS, Windows and Linux, installs and smoke-tests them, and drafts the release with the installers and `SHA256SUMS.txt`.
+4. Review the draft on GitHub and publish it.
 
 ## Licence
 
