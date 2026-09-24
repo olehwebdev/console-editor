@@ -3,7 +3,7 @@ import type { ConsoleFrame } from '@common/types';
 import { icons } from '@/shared/config';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Popover } from '@/shared/ui/popover';
-import { frameKey, frameLabel } from '@/entities/frame';
+import { frameKey, frameLabel, givenName } from '@/entities/frame';
 import { FrameNameForm } from '@/features/name-frame';
 
 export interface NameFrameButtonProps {
@@ -36,7 +36,7 @@ export function NameFrameButton({ frame, names }: NameFrameButtonProps) {
           <FrameNameForm
             key={key}
             frameKey={key}
-            name={names[key] ?? ''}
+            name={givenName(names, key)}
             automatic={frameLabel(frame, {})}
             address={frame.url}
             onDone={() => setOpen(false)}

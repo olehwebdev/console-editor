@@ -45,7 +45,7 @@ export function ConsolePrompt({ frameId, placeholder, className }: ConsolePrompt
     const history = workspaceId ? historyOf(workspaceId) : [];
     if (event.key === KEY.arrowUp && collapsed && !value.slice(0, field.selectionStart).includes(NEWLINE) && history.length) {
       event.preventDefault();
-      const index = walk ? Math.max(0, walk.index - 1) : history.length - 1;
+      const index = walk && walk.index <= history.length ? Math.max(0, walk.index - 1) : history.length - 1;
       setWalk({ index, draft: walk?.draft ?? value });
       setValue(history[index]!);
       return;

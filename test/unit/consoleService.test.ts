@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleService } from '../../src/main/console';
 import type { CdpTransport } from '../../src/main/engine/cdp';
+import { IFRAME_SETUP_TIMEOUT_MS } from '../../src/main/engine/PageInterception';
 import { MAX_CONSOLE_ENTRIES } from '../../src/shared/constants';
 import { DEFAULT_SETTINGS, type AppEvent, type ConsoleEntry, type Settings } from '../../src/shared/types';
 
@@ -132,6 +133,12 @@ describe('console service: frames', () => {
     expect(service.listFrames().filter((f) => f.canRun).map((f) => f.id)).toEqual(['CART']);
   });
 
+  it("drops the frames of a page that another page replaced, wherever they ran", async () => {
+    await withFrames();
+    cdp.emit('Page.frameNavigated', { frame: { id: 'TOP', url: 'https://other.test/' } });
+    expect(service.listFrames().map((f) => f.id)).toEqual(['TOP']);
+  });
+
   it('sends frame changes before the rows that may come from them, in one batch', async () => {
     vi.useFakeTimers();
     await withFrames();
@@ -229,6 +236,14 @@ describe('console service: rows', () => {
     expect(rows()).toMatchObject([{ frameId: 'CART', source: 'navigation', values: [{ text: 'https://cart.test/checkout' }] }]);
   });
 
+  it('holds a filled-in format string to the same length as any logged text', async () => {
+    await withFrames();
+    cdp.emit('Runtime.consoleAPICalled', { type: 'log', args: [str(`%s${'x'.repeat(20_000)}`), str('a')], executionContextId: 1, timestamp: 1 }, 'S1');
+    const [value] = service.listEntries()[0]!.values;
+    expect(value!.text.length).toBeLessThanOrEqual(10_001);
+    expect(value!.text.endsWith('…')).toBe(true);
+  });
+
   it('keeps the most recent rows only, and forgets the values of the ones that dropped off', async () => {
     await withFrames();
     const logged = (i: number) => ({ type: 'log', args: [obj(`o${i}`)], executionContextId: 1, timestamp: i });
@@ -294,6 +309,18 @@ describe('console service: running code', () => {
     await expect(service.properties('1')).rejects.toThrow(/no longer available/);
   });
 
+  it("doesn't keep values that arrive for a row cleared meanwhile", async () => {
+    await withFrames();
+    cdp.emit('Runtime.consoleAPICalled', { type: 'log', args: [obj('o1')], executionContextId: 1, timestamp: 1 }, 'S1');
+    let answer!: (reply: unknown) => void;
+    cdp.replies.set('S1|Runtime.getProperties', new Promise((resolve) => (answer = resolve)));
+    const listing = service.properties(1);
+    await service.clear();
+    answer({ result: [{ name: 'lines', value: obj('o2') }] });
+    await expect(listing).rejects.toThrow(/no longer available/);
+    await expect(service.properties(2)).rejects.toThrow(/no longer available/);
+  });
+
   it('clears the rows, and the values they kept alive in every session', async () => {
     await withFrames();
     cdp.emit('Runtime.consoleAPICalled', { type: 'log', args: [obj('o1')], executionContextId: 1, timestamp: 1 }, 'S1');
@@ -321,8 +348,23 @@ describe('console service: the setting', () => {
 
     settings.captureConsole = false;
     await service.applySettings();
-    expect(cdp.of('S1').slice(-2)).toEqual(['Runtime.disable', 'Log.disable']);
+    // What Chromium kept is dropped first: turned on again, it would replay rows already shown.
+    expect(cdp.of('S1').slice(-4)).toEqual(['Runtime.discardConsoleEntries', 'Log.clear', 'Runtime.disable', 'Log.disable']);
     expect(service.listFrames()).toEqual([]);
+  });
+
+  it("turns on without waiting for a frame that doesn't answer", async () => {
+    vi.useFakeTimers();
+    settings.captureConsole = false;
+    service = new ConsoleService({ getSettings: () => settings, send: (e) => events.push(e) });
+    await withFrames();
+    cdp.replies.set('S1|Page.getFrameTree', new Promise(() => undefined));
+    settings.captureConsole = true;
+    let done = false;
+    void service.applySettings().then(() => (done = true));
+    await vi.advanceTimersByTimeAsync(IFRAME_SETUP_TIMEOUT_MS + 10);
+    expect(done).toBe(true);
+    expect(service.listFrames().map((f) => f.id)).toEqual(['TOP', 'SAME']);
   });
 
   it('forgets every session when interception stops', async () => {

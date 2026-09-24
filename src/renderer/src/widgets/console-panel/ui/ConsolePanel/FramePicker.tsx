@@ -8,22 +8,23 @@ import { useConsoleTarget } from '../../model/useConsoleTarget';
 export interface FramePickerProps {
   frames: readonly ConsoleFrame[];
   labels: ReadonlyMap<string, string>;
-  /** The picked frame's label, when it isn't on the page now. */
+  targetKey: string;
+  /** The picked frame, if it is on the page. */
+  targetId: string | null;
   targetLabel: string;
 }
 
 const { setTarget } = useConsoleTarget.getState();
 
 /** Picks the frame the prompt runs code in; frames with no JavaScript can't be picked. */
-export function FramePicker({ frames, labels, targetLabel }: FramePickerProps) {
-  const targetKey = useConsoleTarget((s) => s.targetKey);
+export function FramePicker({ frames, labels, targetKey, targetId, targetLabel }: FramePickerProps) {
   return (
     <Menu
       label="Run code in"
       side="top"
       items={frames.map((frame) => {
         const key = frameKey(frame);
-        return { label: labels.get(frame.id) ?? key, checked: key === targetKey, disabled: !frame.canRun, onSelect: () => setTarget(key) };
+        return { label: labels.get(frame.id) ?? key, checked: frame.id === targetId, disabled: !frame.canRun, onSelect: () => setTarget(key, frame.id) };
       })}
     >
       <button

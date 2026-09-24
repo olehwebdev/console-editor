@@ -12,7 +12,7 @@ import {
 import { HTTP_SCHEME } from '../constants';
 import type { CdpTransport } from '../engine/cdp';
 import { CDP } from '../engine/constants';
-import type { SessionObserver } from '../engine/PageInterception';
+import { IFRAME_SETUP_TIMEOUT_MS, withTimeout, type SessionObserver } from '../engine/PageInterception';
 import { ConsoleFrames } from './ConsoleFrames';
 import {
   ACCESSOR_VALUE,
@@ -107,14 +107,20 @@ export class ConsoleService implements SessionObserver {
     if (recording === this.recording) return;
     this.recording = recording;
     if (!recording) {
+      // Chromium replays what it kept when turned on again: rows already shown would come back.
       for (const { transport } of this.sessions.values()) {
+        transport.send(CDP.Runtime.discardConsoleEntries).catch(() => undefined);
+        transport.send(CDP.Log.clear).catch(() => undefined);
         transport.send(CDP.Runtime.disable).catch(() => undefined);
         transport.send(CDP.Log.disable).catch(() => undefined);
       }
       this.frames.clear();
       return;
     }
-    await Promise.all([...this.sessions].map(([id, { transport }]) => this.start(id, transport).catch(() => undefined)));
+    // A frame that doesn't answer (busy in a loop) must not hold the setting up.
+    await Promise.all(
+      [...this.sessions].map(([id, { transport }]) => withTimeout(this.start(id, transport), IFRAME_SETUP_TIMEOUT_MS, 'Recording a frame').catch(() => undefined)),
+    );
   }
 
   listFrames(): ConsoleFrame[] {
@@ -160,7 +166,8 @@ export class ConsoleService implements SessionObserver {
     const reply = await session.transport
       .send<GetPropertiesReply>(CDP.Runtime.getProperties, { objectId: target.objectId, ownProperties: true, generatePreview: true })
       .catch(() => undefined);
-    if (!reply || reply.exceptionDetails) throw gone;
+    // The row may have been cleared or dropped off meanwhile: nothing would free what it kept.
+    if (!reply || reply.exceptionDetails || !this.holds(target.entryId)) throw gone;
     return [...reply.result, ...(reply.internalProperties ?? [])].slice(0, MAX_PROPERTIES).map((p) => ({
       name: p.name,
       value: p.value ? this.value(target.sessionId, target.entryId, p.value) : ACCESSOR_VALUE,
@@ -307,6 +314,12 @@ export class ConsoleService implements SessionObserver {
     if (own) own.push(handle);
     else this.handlesOf.set(entryId, [handle]);
     return { ...value, handle };
+  }
+
+  /** Whether a row is still kept (rows are kept in id order). */
+  private holds(entryId: number): boolean {
+    const first = this.entries[0]?.id;
+    return first !== undefined && entryId >= first && entryId <= this.entries.at(-1)!.id;
   }
 
   private dropHandles(entryId: number): void {

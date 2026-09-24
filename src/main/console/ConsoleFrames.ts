@@ -31,8 +31,13 @@ export class ConsoleFrames {
     this.changed();
   }
 
-  /** A frame committed a new document in this session, which therefore hosts it. */
+  /**
+   * A frame committed a new document in this session, which therefore hosts it.
+   * The frames of its old document are gone (Chromium reports no `frameDetached`
+   * for them when the document moved to another process).
+   */
   navigated(sessionId: SessionKey, frame: PageFrame): void {
+    this.removeChildren(frame.id);
     this.put(sessionId, frame, true);
     this.changed();
   }
@@ -157,6 +162,10 @@ export class ConsoleFrames {
   /** Drops a frame and every frame nested in it. */
   private remove(frameId: string): void {
     this.records.delete(frameId);
+    this.removeChildren(frameId);
+  }
+
+  private removeChildren(frameId: string): void {
     for (const record of [...this.records.values()]) {
       if (record.parentId === frameId) this.remove(record.id);
     }

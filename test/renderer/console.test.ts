@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_CONSOLE_ENTRIES } from '../../src/shared/constants';
 import { WORKSPACE_COLORS, type ConsoleEntry, type ConsoleFrame, type Workspace } from '../../src/shared/types';
 import { useConsoleStore } from '@/entities/console-log';
-import { TOP_FRAME_KEY, frameKey, frameLabel, frameLabels, frameTone, useFrameStore } from '@/entities/frame';
+import { TOP_FRAME_KEY, frameKey, frameLabel, frameLabels, frameTone, givenName, useFrameStore } from '@/entities/frame';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { DEFAULT_LEVELS, matchesFilter, receiveEntries, useConsoleFilter } from '@/features/filter-console';
 import { nameFrame } from '@/features/name-frame';
@@ -11,6 +11,7 @@ import { historyOf } from '@/features/run-in-frame/model/historyOf';
 import { promptHistory } from '@/features/run-in-frame/model/promptHistory';
 import { levelSummary } from '@/widgets/console-panel/ui/ConsolePanel/levelSummary';
 import { problemCounts } from '@/widgets/console-panel/ui/ConsolePanel/problemCounts';
+import { resolveTarget } from '@/widgets/console-panel/ui/ConsolePanel/resolveTarget';
 import { rowLine } from '@/widgets/console-panel/ui/ConsolePanel/rowLine';
 import { sinceInput } from '@/widgets/console-panel/ui/ConsolePanel/sinceInput';
 
@@ -49,8 +50,10 @@ describe('frames', () => {
   it('keys a frame by what survives a reload: the top page is always the top, an iframe its address or name', () => {
     expect(frameKey(TOP)).toBe(TOP_FRAME_KEY);
     expect(frameKey(frame('A', 'https://cart.test/embed?session=9#x'))).toBe('https://cart.test/embed');
-    expect(frameKey(frame('B', 'about:blank', 'ads'))).toBe('ads');
-    expect(frameKey(frame('C', ''))).toBe('C');
+    expect(frameKey(frame('B', 'about:blank', 'ads'))).toBe('name:ads');
+    expect(frameKey(frame('C', ''))).toBe('id:C');
+    // An iframe named "top" is not the top page.
+    expect(frameKey(frame('D', 'about:blank', 'top'))).not.toBe(TOP_FRAME_KEY);
   });
 
   it('labels a frame by the name you gave it, its name attribute, or where it is', () => {
@@ -62,6 +65,15 @@ describe('frames', () => {
     expect(frameLabel({ ...cart, name: 'cart' }, { 'https://cart.test/embed/v2': 'Cart service' })).toBe('Cart service');
     expect(frameLabel(TOP, { [TOP_FRAME_KEY]: 'Shell' })).toBe('Shell');
     expect(frameLabel(frame('C', 'about:blank'), {})).toBe('frame');
+  });
+
+  it("reads only the names given, never what every object has (an iframe named __proto__ or constructor)", () => {
+    for (const name of ['__proto__', 'constructor', 'toString']) {
+      const odd = frame('X', `data:text/html,${name}`, name);
+      expect(frameLabel(odd, {})).toBe(name);
+      expect(givenName({}, frameKey(odd))).toBe('');
+      expect(givenName({}, name)).toBe('');
+    }
   });
 
   it('numbers frames that would read the same', () => {
@@ -93,6 +105,13 @@ describe('console rows', () => {
     const { entries } = useConsoleStore.getState();
     expect(entries).toHaveLength(MAX_CONSOLE_ENTRIES);
     expect(entries.at(-1)).toBe(last);
+  });
+
+  it('skips rows it already has: the startup snapshot overlaps the first batch', () => {
+    const [a, b, c] = [entry(), entry(), entry()];
+    useConsoleStore.getState().setAll([a!, b!]);
+    useConsoleStore.getState().append([b!, c!]);
+    expect(useConsoleStore.getState().entries).toEqual([a, b, c]);
   });
 
   it("clears the rows before the top page's new load, unless Preserve log is on; an iframe's load clears nothing", () => {
@@ -146,6 +165,14 @@ describe('console filter', () => {
 });
 
 describe('console panel helpers', () => {
+  it('runs code in the frame picked, even beside another at the same address, and follows it by address after a reload', () => {
+    const [one, two] = [frame('A', 'https://w.test/embed?id=1'), frame('B', 'https://w.test/embed?id=2')];
+    expect(resolveTarget([TOP, one, two], frameKey(two), 'B')).toBe(two);
+    const reloaded = frame('B2', 'https://w.test/embed?id=2');
+    expect(resolveTarget([TOP, reloaded], frameKey(two), 'B')).toBe(reloaded);
+    expect(resolveTarget([TOP], frameKey(two), 'B')).toBeNull();
+  });
+
   it('times each row from the code last run before it, over all rows', () => {
     const before = entry({ time: 5 });
     const input = entry({ source: 'input', time: 10 });
