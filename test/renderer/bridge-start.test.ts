@@ -1,13 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, type AppEvent, type OverrideMeta, type PageState, type ResourceEntry, type Settings } from '../../src/shared/types';
 import { handleAppEvent, startBridge } from '@/app/model/bridge';
-import { flushSession, restoreSession, startSessionSync } from '@/app/model/session';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore } from '@/entities/resource';
 import { startUpdates } from '@/features/update-app';
 
-const api = vi.hoisted(() => ({ getSettings: vi.fn(), listOverrides: vi.fn(), listResources: vi.fn(), getPageState: vi.fn(), sessionFlushed: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getSettings: vi.fn(),
+  getWorkspaces: vi.fn(),
+  getWorkspaceFavicons: vi.fn(),
+  listOverrides: vi.fn(),
+  listResources: vi.fn(),
+  getPageState: vi.fn(),
+  sessionFlushed: vi.fn(),
+}));
 const events = vi.hoisted(() => ({ listener: undefined as ((event: AppEvent) => void) | undefined, off: vi.fn() }));
 
 vi.mock('@/shared/api', () => ({
@@ -27,7 +34,6 @@ vi.mock('@/shared/monaco', () => ({
   dismissEditorWidgets: () => {},
   triggerInActiveEditor: () => {},
 }));
-vi.mock('@/app/model/session', () => ({ flushSession: vi.fn(), restoreSession: vi.fn(async () => {}), startSessionSync: vi.fn() }));
 vi.mock('@/features/update-app', () => ({ openWhatsNew: vi.fn(), checkForUpdatesNow: vi.fn(), handleUpdateState: vi.fn(), startUpdates: vi.fn(async () => {}) }));
 
 function deferred<T>() {
@@ -55,6 +61,8 @@ const PAGE: PageState = { url: 'https://site.test/', title: 'Site', loading: fal
 const urls = () => Object.values(useResourceStore.getState().byKey).map((e) => e.url);
 const emit = (event: AppEvent) => events.listener!(event);
 const COMMANDS = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn() };
+const SESSION = { restore: vi.fn(async () => {}), startSync: vi.fn(), flush: vi.fn() };
+const WORKSPACES = { activeId: 'w1', workspaces: [{ id: 'w1', name: '', host: 'site.test', title: 'Site', icon: 'favicon' as const, color: 'ember' as const }] };
 
 describe('start bridge', () => {
   const frames: FrameRequestCallback[] = [];
@@ -68,6 +76,8 @@ describe('start bridge', () => {
     useResourceStore.getState().reset();
     useOverrideStore.setState({ byId: {}, hits: {}, upstreamChanged: {} });
     api.getSettings.mockResolvedValue(DEFAULT_SETTINGS);
+    api.getWorkspaces.mockResolvedValue(WORKSPACES);
+    api.getWorkspaceFavicons.mockResolvedValue({});
     api.listOverrides.mockResolvedValue([]);
     api.listResources.mockResolvedValue([]);
     api.getPageState.mockResolvedValue(PAGE);
@@ -86,7 +96,7 @@ describe('start bridge', () => {
     api.listResources.mockReturnValue(resources.promise);
     api.getPageState.mockReturnValue(page.promise);
 
-    const started = startBridge(COMMANDS);
+    const started = startBridge(COMMANDS, SESSION);
     overrides.resolve([meta('o1')]);
     resources.resolve([res('https://old.test/a.js')]);
     await tick();
@@ -109,7 +119,7 @@ describe('start bridge', () => {
     const resources = deferred<ResourceEntry[]>();
     api.listResources.mockReturnValue(resources.promise);
 
-    const started = startBridge(COMMANDS);
+    const started = startBridge(COMMANDS, SESSION);
     // The reset is older than the list: applied after it, it would wipe the list.
     emit({ type: 'navigated', url: 'https://site.test/' });
     emit({ type: 'resource', resource: res('https://site.test/early.js') });
@@ -123,12 +133,12 @@ describe('start bridge', () => {
 
   it('routes events from the start, restores the session, then keeps it in sync; the cleanup stops both', async () => {
     const stopSync = vi.fn();
-    vi.mocked(startSessionSync).mockReturnValue(stopSync);
+    SESSION.startSync.mockReturnValue(stopSync);
 
-    const stop = await startBridge(COMMANDS);
+    const stop = await startBridge(COMMANDS, SESSION);
     expect(events.listener).toBe(handleAppEvent);
-    expect(restoreSession).toHaveBeenCalledTimes(1);
-    await vi.waitFor(() => expect(startSessionSync).toHaveBeenCalledTimes(1));
+    expect(SESSION.restore).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(SESSION.startSync).toHaveBeenCalledTimes(1));
 
     stop();
     expect(events.off).toHaveBeenCalledTimes(1);
@@ -137,9 +147,9 @@ describe('start bridge', () => {
 
   it('starts updates once the session is back', async () => {
     const restore = deferred<void>();
-    vi.mocked(restoreSession).mockReturnValueOnce(restore.promise);
+    SESSION.restore.mockReturnValueOnce(restore.promise);
 
-    const stop = await startBridge(COMMANDS);
+    const stop = await startBridge(COMMANDS, SESSION);
     await tick();
     expect(startUpdates).not.toHaveBeenCalled();
     restore.resolve();
@@ -149,9 +159,9 @@ describe('start bridge', () => {
 
   it('keeps answering the main process when the initial state fails to load', async () => {
     api.listOverrides.mockRejectedValueOnce(new Error('main process gone'));
-    vi.mocked(flushSession).mockResolvedValueOnce(true);
-    await expect(startBridge(COMMANDS)).rejects.toThrow('main process gone');
-    expect(restoreSession).not.toHaveBeenCalled();
+    SESSION.flush.mockResolvedValueOnce(true);
+    await expect(startBridge(COMMANDS, SESSION)).rejects.toThrow('main process gone');
+    expect(SESSION.restore).not.toHaveBeenCalled();
 
     // Closing the window waits for this answer; unanswered, it warns about lost edits after a timeout.
     expect(events.off).not.toHaveBeenCalled();
@@ -160,21 +170,21 @@ describe('start bridge', () => {
   });
 
   it('still keeps the session in sync when restoring it failed', async () => {
-    vi.mocked(restoreSession).mockRejectedValueOnce(new Error('corrupt session'));
-    const stop = await startBridge(COMMANDS);
-    await vi.waitFor(() => expect(startSessionSync).toHaveBeenCalledTimes(1));
+    SESSION.restore.mockRejectedValueOnce(new Error('corrupt session'));
+    const stop = await startBridge(COMMANDS, SESSION);
+    await vi.waitFor(() => expect(SESSION.startSync).toHaveBeenCalledTimes(1));
     stop();
   });
 
   it('does not start syncing when cleaned up before the restore finishes', async () => {
     const restore = deferred<void>();
-    vi.mocked(restoreSession).mockReturnValueOnce(restore.promise);
+    SESSION.restore.mockReturnValueOnce(restore.promise);
 
-    const stop = await startBridge(COMMANDS);
+    const stop = await startBridge(COMMANDS, SESSION);
     stop();
     restore.resolve();
     await tick();
 
-    expect(startSessionSync).not.toHaveBeenCalled();
+    expect(SESSION.startSync).not.toHaveBeenCalled();
   });
 });

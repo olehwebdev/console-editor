@@ -15,7 +15,10 @@ import { TitleBar } from '@/widgets/title-bar';
 import { useLayout } from '../../model/layout';
 import { focusAddressBar } from './focusAddressBar';
 import { followRowWidth } from './followRowWidth';
+import { newWorkspace } from './newWorkspace';
+import { openWorkspace } from './openWorkspace';
 import { PreviewPane } from './PreviewPane';
+import { removeWorkspace } from './removeWorkspace';
 import { setAddressBar } from './setAddressBar';
 import { shortcutKey } from './shortcutKey';
 import { showSettings } from './showSettings';
@@ -68,7 +71,14 @@ export function EditorPage() {
         onTogglePreview={togglePreview}
       />
       <div ref={followRowWidth} className="flex min-h-0 flex-1">
-        <ActivityBar view={sidebar} onViewChange={showSidebarView} onOpenPalette={togglePalette} />
+        <ActivityBar
+          view={sidebar}
+          onViewChange={showSidebarView}
+          onOpenPalette={togglePalette}
+          onSwitchWorkspace={openWorkspace}
+          onNewWorkspace={newWorkspace}
+          onDeleteWorkspace={removeWorkspace}
+        />
 
         {/* Until the sidebar has animated out, the preview doesn't grow into its room (the row would overflow). */}
         <AnimatePresence initial={false} onExitComplete={sidebarExited}>
@@ -102,7 +112,7 @@ export function EditorPage() {
         ) : null}
       </div>
       <StatusBar />
-      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} />
+      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} onSwitchWorkspace={openWorkspace} onNewWorkspace={newWorkspace} />
     </div>
   );
 }

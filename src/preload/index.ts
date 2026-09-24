@@ -29,8 +29,15 @@ const api: ConsoleEditorApi = {
   getSettings: () => ipcRenderer.invoke(IPC_CHANNEL.getSettings),
   updateSettings: (patch) => ipcRenderer.invoke(IPC_CHANNEL.updateSettings, patch),
 
+  getWorkspaces: () => ipcRenderer.invoke(IPC_CHANNEL.getWorkspaces),
+  getWorkspaceFavicons: () => ipcRenderer.invoke(IPC_CHANNEL.getWorkspaceFavicons),
+  createWorkspace: () => ipcRenderer.invoke(IPC_CHANNEL.createWorkspace),
+  updateWorkspace: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateWorkspace, id, patch),
+  deleteWorkspace: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteWorkspace, id),
+  switchWorkspace: (id) => ipcRenderer.invoke(IPC_CHANNEL.switchWorkspace, id),
+
   getSession: () => ipcRenderer.invoke(IPC_CHANNEL.getSession),
-  saveSessionTabs: (tabs, activeTabId) => ipcRenderer.invoke(IPC_CHANNEL.saveSessionTabs, tabs, activeTabId),
+  saveSessionTabs: (workspaceId, tabs, activeTabId) => ipcRenderer.invoke(IPC_CHANNEL.saveSessionTabs, workspaceId, tabs, activeTabId),
   getDraft: (tabId) => ipcRenderer.invoke(IPC_CHANNEL.getDraft, tabId),
   saveDraft: (tabId, draft) => ipcRenderer.invoke(IPC_CHANNEL.saveDraft, tabId, draft),
   deleteDraft: (tabId) => ipcRenderer.invoke(IPC_CHANNEL.deleteDraft, tabId),

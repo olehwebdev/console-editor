@@ -7,12 +7,13 @@ import {
   type Rect,
   type SessionDraft,
   type Settings,
+  type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
 import { assertString } from './assertString';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, settings, session, updates, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -88,8 +89,15 @@ export function registerIpc({ win, page, store, settings, session, updates, onSe
     return next;
   });
 
+  handle(IPC_CHANNEL.getWorkspaces, () => workspaces.state());
+  handle(IPC_CHANNEL.getWorkspaceFavicons, () => workspaces.favicons());
+  handle(IPC_CHANNEL.createWorkspace, () => workspaces.create());
+  handle(IPC_CHANNEL.updateWorkspace, (id: unknown, patch: WorkspacePatch) => workspaces.update(id, patch));
+  handle(IPC_CHANNEL.deleteWorkspace, (id: unknown) => workspaces.remove(id));
+  handle(IPC_CHANNEL.switchWorkspace, (id: unknown) => workspaces.switchTo(id));
+
   handle(IPC_CHANNEL.getSession, () => session.get());
-  handle(IPC_CHANNEL.saveSessionTabs, (tabs: unknown, activeTabId: unknown) => session.setTabs(tabs, activeTabId));
+  handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));
   handle(IPC_CHANNEL.getDraft, (id: unknown) => session.getDraft(id));
   handle(IPC_CHANNEL.saveDraft, (id: unknown, draft: SessionDraft) => session.saveDraft(id, draft));
   handle(IPC_CHANNEL.deleteDraft, (id: unknown) => session.deleteDraft(id));

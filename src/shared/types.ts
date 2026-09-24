@@ -136,6 +136,47 @@ export interface Rect {
   height: number;
 }
 
+/** Colours a workspace's rail tile can take (tokens `--workspace-<colour>`). */
+export const WORKSPACE_COLORS = ['ember', 'amber', 'lime', 'teal', 'sky', 'indigo', 'violet', 'rose'] as const;
+
+export type WorkspaceColor = (typeof WORKSPACE_COLORS)[number];
+
+/**
+ * What a workspace's rail tile can show: the site's favicon (its colour stands in
+ * until the site has one), or its colour with the first letter of its name.
+ */
+export const WORKSPACE_ICONS = ['favicon', 'color'] as const;
+
+export type WorkspaceIcon = (typeof WORKSPACE_ICONS)[number];
+
+/**
+ * A saved workflow: a page, the tabs open on it with their unsaved edits, and
+ * its own overrides. As the renderer sees it: the tabs come with `getSession`,
+ * the favicon separately (it changes rarely, and is the biggest part).
+ */
+export interface Workspace {
+  id: string;
+  /** Given by you; '' shows `host` instead. */
+  name: string;
+  /** Host of the last page shown ('' if none). */
+  host: string;
+  /** Title of the last page shown ('' if none). */
+  title: string;
+  icon: WorkspaceIcon;
+  color: WorkspaceColor;
+}
+
+export interface WorkspacePatch {
+  name?: string;
+  icon?: WorkspaceIcon;
+  color?: WorkspaceColor;
+}
+
+export interface WorkspacesState {
+  workspaces: Workspace[];
+  activeId: string;
+}
+
 /** Events emitted by the interception engine. */
 export type EngineEvent =
   /**
@@ -157,7 +198,11 @@ export type EngineEvent =
 export type AppEvent =
   | EngineEvent
   | { type: 'page-state'; state: PageState }
+  /** The active workspace's overrides. */
   | { type: 'overrides-changed'; overrides: OverrideMeta[] }
+  | { type: 'workspaces-changed'; state: WorkspacesState }
+  /** A workspace's site icon (a data URL), or null when its page moved to another site. */
+  | { type: 'workspace-favicon'; id: string; favicon: string | null }
   | { type: 'command'; command: MenuCommand }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
@@ -215,7 +260,7 @@ export interface SessionTab {
   originalHash: string | null;
 }
 
-/** What the app reopens on start. */
+/** What the active workspace reopens: on start, and when switched to. */
 export interface SessionState {
   /** Last page shown ('' if none). */
   url: string;
@@ -259,6 +304,7 @@ export interface ConsoleEditorApi {
   listResources(): Promise<ResourceEntry[]>;
   getResourceContent(url: string): Promise<ResourceContent>;
 
+  /** The active workspace's overrides. */
   listOverrides(): Promise<OverrideMeta[]>;
   /** Metadata + served content. Large files cross IPC once, when a tab opens. */
   getOverride(id: string): Promise<OverrideWithContent>;
@@ -273,8 +319,25 @@ export interface ConsoleEditorApi {
   getSettings(): Promise<Settings>;
   updateSettings(patch: Partial<Settings>): Promise<Settings>;
 
+  getWorkspaces(): Promise<WorkspacesState>;
+  /** Site icons (data URLs) by workspace id, for those that have one. */
+  getWorkspaceFavicons(): Promise<Record<string, string>>;
+  /** Adds an empty workspace (without switching to it). */
+  createWorkspace(): Promise<Workspace>;
+  updateWorkspace(id: string, patch: WorkspacePatch): Promise<Workspace>;
+  /** Deletes a workspace that isn't the active one, with its overrides and drafts. */
+  deleteWorkspace(id: string): Promise<void>;
+  /**
+   * Makes `id` the active workspace: the page leaves for its last page, and its
+   * overrides apply. Close the tabs first (their drafts written); then reopen
+   * the ones `getSession` lists.
+   */
+  switchWorkspace(id: string): Promise<void>;
+
+  /** The active workspace's page and tabs. */
   getSession(): Promise<SessionState>;
-  saveSessionTabs(tabs: SessionTab[], activeTabId: string | null): Promise<void>;
+  /** Ignored if `workspaceId` is no longer there. */
+  saveSessionTabs(workspaceId: string, tabs: SessionTab[], activeTabId: string | null): Promise<void>;
   getDraft(tabId: string): Promise<SessionDraft | null>;
   /** `base` only needs sending once per tab: it's kept when omitted. */
   saveDraft(tabId: string, draft: SessionDraft): Promise<void>;

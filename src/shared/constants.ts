@@ -6,6 +6,9 @@
 /** The location hash (without `#`) that shows the design-system gallery instead of the editor. */
 export const GALLERY_HASH = 'gallery';
 
+/** The longest name a workspace can be given. */
+export const MAX_WORKSPACE_NAME = 40;
+
 /** Environment variables the main process reads to configure itself. */
 export const ENV = {
   /** Keeps app data in this folder instead of the default one (tests, throwaway profiles). */

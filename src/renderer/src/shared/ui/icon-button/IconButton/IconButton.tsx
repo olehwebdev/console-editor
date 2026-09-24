@@ -1,12 +1,9 @@
 import { motion, useReducedMotion } from 'motion/react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
-import { cn, SPRING_PRESS } from '@/shared/lib';
+import { cn, ICON_PRESS_SCALE, SPRING_PRESS } from '@/shared/lib';
 import { Icon, type IconGlyph } from '@/shared/ui/icon';
 import { Tooltip, type TooltipSide } from '@/shared/ui/tooltip';
 import { ariaShortcut } from './ariaShortcut';
-
-/** A small icon button presses deeper than a button's PRESS_SCALE, so the press still shows. */
-const ICON_PRESS_SCALE = 0.9;
 
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
 

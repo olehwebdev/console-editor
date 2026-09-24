@@ -15,6 +15,7 @@ import { SettingsStore } from '../store/SettingsStore';
 import { detectInstallMethod, electronAutoInstaller } from '../update/electronInstaller';
 import { updateEndpoints } from '../update/updateEndpoints';
 import { UpdateService } from '../update/UpdateService';
+import { WorkspaceController } from '../WorkspaceController';
 import { initialUrl } from './initialUrl';
 import { launchState } from './launchState';
 
@@ -100,13 +101,14 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
 
   const page = new PageController(win, store, settings, send);
   launchState.running = { win, page };
+  // Before the engine attaches: it serves the active workspace's overrides from the start.
+  const workspaces = new WorkspaceController(page, session, store, send);
+  await workspaces.start();
   const attached = page.attach();
   installMenu(win, page, store, send);
 
-  // Remember the page shown, so the next start reopens it.
-  const rememberUrl = (url: string) => void session.setUrl(url).catch(() => undefined);
-  page.view.webContents.on('did-navigate', (_event, url) => rememberUrl(url));
-  page.view.webContents.on('did-navigate-in-page', (_event, url, isMainFrame) => isMainFrame && rememberUrl(url));
+  // Remember the page shown and its icon, so the next start (or switching back) reopens it.
+  workspaces.watch(page.view.webContents);
 
   // Closing keeps unsaved edits as drafts (reopened next time) instead of asking to discard them:
   // the renderer writes what it hasn't yet, then answers. Installing an update does the same first.
@@ -179,7 +181,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     },
   });
   win.on('closed', () => updates.dispose());
-  registerIpc({ win, page, store, settings, session, updates, onSessionFlushed: (ok) => answerFlush?.(ok) });
+  registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed: (ok) => answerFlush?.(ok) });
 
   // The editor UI must never navigate away or open windows.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

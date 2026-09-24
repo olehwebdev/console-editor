@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { gzipSync } from 'node:zlib';
-import { STORE_BUNDLE, STORE_BUNDLE_PATH, STORE_CSS, STORE_CSS_PATH, STORE_HTML } from './demoStore.ts';
+import { STORE_BUNDLE, STORE_BUNDLE_PATH, STORE_CSS, STORE_CSS_PATH, STORE_HTML, STORE_ICON, STORE_ICON_PATH } from './demoStore.ts';
 
 export const APP_JS = `window.appValue = 'original';\ndocument.addEventListener('DOMContentLoaded', () => { document.querySelector('#app').textContent = 'app: ' + window.appValue; });\n`;
 
@@ -185,6 +185,7 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   add('/store/', 'text/html; charset=utf-8', STORE_HTML);
   add(STORE_BUNDLE_PATH, 'application/javascript; charset=utf-8', STORE_BUNDLE);
   add(STORE_CSS_PATH, 'text/css', STORE_CSS);
+  add(STORE_ICON_PATH, 'image/svg+xml', STORE_ICON);
   // A page with an unsaved-changes guard, a new-tab link and a pop-up (site view policy).
   add(
     '/guard.html',

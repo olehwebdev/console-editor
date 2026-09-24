@@ -27,6 +27,7 @@ export const useTabStore = create<TabStore>()((set) => ({
         diff: s.activeId === id ? 'off' : s.diff,
       };
     }),
+  removeTabs: () => set((s) => ({ tabs: [], activeId: s.pages.some((p) => p.id === s.activeId) ? s.activeId : null, diff: 'off' })),
   patch: (id, patch) => set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
   setDiff: (diff) => set({ diff }),
 }));

@@ -30,9 +30,10 @@ A desktop app where you enter a website's URL, see every script, stylesheet and 
 | U11 | I can edit override files in my own editor (VS Code) and the app picks up changes | 🔜 M2 |
 | U12 | Overrides and file listing inside iframes, including cross-site (out-of-process) and nested ones | ✅ |
 | U12b | Overrides for scripts loaded by workers | 🔜 M2 |
-| U13 | Group overrides into named patch sets per site and export/import them to share with teammates | 🔜 M2 |
+| U13 | Export/import a workspace's overrides to share them with teammates | 🔜 M2 |
 | U14 | Use my own Chrome (existing profile, extensions) instead of the embedded browser | 🔜 M3 |
 | U15 | Browse original sources from source maps (read-only) and jump to the matching bundle code | 🔜 M4 |
+| U16 | I keep a workspace per site or task (its page, tabs, unsaved edits and overrides) and switch between them from the rail, which shows each one's favicon or a colour I pick | ✅ (§5.1) |
 
 ## 3. Architecture
 
@@ -86,6 +87,8 @@ src/
     constants.ts     http(s) URL patterns, file-not-found code
     appInfo.ts       app id and repository URL (shared with electron-builder.ts)
     PageController/  PageController.ts (WebContentsView for the site, navigation, engine wiring), normalizeUrl.ts
+    WorkspaceController.ts  workspaces: switching, the page URL, title and favicon each remembers (§5.1)
+    favicon/         a page's favicon as a small data URL (sniffed, size-capped)
     electronTransport.ts  webContents.debugger → CdpTransport
     engine/          PageInterception/ (one engine per CDP session: page + iframes),
                      InterceptionEngine/, transform/ (SRI/source maps/headers),
@@ -101,13 +104,13 @@ src/
   preload/index.ts   contextBridge → window.consoleEditor
   renderer/src/      React UI, Feature-Sliced Design (see DESIGN_SYSTEM.md §6):
     app/             entry, providers, event bridge (main → stores), styles/tokens, component gallery
-    pages/editor/    the workspace layout and its persisted layout store
+    pages/editor/    the workspace layout and its persisted layout store; session sync and workspace switching
     widgets/         title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel, command-palette
     features/        open-resource, save-override, format-document, compare-changes, toggle/delete-override,
                      edit-match-rule, navigate-page, filter-resources, update-settings, close-tab,
-                     update-app (notifications, the What's New page, the status-bar entry)
+                     update-app (notifications, the What's New page, the status-bar entry), edit-workspace
     entities/        page, settings, override, editor-tab (+ Monaco model registry, page tabs), resource,
-                     app-update (updater state, the bundled CHANGELOG.md)
+                     app-update (updater state, the bundled CHANGELOG.md), workspace (+ its rail tile)
     shared/          api (preload bridge), ui (design system), monaco, lib (format worker, overlays, motion), config
 test/
   unit/              matcher, transform, store, engine and PageInterception (fake CDP), minified heuristic
@@ -149,26 +152,51 @@ interface Override {
 }
 // The diff base (what editing started from, after pretty-print) stays on disk until a diff asks for it.
 
-interface SessionState {  // what the next start reopens
+interface Workspace {      // a saved workflow: see §5.1
+  id: string;             // 8 hex chars
+  name: string;           // '' → shown as the page's host
+  icon: 'favicon' | 'color';  // the site's favicon on its colour, or the name's first letter on it
+  color: 'ember' | 'amber' | 'lime' | 'teal' | 'sky' | 'indigo' | 'violet' | 'rose';
+  url: string; title: string;  // last page shown, and its title
+}
+
+interface SessionState {  // what a workspace reopens (the active one's: on start, or when switched to)
   url: string;            // last page shown
   tabs: { id: string; url: string; kind: ResourceKind; overrideId?: string; originalHash: string | null }[];
   activeTabId: string | null;
 }
+// Each override belongs to one workspace (`workspaceId` in overrides.json).
 ```
 
 **Storage** (`<userData>/workspace/`, written atomically via temp file + rename, one write at a time):
 
 ```
-overrides.json          { version: 1, overrides: OverrideMeta[] }   // metadata only
+overrides.json          { version: 1, overrides: (OverrideMeta & { workspaceId })[] }   // metadata only
 files/<id>.<js|css|html>        served content
 files/<id>.base.<js|css|html>   diff base (only when it differs from the content)
 settings.json (in <userData>)   Settings
-session/session.json            SessionState
-session/drafts/<tab>.txt        unsaved text of a tab
+session/session.json            { version: 2, activeId, workspaces: (Workspace & SessionState)[] }
+session/favicons/<ws>.txt       a workspace's favicon, as a data URL
+session/drafts/<tab>.txt        unsaved text of a tab (tab ids are unique across workspaces)
 session/drafts/<tab>.base.txt   what that tab's editing started from (tabs not yet saved as overrides)
 ```
 
-**Session restore.** The main process remembers the page URL on every main-frame navigation. The renderer writes the tab list 300 ms after it changes and a tab's draft 800 ms after typing pauses (the base once per tab); a draft is deleted when its tab is saved, undone back to the saved text, or closed. Closing the window runs a handshake: main sends `flush-session`, the renderer writes whatever is pending and answers `sessionFlushed(ok)`, and only then does the window close (after 5 s, or if a write failed, it asks before closing). On start, the app loads the last URL (a URL on the command line wins), then reopens each tab: an override from the store, a tab with a draft entirely from disk (no network), any other tab by fetching the file again; drafts are applied as one undoable edit, so the tab shows as unsaved and undo reveals the saved text. Tab ids are unique across runs because they name the drafts. Session syncing starts only after restoring, so a fresh start never overwrites the session being restored.
+A version 1 `session.json` (one page and its tabs) becomes the first workspace, and overrides saved before workspaces existed (or whose workspace is gone) are given to the active one at start.
+
+**Session restore.** The main process remembers the page URL on every main-frame navigation, for the active workspace. The renderer writes the tab list 300 ms after it changes and a tab's draft 800 ms after typing pauses (the base once per tab); a draft is deleted when its tab is saved, undone back to the saved text, or closed. Closing the window runs a handshake: main sends `flush-session`, the renderer writes whatever is pending and answers `sessionFlushed(ok)`, and only then does the window close (after 5 s, or if a write failed, it asks before closing). On start, the app loads the last URL (a URL on the command line wins), then reopens each tab: an override from the store, a tab with a draft entirely from disk (no network), any other tab by fetching the file again; drafts are applied as one undoable edit, so the tab shows as unsaved and undo reveals the saved text. Tab ids are unique across runs because they name the drafts. Session syncing starts only after restoring, so a fresh start never overwrites the session being restored. Each sync run is bound to one workspace: tab lists are written with its id, and one that arrives for a deleted workspace is ignored.
+
+### 5.1 Workspaces
+
+A workspace is a saved workflow: a page (URL, title and favicon), the tabs open on it with their drafts, and its own overrides. Exactly one is active: its page is shown, its overrides are the ones the engine serves (`OverrideStore.list()`) and the Explorer lists, and new overrides are created in it. `get`/`update`/`remove` still reach any override, so a save still running when the workspace changes lands where it began.
+
+**Switching** (a rail tile, or the palette) runs one at a time:
+1. Renderer: wait for running saves, write what is pending (as on close, and again while edits typed meanwhile keep coming in; if a write failed, ask before going on), then, in the same task, stop the session sync and close the file tabs without deleting their drafts. Pages (What's New) stay open.
+2. Main (`WorkspaceController.switchTo`): load `about:blank` and clear the history, so nothing the old page does from then on (an in-page navigation, a title, a favicon) is taken for the next workspace's; make the workspace active (in memory at once, so a failed write is reported without leaving the switch half done); point the engine at its overrides (`Fetch` patterns recomputed, `overrides-changed` sent); send `workspaces-changed`; load its last page, clearing the history again once it has loaded, so Back never leads into another workspace's pages.
+3. Renderer: reload the workspaces and overrides, reopen the tabs of whichever workspace is now active (the old one again, if switching failed) the way a start does, and sync again (not if the tabs couldn't be reopened: the next change would write over them).
+
+**Favicons.** On `page-favicon-updated` (the page's `<link rel="icon">`s, or `/favicon.ico`), the candidates are fetched in turn through the site's session (up to 256 KB each), recognised by their bytes (PNG, JPEG, GIF, ICO, WebP, SVG; anything else, such as an HTML error page, is skipped), and kept as a data URL: PNG and JPEG scaled down to 32 px, other types kept as they are up to 64 KB. The icon is kept for the workspace active when the page reported it, and only if that workspace is still on the same site once it has loaded; moving a workspace to another site drops its old icon. Icons travel in their own `workspace-favicon` event, so renaming (sent on every keystroke) or a new page title stays small. A title is recorded once it has stayed for a second, as some pages keep changing theirs.
+
+**Creating** adds an empty workspace (in the first colour no other has) and switches to it, with the address bar focused; if the switch doesn't happen, the new workspace is removed again. **Deleting** asks first and removes the workspace's overrides (first: were the workspace to go first and this fail, the next start would hand them to another), then the workspace with its drafts and favicon; the active one hands over to its neighbour first, and the last one can't be deleted. The site's cookies and logins (`persist:site`) are shared by all workspaces.
 
 `CONSOLE_EDITOR_USER_DATA` overrides `<userData>` (used by tests; handy for throwaway profiles).
 
@@ -249,6 +277,7 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 | Layout | Sidebar and preview are fitted to the window (the editor keeps at least 240 px; panel minimums give way below that, e.g. when zoomed in). Hiding the preview takes the native page view out of the window with it. Visibility and sizes are saved on every change |
 | Large files | Scripts, stylesheets and HTML over 1 M characters open in a lite mode: syntax colouring only (Monarch grammars, no language service or validation, folding, minimap or bracket colourization), shown as "Large file" |
 | Focus | Opening or switching tabs focuses the editor; closing a tab from the keyboard, typing in a field or arrowing through the Explorer never has focus pulled into the code |
+| Workspaces | The rail lists them below Explorer and Search: a tile each (site favicon or the name's first letter, on the workspace's colour), the active one marked, + to add one. Clicking another tile switches to it (§5.1); clicking the active one opens a popover to rename it and pick its icon and colour, applied as you change them; right-click for the same, or to delete it. The tooltip shows the name and the page title. The palette lists them too |
 | Close with unsaved edits | Closing a tab asks first. Closing the app keeps every unsaved edit as a draft and reopens it next time, with the tabs and the last page (see §5, Session restore) |
 | Menu | App menu replaces Electron's default, so Ctrl/Cmd+R reloads **the site**, not the editor. Undo/redo/select-all are routed to Monaco. Page DevTools: Ctrl/Cmd+Shift+J; editor DevTools: Ctrl/Cmd+Alt+I. Ctrl/Cmd+B toggles the sidebar |
 
@@ -265,18 +294,18 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 - One instance per data folder (`app.requestSingleInstanceLock`), so two processes never write the same overrides and session files. A second launch hands its URL to the running window and exits; if the first is still starting, that URL replaces the one it was about to open. On macOS, where Finder and `open` reopen the running app instead of starting a second process, the app also takes URLs from `open-url` the same way (following Electron's documentation; not yet checked on a Mac). Runs from source use a separate `… (dev)` data folder, so they never share one with an installed copy.
 - IPC inputs are type-checked; matchers are validated before storage; settings are filtered to known boolean keys.
 - The site sees a standard Chrome user agent (Electron tokens removed).
-- All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open, the only network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
+- All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open and for the page's favicon (from the site shown, through its session; kept only if its bytes are an image, and shown as an `<img>` data URL, where SVG can't run scripts), the only network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
 - Updates are verified before they are installed: electron-updater checks the SHA-512 in the release's `latest*.yml`, and manual downloads are checked against the release's `SHA256SUMS.txt` before they are kept. Both come from the same GitHub release, so this guards against damaged downloads, not a compromised release; signed builds would add that (§11). Release notes are Markdown rendered with `marked` and sanitized with DOMPurify (no images, styles, forms or frames), and their links open in the default browser (http and https only). `CONSOLE_EDITOR_UPDATE_FEED` (a local update server, for tests) is honoured only with a data folder of its own, like the debugging port.
 
 ## 9. Testing
 
 | Layer | What | Command |
 |---|---|---|
-| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule) | `npm test` |
-| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs | `npm test` |
+| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion), favicon loading (recognising images, size caps) | `npm test` |
+| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened) | `npm test` |
 | Architecture | Feature-Sliced Design layer rules | `npm run lint:fsd` |
 | Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
-| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL. Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
+| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart). Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
 | Packaged | The installed app (asar, fuses, signature) fixes the demo store's checkout through the UI, driven over `--remote-debugging-port` since the fuses disable Node's inspector. The release workflow runs it on six runners, one per architecture: macOS (from the disk image), Windows (after a silent install; the x64 runner also checks that the ARM installer refuses it) and Linux (from the installed `.deb`, with Ubuntu's user-namespace restriction left on) | `npm run test:packaged -- <app>` |
 | Update | An installed app updates itself to a build one patch higher, served by a local stand-in for GitHub: the notification, What's New, the download, **Restart to update**, the restarted app running the new version (and What's New after it). The release workflow runs it for the Windows installers (then uninstalls, checking the updater's cache goes too) and the AppImages on their four runners. The `.deb` path (as root, through `sudo`, and with the password refused) and the AppImage installing on quit were checked by hand | `npm run test:update -- <app> <newer dist>` |
 
@@ -319,7 +348,8 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - ✅ Iframes, including cross-site and nested ones (§6.5).
 - Workers: add `worker`/`service_worker` to the auto-attach filter, with an engine option that skips the Page domain.
 - Watch `workspace/files` for external edits (edit in VS Code, the app reloads the page), with an "Open in external editor" action.
-- Projects and patch sets per site; export/import as a zip or JSON, so a teammate can reproduce your fix.
+- ✅ Workspaces: a page, tabs and overrides per site or task (§5.1).
+- Export/import a workspace's overrides as a zip or JSON, so a teammate can reproduce your fix.
 - Response header overrides (CORS, CSP, cache) and request blocking (e.g. disable an analytics script).
 - Search across all page resources (find which bundle defines a function).
 - Docked/undocked page view, and responsive device presets.

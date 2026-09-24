@@ -8,6 +8,7 @@ import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
+import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
@@ -22,18 +23,24 @@ const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icon
 
 /** An override has two items: their ids are one of these prefixes and its id. */
 const OVERRIDE_ITEM_PREFIX = { open: 'open-', toggle: 'toggle-' } as const;
+/** A workspace's item id: this prefix and its id. */
+const WORKSPACE_ITEM_PREFIX = 'workspace-';
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
   onFocusAddressBar(): void;
+  onSwitchWorkspace(id: string): void;
+  onNewWorkspace(): void;
 }
 
-/** Ctrl/Cmd+K: jump to any file the page loaded or run a command. */
-export function AppCommandPalette({ onShowSettings, onFocusAddressBar }: AppCommandPaletteProps) {
+/** Ctrl/Cmd+K: jump to any file the page loaded, switch workspaces or run a command. */
+export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
   const active = useTabStore(selectActiveTab);
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
 
   const resources = usePageFiles(open);
   const files = useMemo<CommandGroup>(
@@ -87,8 +94,24 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar }: AppComm
         },
       ]),
     };
-    return [files, overrideGroup, actions].filter((g) => g.items.length);
-  }, [open, files, overrides, active, onShowSettings, onFocusAddressBar]);
+    const workspaceGroup: CommandGroup = {
+      heading: 'Workspaces',
+      items: [
+        ...workspaces
+          .filter((w) => w.id !== activeWorkspaceId)
+          .map((w) => ({
+            id: `${WORKSPACE_ITEM_PREFIX}${w.id}`,
+            label: `Switch to ${workspaceLabel(w)}`,
+            hint: workspaceDetail(w) || undefined,
+            icon: icons.BrowserIcon,
+            keywords: ['workspace', w.host, w.title],
+            onSelect: () => onSwitchWorkspace(w.id),
+          })),
+        { id: 'workspace-new', label: 'New workspace', icon: icons.AddIcon, keywords: ['workspace', 'site', 'project'], onSelect: onNewWorkspace },
+      ],
+    };
+    return [files, overrideGroup, workspaceGroup, actions].filter((g) => g.items.length);
+  }, [open, files, overrides, active, workspaces, activeWorkspaceId, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }
