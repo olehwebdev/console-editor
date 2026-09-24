@@ -255,4 +255,57 @@ describe.skipIf(!built)('Console Editor app', () => {
     await new Promise((r) => setTimeout(r, 2000));
     expect(await inSite('location.search')).toBe('?from=second-launch');
   });
+
+  it('keeps a workspace per task, each with its own page, tabs and overrides', async () => {
+    await app.close();
+    ({ app, win } = await launch(userData));
+    const tiles = () => win.getByTestId('workspace-tile');
+    await expect.poll(() => tiles().count()).toBe(1);
+    // Everything made so far is the first workspace's.
+    await expect.poll(() => win.locator('[data-override-id]').count()).toBe(4);
+    const tabs = await win.locator('[role="tab"]').count();
+    expect(tabs).toBeGreaterThan(0);
+
+    await win.getByTestId('workspace-new').click();
+    await expect.poll(() => tiles().count()).toBe(2);
+    await expect.poll(() => tiles().nth(1).getAttribute('aria-current')).toBe('true');
+    // It starts empty, with the address bar waiting for its site.
+    await expect.poll(() => win.locator('[role="tab"]').count()).toBe(0);
+    await expect.poll(() => win.locator('[data-override-id]').count()).toBe(0);
+    await expect.poll(() => win.getByTestId('address-bar').evaluate((el) => el === el.ownerDocument.activeElement)).toBe(true);
+
+    // The first workspace's overrides aren't served in this one.
+    await goTo(win, `${site.url}/?in=second`);
+    await expect.poll(() => inSite('window.appValue'), { timeout: 15_000 }).toBe('original');
+    expect(await inSite('typeof window.patchedByEditor')).toBe('undefined');
+    // Its tile shows the site's icon once a page has one.
+    await goTo(win, `${site.url}/store/`);
+    await tiles().nth(1).locator('img').waitFor();
+
+    // Switching back brings the first workspace's page, overrides and tabs.
+    await tiles().first().click();
+    await expect.poll(() => tiles().first().getAttribute('aria-current')).toBe('true');
+    await expect.poll(() => win.locator('[data-override-id]').count()).toBe(4);
+    await expect.poll(() => win.locator('[role="tab"]').count()).toBe(tabs);
+    await expect.poll(() => inSite('location.search'), { timeout: 15_000 }).toBe('?from=second-launch');
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+    // Back leads nowhere: the other workspace's pages aren't in its history.
+    await expect.poll(() => win.getByRole('button', { name: 'Back' }).isDisabled()).toBe(true);
+
+    // Clicking the current tile names it.
+    await tiles().first().click();
+    await win.getByTestId('workspace-name').fill('Fixture site');
+    await win.getByTestId('workspace-name').press('Enter');
+    await expect.poll(() => tiles().first().getAttribute('aria-label')).toBe('Fixture site (current workspace)');
+
+    // All of it is still there after a restart, and the second workspace's page is where it was left.
+    await app.close();
+    ({ app, win } = await launch(userData));
+    await expect.poll(() => tiles().count()).toBe(2);
+    await expect.poll(() => tiles().first().getAttribute('aria-label')).toBe('Fixture site (current workspace)');
+    await tiles().nth(1).locator('img').waitFor();
+    await tiles().nth(1).click();
+    await expect.poll(() => inSite('location.pathname'), { timeout: 15_000 }).toBe('/store/');
+    await expect.poll(() => win.locator('[data-override-id]').count()).toBe(0);
+  });
 });

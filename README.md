@@ -72,6 +72,7 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Survives deploys.** Hashed bundle names such as `main.3f9a1c2b.js` can be matched as `main.*.js` in one click, and you're warned when the live file changes under your override.
 - **Handles the hard cases.** Compressed responses, Subresource Integrity (static and set at runtime), the HTTP cache, service workers, stale source maps, and Chromium's local-network checks on patched pages.
 - **Never loses work.** Overrides persist and can be switched on and off one by one. Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page next time.
+- **One workspace per task.** Keep a workspace for each site or fix you're working on, each with its own page, tabs, unsaved edits and overrides, and switch between them from the left rail. A tile shows the site's icon, or a letter on a colour you pick.
 - **Stays fast on big bundles.** Multi-megabyte files open in a lighter highlight-only mode, and the file tree is virtualized.
 - **Keeps the site contained.** A site gets no permissions silently: camera, clipboard, location and similar ones prompt, the rest are denied. Its pop-ups stay under the editor's control, and a "Leave site?" guard can't block a reload.
 - **Keeps itself up to date.** A new release shows up as a notification with its notes on a **What's New** page, like VS Code's. On Windows and Linux (AppImage, `.deb`, `.rpm`) one click downloads it and **Restart to update** installs it (on Windows and with the AppImage, quitting does too), keeping your unsaved edits as drafts. On macOS and with the `.tar.gz` it downloads and checks the new version for you to install.
@@ -192,14 +193,14 @@ Is the idea sound? The trade-offs are in **[docs/RESEARCH.md](docs/RESEARCH.md)*
 
 ## Your data
 
-Everything stays on your machine: no telemetry, no uploads. The only requests the app makes on its own are the update check's: it asks GitHub for the latest release, and for that release's notes when it's new, sending nothing about you or your work. An update downloads only when you ask for it. **Settings › Check for updates** turns it off.
+Everything stays on your machine: no telemetry, no uploads. Besides the sites you open (and their icons, fetched from the site itself for the workspace rail), the only requests the app makes on its own are the update check's: it asks GitHub for the latest release, and for that release's notes when it's new, sending nothing about you or your work. An update downloads only when you ask for it. **Settings › Check for updates** turns it off.
 
 | | Where (under the app's data folder) |
 |---|---|
-| Overrides: your file, the text you started from, the match rule, on/off | `workspace/` (<kbd>File › Reveal Overrides Folder</kbd>) |
+| Overrides: your file, the text you started from, the match rule, on/off, and the workspace it belongs to | `workspace/` (<kbd>File › Reveal Overrides Folder</kbd>) |
 | Settings | `settings.json` |
 | The last version run, to know when to show What's New | `update.json` |
-| Open tabs, unsaved drafts, last page | `session/` |
+| Workspaces: each one's name and tile, last page, open tabs, unsaved drafts and site icon | `session/` |
 | The site's cookies, logins, storage | A persistent browser profile used only by the site view |
 
 The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application Support/Console Editor` on macOS and `%APPDATA%\Console Editor` on Windows. Uninstalling the app keeps it. Running from source uses a separate `Console Editor (dev)` folder next to it, so a dev build never touches your real data. Set `CONSOLE_EDITOR_USER_DATA` to use another folder.
@@ -216,6 +217,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Overrides for scripts, stylesheets and HTML; SRI, gzip, hashed names, redeploy detection
 - [x] Cross-site and nested iframes
 - [x] Session restore with unsaved drafts
+- [x] Workspaces: a page, tabs and overrides per site or task, switched from the rail
 - [x] Installers for macOS, Windows and Linux
 - [ ] Workers and service workers
 - [ ] Edit in your own editor (watch the overrides folder), and export/import patch sets for teammates
