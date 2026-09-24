@@ -104,14 +104,15 @@ async function launchUndebugged(electronBinary: string, userData: string, url: s
     env: { ...process.env, CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_URL: url },
     stdio: ['ignore', 'ignore', 'pipe'],
   });
-  let exitCode: number | null | undefined;
+  let exit: { code: number | null; signal: NodeJS.Signals | null } | undefined;
   const exited = new Promise<void>((done) =>
-    child.once('exit', (code) => {
-      exitCode = code;
+    child.once('exit', (code, signal) => {
+      exit = { code, signal };
       done();
     }),
   );
-  const quit = () => new Error(`The app quit (exit code ${exitCode}): a second instance hands its URL over and exits`);
+  const quit = () =>
+    new Error(exit?.signal ? `The app crashed (${exit.signal})` : `The app quit (exit code ${exit?.code}): a second instance hands its URL over and exits`);
   const inspectorUrl = await new Promise<string>((resolve, reject) => {
     child.stderr.on('data', (chunk) => {
       const found = /ws:\/\/\S+/.exec(String(chunk));
@@ -137,10 +138,15 @@ async function launchUndebugged(electronBinary: string, userData: string, url: s
   return {
     // An app that quit never answers: say so rather than wait.
     inSite: (expr) =>
-      exitCode !== undefined
+      exit
         ? Promise.reject(quit())
         : Promise.race([
-            evaluate(`(${evalInSite})(process.mainModule.require('electron'), ${args(expr)})`),
+            // The inspector runs an evaluation at once, even in the middle of the app's own code: while it
+            // creates its windows at startup, a call into their WebContents crashes Electron (SIGSEGV). So
+            // Electron is only touched from a task of its own.
+            evaluate(
+              `new Promise((turn) => setTimeout(turn, 0)).then(() => (${evalInSite})(process.mainModule.require('electron'), ${args(expr)}))`,
+            ),
             exited.then(() => Promise.reject(quit())),
           ]),
     close: async () => {
