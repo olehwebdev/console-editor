@@ -63,6 +63,9 @@ const ORIGIN: Record<TooltipSide, string> = {
   right: 'left center',
 };
 
+/** The surface grows in from a little smaller, and shrinks less as it goes. */
+const SCALE = { enterFrom: 0.96, exitTo: 0.98 } as const;
+
 // The surface starts a few px towards the trigger and settles outwards.
 const OFFSET: Record<TooltipSide, { x: number; y: number }> = {
   top: { x: 0, y: 4 },
@@ -72,15 +75,15 @@ const OFFSET: Record<TooltipSide, { x: number; y: number }> = {
 };
 
 const VARIANTS: Variants = {
-  initial: (side: TooltipSide) => ({ opacity: 0, scale: 0.96, ...OFFSET[side] }),
-  animate: { opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.14, ease: EASE_OUT } },
-  exit: { opacity: 0, scale: 0.98, transition: { duration: 0.08, ease: EASE_OUT } },
+  initial: (side: TooltipSide) => ({ opacity: 0, scale: SCALE.enterFrom, ...OFFSET[side] }),
+  animate: { opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: DURATION.short4, ease: EASE_OUT } },
+  exit: { opacity: 0, scale: SCALE.exitTo, transition: { duration: DURATION.short1, ease: EASE_OUT } },
 };
 
 const REDUCED_VARIANTS: Variants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: DURATION.fast } },
-  exit: { opacity: 0, transition: { duration: 0.08 } },
+  animate: { opacity: 1, transition: { duration: DURATION.short3 } },
+  exit: { opacity: 0, transition: { duration: DURATION.short1 } },
 };
 
 /**

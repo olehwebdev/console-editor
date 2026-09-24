@@ -1,13 +1,13 @@
 import { AnimatePresence, motion, useReducedMotion, type Transition } from 'motion/react';
 import type { ComponentPropsWithRef } from 'react';
-import { cn, EASE_OUT } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT } from '@/shared/lib';
 import { INSTANT } from './constants';
 
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
 
 const EXPAND: Transition = {
-  height: { duration: 0.22, ease: EASE_OUT },
-  opacity: { duration: 0.16, ease: EASE_OUT },
+  height: { duration: DURATION.medium4, ease: EASE_OUT },
+  opacity: { duration: DURATION.medium1, ease: EASE_OUT },
 };
 
 export interface CollapsibleContentProps extends Omit<ComponentPropsWithRef<'div'>, MotionConflicts> {

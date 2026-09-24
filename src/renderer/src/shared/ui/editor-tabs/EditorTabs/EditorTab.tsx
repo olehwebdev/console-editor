@@ -2,7 +2,7 @@
 import { motion, useIsPresent, type Transition, type Variants } from 'motion/react';
 import { useRef, type DragEvent, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { icons, KEY, MOUSE_BUTTON } from '@/shared/config';
-import { cn, EASE_OUT, isMac, SPRING_LAYOUT } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, isMac, SPRING_LAYOUT } from '@/shared/lib';
 import { Icon, isGlyph } from '@/shared/ui/icon';
 import { EXITING_ATTR, TAB_ID_ATTR } from './constants';
 import type { DropSide, EditorTabItem, EditorTabsProps, EditorTabTone } from './types';
@@ -20,8 +20,8 @@ const TONE: Record<EditorTabTone, string> = {
 };
 
 const INSTANT: Transition = { duration: 0 };
-const WIDTH: Transition = { duration: 0.2, ease: EASE_OUT };
-const FADE: Transition = { duration: 0.14, ease: EASE_OUT };
+const WIDTH: Transition = { duration: DURATION.medium3, ease: EASE_OUT };
+const FADE: Transition = { duration: DURATION.short4, ease: EASE_OUT };
 
 // The wrapper animates width (siblings slide); the content fades. The active
 // pill sits outside the fading content so it glides at full opacity.

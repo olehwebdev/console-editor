@@ -17,20 +17,23 @@ type Direction = NonNullable<SwapProps['direction']>;
 /** Width changes smaller than this (px) are measuring noise, not a new width. */
 const WIDTH_EPSILON = 0.5;
 
+/** Where a rolling label comes from and goes to: most of its height below or above. */
+const ROLL_TRAVEL = { below: '70%', above: '-70%' } as const;
+
 const ROLL: Variants = {
-  initial: (d: Direction) => ({ opacity: 0, y: d === 'up' ? '70%' : '-70%' }),
+  initial: (d: Direction) => ({ opacity: 0, y: d === 'up' ? ROLL_TRAVEL.below : ROLL_TRAVEL.above }),
   animate: { opacity: 1, y: '0%', transition: SPRING_SWAP },
   exit: (d: Direction) => ({
     opacity: 0,
-    y: d === 'up' ? '-70%' : '70%',
-    transition: { duration: DURATION.fast, ease: EASE_OUT },
+    y: d === 'up' ? ROLL_TRAVEL.above : ROLL_TRAVEL.below,
+    transition: { duration: DURATION.short3, ease: EASE_OUT },
   }),
 };
 
 const FADE: Variants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: DURATION.fast } },
-  exit: { opacity: 0, transition: { duration: 0.08 } },
+  animate: { opacity: 1, transition: { duration: DURATION.short3 } },
+  exit: { opacity: 0, transition: { duration: DURATION.short1 } },
 };
 
 /**

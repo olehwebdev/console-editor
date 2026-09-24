@@ -1,10 +1,14 @@
 import { motion, useIsPresent, useReducedMotion } from 'motion/react';
 import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { WarningIcon } from '@/shared/config/icons';
-import { cn, DURATION, EASE_OUT, SPRING_PANEL, SPRING_PRESS, useRegisterOverlay } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, PRESS_SCALE, SPRING_PANEL, SPRING_PRESS, useRegisterOverlay } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
 import { settle, type ConfirmRequest } from '../store';
 import { DIALOG_KEY_HANDLERS } from './dialogKeyHandlers';
+
+/** The panel grows in from a little smaller and lower, and shrinks slightly as it goes. */
+const ENTER_FROM = { scale: 0.94, y: 6 } as const;
+const EXIT_SCALE = 0.97;
 
 export function DialogPanel({ request, className }: { request: ConfirmRequest; className?: string }) {
   useRegisterOverlay(true);
@@ -55,8 +59,8 @@ export function DialogPanel({ request, className }: { request: ConfirmRequest; c
         aria-hidden
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0, transition: { duration: 0.14, ease: EASE_OUT } }}
-        transition={{ duration: 0.16, ease: EASE_OUT }}
+        exit={{ opacity: 0, transition: { duration: DURATION.short4, ease: EASE_OUT } }}
+        transition={{ duration: DURATION.medium1, ease: EASE_OUT }}
         onClick={() => answer(false)}
         className="absolute inset-0 bg-scrim"
       />
@@ -67,10 +71,10 @@ export function DialogPanel({ request, className }: { request: ConfirmRequest; c
         aria-labelledby={titleId}
         aria-describedby={body ? bodyId : undefined}
         inert={!isPresent}
-        initial={{ opacity: 0, scale: reduce ? 1 : 0.94, y: reduce ? 0 : 6 }}
+        initial={{ opacity: 0, scale: reduce ? 1 : ENTER_FROM.scale, y: reduce ? 0 : ENTER_FROM.y }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: reduce ? 1 : 0.97, transition: { duration: DURATION.fast, ease: EASE_OUT } }}
-        transition={reduce ? { duration: DURATION.fast } : { default: SPRING_PANEL, opacity: { duration: 0.16, ease: EASE_OUT } }}
+        exit={{ opacity: 0, scale: reduce ? 1 : EXIT_SCALE, transition: { duration: DURATION.short3, ease: EASE_OUT } }}
+        transition={reduce ? { duration: DURATION.short3 } : { default: SPRING_PANEL, opacity: { duration: DURATION.medium1, ease: EASE_OUT } }}
         className={cn(
           'relative w-full max-w-[400px] rounded-2xl bg-surface-overlay p-5 text-fg shadow-overlay backdrop-blur-xl will-change-transform',
           className,
@@ -97,7 +101,7 @@ export function DialogPanel({ request, className }: { request: ConfirmRequest; c
           <motion.button
             ref={cancelRef}
             type="button"
-            whileTap={{ scale: 0.97 }}
+            whileTap={{ scale: PRESS_SCALE }}
             transition={SPRING_PRESS}
             onClick={() => answer(false)}
             className="h-7 rounded-lg bg-hover px-3 text-[13px] font-medium text-fg-muted transition-colors hover:bg-pressed hover:text-fg"
@@ -108,7 +112,7 @@ export function DialogPanel({ request, className }: { request: ConfirmRequest; c
             ref={confirmRef}
             type="button"
             autoFocus
-            whileTap={{ scale: 0.97 }}
+            whileTap={{ scale: PRESS_SCALE }}
             transition={SPRING_PRESS}
             onClick={() => answer(true)}
             className={cn(

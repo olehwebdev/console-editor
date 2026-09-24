@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHORTCUT } from '@common/constants';
-import { EASE_OUT } from '@/shared/lib';
+import { DURATION, EASE_OUT, SLIDE_IN_X } from '@/shared/lib';
 import { isConfirmOpen } from '@/shared/ui/dialog';
 import { ActivityBar } from '@/widgets/activity-bar';
 import { AppCommandPalette, usePalette } from '@/widgets/command-palette';
@@ -33,7 +33,7 @@ const MOD_SHORTCUTS: Readonly<Record<string, () => void>> = {
 };
 
 /** Switching sidebar views, in seconds. */
-const VIEW_SWAP_DURATION = 0.16;
+const VIEW_SWAP_DURATION = DURATION.medium1;
 
 /** The workspace: title bar, activity rail, sidebar, editor, website preview, status bar. */
 export function EditorPage() {
@@ -78,9 +78,9 @@ export function EditorPage() {
                 <motion.div
                   key={sidebar}
                   className="h-full"
-                  initial={{ opacity: 0, x: -6 }}
+                  initial={{ opacity: 0, x: SLIDE_IN_X }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -6 }}
+                  exit={{ opacity: 0, x: SLIDE_IN_X }}
                   transition={{ duration: VIEW_SWAP_DURATION, ease: EASE_OUT }}
                 >
                   {sidebar === 'settings' ? <SettingsPanel /> : <Explorer />}

@@ -1,6 +1,6 @@
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
-import { cn, EASE_OUT } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT } from '@/shared/lib';
 import { Icon, isGlyph, type IconGlyph } from '@/shared/ui/icon';
 
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
@@ -24,14 +24,19 @@ const SIZE: Record<EmptyStateSize, { tile: string; glyph: number; title: string;
   md: { tile: 'size-12 rounded-2xl', glyph: 22, title: 'text-lg font-medium tracking-tight', body: 'text-[13px]' },
 };
 
-const CONTAINER: Variants = { hidden: {}, shown: { transition: { staggerChildren: 0.045, delayChildren: 0.02 } } };
+/** Seconds between each part's entrance, and before the first. */
+const STAGGER = { between: 0.045, first: 0.02 } as const;
+/** How far (px) each part rises as it fades in. */
+const RISE = 6;
+
+const CONTAINER: Variants = { hidden: {}, shown: { transition: { staggerChildren: STAGGER.between, delayChildren: STAGGER.first } } };
 const ITEM: Variants = {
-  hidden: { opacity: 0, y: 6 },
-  shown: { opacity: 1, y: 0, transition: { duration: 0.26, ease: EASE_OUT } },
+  hidden: { opacity: 0, y: RISE },
+  shown: { opacity: 1, y: 0, transition: { duration: DURATION.long1, ease: EASE_OUT } },
 };
 const ITEM_REDUCED: Variants = {
   hidden: { opacity: 0 },
-  shown: { opacity: 1, transition: { duration: 0.2, ease: EASE_OUT } },
+  shown: { opacity: 1, transition: { duration: DURATION.medium3, ease: EASE_OUT } },
 };
 
 /**

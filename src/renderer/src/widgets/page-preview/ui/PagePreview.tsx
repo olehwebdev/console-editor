@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { SHORTCUT } from '@common/constants';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
-import { EASE_OUT, selectAnyOverlayOpen, setNativeViewRect, useOverlayStore } from '@/shared/lib';
+import { DURATION, EASE_OUT, selectAnyOverlayOpen, setNativeViewRect, useOverlayStore } from '@/shared/lib';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { IconButton } from '@/shared/ui/icon-button';
 import { selectHasPage, usePageStore } from '@/entities/page';
@@ -16,7 +16,7 @@ const SETTLE_FRAMES = 10;
 /** The snapshot when capturing the page failed: the view still gets out of the overlay's way. */
 const CAPTURE_FAILED = 'unavailable';
 /** The empty state fading in or out, in seconds. */
-const EMPTY_FADE_DURATION = 0.2;
+const EMPTY_FADE_DURATION = DURATION.medium3;
 
 export interface PagePreviewProps {
   /** Hide the native view (e.g. while a panel is being resized: it would swallow the drag). */
