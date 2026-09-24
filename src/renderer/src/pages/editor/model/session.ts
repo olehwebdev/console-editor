@@ -2,6 +2,7 @@ import type { SessionDraft, SessionTab } from '@common/types';
 import { api } from '@/shared/api';
 import {
   createTabModel,
+  disposeTabModel,
   getTabBase,
   getTabModel,
   onTabEdited,
@@ -10,19 +11,24 @@ import {
   type TabMeta,
 } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
+import { useWorkspaceStore } from '@/entities/workspace';
 import { openOverride, openResource } from '@/features/open-resource';
 
 /*
- * Session restore: the open tabs, and the unsaved text of each (a "draft"),
- * are written to disk as they change, and reopened on the next start. The
- * page URL is remembered by the main process itself.
+ * Session restore: the active workspace's open tabs, and the unsaved text of
+ * each (a "draft"), are written to disk as they change, and reopened on the
+ * next start or when the workspace is switched back to. The page URL is
+ * remembered by the main process itself.
  */
 
 const TABS_DELAY_MS = 300;
 /** Drafts can be megabytes: written once typing pauses, and always on close. */
 const DRAFT_DELAY_MS = 800;
 
-let syncing = false;
+/** The workspace whose tabs are being kept, while syncing. */
+let syncing: string | null = null;
+/** Ends the running sync's subscriptions. */
+let unsubscribe: (() => void) | null = null;
 let tabsTimer: ReturnType<typeof setTimeout> | undefined;
 const draftTimers = new Map<string, ReturnType<typeof setTimeout>>();
 /** Tabs with a draft on disk. */
@@ -73,7 +79,7 @@ async function reopen(tab: SessionTab): Promise<void> {
   }
 }
 
-/** Reopens the tabs (and their unsaved edits) of the last run. */
+/** Reopens the active workspace's tabs and their unsaved edits: at start, and when it is switched to. */
 export async function restoreSession(): Promise<void> {
   const session = await api.getSession();
   for (const tab of session.tabs) await reopen(tab).catch(() => undefined);
@@ -93,9 +99,10 @@ function activeFileId(s: { tabs: TabMeta[]; activeId: string | null }): string |
 function saveTabs(): void {
   clearTimeout(tabsTimer);
   tabsTimer = undefined;
+  if (!syncing) return;
   const state = useTabStore.getState();
   track(
-    api.saveSessionTabs(state.tabs.map(toSessionTab), activeFileId(state)).then(
+    api.saveSessionTabs(syncing, state.tabs.map(toSessionTab), activeFileId(state)).then(
       () => {
         tabsFailed = false;
       },
@@ -142,12 +149,15 @@ function dropDraft(tabId: string): void {
 }
 
 /**
- * Keeps the session on disk in step with the tabs. Start it after
- * `restoreSession`, so the empty tab list of a fresh start never overwrites
- * the one being restored.
+ * Keeps the active workspace's session on disk in step with the tabs. Start it
+ * after `restoreSession`, so the empty tab list of a fresh start never
+ * overwrites the one being restored. Returns `stopSessionSync`.
  */
 export function startSessionSync(): () => void {
-  syncing = true;
+  stopSessionSync();
+  const workspaceId = useWorkspaceStore.getState().activeId;
+  if (!workspaceId) return stopSessionSync;
+  syncing = workspaceId;
   const key = (tabs: TabMeta[], activeId: string | null) =>
     JSON.stringify([tabs.map((t) => [t.id, t.url, t.kind, t.overrideId, t.originalHash]), activeId]);
   let last = key(useTabStore.getState().tabs, activeFileId(useTabStore.getState()));
@@ -172,14 +182,42 @@ export function startSessionSync(): () => void {
     draftTimers.set(tabId, setTimeout(() => saveDraft(tabId), DRAFT_DELAY_MS));
   });
 
-  return () => {
-    syncing = false;
+  unsubscribe = () => {
     offTabs();
     offEdits();
   };
+  return stopSessionSync;
 }
 
-/** Writes everything still pending (the window is closing). Resolves false if something could not be written. */
+/** Stops following the tabs; what is pending stays pending until `flushSession`. */
+export function stopSessionSync(): void {
+  unsubscribe?.();
+  unsubscribe = null;
+}
+
+/**
+ * Closes the file tabs as the workspace is left, keeping their drafts on disk
+ * (flush first). Pages such as What's New stay open.
+ */
+export function closeSessionTabs(): void {
+  stopSessionSync();
+  syncing = null;
+  for (const timer of draftTimers.values()) clearTimeout(timer);
+  draftTimers.clear();
+  clearTimeout(tabsTimer);
+  tabsTimer = undefined;
+  drafted.clear();
+  baseWritten.clear();
+  failedDrafts.clear();
+  tabsFailed = false;
+  activeFile = null;
+  const closed = useTabStore.getState().tabs.map((t) => t.id);
+  useTabStore.getState().removeTabs();
+  // After React has moved the editor off their models.
+  setTimeout(() => closed.forEach(disposeTabModel), 0);
+}
+
+/** Writes everything still pending (the window is closing, or the workspace changing). Resolves false if something could not be written. */
 export async function flushSession(): Promise<boolean> {
   if (syncing) {
     if (tabsTimer || tabsFailed) saveTabs();
@@ -188,3 +226,12 @@ export async function flushSession(): Promise<boolean> {
   const results = await Promise.allSettled([...writes]);
   return results.every((r) => r.status === 'fulfilled');
 }
+
+/** What the app's event bridge asks of the session: reopen it at start, keep it synced, write it on close. */
+export interface PageSession {
+  restore(): Promise<void>;
+  startSync(): () => void;
+  flush(): Promise<boolean>;
+}
+
+export const pageSession: PageSession = { restore: restoreSession, startSync: startSessionSync, flush: flushSession };
