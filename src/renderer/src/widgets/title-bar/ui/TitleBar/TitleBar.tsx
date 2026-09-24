@@ -3,8 +3,16 @@ import { cn, hostOf, pathSegments } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
+import type { TooltipSide } from '@/shared/ui/tooltip';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { usePageStore } from '@/entities/page';
+import { BrandMark } from './BrandMark';
+
+/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: Kbd and IconButton take a mutable `string[]`. */
+const SHORTCUT = { palette: ['mod', 'K'], sidebar: ['mod', 'B'] } satisfies Record<string, string[]>;
+
+/** The layout toggles' tooltips open into the window, below the title bar. */
+const TOOLTIP_SIDE: TooltipSide = 'bottom';
 
 export interface TitleBarProps {
   onOpenPalette(): void;
@@ -12,14 +20,6 @@ export interface TitleBarProps {
   previewVisible: boolean;
   onToggleSidebar(): void;
   onTogglePreview(): void;
-}
-
-function BrandMark() {
-  return (
-    <span className="relative flex size-6 items-center justify-center rounded-[7px] bg-accent-grad shadow-[0_2px_12px_-2px_color-mix(in_oklch,var(--accent)_60%,transparent)]">
-      <span className="font-mono text-[11px] font-bold leading-none text-accent-fg">{'{}'}</span>
-    </span>
-  );
 }
 
 /** Brand, site and file location, command palette trigger, layout toggles. */
@@ -67,12 +67,12 @@ export function TitleBar({ onOpenPalette, sidebarVisible, previewVisible, onTogg
       >
         <Icon icon={icons.SearchIcon} size={14} />
         <span className="flex-1 text-left">Search files and commands</span>
-        <Kbd keys={['mod', 'K']} />
+        <Kbd keys={SHORTCUT.palette} />
       </button>
 
       <div className="flex items-center gap-0.5">
-        <IconButton icon={icons.SidebarLeftIcon} label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'} shortcut={['mod', 'B']} aria-pressed={sidebarVisible} onClick={onToggleSidebar} tooltipSide="bottom" />
-        <IconButton icon={icons.PreviewIcon} label={previewVisible ? 'Hide website preview' : 'Show website preview'} aria-pressed={previewVisible} onClick={onTogglePreview} tooltipSide="bottom" />
+        <IconButton icon={icons.SidebarLeftIcon} label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'} shortcut={SHORTCUT.sidebar} aria-pressed={sidebarVisible} onClick={onToggleSidebar} tooltipSide={TOOLTIP_SIDE} />
+        <IconButton icon={icons.PreviewIcon} label={previewVisible ? 'Hide website preview' : 'Show website preview'} aria-pressed={previewVisible} onClick={onTogglePreview} tooltipSide={TOOLTIP_SIDE} />
       </div>
     </header>
   );

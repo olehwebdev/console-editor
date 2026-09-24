@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { MatchType, OverrideMeta, UrlMatcher } from '@common/types';
-import { icons } from '@/shared/config';
+import { icons, KEY } from '@/shared/config';
 import { cn } from '@/shared/lib';
 import { Button } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icon';
@@ -8,14 +8,16 @@ import { Input } from '@/shared/ui/input';
 import { Menu } from '@/shared/ui/menu';
 import { Switch } from '@/shared/ui/switch';
 import { applyMatch } from '@/features/edit-match-rule';
+import { sameRule } from './sameRule';
+
+/** The match type menu's entries, in order. */
+const MATCH_TYPES: readonly MatchType[] = ['exact', 'glob', 'regex'];
 
 const TYPE_HELP: Record<MatchType, string> = {
   exact: 'This exact URL',
   glob: '* matches anything',
   regex: 'JavaScript regular expression',
 };
-
-const sameRule = (a: UrlMatcher, b: UrlMatcher) => a.type === b.type && a.pattern === b.pattern && a.ignoreQuery === b.ignoreQuery;
 
 /** Edits which request URLs an override applies to. Key it by the override, so each one starts from its own rule. */
 export function MatchRule({ override }: { override: OverrideMeta }) {
@@ -33,7 +35,7 @@ export function MatchRule({ override }: { override: OverrideMeta }) {
       <span className="text-[12px] text-fg-subtle">Applies to</span>
       <Menu
         label="Match type"
-        items={(['exact', 'glob', 'regex'] as MatchType[]).map((t) => ({ label: `${t} — ${TYPE_HELP[t]}`, checked: t === type, onSelect: () => edit({ type: t }) }))}
+        items={MATCH_TYPES.map((t) => ({ label: `${t} — ${TYPE_HELP[t]}`, checked: t === type, onSelect: () => edit({ type: t }) }))}
       >
         <Button size="sm" variant="secondary" trailing={<Icon icon={icons.ChevronDownIcon} size={12} />} data-testid="match-type">
           <span className="font-mono">{type}</span>
@@ -44,7 +46,7 @@ export function MatchRule({ override }: { override: OverrideMeta }) {
         mono
         value={pattern}
         onChange={(e) => edit({ pattern: e.target.value })}
-        onKeyDown={(e) => e.key === 'Enter' && dirty && apply()}
+        onKeyDown={(e) => e.key === KEY.enter && dirty && apply()}
         aria-label="URL pattern"
         data-testid="match-pattern"
         className="min-w-[220px] flex-1"

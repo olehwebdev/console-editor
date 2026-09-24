@@ -10,6 +10,9 @@ import { usePageStore } from '@/entities/page';
 import { KIND_NAME, selectIframeCount, useResourceStore } from '@/entities/resource';
 import { UpdateStatus } from '@/features/update-app';
 
+/** The glyph before an item's count (overrides, iframes). */
+const ITEM_ICON_SIZE = 12;
+
 /** Quiet one-line summary: page state, what is being served, the active file. */
 export function StatusBar() {
   const loading = usePageStore((s) => s.page.loading);
@@ -30,7 +33,7 @@ export function StatusBar() {
         <span className="truncate">{loading ? 'Loading…' : title || url || 'No page loaded'}</span>
       </span>
       <span className="flex items-center gap-1.5" data-testid="status-overrides">
-        <Icon icon={icons.LiveIcon} size={12} className={live ? 'text-live' : undefined} />
+        <Icon icon={icons.LiveIcon} size={ITEM_ICON_SIZE} className={live ? 'text-live' : undefined} />
         {total ? (
           <span>
             <Counter value={live} className={live ? 'text-fg-muted' : undefined} />/{total} overrides live
@@ -41,7 +44,7 @@ export function StatusBar() {
       </span>
       {iframes ? (
         <span className="flex items-center gap-1.5">
-          <Icon icon={icons.IframeIcon} size={12} className="text-info" />
+          <Icon icon={icons.IframeIcon} size={ITEM_ICON_SIZE} className="text-info" />
           <Counter value={iframes} /> {iframes === 1 ? 'iframe' : 'iframes'}
         </span>
       ) : null}

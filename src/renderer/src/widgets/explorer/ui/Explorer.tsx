@@ -12,6 +12,9 @@ import { useResourceFilter } from '@/features/filter-resources';
 import { OverrideList } from './OverrideList';
 import { ResourceTree } from './ResourceTree';
 
+/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: Kbd takes a mutable `string[]`. */
+const SHORTCUT = { palette: ['mod', 'K'] } satisfies Record<string, string[]>;
+
 /** Sidebar: filter, the user's overrides, and the files the page loaded. */
 export function Explorer() {
   const query = useResourceFilter((s) => s.query);
@@ -37,7 +40,7 @@ export function Explorer() {
             query ? (
               <IconButton icon={icons.CloseIcon} label="Clear filter" size="sm" noTooltip onClick={() => setQuery('')} />
             ) : (
-              <Kbd keys={['mod', 'K']} />
+              <Kbd keys={SHORTCUT.palette} />
             )
           }
         />

@@ -12,6 +12,13 @@ import { AddressBar } from './AddressBar';
 const NO_BOUNDS = { x: 0, y: 0, width: 0, height: 0 };
 /** Frames the host must stay put before position tracking stops. */
 const SETTLE_FRAMES = 10;
+/** The snapshot when capturing the page failed: the view still gets out of the overlay's way. */
+const CAPTURE_FAILED = 'unavailable';
+/** The empty state fading in or out, in seconds. */
+const EMPTY_FADE_DURATION = 0.2;
+
+/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: IconButton takes a mutable `string[]`. */
+const SHORTCUT = { reload: ['mod', 'R'], pageDevTools: ['mod', 'shift', 'J'] } satisfies Record<string, string[]>;
 
 export interface PagePreviewProps {
   /** Hide the native view (e.g. while a panel is being resized: it would swallow the drag). */
@@ -37,8 +44,8 @@ export function PagePreview({ suspended = false, layoutKey, addressBarRef }: Pag
   const canGoForward = usePageStore((s) => s.page.canGoForward);
   const loading = usePageStore((s) => s.page.loading);
   const overlayOpen = useOverlayStore(selectAnyOverlayOpen);
-  /** The still shown while frozen: an image, `'unavailable'` if capturing failed, or null while pending. */
-  const [snapshot, setSnapshot] = useState<string | 'unavailable' | null>(null);
+  /** The still shown while frozen: an image, CAPTURE_FAILED if capturing failed, or null while pending. */
+  const [snapshot, setSnapshot] = useState<string | typeof CAPTURE_FAILED | null>(null);
   const frozen = overlayOpen && hasPage;
   // A still belongs to one freeze; the next one waits for its own.
   if (!frozen && snapshot !== null) setSnapshot(null);
@@ -104,7 +111,7 @@ export function PagePreview({ suspended = false, layoutKey, addressBarRef }: Pag
       .capturePage()
       .catch(() => null)
       .then((image) => {
-        if (!cancelled) setSnapshot(image ?? 'unavailable');
+        if (!cancelled) setSnapshot(image ?? CAPTURE_FAILED);
       });
     return () => {
       cancelled = true;
@@ -119,14 +126,14 @@ export function PagePreview({ suspended = false, layoutKey, addressBarRef }: Pag
         <IconButton
           icon={icons.ReloadIcon}
           label="Reload page"
-          shortcut={['mod', 'R']}
+          shortcut={SHORTCUT.reload}
           size="sm"
           disabled={!hasPage}
           onClick={() => void reloadPage()}
           className={loading ? '[&_svg]:animate-spin-slow' : undefined}
         />
         <AddressBar inputRef={addressBarRef} className="mx-1" />
-        <IconButton icon={icons.DevToolsIcon} label="DevTools for the page" shortcut={['mod', 'shift', 'J']} size="sm" disabled={!hasPage} onClick={() => void openPageDevTools()} />
+        <IconButton icon={icons.DevToolsIcon} label="DevTools for the page" shortcut={SHORTCUT.pageDevTools} size="sm" disabled={!hasPage} onClick={() => void openPageDevTools()} />
       </header>
 
       <div ref={host} className="relative min-h-0 flex-1 bg-white" data-testid="page-host">
@@ -138,7 +145,7 @@ export function PagePreview({ suspended = false, layoutKey, addressBarRef }: Pag
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, ease: EASE_OUT }}
+              transition={{ duration: EMPTY_FADE_DURATION, ease: EASE_OUT }}
             >
               <EmptyState icon={icons.BrowserIcon} title="The website appears here">
                 Type its address above and press Enter. Log in once; sessions are kept.
@@ -146,10 +153,10 @@ export function PagePreview({ suspended = false, layoutKey, addressBarRef }: Pag
             </motion.div>
           ) : null}
         </AnimatePresence>
-        {frozen && snapshot && snapshot !== 'unavailable' ? (
+        {frozen && snapshot && snapshot !== CAPTURE_FAILED ? (
           <img src={snapshot} alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full object-cover object-left-top" />
         ) : null}
-        {frozen && snapshot === 'unavailable' ? <div aria-hidden className="absolute inset-0 bg-surface-raised" /> : null}
+        {frozen && snapshot === CAPTURE_FAILED ? <div aria-hidden className="absolute inset-0 bg-surface-raised" /> : null}
       </div>
     </section>
   );

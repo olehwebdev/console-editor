@@ -1,4 +1,3 @@
-import { hostOf, pathSegments } from '@/shared/lib';
 import { icons } from '@/shared/config';
 import { Badge } from '@/shared/ui/badge';
 import { Button, Swap } from '@/shared/ui/button';
@@ -10,29 +9,26 @@ import { KindIcon } from '@/entities/resource';
 import { closeDiff, compareWithLive, showBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { saveTab } from '@/features/save-override';
-import { Banners } from './Banners';
-import { MatchRule } from './MatchRule';
+import { Banners } from '../Banners';
+import { MatchRule } from '../MatchRule';
+import { Breadcrumbs } from './Breadcrumbs';
 
-function Breadcrumbs({ url }: { url: string }) {
-  const segments = pathSegments(url);
-  return (
-    <nav aria-label="File location" className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-[12.5px]" title={url}>
-      <span className="shrink-0 text-fg-subtle">{hostOf(url)}</span>
-      {segments.map((segment, i) => (
-        <span key={i} className={i === segments.length - 1 ? 'flex min-w-0 items-center gap-1 text-fg' : 'hidden shrink-0 items-center gap-1 text-fg-subtle sm:flex'}>
-          <Icon icon={icons.ChevronRightIcon} size={12} className="text-fg-subtle/60" />
-          <span className={i === segments.length - 1 ? 'truncate font-medium' : undefined}>{segment}</span>
-        </span>
-      ))}
-    </nav>
-  );
-}
+/** Shortcut hints (Kbd's notation), matching the app menu. Not `as const`: IconButton takes a mutable `string[]`. */
+const SHORTCUT = { format: ['shift', 'alt', 'F'], diff: ['mod', 'shift', 'D'] } satisfies Record<string, string[]>;
+
+/** The Save button's states: the key its Swap rolls on, and the label. */
+const SAVE_STATE = {
+  saved: { key: 'saved', label: 'Saved' },
+  save: { key: 'save', label: 'Save' },
+  create: { key: 'create', label: 'Create override' },
+} as const;
 
 /** Location, state and actions for the active tab, plus its match rule and hints. */
 export function FileHeader({ tab }: { tab: TabMeta }) {
   const override = useOverrideStore((s) => (tab.overrideId ? s.byId[tab.overrideId] : undefined));
   const diff = useTabStore((s) => s.diff);
   const saved = !!override && !tab.dirty;
+  const saveState = saved ? SAVE_STATE.saved : override ? SAVE_STATE.save : SAVE_STATE.create;
 
   return (
     <div className="shrink-0 border-b border-line bg-surface-editor" data-testid="file-header">
@@ -47,11 +43,11 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
           <Badge tone="neutral">Live file</Badge>
         )}
         <div className="ml-1 flex items-center gap-0.5">
-          <IconButton icon={icons.PrettifyIcon} label="Pretty-print" shortcut={['shift', 'alt', 'F']} onClick={() => void formatTab(tab.id)} />
+          <IconButton icon={icons.PrettifyIcon} label="Pretty-print" shortcut={SHORTCUT.format} onClick={() => void formatTab(tab.id)} />
           <IconButton
             icon={icons.DiffIcon}
             label={diff === 'base' ? 'Close diff' : 'Diff with where you started'}
-            shortcut={['mod', 'shift', 'D']}
+            shortcut={SHORTCUT.diff}
             active={diff === 'base'}
             onClick={() => (diff === 'base' ? closeDiff() : void showBaseDiff(tab.id))}
           />
@@ -74,7 +70,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
           data-testid="save-button"
           title={override ? 'Save and reload (Ctrl/Cmd+S)' : 'Serve this file instead of the live one (Ctrl/Cmd+S)'}
         >
-          <Swap value={saved ? 'saved' : override ? 'save' : 'create'}>{saved ? 'Saved' : override ? 'Save' : 'Create override'}</Swap>
+          <Swap value={saveState.key}>{saveState.label}</Swap>
         </Button>
       </div>
       {override ? <MatchRule key={override.id} override={override} /> : null}
