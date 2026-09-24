@@ -16,11 +16,13 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { KEY } from '@/shared/config';
 import { cn, EASE_OUT } from '@/shared/lib';
 import { Kbd } from '@/shared/ui/kbd';
-import { getNativeViewRect, type NativeViewRect } from '@/shared/lib';
-
-export type TooltipSide = 'top' | 'right' | 'bottom' | 'left';
+import { computePlacement } from './computePlacement';
+import { isWarm } from './isWarm';
+import type { Placement, TooltipSide } from './types';
+import { warmth } from './warmth';
 
 export interface TooltipProps {
   /** Tooltip text. When empty (and no shortcut) the trigger renders alone. */
@@ -49,21 +51,10 @@ export interface TooltipProps {
   className?: string;
 }
 
-// Gap between trigger and tooltip, and the minimum distance from the window edge.
-const GAP = 6;
-const EDGE = 6;
-
-/*
- * Module-level "warm" state shared by every tooltip: once one tooltip is open,
- * or has just closed, the next one opens without the delay, so sliding along a
- * toolbar reads labels instantly.
- */
+/** Open delay while "cold", unless `delay` says otherwise. */
+const DELAY_MS = 400;
+/** How long after a tooltip closes the next one still opens instantly. */
 const WARM_WINDOW_MS = 300;
-let openTooltips = 0;
-let warmUntil = 0;
-const isWarm = () => openTooltips > 0 || performance.now() < warmUntil;
-
-const OPPOSITE: Record<TooltipSide, TooltipSide> = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
 
 const ORIGIN: Record<TooltipSide, string> = {
   top: 'center bottom',
@@ -92,100 +83,6 @@ const REDUCED_VARIANTS: Variants = {
   exit: { opacity: 0, transition: { duration: 0.08 } },
 };
 
-interface Placement {
-  top: number;
-  left: number;
-  side: TooltipSide;
-}
-
-type Box = Omit<Placement, 'side'>;
-
-// Sides tried after the preferred one and its opposite.
-const PERPENDICULAR: Record<TooltipSide, [TooltipSide, TooltipSide]> = {
-  top: ['right', 'left'],
-  bottom: ['right', 'left'],
-  left: ['top', 'bottom'],
-  right: ['bottom', 'top'],
-};
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, Math.max(min, max)));
-
-function overlapArea(box: Box, width: number, height: number, rect: NativeViewRect): number {
-  const x = Math.min(box.left + width, rect.x + rect.width) - Math.max(box.left, rect.x);
-  const y = Math.min(box.top + height, rect.y + rect.height) - Math.max(box.top, rect.y);
-  return x > 0 && y > 0 ? x * y : 0;
-}
-
-/** Position on `side`, clamped to the window, and slid along the trigger's edge off the native view when that is enough. */
-function positionOn(anchor: DOMRect, width: number, height: number, side: TooltipSide, avoid: NativeViewRect | null): Box {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  let top: number;
-  let left: number;
-  switch (side) {
-    case 'top':
-      top = anchor.top - GAP - height;
-      left = anchor.left + anchor.width / 2 - width / 2;
-      break;
-    case 'bottom':
-      top = anchor.bottom + GAP;
-      left = anchor.left + anchor.width / 2 - width / 2;
-      break;
-    case 'left':
-      top = anchor.top + anchor.height / 2 - height / 2;
-      left = anchor.left - GAP - width;
-      break;
-    case 'right':
-      top = anchor.top + anchor.height / 2 - height / 2;
-      left = anchor.right + GAP;
-      break;
-  }
-  top = clamp(top, EDGE, vh - EDGE - height);
-  left = clamp(left, EDGE, vw - EDGE - width);
-
-  if (avoid && overlapArea({ top, left }, width, height, avoid) > 0) {
-    if (side === 'top' || side === 'bottom') {
-      const center = anchor.left + anchor.width / 2;
-      if (center <= avoid.x) left = clamp(Math.min(left, avoid.x - EDGE - width), EDGE, vw - EDGE - width);
-      else if (center >= avoid.x + avoid.width) left = clamp(Math.max(left, avoid.x + avoid.width + EDGE), EDGE, vw - EDGE - width);
-    } else {
-      const center = anchor.top + anchor.height / 2;
-      if (center <= avoid.y) top = clamp(Math.min(top, avoid.y - EDGE - height), EDGE, vh - EDGE - height);
-      else if (center >= avoid.y + avoid.height) top = clamp(Math.max(top, avoid.y + avoid.height + EDGE), EDGE, vh - EDGE - height);
-    }
-  }
-  return { top: Math.round(top), left: Math.round(left) };
-}
-
-/**
- * Preferred side first, then its opposite, then the perpendicular sides. A side
- * qualifies when it has room in the window and the tooltip would not land on the
- * native page view (drawn above the renderer, it would hide the tooltip). When
- * none is clear, the side with the least overlap wins.
- */
-function computePlacement(anchor: DOMRect, width: number, height: number, preferred: TooltipSide): Placement {
-  const room: Record<TooltipSide, number> = {
-    top: anchor.top - GAP - EDGE,
-    bottom: window.innerHeight - anchor.bottom - GAP - EDGE,
-    left: anchor.left - GAP - EDGE,
-    right: window.innerWidth - anchor.right - GAP - EDGE,
-  };
-  const avoid = getNativeViewRect();
-  let best: Placement | null = null;
-  let bestOverlap = Infinity;
-  for (const side of [preferred, OPPOSITE[preferred], ...PERPENDICULAR[preferred]]) {
-    if (room[side] < (side === 'top' || side === 'bottom' ? height : width)) continue;
-    const box = positionOn(anchor, width, height, side, avoid);
-    const overlap = avoid ? overlapArea(box, width, height, avoid) : 0;
-    if (overlap === 0) return { ...box, side };
-    if (overlap < bestOverlap) {
-      best = { ...box, side };
-      bestOverlap = overlap;
-    }
-  }
-  return best ?? { ...positionOn(anchor, width, height, preferred, avoid), side: preferred };
-}
-
 /**
  * Hover/focus label for a control. Opens after `delay` (400 ms), instantly when
  * another tooltip was just showing; portals to <body>, never takes pointer
@@ -200,7 +97,7 @@ export function Tooltip({
   side = 'top',
   shortcut,
   children,
-  delay = 400,
+  delay = DELAY_MS,
   disabled = false,
   open: controlledOpen,
   onOpenChange,
@@ -255,10 +152,10 @@ export function Tooltip({
   const tracksWarmth = controlledOpen === undefined;
   useEffect(() => {
     if (!open || !tracksWarmth) return;
-    openTooltips += 1;
+    warmth.openTooltips += 1;
     return () => {
-      openTooltips -= 1;
-      warmUntil = performance.now() + WARM_WINDOW_MS;
+      warmth.openTooltips -= 1;
+      warmth.warmUntil = performance.now() + WARM_WINDOW_MS;
     };
   }, [open, tracksWarmth]);
 
@@ -285,7 +182,7 @@ export function Tooltip({
     const observer = new ResizeObserver(place);
     if (surface) observer.observe(surface);
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') dismiss();
+      if (event.key === KEY.escape) dismiss();
     };
     const onMove = () => {
       place();

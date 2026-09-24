@@ -13,8 +13,10 @@ import {
   type Ref,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { MenuPanel, RESTORES_FOCUS, type MenuAnchor, type MenuCloseReason, type MenuInitialFocus } from './MenuPanel';
-import type { MenuAlign, MenuItem, MenuSide } from './types';
+import { KEY } from '@/shared/config';
+import { MenuPanel, RESTORES_FOCUS, type MenuAnchor, type MenuCloseReason, type MenuInitialFocus } from '../MenuPanel';
+import type { MenuAlign, MenuItem, MenuSide } from '../types';
+import { setRef } from './setRef';
 
 type TriggerProps = {
   ref?: Ref<HTMLElement>;
@@ -45,10 +47,11 @@ export interface MenuProps {
   className?: string;
 }
 
-function setRef<T>(ref: Ref<T> | undefined, value: T | null) {
-  if (typeof ref === 'function') ref(value);
-  else if (ref) (ref as { current: T | null }).current = value;
-}
+// WAI-ARIA menu button: ArrowDown opens on the first item, ArrowUp on the last.
+const OPENING_KEYS: Record<string, MenuInitialFocus> = {
+  [KEY.arrowDown]: 'first',
+  [KEY.arrowUp]: 'last',
+};
 
 /**
  * Dropdown menu anchored to its trigger. Opens on click (no highlight), on
@@ -129,12 +132,10 @@ export function Menu({
     onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
       child.props.onKeyDown?.(event);
       if (event.defaultPrevented || disabled) return;
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        event.preventDefault();
-        triggerRef.current = event.currentTarget;
-        // WAI-ARIA menu button: ArrowUp opens on the last item.
-        show(event.key === 'ArrowDown' ? 'first' : 'last');
-      }
+      if (!Object.hasOwn(OPENING_KEYS, event.key)) return;
+      event.preventDefault();
+      triggerRef.current = event.currentTarget;
+      show(OPENING_KEYS[event.key]);
     },
   };
 

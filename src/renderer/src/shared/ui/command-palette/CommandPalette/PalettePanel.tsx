@@ -1,6 +1,6 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import { defaultRangeExtractor, useVirtualizer, type Range } from '@tanstack/react-virtual';
-import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
+import { motion, useIsPresent, useReducedMotion } from 'motion/react';
 import {
   useCallback,
   useEffect,
@@ -10,159 +10,26 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
 } from 'react';
-import { createPortal } from 'react-dom';
 import { SearchIcon } from '@/shared/config/icons';
 import { cn, EASE_OUT, SPRING_PANEL, useRegisterOverlay } from '@/shared/lib';
-import { Icon, type IconGlyph } from '@/shared/ui/icon';
+import { Icon } from '@/shared/ui/icon';
 import { Kbd } from '@/shared/ui/kbd';
-import { fuzzyMatch, normalizeQuery } from './fuzzy';
+import { HEADING_H, ITEM_H, LIST_PAD } from './constants';
+import { filterGroups } from './filterGroups';
+import { Highlighted } from './Highlighted';
+import { layoutRows } from './layoutRows';
+import { PALETTE_KEY_HANDLERS } from './paletteKeyHandlers';
+import type { CommandPaletteProps, Direction, PaletteKeyActions } from './types';
 
-export interface CommandItem {
-  /** Unique within its group. */
-  id: string;
-  label: string;
-  /** Secondary text on the right (a path, a host, a state). Also searched. */
-  hint?: string;
-  icon?: IconGlyph;
-  /** Shortcut hint, e.g. `['mod', 'S']`. */
-  shortcut?: string[];
-  /** Extra search terms (not shown). */
-  keywords?: string[];
-  /** Runs after the palette has closed and focus has gone back to where it was. */
-  onSelect: () => void;
-}
-
-export interface CommandGroup {
-  heading: string;
-  items: CommandItem[];
-}
-
-export interface CommandPaletteProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  groups: CommandGroup[];
-  placeholder?: string;
-  /** Shown when nothing matches. Default "No matching commands". */
-  emptyMessage?: ReactNode;
-  /** Extra classes for the panel. */
-  className?: string;
-}
-
-interface Result {
-  item: CommandItem;
-  indices: number[];
-  score: number;
-}
-
-type Row =
-  | { kind: 'heading'; key: string; heading: string }
-  | { kind: 'item'; key: string; result: Result; ordinal: number; group: number };
-
-const HEADING_H = 28;
-const ITEM_H = 32;
-const LIST_PAD = 6;
 const MAX_LIST_H = 360;
 const PAGE_STEP = 8;
+/** Rows rendered beyond the visible ones, each way. */
+const OVERSCAN = 6;
 /** Tracks fast arrow-key repeat without trailing behind the row. */
 const HIGHLIGHT_SPRING = { type: 'spring', stiffness: 560, damping: 42, mass: 0.5 } as const;
 
-/** Keywords and hints count for less than the label and don't highlight. */
-const SECONDARY_WEIGHT = 0.6;
-
-function filterGroups(groups: CommandGroup[], rawQuery: string): { heading: string; results: Result[] }[] {
-  const query = normalizeQuery(rawQuery);
-  if (!query) {
-    return groups
-      .filter((group) => group.items.length > 0)
-      .map((group) => ({ heading: group.heading, results: group.items.map((item) => ({ item, indices: [], score: 0 })) }));
-  }
-  const sections: { heading: string; results: Result[]; best: number }[] = [];
-  for (const group of groups) {
-    const results: Result[] = [];
-    for (const item of group.items) {
-      const onLabel = fuzzyMatch(query, item.label);
-      if (onLabel) {
-        results.push({ item, indices: onLabel.indices, score: onLabel.score });
-        continue;
-      }
-      let best = -Infinity;
-      for (const extra of [...(item.keywords ?? []), item.hint ?? '']) {
-        const match = extra ? fuzzyMatch(query, extra) : null;
-        if (match) best = Math.max(best, match.score * SECONDARY_WEIGHT);
-      }
-      if (best > -Infinity) results.push({ item, indices: [], score: best });
-    }
-    if (results.length === 0) continue;
-    results.sort((a, b) => b.score - a.score);
-    sections.push({ heading: group.heading, results, best: results[0]!.score });
-  }
-  // Best group first, like the best row first within a group.
-  return sections.sort((a, b) => b.best - a.best);
-}
-
-function layoutRows(sections: { heading: string; results: Result[] }[]) {
-  const rows: Row[] = [];
-  const starts: number[] = [];
-  const itemRows: number[] = [];
-  let y = LIST_PAD;
-  for (const [group, section] of sections.entries()) {
-    rows.push({ kind: 'heading', key: `h:${section.heading}`, heading: section.heading });
-    starts.push(y);
-    y += HEADING_H;
-    for (const result of section.results) {
-      itemRows.push(rows.length);
-      rows.push({ kind: 'item', key: `i:${section.heading}:${result.item.id}`, result, ordinal: itemRows.length - 1, group });
-      starts.push(y);
-      y += ITEM_H;
-    }
-  }
-  return { rows, starts, itemRows, total: y + LIST_PAD };
-}
-
-function Highlighted({ text, indices }: { text: string; indices: number[] }) {
-  if (indices.length === 0) return <>{text}</>;
-  const hits = new Set(indices);
-  const parts: ReactNode[] = [];
-  let i = 0;
-  while (i < text.length) {
-    const hit = hits.has(i);
-    let j = i;
-    while (j < text.length && hits.has(j) === hit) j++;
-    parts.push(
-      hit ? (
-        <mark key={i} className="bg-transparent font-medium text-accent">
-          {text.slice(i, j)}
-        </mark>
-      ) : (
-        text.slice(i, j)
-      ),
-    );
-    i = j;
-  }
-  return <>{parts}</>;
-}
-
-/**
- * Spotlight-style command palette: fuzzy filter with highlighted matches,
- * one gliding highlight, Enter runs, Esc / backdrop closes. The result list is
- * virtualized, so it stays fast with thousands of entries (e.g. every resource
- * of a page). Rendered in a portal; the caller owns `open` and the hotkey
- * (which should ignore `event.repeat`, or a held shortcut toggles it rapidly).
- */
-export function CommandPalette({ open, ...panelProps }: CommandPaletteProps) {
-  // Each opening mounts a fresh panel. Re-using one key would let AnimatePresence
-  // revive a panel that is still animating out, and that panel never refocuses its input.
-  const [session, setSession] = useState({ open, key: open ? 1 : 0 });
-  if (session.open !== open) setSession({ open, key: open ? session.key + 1 : session.key });
-  return createPortal(
-    <AnimatePresence>{open ? <PalettePanel key={session.key} {...panelProps} /> : null}</AnimatePresence>,
-    document.body,
-  );
-}
-
-function PalettePanel({
+export function PalettePanel({
   onOpenChange,
   groups,
   placeholder = 'Type a command or search…',
@@ -207,7 +74,7 @@ function PalettePanel({
     estimateSize: (index) => (rows[index]?.kind === 'heading' ? HEADING_H : ITEM_H),
     getItemKey,
     rangeExtractor,
-    overscan: 6,
+    overscan: OVERSCAN,
     paddingStart: LIST_PAD,
     paddingEnd: LIST_PAD,
     useFlushSync: false,
@@ -238,7 +105,7 @@ function PalettePanel({
     if (!focused || focused === document.body || panelRef.current?.contains(focused)) restoreFocus();
   }, [isPresent, restoreFocus]);
 
-  const reveal = (ordinal: number, direction: 1 | -1) => {
+  const reveal = (ordinal: number, direction: Direction) => {
     const row = itemRows[ordinal];
     if (row === undefined) return;
     // Moving up onto a group's first row brings its heading along.
@@ -246,44 +113,29 @@ function PalettePanel({
     virtualizer.scrollToIndex(target, { align: 'auto' });
   };
 
-  const moveTo = (ordinal: number, direction: 1 | -1) => {
+  const moveTo = (ordinal: number, direction: Direction) => {
     setActive(ordinal);
     reveal(ordinal, direction);
   };
 
+  const keyActions: PaletteKeyActions = {
+    step: (direction) => {
+      if (count === 0) return;
+      moveTo((current + direction + count) % count, direction);
+    },
+    page: (direction) => {
+      if (count === 0) return;
+      moveTo(Math.min(Math.max(current + direction * PAGE_STEP, 0), count - 1), direction);
+    },
+    runActive: () => {
+      if (current >= 0) run(current);
+    },
+    close,
+  };
+
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.nativeEvent.isComposing) return;
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowUp': {
-        event.preventDefault();
-        if (count === 0) return;
-        const direction = event.key === 'ArrowDown' ? 1 : -1;
-        moveTo((current + direction + count) % count, direction);
-        return;
-      }
-      case 'PageDown':
-      case 'PageUp': {
-        event.preventDefault();
-        if (count === 0) return;
-        const direction = event.key === 'PageDown' ? 1 : -1;
-        moveTo(Math.min(Math.max(current + direction * PAGE_STEP, 0), count - 1), direction);
-        return;
-      }
-      case 'Enter':
-        event.preventDefault();
-        if (current >= 0) run(current);
-        return;
-      case 'Escape':
-        event.preventDefault();
-        event.stopPropagation();
-        close();
-        return;
-      case 'Tab':
-        // The input is the only stop; keep focus inside the dialog.
-        event.preventDefault();
-        return;
-    }
+    if (event.nativeEvent.isComposing || !Object.hasOwn(PALETTE_KEY_HANDLERS, event.key)) return;
+    PALETTE_KEY_HANDLERS[event.key](event, keyActions);
   };
 
   // Clicks on rows, headings or chrome keep the caret in the input.
