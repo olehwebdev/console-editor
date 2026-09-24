@@ -37,6 +37,7 @@ If you change packaging (`electron-builder.ts`, `build/`, anything the installed
 
 A good pull request:
 
+- **comes from a git flow branch** (`feature/…`, `bugfix/…`; see [CLAUDE.md › Branches](CLAUDE.md#branches-git-flow)) into `main`;
 - **fixes one thing** and explains why, with a test that fails without the change (behaviour of Chromium or CDP is best pinned in `test/integration`);
 - **follows the architecture**: the renderer uses [Feature-Sliced Design](https://feature-sliced.design) (`app → pages → widgets → features → entities → shared`, checked by `npm run lint:fsd`); UI uses the tokens and components in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md);
 - **matches the surrounding code**: naming, comment density (short comments that explain *why*), and no unrelated refactors;
@@ -50,6 +51,8 @@ A good pull request:
 3. Push a matching tag (`git tag v0.2.0 && git push origin v0.2.0`), or run the **Release** workflow by hand with **Draft release** ticked. Either way it refuses a version that already has a release or draft.
 4. The workflow runs the checks, builds the installers on macOS, Windows and Linux, installs and smoke-tests them, updates an installed Windows app and an AppImage to a newer build, and drafts the release with the installers, the updater's `latest*.yml` and block maps, and `SHA256SUMS.txt`.
 5. Review the draft on GitHub and publish it. Installed copies find it at their next start, or within six hours.
+
+That's a release straight from `main`. For a patch release while `main` holds unreleased work, or a release that needs more than its version commit, use a `hotfix/` or `release/` branch instead ([CLAUDE.md › Branches](CLAUDE.md#branches-git-flow)).
 
 ## Licence
 
