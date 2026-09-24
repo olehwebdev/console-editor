@@ -77,7 +77,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
           <Swap value={saved ? 'saved' : override ? 'save' : 'create'}>{saved ? 'Saved' : override ? 'Save' : 'Create override'}</Swap>
         </Button>
       </div>
-      {override ? <MatchRule override={override} /> : null}
+      {override ? <MatchRule key={override.id} override={override} /> : null}
       <Banners override={override} lite={tab.lite} tabId={tab.id} />
     </div>
   );

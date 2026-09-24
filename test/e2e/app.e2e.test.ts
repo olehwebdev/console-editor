@@ -106,6 +106,21 @@ describe.skipIf(!built)('Console Editor app', () => {
     await expect.poll(() => inSite('window.appValue')).toBe('original');
   });
 
+  it('hiding the website preview takes the page view with it', async () => {
+    // The native view is drawn over the editor window: left in place, it would cover whatever takes the preview's room.
+    const viewWidth = () =>
+      app.evaluate(({ BrowserWindow, WebContentsView }, url) => {
+        const views = BrowserWindow.getAllWindows()[0]!.contentView.children;
+        const view = views.find((v) => v instanceof WebContentsView && v.webContents.getURL().startsWith(url));
+        return view?.getBounds().width;
+      }, site.url);
+    await expect.poll(viewWidth).toBeGreaterThan(0);
+    await win.getByRole('button', { name: 'Hide website preview' }).click();
+    await expect.poll(viewWidth).toBe(0);
+    await win.getByRole('button', { name: 'Show website preview' }).click();
+    await expect.poll(viewWidth).toBeGreaterThan(0);
+  });
+
   it('edits a script, saves it as an override, and the reloaded page runs it', async () => {
     await fileRow(win, `${site.url}/app.js`).click();
     await win.locator('.monaco-editor .view-lines', { hasText: 'window.appValue' }).waitFor();
