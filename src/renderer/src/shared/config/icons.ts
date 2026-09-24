@@ -4,6 +4,7 @@
  */
 export {
   Alert02Icon as WarningIcon,
+  AlertCircleIcon as ErrorIcon,
   AppWindowIcon as PreviewIcon,
   ArrowDown01Icon as ChevronDownIcon,
   ArrowLeft01Icon as BackIcon,
@@ -14,6 +15,7 @@ export {
   CheckmarkCircle02Icon as SuccessIcon,
   CodeIcon as DevToolsIcon,
   CommandIcon,
+  CommandLineIcon as ConsoleIcon,
   Copy01Icon as CopyIcon,
   CpuIcon as WorkerIcon,
   CssFile01Icon as CssIcon,
@@ -21,6 +23,7 @@ export {
   Download04Icon as DownloadIcon,
   File01Icon as FileIcon,
   FlashIcon as LiveIcon,
+  FilterHorizontalIcon as FilterIcon,
   FloppyDiskIcon as SaveIcon,
   Folder01Icon as FolderIcon,
   FolderOpenIcon,
@@ -34,6 +37,8 @@ export {
   MagicWand01Icon as PrettifyIcon,
   NewReleasesIcon as WhatsNewIcon,
   PencilEdit02Icon as EditIcon,
+  PinIcon,
+  PlayIcon as RunIcon,
   PlusSignIcon as AddIcon,
   PuzzleIcon as IframeIcon,
   RefreshIcon as ReloadIcon,
@@ -42,5 +47,6 @@ export {
   SidebarLeftIcon,
   SourceCodeIcon as ExplorerIcon,
   SparklesIcon,
+  Tag01Icon as NameIcon,
   Tick02Icon as CheckIcon,
 } from '@hugeicons/core-free-icons';

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
 import { sha256 } from '../../src/main/engine/InterceptionEngine';
-import { AUTO_ATTACH, SETUP_TIMEOUT_MS, SHARED_WORKER_HOLD_MS, UNREGISTER_TIMEOUT_MS, PageInterception } from '../../src/main/engine/PageInterception';
+import { AUTO_ATTACH, SETUP_TIMEOUT_MS, SHARED_WORKER_HOLD_MS, UNREGISTER_TIMEOUT_MS, PageInterception, type SessionObserver } from '../../src/main/engine/PageInterception';
 import { DEFAULT_SETTINGS, type EngineEvent, type Override } from '../../src/shared/types';
 
 type Handler = (params: any, sessionId?: string) => void;
@@ -90,7 +90,14 @@ const override: Override = {
 };
 const scriptOverride = (id: string, url: string): Override => ({ ...override, id, sourceUrl: url, match: { type: 'exact', pattern: url, ignoreQuery: true } });
 
-async function setup(overrides: Override[] = [], fallbackFetch?: (url: string) => Promise<string>, before?: (cdp: FakeSessions) => void) {
+interface SetupOptions {
+  fallbackFetch?: (url: string) => Promise<string>;
+  /** Runs on the fake connection before interception attaches. */
+  before?: (cdp: FakeSessions) => void;
+  sessions?: SessionObserver;
+}
+
+async function setup(overrides: Override[] = [], { fallbackFetch, before, sessions }: SetupOptions = {}) {
   const cdp = new FakeSessions();
   before?.(cdp);
   const events: EngineEvent[] = [];
@@ -100,6 +107,7 @@ async function setup(overrides: Override[] = [], fallbackFetch?: (url: string) =
     getSettings: () => DEFAULT_SETTINGS,
     emit: (e) => events.push(e),
     fallbackFetch,
+    sessions,
   });
   await pi.attach();
   return { cdp, pi, events };
@@ -109,7 +117,7 @@ describe('PageInterception', () => {
   it("enables the page's ServiceWorker domain (registration scopes), and attaches without it", async () => {
     const { cdp } = await setup();
     expect(cdp.of(undefined)).toContain('ServiceWorker.enable');
-    await expect(setup([], undefined, (c) => c.failing.add('page|ServiceWorker.enable'))).resolves.toBeDefined();
+    await expect(setup([], { before: (c) => c.failing.add('page|ServiceWorker.enable') })).resolves.toBeDefined();
   });
 
   it('auto-attaches iframes and every kind of worker Chromium pauses, pausing them on start', async () => {
@@ -291,6 +299,63 @@ describe('PageInterception', () => {
     cdp.emit('Target.attachedToTarget', iframe('S3'));
     await flush();
     expect(cdp.calls.map((c) => c.method)).toEqual([]);
+  });
+
+  describe('session observer (the console)', () => {
+    /** Records what it is told, and sends a command on each session it gets, as the console does. */
+    const observer = (log: string[], work: (id: string | undefined) => Promise<void> = async () => undefined): SessionObserver => ({
+      async attached(id, transport) {
+        log.push(`attached ${id ?? 'page'}`);
+        await transport.send('Runtime.enable');
+        await work(id);
+      },
+      detached: (id) => log.push(`detached ${id ?? 'page'}`),
+    });
+
+    it('gets the page once attached, and each iframe before it is resumed', async () => {
+      const log: string[] = [];
+      const { cdp } = await setup([], { sessions: observer(log) });
+      expect(cdp.of(undefined).indexOf('Runtime.enable')).toBeLessThan(cdp.of(undefined).indexOf('Target.setAutoAttach'));
+      cdp.emit('Target.attachedToTarget', iframe('S1'));
+      await flush();
+      const child = cdp.of('S1');
+      expect(child.indexOf('Runtime.enable')).toBeGreaterThan(-1);
+      expect(child.indexOf('Runtime.enable')).toBeLessThan(child.indexOf('Runtime.runIfWaitingForDebugger'));
+      expect(log).toEqual(['attached page', 'attached S1']);
+    });
+
+    it('never holds interception up: a failing observer changes nothing, a stuck one only until the setup timeout', async () => {
+      const failing = await setup([], { sessions: observer([], async () => Promise.reject(new Error('console broke'))) });
+      failing.cdp.emit('Target.attachedToTarget', iframe('S1'));
+      await flush();
+      expect(failing.cdp.of('S1').at(-1)).toBe('Runtime.runIfWaitingForDebugger');
+      expect(failing.events).toEqual([]);
+
+      vi.useFakeTimers();
+      try {
+        const stuck = await setup([], { sessions: observer([], (id) => (id ? new Promise(() => undefined) : Promise.resolve())) });
+        stuck.cdp.emit('Target.attachedToTarget', iframe('S1'));
+        await vi.advanceTimersByTimeAsync(SETUP_TIMEOUT_MS / 2);
+        expect(stuck.cdp.of('S1')).not.toContain('Runtime.runIfWaitingForDebugger');
+        await vi.advanceTimersByTimeAsync(SETUP_TIMEOUT_MS);
+        expect(stuck.cdp.of('S1').at(-1)).toBe('Runtime.runIfWaitingForDebugger');
+        expect(stuck.events).toEqual([]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('hears of sessions going away, nested ones first, and of interception stopping', async () => {
+      const log: string[] = [];
+      const { cdp, pi } = await setup([], { sessions: observer(log) });
+      cdp.emit('Target.attachedToTarget', iframe('S1'));
+      await flush();
+      cdp.emit('Target.attachedToTarget', iframe('S2'), 'S1');
+      await flush();
+      cdp.emit('Target.detachedFromTarget', { sessionId: 'S1' });
+      pi.detach();
+      expect(log.filter((l) => l.startsWith('detached'))).toEqual(['detached S2', 'detached S1', 'detached page']);
+    });
   });
 
   describe('workers', () => {
@@ -523,7 +588,7 @@ describe('PageInterception', () => {
     it("falls back to fetching a worker's file out of the page when its session doesn't answer (a stopped service worker)", async () => {
       vi.useFakeTimers();
       try {
-        const { cdp, pi } = await setup([], async (url) => `fetched ${url}`);
+        const { cdp, pi } = await setup([], { fallbackFetch: async (url) => `fetched ${url}` });
         cdp.emit('Target.attachedToTarget', worker('SW', 'service_worker'));
         await vi.advanceTimersByTimeAsync(0);
         response(cdp, 'r1', 'https://a.test/swlib.js', 'SW', 'Other');
@@ -666,7 +731,7 @@ describe('PageInterception', () => {
     const again = (sessionId: string, targetId = 'T-SW1') => ({ sessionId, targetInfo: { targetId, type: 'service_worker', url: SW }, waitingForDebugger: false });
     const evaluated = (cdp: FakeSessions) => cdp.calls.filter((c) => c.method === 'Runtime.evaluate').map((c) => c.sessionId);
     /** Target ids of the service workers whose state is kept (only memory shows it once it can't come back). */
-    const kept = (pi: PageInterception) => [...(pi as unknown as { serviceWorkers: Map<string, unknown> }).serviceWorkers.keys()];
+    const kept = (pi: PageInterception) => [...(pi as unknown as { serviceWorkers: { kept: Map<string, unknown> } }).serviceWorkers.kept.keys()];
 
     it('is known again when the page comes back to its site: its files listed, not reinstalled while up to date', async () => {
       const lib = scriptOverride('lib', LIB);

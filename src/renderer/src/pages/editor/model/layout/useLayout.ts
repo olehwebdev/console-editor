@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { clamp } from '@/shared/lib';
-import { DEFAULT_SIDEBAR_VIEW, PREVIEW_RATIO, SIDEBAR_W } from './constants';
+import { CONSOLE_H, DEFAULT_SIDEBAR_VIEW, PREVIEW_RATIO, SIDEBAR_W } from './constants';
 import { fitPanels } from './fitPanels';
 import { limits } from './limits';
 import { load } from './load';
@@ -16,6 +16,7 @@ export const useLayout = create<LayoutStore>()((set) => ({
   sidebarLeaving: false,
   resizing: false,
   dragStart: null,
+  consoleDragStart: null,
   setSidebar: (view) => set((s) => withSidebar(s, view)),
   toggleSidebar: () => set((s) => withSidebar(s, s.sidebar ? null : DEFAULT_SIDEBAR_VIEW)),
   showSidebarView: (view) => set((s) => withSidebar(s, s.sidebar === view ? null : view)),
@@ -41,6 +42,14 @@ export const useLayout = create<LayoutStore>()((set) => ({
       return previewRatio === s.previewRatio ? s : { previewRatio };
     }),
   setRowWidth: (rowWidth) => set((s) => (s.rowWidth === rowWidth ? s : { rowWidth })),
+  toggleConsole: () => set((s) => ({ consoleVisible: !s.consoleVisible })),
+  resizeConsole: (delta, total) =>
+    set((s) => {
+      const target = s.consoleDragStart === null ? s.consoleHeight - delta : s.consoleDragStart - total;
+      const consoleHeight = Math.round(clamp(target, CONSOLE_H.min, Math.max(CONSOLE_H.min, window.innerHeight * CONSOLE_H.maxRatio)));
+      return consoleHeight === s.consoleHeight ? s : { consoleHeight };
+    }),
+  setConsoleDragging: (dragging) => set((s) => ({ consoleDragStart: dragging ? s.consoleHeight : null })),
   setResizing: (resizing) => set((s) => (s.resizing === resizing ? s : { resizing, dragStart: resizing ? fitPanels(s) : null })),
 }));
 
