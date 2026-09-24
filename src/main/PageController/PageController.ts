@@ -1,31 +1,31 @@
 import { session, WebContentsView, type BrowserWindow, type Session } from 'electron';
-import type { AppEvent, PageState, Rect } from '../shared/types';
-import { electronTransport } from './electronTransport';
-import { PageInterception } from './engine/PageInterception';
-import { installSitePermissions } from './sitePermissions';
-import type { OverrideStore } from './store/OverrideStore';
-import type { SettingsStore } from './store/SettingsStore';
+import type { AppEvent, PageState, Rect } from '../../shared/types';
+import { HTTP_SCHEME } from '../constants';
+import { electronTransport } from '../electronTransport';
+import { PageInterception } from '../engine/PageInterception';
+import { installSitePermissions } from '../sitePermissions';
+import type { OverrideStore } from '../store/OverrideStore';
+import type { SettingsStore } from '../store/SettingsStore';
+import { chromeUserAgent } from './chromeUserAgent';
+import { normalizeUrl } from './normalizeUrl';
 
 /** Session partition for the site being edited: cookies/logins survive restarts. */
 const SITE_PARTITION = 'persist:site';
 
-/** Adds a scheme to what the user typed in the address bar. */
-export function normalizeUrl(input: string): string {
-  const text = input.trim();
-  if (/^[a-z][a-z0-9+.-]*:/i.test(text) && !/^[\w.-]+:\d+/.test(text)) return text;
-  if (/^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\])(:\d+)?(\/|$)/i.test(text) || /^[\w.-]+:\d+(\/|$)/.test(text)) {
-    return `http://${text}`;
-  }
-  return `https://${text}`;
-}
+/** The DevTools protocol version the engine speaks to the view's debugger. */
+const CDP_VERSION = '1.3';
 
-/**
- * Some sites (and Google sign-in) treat embedded browsers differently; drop the
- * Electron/app tokens so the page sees a regular Chrome user agent.
- */
-function chromeUserAgent(ua: string): string {
-  return ua.replace(/\s(Electron|console-editor|Console Editor)\/\S+/gi, '');
-}
+/** What the view shows before a site loads, and the URL it then reports (shown as none). */
+const BLANK_PAGE = 'about:blank';
+
+/** A browser's default page background, until the site paints its own. */
+const PAGE_BACKGROUND = '#ffffff';
+
+/** Chromium's net error for a navigation replaced by another one, not a real failure. */
+const ERR_ABORTED = -3;
+
+/** Quality of the page snapshot shown under overlays. */
+const SNAPSHOT_JPEG_QUALITY = 85;
 
 /**
  * Owns the embedded browser view that shows the website, and the interception
@@ -50,12 +50,12 @@ export class PageController {
     this.view = new WebContentsView({
       webPreferences: { session: this.siteSession, contextIsolation: true, sandbox: true },
     });
-    this.view.setBackgroundColor('#ffffff');
+    this.view.setBackgroundColor(PAGE_BACKGROUND);
     win.contentView.addChildView(this.view);
     this.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
 
     const wc = this.view.webContents;
-    wc.debugger.attach('1.3');
+    wc.debugger.attach(CDP_VERSION);
     const transport = electronTransport(wc.debugger);
     wc.debugger.on('detach', (_event, reason) => {
       // Settle everything the engine is waiting on; nothing can be sent any more.
@@ -84,7 +84,7 @@ export class PageController {
       if (disposition === 'new-window') {
         return { action: 'allow', overrideBrowserWindowOptions: { parent: win, autoHideMenuBar: true } };
       }
-      if (/^https?:/i.test(url)) void this.navigate(url);
+      if (HTTP_SCHEME.test(url)) void this.navigate(url);
       return { action: 'deny' };
     });
 
@@ -95,8 +95,7 @@ export class PageController {
     wc.on('did-navigate-in-page', pushState);
     wc.on('page-title-updated', pushState);
     wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
-      // -3 is ERR_ABORTED: a navigation replaced by another one, not a real failure.
-      if (isMainFrame && code !== -3) this.send({ type: 'error', message: `Failed to load ${url}: ${description} (${code})` });
+      if (isMainFrame && code !== ERR_ABORTED) this.send({ type: 'error', message: `Failed to load ${url}: ${description} (${code})` });
     });
   }
 
@@ -104,7 +103,7 @@ export class PageController {
     this.ready = (async () => {
       // Renderer-side CDP commands (Page.enable, Network.enable…) never answer until
       // the view has a renderer, so give it an empty document first.
-      await this.view.webContents.loadURL('about:blank');
+      await this.view.webContents.loadURL(BLANK_PAGE);
       await this.engine.attach();
     })();
     return this.ready;
@@ -114,8 +113,8 @@ export class PageController {
     const wc = this.view.webContents;
     const url = wc.getURL();
     return {
-      url: url === 'about:blank' ? '' : url,
-      title: url === 'about:blank' ? '' : wc.getTitle(),
+      url: url === BLANK_PAGE ? '' : url,
+      title: url === BLANK_PAGE ? '' : wc.getTitle(),
       loading: wc.isLoading(),
       canGoBack: wc.navigationHistory.canGoBack(),
       canGoForward: wc.navigationHistory.canGoForward(),
@@ -151,7 +150,7 @@ export class PageController {
     if (!this.state().url || this.view.getBounds().width === 0) return null;
     try {
       const image = await this.view.webContents.capturePage();
-      return image.isEmpty() ? null : `data:image/jpeg;base64,${image.toJPEG(85).toString('base64')}`;
+      return image.isEmpty() ? null : `data:image/jpeg;base64,${image.toJPEG(SNAPSHOT_JPEG_QUALITY).toString('base64')}`;
     } catch {
       // Some GPU setups can't read the surface back; the renderer shows a plain panel instead.
       return null;

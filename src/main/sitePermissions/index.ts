@@ -1,0 +1,1 @@
+export { installSitePermissions } from './installSitePermissions';
