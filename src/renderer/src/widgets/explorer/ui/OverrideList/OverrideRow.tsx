@@ -12,6 +12,7 @@ import { KindIcon } from '@/entities/resource';
 import { deleteOverride } from '@/features/delete-override';
 import { openOverride } from '@/features/open-resource';
 import { setOverrideEnabled } from '@/features/toggle-override';
+import { ROW_ICON_SIZE } from '../constants';
 
 /** One override: its switch, file, badges and actions (also in its context menu). */
 export function OverrideRow({ override, active }: { override: OverrideMeta; active: boolean }) {
@@ -48,7 +49,7 @@ export function OverrideRow({ override, active }: { override: OverrideMeta; acti
             aria-label={override.enabled ? 'Turn override off' : 'Turn override on'}
           />
         </span>
-        <KindIcon kind={override.kind} size={14} />
+        <KindIcon kind={override.kind} size={ROW_ICON_SIZE} />
         <span className={cn('min-w-0 flex-1 truncate', override.enabled ? 'text-fg' : 'text-fg-subtle line-through decoration-fg-subtle/60')}>
           {fileName(override.sourceUrl)}
           <span className="ml-1.5 text-[11px] text-fg-subtle no-underline">{hostOf(override.sourceUrl)}</span>
@@ -59,7 +60,7 @@ export function OverrideRow({ override, active }: { override: OverrideMeta; acti
         {changed ? (
           <Tooltip content="The live file changed since this override was created">
             <span className="flex text-warning">
-              <Icon icon={icons.WarningIcon} size={14} />
+              <Icon icon={icons.WarningIcon} size={ROW_ICON_SIZE} />
             </span>
           </Tooltip>
         ) : null}

@@ -1,7 +1,7 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import { motion, useIsPresent, type Transition, type Variants } from 'motion/react';
 import { useRef, type DragEvent, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
-import { icons, MOUSE_BUTTON } from '@/shared/config';
+import { icons, KEY, MOUSE_BUTTON } from '@/shared/config';
 import { cn, EASE_OUT, isMac, SPRING_LAYOUT } from '@/shared/lib';
 import { Icon, isGlyph } from '@/shared/ui/icon';
 import { EXITING_ATTR, TAB_ID_ATTR } from './constants';
@@ -133,7 +133,7 @@ export function EditorTab({
         role="tab"
         aria-selected={active}
         aria-hidden={!present || undefined}
-        aria-keyshortcuts={isMac ? 'Delete Backspace' : 'Delete'}
+        aria-keyshortcuts={isMac ? `${KEY.delete} ${KEY.backspace}` : KEY.delete}
         tabIndex={present && focusable ? 0 : -1}
         title={item.title}
         {...{ [TAB_ID_ATTR]: id }}

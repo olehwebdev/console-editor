@@ -37,6 +37,10 @@ const REORDER_KEYS: Record<string, { offset: 1 | -1; side: DropSide }> = {
 const MIN_SCROLL = 0.5;
 /** Pixels per line, for wheels that scroll by lines. */
 const LINE_HEIGHT = 16;
+/** Room (px) kept between a tab scrolled into view and the strip's edge. */
+const REVEAL_PAD = 20;
+/** Width (px) of the fade at an edge the strip can scroll past. */
+const EDGE_FADE = 24;
 
 /**
  * Pill-style editor tabs. The active tab is raised (bg-surface-raised +
@@ -91,9 +95,12 @@ export function EditorTabs({
       if (!scroller || !el) return;
       const frame = scroller.getBoundingClientRect();
       const box = el.getBoundingClientRect();
-      const pad = 20;
       const delta =
-        box.left < frame.left + pad ? box.left - frame.left - pad : box.right > frame.right - pad ? box.right - frame.right + pad : 0;
+        box.left < frame.left + REVEAL_PAD
+          ? box.left - frame.left - REVEAL_PAD
+          : box.right > frame.right - REVEAL_PAD
+            ? box.right - frame.right + REVEAL_PAD
+            : 0;
       if (Math.abs(delta) > MIN_SCROLL) scroller.scrollBy({ left: delta, behavior: reduce ? 'instant' : 'smooth' });
     },
     [reduce],
@@ -203,7 +210,7 @@ export function EditorTabs({
   };
 
   const mask = edges.left || edges.right
-    ? `linear-gradient(to right, ${edges.left ? 'transparent, black 24px' : 'black, black'}, ${edges.right ? 'black calc(100% - 24px), transparent' : 'black'})`
+    ? `linear-gradient(to right, ${edges.left ? `transparent, black ${EDGE_FADE}px` : 'black, black'}, ${edges.right ? `black calc(100% - ${EDGE_FADE}px), transparent` : 'black'})`
     : undefined;
 
   return (

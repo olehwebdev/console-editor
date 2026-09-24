@@ -12,7 +12,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { SearchIcon } from '@/shared/config/icons';
-import { cn, EASE_OUT, SPRING_PANEL, useRegisterOverlay } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, SPRING_PANEL, useRegisterOverlay } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
 import { Kbd } from '@/shared/ui/kbd';
 import { HEADING_H, ITEM_H, LIST_PAD } from './constants';
@@ -152,7 +152,7 @@ export function PalettePanel({
         aria-hidden
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+        exit={{ opacity: 0, transition: { duration: DURATION.fast, ease: EASE_OUT } }}
         transition={{ duration: 0.16, ease: EASE_OUT }}
         onClick={close}
         className="absolute inset-0 bg-scrim"
@@ -166,7 +166,7 @@ export function PalettePanel({
           inert={!isPresent}
           initial={{ opacity: 0, scale: reduce ? 1 : 0.97, y: reduce ? 0 : -8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: reduce ? 1 : 0.98, y: reduce ? 0 : -4, transition: { duration: 0.12, ease: EASE_OUT } }}
+          exit={{ opacity: 0, scale: reduce ? 1 : 0.98, y: reduce ? 0 : -4, transition: { duration: DURATION.fast, ease: EASE_OUT } }}
           transition={reduce ? { duration: 0.1 } : { default: SPRING_PANEL, opacity: { duration: 0.14, ease: EASE_OUT } }}
           onKeyDown={onKeyDown}
           onMouseDown={keepInputFocus}

@@ -1,7 +1,7 @@
 // Adapted from beUI (https://beui.dev), MIT License, © 2026 Saurabh Chauhan.
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { useState, type ComponentPropsWithRef } from 'react';
-import { cn, EASE_OUT, SPRING_SWAP } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT, SPRING_SWAP } from '@/shared/lib';
 
 export interface CounterProps extends Omit<ComponentPropsWithRef<'span'>, 'children'> {
   /** Integer to show (rounded). Built for small counts: badges, tabs, section headers. */
@@ -16,12 +16,12 @@ type Direction = 'up' | 'down';
 const GLYPH: Variants = {
   initial: (d: Direction) => ({ opacity: 0, y: d === 'up' ? '60%' : '-60%' }),
   animate: { opacity: 1, y: '0%', transition: SPRING_SWAP },
-  exit: (d: Direction) => ({ opacity: 0, y: d === 'up' ? '-60%' : '60%', transition: { duration: 0.12, ease: EASE_OUT } }),
+  exit: (d: Direction) => ({ opacity: 0, y: d === 'up' ? '-60%' : '60%', transition: { duration: DURATION.fast, ease: EASE_OUT } }),
 };
 
 const GLYPH_REDUCED: Variants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.12 } },
+  animate: { opacity: 1, transition: { duration: DURATION.fast } },
   exit: { opacity: 0, transition: { duration: 0.08 } },
 };
 

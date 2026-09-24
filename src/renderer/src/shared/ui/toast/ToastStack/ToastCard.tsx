@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { KEY } from '@/shared/config';
 import { CloseIcon, InfoIcon, SuccessIcon, WarningIcon } from '@/shared/config/icons';
-import { cn, EASE_OUT } from '@/shared/lib';
+import { cn, DURATION, EASE_OUT } from '@/shared/lib';
 import { Icon, type IconGlyph } from '@/shared/ui/icon';
 import { toast, type ToastRecord, type ToastTone } from '../store';
 import { EXITING_ATTR } from './constants';
@@ -23,6 +23,12 @@ const SCALE_STEP = 0.05;
 const RADIUS = 12;
 const SWIPE_DISTANCE = 72;
 const SWIPE_VELOCITY = 500;
+/** How far (px) a swiped card flies off as it goes. */
+const SWIPE_EXIT_DISTANCE = 380;
+/** The least scale the radius is counter-scaled for, so it never divides by (nearly) zero. */
+const MIN_COUNTER_SCALE = 0.05;
+/** The front card's z-index; each card behind it sits one lower. */
+const FRONT_Z = 100;
 const STACK_SPRING = { type: 'spring', stiffness: 420, damping: 34, mass: 0.75 } as const;
 /** With an action, a title or description longer than this (in characters) moves the actions to a row of their own. */
 const LONG_TEXT = { title: 32, description: 64 } as const;
@@ -128,7 +134,7 @@ export const ToastCard = memo(function ToastCard({
   // Stacked cards borrow the front card's height by scaling their background (not
   // animating `height`); the radius is counter-scaled so the corners stay round.
   const bgScale = useMotionValue(1);
-  const bgRadius = useTransform(bgScale, (s) => `${RADIUS}px / ${RADIUS / Math.max(s, 0.05)}px`);
+  const bgRadius = useTransform(bgScale, (s) => `${RADIUS}px / ${RADIUS / Math.max(s, MIN_COUNTER_SCALE)}px`);
   const bgTarget = stacked && height && frontHeight ? frontHeight / height : 1;
   useEffect(() => {
     if (reduce) {
@@ -142,7 +148,7 @@ export const ToastCard = memo(function ToastCard({
   const onDragEnd = (_: unknown, info: PanInfo) => {
     onDragChange(false);
     if (Math.abs(info.offset.x) > SWIPE_DISTANCE || Math.abs(info.velocity.x) > SWIPE_VELOCITY) {
-      setExitX(Math.sign(info.offset.x || info.velocity.x) * 380);
+      setExitX(Math.sign(info.offset.x || info.velocity.x) * SWIPE_EXIT_DISTANCE);
       dismissSelf(false);
     }
   };
@@ -200,13 +206,13 @@ export const ToastCard = memo(function ToastCard({
           ? { x: exitX, opacity: 0, transition: { duration: 0.2, ease: EASE_OUT } }
           : { opacity: 0, scale: reduce ? 1 : 0.96, transition: { duration: 0.16, ease: EASE_OUT } }
       }
-      transition={reduce ? { duration: 0.12 } : { default: STACK_SPRING, opacity: { duration: 0.18, ease: EASE_OUT } }}
+      transition={reduce ? { duration: DURATION.fast } : { default: STACK_SPRING, opacity: { duration: DURATION.base, ease: EASE_OUT } }}
       drag={hidden || stacked ? false : 'x'}
       dragSnapToOrigin
       onDragStart={() => onDragChange(true)}
       onDragEnd={onDragEnd}
       onKeyDown={onKeyDown}
-      style={{ zIndex: 100 - index, transformOrigin: '50% 100%' }}
+      style={{ zIndex: FRONT_Z - index, transformOrigin: '50% 100%' }}
       // Not `inert` while exiting: that would drop focus before it can be handed on.
       {...{ [EXITING_ATTR]: !isPresent || undefined }}
       // A stacked card is only hit where its squeezed background shows (the peek).
