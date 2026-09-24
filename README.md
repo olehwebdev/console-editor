@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/logo.svg" width="84" height="84" alt="Console Editor logo">
+<img src="docs/logo.png" width="88" height="88" alt="Console Editor logo">
 
 # Console Editor
 

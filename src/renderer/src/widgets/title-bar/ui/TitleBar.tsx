@@ -5,6 +5,8 @@ import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { usePageStore } from '@/entities/page';
+import appIcon from './app-icon.png';
+import appIcon2x from './app-icon@2x.png';
 
 export interface TitleBarProps {
   onOpenPalette(): void;
@@ -14,12 +16,9 @@ export interface TitleBarProps {
   onTogglePreview(): void;
 }
 
+/** The app icon, drawn edge to edge at 24 px (build/ holds the installers' versions). */
 function BrandMark() {
-  return (
-    <span className="relative flex size-6 items-center justify-center rounded-[7px] bg-accent-grad shadow-[0_2px_12px_-2px_color-mix(in_oklch,var(--accent)_60%,transparent)]">
-      <span className="font-mono text-[11px] font-bold leading-none text-accent-fg">{'{}'}</span>
-    </span>
-  );
+  return <img src={appIcon} srcSet={`${appIcon2x} 2x`} alt="" draggable={false} className="size-6 shrink-0 select-none" />;
 }
 
 /** Brand, site and file location, command palette trigger, layout toggles. */
