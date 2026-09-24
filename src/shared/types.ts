@@ -191,7 +191,8 @@ export type UpdateState =
   | { status: 'downloading'; update: AvailableUpdate; percent: number }
   /** Downloaded: restart to install (auto), or saved at `file` for you to open (manual). */
   | { status: 'ready'; update: AvailableUpdate; file?: string }
-  | { status: 'error'; message: string; update?: AvailableUpdate };
+  /** A step failed; `update` is still on offer when there was one. */
+  | { status: 'error'; during: 'check' | 'download' | 'install'; message: string; update?: AvailableUpdate };
 
 export interface AppInfo {
   version: string;

@@ -43,6 +43,14 @@ describe('which tab changes ask the editor for focus', () => {
     expect(openedTabId(state(['a', 'c'], 'c'), state(['a', 'b', 'c'], 'b'))).toBeNull();
     expect(openedTabId(state([], null), state(['a'], 'a'))).toBeNull();
     expect(openedTabId(state(['a'], 'a'), state(['a', 'b'], 'a'))).toBeNull();
+    // Closing a page tab (What's New) hands over to a file the same way.
+    const page = [{ id: 'page:whats-new' }];
+    expect(openedTabId({ ...state(['a'], 'a'), pages: [] }, { ...state(['a'], 'page:whats-new'), pages: page })).toBeNull();
+  });
+
+  it('switching from a page tab to a file does', () => {
+    const page = [{ id: 'page:whats-new' }];
+    expect(openedTabId({ ...state(['a'], 'a'), pages: page }, { ...state(['a'], 'page:whats-new'), pages: page })).toBe('a');
   });
 });
 

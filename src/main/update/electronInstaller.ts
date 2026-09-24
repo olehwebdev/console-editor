@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { sep } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { isAbsolute, relative } from 'node:path';
 import { app } from 'electron';
 import { AppImageUpdater, type AppUpdater, DebUpdater, NsisUpdater, RpmUpdater } from 'electron-updater';
 import type { InstallOptions } from 'electron-updater/out/BaseUpdater';
@@ -35,7 +36,16 @@ export async function detectInstallMethod(): Promise<InstallMethod | null> {
  */
 function runsFromAppImage(): boolean {
   const { APPIMAGE, APPDIR } = process.env;
-  return !!APPIMAGE && !!APPDIR && process.execPath.startsWith(APPDIR.endsWith(sep) ? APPDIR : APPDIR + sep);
+  if (!APPIMAGE || !APPDIR) return false;
+  // The runtime builds APPDIR from TMPDIR as given (links, doubled slashes); execPath is the resolved path.
+  let dir: string;
+  try {
+    dir = realpathSync(APPDIR);
+  } catch {
+    return false;
+  }
+  const inside = relative(dir, process.execPath);
+  return !!inside && !inside.startsWith('..') && !isAbsolute(inside);
 }
 
 /**

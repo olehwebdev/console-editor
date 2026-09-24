@@ -53,9 +53,19 @@ function UpdateCard({ update, state }: { update: AvailableUpdate; state: UpdateS
 function UpdateStep({ update, state }: { update: AvailableUpdate; state: UpdateState }) {
   if (state.status === 'downloading') {
     return (
-      <div className="flex flex-1 items-center gap-3" role="status" aria-live="polite">
-        <span className="text-[12.5px] text-fg-muted">Downloading… {state.percent}%</span>
-        <div className="h-1 flex-1 overflow-hidden rounded-full bg-hover">
+      <div className="flex flex-1 items-center gap-3">
+        <span className="text-[12.5px] text-fg-muted" aria-hidden>
+          Downloading… {state.percent}%
+        </span>
+        {/* A progress bar rather than live text, which would be read out at every percent. */}
+        <div
+          className="h-1 flex-1 overflow-hidden rounded-full bg-hover"
+          role="progressbar"
+          aria-label="Downloading the update"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={state.percent}
+        >
           <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${state.percent}%` }} />
         </div>
       </div>
@@ -78,9 +88,11 @@ function UpdateStep({ update, state }: { update: AvailableUpdate; state: UpdateS
       </>
     );
   }
+  // After a failed download or install, the same button tries again; a failed check changes nothing here.
+  const retry = state.status === 'error' && state.during !== 'check';
   return (
     <>
-      <span className={cn('flex-1 text-[12.5px]', state.status === 'error' ? 'text-danger' : 'text-fg-muted')}>
+      <span className={cn('flex-1 text-[12.5px]', state.status === 'error' ? 'text-danger' : 'text-fg-muted')} role={state.status === 'error' ? 'alert' : undefined}>
         {state.status === 'error'
           ? state.message
           : update.install === 'auto'
@@ -88,7 +100,7 @@ function UpdateStep({ update, state }: { update: AvailableUpdate; state: UpdateS
             : 'The download is checked against the release’s SHA-256 checksums.'}
       </span>
       <Button variant="primary" size="sm" leading={<Icon icon={icons.DownloadIcon} size={12} />} onClick={downloadUpdate}>
-        {state.status === 'error' ? 'Try again' : downloadLabel(update)}
+        {retry ? 'Try again' : downloadLabel(update)}
       </Button>
     </>
   );

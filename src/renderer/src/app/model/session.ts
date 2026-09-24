@@ -82,12 +82,20 @@ export async function restoreSession(): Promise<void> {
   if (active) activate(active.id);
 }
 
+/** The active file tab, or the one in front before a page (What's New) was: pages aren't restored. */
+let activeFile: string | null = null;
+function activeFileId(s: { tabs: TabMeta[]; activeId: string | null }): string | null {
+  if (s.tabs.some((t) => t.id === s.activeId)) activeFile = s.activeId;
+  else if (!s.tabs.some((t) => t.id === activeFile)) activeFile = null;
+  return activeFile;
+}
+
 function saveTabs(): void {
   clearTimeout(tabsTimer);
   tabsTimer = undefined;
-  const { tabs, activeId } = useTabStore.getState();
+  const state = useTabStore.getState();
   track(
-    api.saveSessionTabs(tabs.map(toSessionTab), activeId).then(
+    api.saveSessionTabs(state.tabs.map(toSessionTab), activeFileId(state)).then(
       () => {
         tabsFailed = false;
       },
@@ -142,7 +150,7 @@ export function startSessionSync(): () => void {
   syncing = true;
   const key = (tabs: TabMeta[], activeId: string | null) =>
     JSON.stringify([tabs.map((t) => [t.id, t.url, t.kind, t.overrideId, t.originalHash]), activeId]);
-  let last = key(useTabStore.getState().tabs, useTabStore.getState().activeId);
+  let last = key(useTabStore.getState().tabs, activeFileId(useTabStore.getState()));
 
   const offTabs = useTabStore.subscribe((s) => {
     // Saved, undone back to the saved text, or closed: the draft is obsolete.
@@ -150,7 +158,7 @@ export function startSessionSync(): () => void {
       const tab = s.tabs.find((t) => t.id === id);
       if (!tab?.dirty) dropDraft(id);
     }
-    const next = key(s.tabs, s.activeId);
+    const next = key(s.tabs, activeFileId(s));
     if (next === last) return;
     last = next;
     clearTimeout(tabsTimer);

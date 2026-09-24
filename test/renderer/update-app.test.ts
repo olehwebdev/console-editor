@@ -98,11 +98,11 @@ describe('update notifications', () => {
 
   it('offers to try again after a failed download or install', () => {
     handleUpdateState({ status: 'downloading', update: update(), percent: 20 });
-    handleUpdateState({ status: 'error', message: "Couldn't download the update: socket hang up", update: update() });
+    handleUpdateState({ status: 'error', during: 'download', message: "Couldn't download the update: socket hang up", update: update() });
     expect(lastToast()).toMatchObject({ title: "Couldn't download the update", description: 'socket hang up', action: { label: 'Try again' } });
 
     handleUpdateState({ status: 'ready', update: update() });
-    handleUpdateState({ status: 'error', message: "Couldn't install the update: authentication dismissed", update: update() });
+    handleUpdateState({ status: 'error', during: 'install', message: "Couldn't install the update: authentication dismissed", update: update() });
     expect(lastToast()).toMatchObject({ title: "Couldn't install the update", description: 'authentication dismissed' });
     lastToast().action!.onClick();
     expect(api.downloadUpdate).toHaveBeenCalledOnce();
@@ -111,7 +111,7 @@ describe('update notifications', () => {
   });
 
   it('stays quiet about a failed automatic check', () => {
-    handleUpdateState({ status: 'error', message: "Couldn't check for updates: offline" });
+    handleUpdateState({ status: 'error', during: 'check', message: "Couldn't check for updates: offline" });
     expect(toast).not.toHaveBeenCalled();
   });
 });
@@ -122,7 +122,7 @@ describe('Help › Check for Updates', () => {
     await checkForUpdatesNow();
     expect(lastToast()).toMatchObject({ title: "You're up to date", description: 'Console Editor 0.1.0 is the latest version.' });
 
-    api.checkForUpdates.mockResolvedValueOnce({ status: 'error', message: "Couldn't check for updates: GitHub answered 500" });
+    api.checkForUpdates.mockResolvedValueOnce({ status: 'error', during: 'check', message: "Couldn't check for updates: GitHub answered 500" });
     await checkForUpdatesNow();
     expect(lastToast()).toMatchObject({ title: "Couldn't check for updates", description: 'GitHub answered 500' });
 
@@ -137,6 +137,20 @@ describe('Help › Check for Updates', () => {
     await checkForUpdatesNow();
     expect(toast).toHaveBeenCalledTimes(2);
     expect(useUpdateStore.getState().state.status).toBe('available');
+  });
+
+  it('says a download is already under way', async () => {
+    api.checkForUpdates.mockResolvedValueOnce({ status: 'downloading', update: update(), percent: 42 });
+    await checkForUpdatesNow();
+    expect(lastToast()).toMatchObject({ title: 'Downloading Console Editor 0.2.0…', description: '42% so far. The status bar shows its progress.' });
+  });
+
+  it('keeps a failed check to its own toast, without offering to download again', async () => {
+    handleUpdateState({ status: 'available', update: update() });
+    toast.mockClear();
+    handleUpdateState({ status: 'error', during: 'check', message: "Couldn't check for updates: offline", update: update() });
+    expect(toast).not.toHaveBeenCalled();
+    expect(selectOfferedUpdate(useUpdateStore.getState())?.version).toBe('0.2.0');
   });
 
   it('explains that a build run from source does not update itself', async () => {

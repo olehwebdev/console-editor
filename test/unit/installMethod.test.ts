@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const electron = vi.hoisted(() => ({ app: { isPackaged: true } }));
 /** Commands that exit 0; any other fails, as `dpkg-query -S` does for a file no package owns. */
@@ -12,6 +15,16 @@ vi.mock('node:child_process', () => ({
 }));
 
 const { detectInstallMethod } = await import('../../src/main/update/electronInstaller');
+
+// Where the AppImage runtime mounts images: real folders, since the check resolves links.
+const tmp = realpathSync(mkdtempSync(join(tmpdir(), 'console-editor-appdir-')));
+const ours = join(tmp, '.mount_consolXyZ');
+const theirs = join(tmp, '.mount_CursorAbc');
+mkdirSync(ours);
+mkdirSync(theirs);
+mkdirSync(`${theirs}d`);
+symlinkSync(tmp, join(tmp, 'link'));
+afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 const env = { ...process.env };
 const execPath = process.execPath;
@@ -50,19 +63,26 @@ describe('detectInstallMethod', () => {
   });
 
   it('updates an AppImage it runs from', async () => {
-    on('linux', '/tmp/.mount_consolXyZ/console-editor', { APPIMAGE: '/home/me/Apps/console-editor-0.2.0-linux-x86_64.AppImage', APPDIR: '/tmp/.mount_consolXyZ' });
+    const appImage = { APPIMAGE: '/home/me/Apps/console-editor-0.2.0-linux-x86_64.AppImage' };
+    on('linux', join(ours, 'console-editor'), { ...appImage, APPDIR: ours });
+    expect(await detectInstallMethod()).toBe('appimage');
+    // The runtime builds APPDIR from TMPDIR as given: through a link, with a doubled slash.
+    on('linux', join(ours, 'console-editor'), { ...appImage, APPDIR: `${join(tmp, 'link')}//.mount_consolXyZ` });
     expect(await detectInstallMethod()).toBe('appimage');
   });
 
   it("ignores another AppImage's variables, inherited from its terminal", async () => {
-    const cursor = { APPIMAGE: '/home/me/Apps/Cursor-1.5.0-x86_64.AppImage', APPDIR: '/tmp/.mount_CursorAbc' };
+    const cursor = { APPIMAGE: '/home/me/Apps/Cursor-1.5.0-x86_64.AppImage', APPDIR: theirs };
     on('linux', '/opt/Console Editor/console-editor', cursor);
     owners.add('dpkg-query');
     expect(await detectInstallMethod()).toBe('deb');
     owners.clear();
     expect(await detectInstallMethod()).toBeNull();
     // A mount whose name merely starts the same is someone else's too.
-    on('linux', '/tmp/.mount_CursorAbcd/console-editor', cursor);
+    on('linux', join(`${theirs}d`, 'console-editor'), cursor);
+    expect(await detectInstallMethod()).toBeNull();
+    // As is a variable naming a folder that is gone.
+    on('linux', join(ours, 'console-editor'), { ...cursor, APPDIR: join(tmp, 'gone') });
     expect(await detectInstallMethod()).toBeNull();
   });
 

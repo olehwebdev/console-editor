@@ -1,5 +1,7 @@
 interface TabsState {
   tabs: ReadonlyArray<{ id: string }>;
+  /** Page tabs (What's New): switching from one to a file focuses the file's editor too. */
+  pages?: ReadonlyArray<{ id: string }>;
   activeId: string | null;
 }
 
@@ -10,6 +12,7 @@ interface TabsState {
  */
 export function openedTabId(state: TabsState, prev: TabsState): string | null {
   if (!state.activeId || state.activeId === prev.activeId) return null;
-  const closed = !!prev.activeId && !state.tabs.some((t) => t.id === prev.activeId);
+  const open = (id: string) => state.tabs.some((t) => t.id === id) || !!state.pages?.some((p) => p.id === id);
+  const closed = !!prev.activeId && !open(prev.activeId);
   return closed ? null : state.activeId;
 }

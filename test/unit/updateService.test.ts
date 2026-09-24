@@ -120,7 +120,7 @@ describe('UpdateService.check', () => {
     routes.set(API, () => new Response('slow down', { status: 403 }));
     const updates = service();
     expect(await updates.check(false)).toEqual({ status: 'idle' });
-    expect(await updates.check(true)).toEqual({ status: 'error', message: "Couldn't check for updates: GitHub is limiting requests, try again later" });
+    expect(await updates.check(true)).toEqual({ status: 'error', during: 'check', message: "Couldn't check for updates: GitHub is limiting requests, try again later" });
   });
 
   it('keeps an offered update when a later check fails', async () => {
@@ -132,6 +132,7 @@ describe('UpdateService.check', () => {
     expect(await updates.check(false)).toEqual(offered);
     expect(await updates.check(true)).toEqual({
       status: 'error',
+      during: 'check',
       message: "Couldn't check for updates: fetch failed",
       update: offered.status === 'available' ? offered.update : undefined,
     });
@@ -140,10 +141,35 @@ describe('UpdateService.check', () => {
     expect(updates.state().status).toBe('ready');
   });
 
-  it('offers the update without notes when the CHANGELOG has none for it', async () => {
+  it('offers the update without notes when the CHANGELOG has none for it, and fetches them again later', async () => {
+    const changelog = routes.get('https://raw.test/v0.2.0/CHANGELOG.md')!;
     routes.delete('https://raw.test/v0.2.0/CHANGELOG.md');
-    const state = await service().check(true);
+    const updates = service();
+    const state = await updates.check(true);
     expect(state.status === 'available' && state.update.notes).toBe('');
+    routes.set('https://raw.test/v0.2.0/CHANGELOG.md', changelog);
+    const again = await updates.check(false);
+    expect(again.status === 'available' && again.update.notes).toBe('### Added\n\n- Updates.');
+  });
+
+  it('lets a newer check or a download win over a check that answers late', async () => {
+    let answer!: () => void;
+    const slow = new Promise<void>((done) => (answer = done));
+    const fetch = vi.fn(async (url: string) => {
+      if (url === API && fetch.mock.calls.length === 1) {
+        await slow;
+        throw new TypeError('fetch failed');
+      }
+      return routes.get(url)?.() ?? new Response('', { status: 404 });
+    });
+    const updates = service({ fetch, autoInstaller: async () => fakeInstaller() });
+    const automatic = updates.check(false);
+    const manual = await updates.check(true);
+    expect(manual.status).toBe('available');
+    answer();
+    // The automatic check's failure would have put back the state from before it started (idle).
+    expect(await automatic).toEqual(manual);
+    expect(updates.state()).toEqual(manual);
   });
 
   it('rejects an answer that is not a release', async () => {
@@ -197,7 +223,7 @@ describe('UpdateService.download and install (installs itself)', () => {
     await updates.download();
     await updates.install();
     expect(cancelQuit).toHaveBeenCalledOnce();
-    expect(updates.state()).toMatchObject({ status: 'error', message: "Couldn't install the update: pkexec: authentication dismissed", update: { version: '0.2.0' } });
+    expect(updates.state()).toMatchObject({ status: 'error', during: 'install', message: "Couldn't install the update: pkexec: authentication dismissed", update: { version: '0.2.0' } });
   });
 
   it("reports an updater error by its first line, without the updater's stack trace and headers", async () => {
@@ -212,7 +238,7 @@ describe('UpdateService.download and install (installs itself)', () => {
     const updates = service({ autoInstaller: async () => fakeInstaller({ check: vi.fn(async () => null) }) });
     await updates.check(false);
     await updates.download();
-    expect(updates.state()).toMatchObject({ status: 'error', message: "Couldn't download the update: this release has no update for your system yet", update: { version: '0.2.0' } });
+    expect(updates.state()).toMatchObject({ status: 'error', during: 'download', message: "Couldn't download the update: this release has no update for your system yet", update: { version: '0.2.0' } });
   });
 
   it('downloads once when asked twice, and a check leaves the download alone', async () => {

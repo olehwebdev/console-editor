@@ -87,7 +87,7 @@ let stopSync: (() => void) | undefined;
 beforeEach(() => {
   vi.clearAllMocks();
   for (const t of useTabStore.getState().tabs) disposeTabModel(t.id);
-  useTabStore.setState({ tabs: [], activeId: null, diff: 'off' });
+  useTabStore.setState({ tabs: [], pages: [], activeId: null, diff: 'off' });
   useOverrideStore.getState().setAll([override]);
 });
 
@@ -154,6 +154,26 @@ describe('session sync', () => {
     model(id).type('edit 3');
     await vi.advanceTimersByTimeAsync(900);
     expect(api.saveDraft).toHaveBeenLastCalledWith(id, { content: 'edit 3' });
+  });
+
+  it('keeps the file tab that was in front while a page tab (What’s New) is', async () => {
+    vi.useFakeTimers();
+    stopSync = startSessionSync();
+    const a = openTab();
+    openTab();
+    useTabStore.getState().activate(a);
+    await vi.advanceTimersByTimeAsync(400);
+    api.saveSessionTabs.mockClear();
+    useTabStore.getState().openPage({ id: 'page:whats-new', page: 'whats-new', title: "What's New" });
+    await vi.advanceTimersByTimeAsync(400);
+    // Nothing to write: the tabs and the file in front are the same.
+    expect(api.saveSessionTabs).not.toHaveBeenCalled();
+    // A tab opened behind the page is written with the file that was in front.
+    const id = newTabId();
+    createTabModel(id, `https://site.test/${id}.js`, 'Script', 'x', 'x');
+    useTabStore.getState().add({ id, url: `https://site.test/${id}.js`, kind: 'Script', originalHash: null, lite: false, dirty: false, saving: false }, false);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(api.saveSessionTabs).toHaveBeenLastCalledWith(expect.any(Array), a);
   });
 
   it('deletes the draft once the tab is saved, or closed', async () => {

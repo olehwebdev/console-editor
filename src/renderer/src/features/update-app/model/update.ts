@@ -64,6 +64,13 @@ export async function checkForUpdatesNow(): Promise<void> {
     case 'ready':
       announceReady(state.update, state.file);
       return;
+    case 'downloading':
+      toast({
+        id: TOAST_ID,
+        title: `Downloading Console Editor ${state.update.version}…`,
+        description: `${state.percent}% so far. The status bar shows its progress.`,
+      });
+      return;
     default:
       return;
   }
@@ -127,11 +134,12 @@ export function handleUpdateState(state: UpdateState): void {
       if (prev.status === 'downloading') announceReady(state.update, state.file);
       return;
     case 'error':
-      // A failed download, or an install that didn't happen (e.g. the password was refused).
-      if (state.update && (prev.status === 'downloading' || prev.status === 'ready')) {
+      // A failed download, or an install that didn't happen (e.g. the password was refused). A failed check
+      // is reported by the Check for Updates command that asked for it, or not at all.
+      if (state.update && state.during !== 'check' && prev.status !== 'error') {
         toast({
           id: TOAST_ID,
-          title: prev.status === 'ready' ? "Couldn't install the update" : "Couldn't download the update",
+          title: state.during === 'install' ? "Couldn't install the update" : "Couldn't download the update",
           description: reason(state.message),
           tone: 'danger',
           action: { label: 'Try again', onClick: downloadUpdate },

@@ -117,22 +117,34 @@ export class UpdateService {
     if (this.current.status === 'downloading' || this.current.status === 'ready') return this.current;
     const before = this.current;
     if (manual) this.set({ status: 'checking' });
+    // Whatever changed the state while this check waited (another check, a download) is newer: keep it.
+    const mine = this.current;
+    const superseded = () => this.current !== mine;
     try {
       const release = await this.latestRelease();
+      if (superseded()) return this.current;
       const version = release.tag_name.replace(/^v/, '');
       if (!isNewerVersion(version, this.opts.currentVersion)) return this.set({ status: 'up-to-date', version: this.opts.currentVersion });
-      this.release = release;
-      if (before.status === 'available' && before.update.version === version) return this.set(before);
+      const offered = pendingUpdate(before);
+      // Offered already: keep its notes, unless they couldn't be fetched then.
+      if (offered?.version === version && offered.notes && before.status === 'available') {
+        this.release = release;
+        return this.set(before);
+      }
       const [notes, installer] = await Promise.all([this.notes(version), this.autoInstaller()]);
+      if (superseded()) return this.current;
+      // Kept with the offer: a manual download takes its file from this release.
+      this.release = release;
       return this.set({
         status: 'available',
-        update: { version, notes, releaseUrl: release.html_url, install: installer ? 'auto' : 'manual' },
+        update: { version, notes: notes || (offered?.version === version ? offered.notes : ''), releaseUrl: release.html_url, install: installer ? 'auto' : 'manual' },
       });
     } catch (err) {
+      if (superseded()) return this.current;
       if (!manual) return this.set(before.status === 'checking' ? { status: 'idle' } : before);
       // An update found earlier stays on offer.
       const update = pendingUpdate(before);
-      return this.set({ status: 'error', message: `Couldn't check for updates: ${message(err)}`, ...(update ? { update } : {}) });
+      return this.set({ status: 'error', during: 'check', message: `Couldn't check for updates: ${message(err)}`, ...(update ? { update } : {}) });
     }
   }
 
@@ -155,7 +167,7 @@ export class UpdateService {
           await this.opts.showFile(file);
         }
       } catch (err) {
-        this.set({ status: 'error', message: `Couldn't download the update: ${message(err)}`, update });
+        this.set({ status: 'error', during: 'download', message: `Couldn't download the update: ${message(err)}`, update });
       }
     });
   }
@@ -175,7 +187,7 @@ export class UpdateService {
         installer.quitAndInstall();
       } catch (err) {
         this.opts.cancelQuit();
-        this.set({ status: 'error', message: `Couldn't install the update: ${message(err)}`, update: state.update });
+        this.set({ status: 'error', during: 'install', message: `Couldn't install the update: ${message(err)}`, update: state.update });
       }
     });
   }
