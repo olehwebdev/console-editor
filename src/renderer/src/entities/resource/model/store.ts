@@ -10,6 +10,14 @@ export function resourceKey(entry: Pick<ResourceEntry, 'url' | 'iframeId'>): str
   return `${entry.iframeId ?? ''}\u0000${entry.url}`;
 }
 
+/** One change to the list, as the main process reported it. */
+export type ResourceOp =
+  | { type: 'add'; entry: ResourceEntry }
+  /** Top-level navigation: everything goes. */
+  | { type: 'reset' }
+  /** A cross-site iframe navigated or went away: drop what it reported. */
+  | { type: 'drop-iframe'; iframeId: string };
+
 interface ResourceStore {
   byKey: Record<string, ResourceEntry>;
   /** Top-level navigation: everything goes. */
@@ -18,6 +26,8 @@ interface ResourceStore {
   addMany(entries: ResourceEntry[]): void;
   /** A cross-site iframe navigated or went away: drop what it reported. */
   dropIframe(iframeId: string): void;
+  /** Applies changes in order as one update (a page load reports thousands of files). */
+  apply(ops: readonly ResourceOp[]): void;
 }
 
 export const useResourceStore = create<ResourceStore>()((set) => ({
@@ -27,6 +37,17 @@ export const useResourceStore = create<ResourceStore>()((set) => ({
   addMany: (entries) => set((s) => ({ byKey: { ...s.byKey, ...Object.fromEntries(entries.map((e) => [resourceKey(e), e])) } })),
   dropIframe: (iframeId) =>
     set((s) => ({ byKey: Object.fromEntries(Object.entries(s.byKey).filter(([, e]) => e.iframeId !== iframeId)) })),
+  apply: (ops) =>
+    set((s) => {
+      if (!ops.length) return s;
+      let byKey = { ...s.byKey };
+      for (const op of ops) {
+        if (op.type === 'reset') byKey = {};
+        else if (op.type === 'add') byKey[resourceKey(op.entry)] = op.entry;
+        else for (const key in byKey) if (byKey[key].iframeId === op.iframeId) delete byKey[key];
+      }
+      return { byKey };
+    }),
 }));
 
 /**
@@ -48,3 +69,18 @@ export function uniqueResources(byKey: Record<string, ResourceEntry>): ResourceE
 export function findResource(byKey: Record<string, ResourceEntry>, url: string): ResourceEntry | undefined {
   return uniqueResources(byKey).find((e) => e.url === url);
 }
+
+/** Derives a value once per `byKey` object (replaced on every change), so selectors return stable results. */
+function perVersion<T>(derive: (byKey: Record<string, ResourceEntry>) => T): (s: ResourceStore) => T {
+  const cache = new WeakMap<Record<string, ResourceEntry>, T>();
+  return (s) => {
+    if (!cache.has(s.byKey)) cache.set(s.byKey, derive(s.byKey));
+    return cache.get(s.byKey)!;
+  };
+}
+
+/** `uniqueResources` of the current entries. */
+export const selectUniqueResources = perVersion(uniqueResources);
+export const selectResourceCount = (s: ResourceStore) => selectUniqueResources(s).length;
+/** Distinct iframes that loaded files. */
+export const selectIframeCount = perVersion((byKey) => new Set(Object.values(byKey).flatMap((e) => (e.frame ? [e.frame.url] : []))).size);

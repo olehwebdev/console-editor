@@ -17,10 +17,16 @@ export async function deleteOverride(id: string): Promise<void> {
     tone: 'danger',
   });
   if (!ok) return;
+  // Taken before the call: its `overrides-changed` event arrives before the reply and unlinks these tabs.
+  const tabIds = useTabStore
+    .getState()
+    .tabs.filter((t) => t.overrideId === id)
+    .map((t) => t.id);
   try {
     await api.deleteOverride(id);
     const tabs = useTabStore.getState();
-    for (const tab of tabs.tabs.filter((t) => t.overrideId === id)) {
+    // Skip a tab saved as a new override in the meantime.
+    for (const tab of tabs.tabs.filter((t) => tabIds.includes(t.id) && (t.overrideId === undefined || t.overrideId === id))) {
       tabs.remove(tab.id);
       setTimeout(() => disposeTabModel(tab.id), 0);
     }

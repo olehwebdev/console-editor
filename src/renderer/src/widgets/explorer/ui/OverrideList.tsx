@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { memo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { OverrideMeta } from '@common/types';
 import { icons } from '@/shared/config';
@@ -90,8 +91,12 @@ function OverrideRow({ override, active }: { override: OverrideMeta; active: boo
   );
 }
 
-/** The user's overrides: on/off switches, hit counters, upstream warnings. */
-export function OverrideList() {
+/**
+ * The user's overrides: on/off switches, hit counters, upstream warnings.
+ * Memoized: the Explorer re-renders as page files arrive, and every render of
+ * the list would make Motion measure the layout of its rows.
+ */
+export const OverrideList = memo(function OverrideList() {
   const overrides = useOverrideStore(useShallow(selectOverrideList));
   const query = useResourceFilter((s) => s.query.toLowerCase());
   const activeOverrideId = useTabStore((s) => selectActiveTab(s)?.overrideId ?? null);
@@ -124,4 +129,4 @@ export function OverrideList() {
       </AnimatePresence>
     </HoverHighlight>
   );
-}
+});

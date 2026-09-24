@@ -1,5 +1,6 @@
-export { monaco, languageFor, LARGE_FILE_CHARS, JS_LITE } from './setup';
+export { monaco } from './setup';
+export { languageFor, isLiteModel, LARGE_FILE_CHARS, JS_LITE } from './languages';
 export { CodeEditor, type CodeEditorProps } from './CodeEditor';
 export { DiffEditor, type DiffEditorProps } from './DiffEditor';
-export { editorHasFocus, getActiveEditor, triggerInActiveEditor } from './editors';
+export { editorHasFocus, getActiveEditor, requestEditorFocus, triggerInActiveEditor } from './editors';
 export { THEME } from './theme';

@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { EASE_OUT, SPRING_LAYOUT } from '@/shared/lib';
 import { isConfirmOpen } from '@/shared/ui/dialog';
 import { PanelResizer } from '@/shared/ui/panel-resizer';
@@ -11,19 +12,45 @@ import { PagePreview } from '@/widgets/page-preview';
 import { SettingsPanel } from '@/widgets/settings-panel';
 import { StatusBar } from '@/widgets/status-bar';
 import { TitleBar } from '@/widgets/title-bar';
-import { useLayout } from '../model/layout';
+import { selectPreviewWidth, selectSidebarWidth, useLayout } from '../model/layout';
+
+// Actions never change, so they are read once instead of subscribed to.
+const { setSidebar, toggleSidebar, showSidebarView, sidebarExited, togglePreview, resizeSidebar, resizePreview, setResizing } = useLayout.getState();
+const startResize = () => setResizing(true);
+const endResize = () => setResizing(false);
+const showSettings = () => setSidebar('settings');
+
+/** What the app menu can ask of the page (menu shortcuts also work while the website has focus). */
+export interface PageCommands {
+  focusAddressBar(): void;
+  togglePalette(): void;
+  toggleSidebar(): void;
+}
 
 export interface EditorPageProps {
   /** Receives the address bar input so the app menu's "Focus Address Bar" can reach it. */
-  addressBarRef?: (el: HTMLInputElement | null) => void;
+  onCommands?: (commands: PageCommands | null) => void;
 }
 
 /** The workspace: title bar, activity rail, sidebar, editor, website preview, status bar. */
-export function EditorPage({ addressBarRef }: EditorPageProps) {
-  const layout = useLayout();
+export function EditorPage({ onCommands }: EditorPageProps) {
+  // Widths change on every drag frame; only the panes below subscribe to them.
+  const { sidebar, previewVisible, resizing } = useLayout(
+    useShallow((s) => ({ sidebar: s.sidebar, previewVisible: s.previewVisible, resizing: s.resizing })),
+  );
   const togglePalette = usePalette((s) => s.toggle);
   const address = useRef<HTMLInputElement | null>(null);
-  const main = useRef<HTMLDivElement>(null);
+  const row = useRef<HTMLDivElement>(null);
+
+  // Panels are fitted to the row, so follow its width.
+  useLayoutEffect(() => {
+    const el = row.current!;
+    const measure = () => useLayout.getState().setRowWidth(el.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Global shortcuts. Capture phase so Monaco doesn't swallow them.
   useEffect(() => {
@@ -39,7 +66,7 @@ export function EditorPage({ addressBarRef }: EditorPageProps) {
       } else if (key === 'b' && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
-        useLayout.getState().toggleSidebar();
+        toggleSidebar();
       }
     };
     window.addEventListener('keydown', onKey, true);
@@ -47,59 +74,61 @@ export function EditorPage({ addressBarRef }: EditorPageProps) {
   }, [togglePalette]);
 
   const focusAddressBar = useCallback(() => {
-    if (!useLayout.getState().previewVisible) useLayout.getState().togglePreview();
+    if (!useLayout.getState().previewVisible) togglePreview();
     requestAnimationFrame(() => {
       address.current?.focus();
       address.current?.select();
     });
   }, []);
 
-  const previewWidth = `${Math.round(layout.previewRatio * 1000) / 10}%`;
+  const setAddressBar = useCallback((el: HTMLInputElement | null) => {
+    address.current = el;
+  }, []);
+
+  useEffect(() => {
+    if (!onCommands) return;
+    onCommands({
+      focusAddressBar,
+      // Nothing acts underneath a confirm dialog.
+      togglePalette: () => {
+        if (!isConfirmOpen()) togglePalette();
+      },
+      toggleSidebar: () => {
+        if (!isConfirmOpen()) toggleSidebar();
+      },
+    });
+    return () => onCommands(null);
+  }, [onCommands, focusAddressBar, togglePalette]);
 
   return (
     <div className="flex h-full flex-col bg-canvas text-fg">
       <TitleBar
         onOpenPalette={togglePalette}
-        sidebarVisible={!!layout.sidebar}
-        previewVisible={layout.previewVisible}
-        onToggleSidebar={layout.toggleSidebar}
-        onTogglePreview={layout.togglePreview}
+        sidebarVisible={!!sidebar}
+        previewVisible={previewVisible}
+        onToggleSidebar={toggleSidebar}
+        onTogglePreview={togglePreview}
       />
-      <div ref={main} className="flex min-h-0 flex-1">
-        <ActivityBar view={layout.sidebar} onViewChange={layout.showSidebarView} onOpenPalette={togglePalette} />
+      <div ref={row} className="flex min-h-0 flex-1">
+        <ActivityBar view={sidebar} onViewChange={showSidebarView} onOpenPalette={togglePalette} />
 
-        <AnimatePresence initial={false}>
-          {layout.sidebar ? (
-            <motion.aside
-              key="sidebar"
-              className="relative shrink-0 overflow-hidden border-r border-line bg-surface"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: layout.sidebarWidth, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={layout.resizing ? { duration: 0 } : SPRING_LAYOUT}
-            >
-              <div style={{ width: layout.sidebarWidth }} className="h-full">
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={layout.sidebar}
-                    className="h-full"
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -6 }}
-                    transition={{ duration: 0.16, ease: EASE_OUT }}
-                  >
-                    {layout.sidebar === 'settings' ? <SettingsPanel /> : <Explorer />}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-              <PanelResizer
-                className="absolute inset-y-0 -right-1"
-                aria-label="Resize sidebar"
-                onResize={(delta) => layout.setSidebarWidth(useLayout.getState().sidebarWidth + delta)}
-                onResizeStart={() => layout.setResizing(true)}
-                onResizeEnd={() => layout.setResizing(false)}
-              />
-            </motion.aside>
+        {/* Until the sidebar has animated out, the preview doesn't grow into its room (the row would overflow). */}
+        <AnimatePresence initial={false} onExitComplete={sidebarExited}>
+          {sidebar ? (
+            <SidebarPane key="sidebar" resizing={resizing}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={sidebar}
+                  className="h-full"
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -6 }}
+                  transition={{ duration: 0.16, ease: EASE_OUT }}
+                >
+                  {sidebar === 'settings' ? <SettingsPanel /> : <Explorer />}
+                </motion.div>
+              </AnimatePresence>
+            </SidebarPane>
           ) : null}
         </AnimatePresence>
 
@@ -107,31 +136,67 @@ export function EditorPage({ addressBarRef }: EditorPageProps) {
           <EditorPanel />
         </main>
 
-        {layout.previewVisible ? (
-          <>
-            <PanelResizer
-              aria-label="Resize website preview"
-              onResize={(delta) => {
-                const width = main.current?.clientWidth ?? window.innerWidth;
-                layout.setPreviewRatio(useLayout.getState().previewRatio - delta / width);
-              }}
-              onResizeStart={() => layout.setResizing(true)}
-              onResizeEnd={() => layout.setResizing(false)}
-            />
-            <div className="min-w-0 shrink-0 border-l border-line" style={{ width: previewWidth }}>
-              <PagePreview
-                suspended={layout.resizing}
-                addressBarRef={(el) => {
-                  address.current = el;
-                  addressBarRef?.(el);
-                }}
-              />
-            </div>
-          </>
+        {previewVisible ? (
+          <PreviewPane resizing={resizing}>
+            {/* The sidebar animating in or out can move the preview without resizing it. */}
+            <PagePreview suspended={resizing} layoutKey={!!sidebar} addressBarRef={setAddressBar} />
+          </PreviewPane>
         ) : null}
       </div>
       <StatusBar />
-      <AppCommandPalette onShowSettings={() => layout.setSidebar('settings')} onFocusAddressBar={focusAddressBar} />
+      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} />
     </div>
+  );
+}
+
+/** The sidebar at its fitted width. Only this re-renders while it is dragged; `children` are passed through. */
+function SidebarPane({ resizing, children }: { resizing: boolean; children: ReactNode }) {
+  const width = useLayout(selectSidebarWidth);
+  return (
+    <motion.aside
+      className="relative shrink-0 overflow-hidden border-r border-line bg-surface"
+      initial={{ width: 0, opacity: 0 }}
+      animate={{ width, opacity: 1 }}
+      exit={{ width: 0, opacity: 0 }}
+      transition={resizing ? { duration: 0 } : SPRING_LAYOUT}
+    >
+      <div style={{ width }} className="h-full">
+        {children}
+      </div>
+      <PanelResizer
+        className="absolute inset-y-0 -right-1"
+        aria-label="Resize sidebar"
+        onResize={resizeSidebar}
+        onResizeStart={startResize}
+        onResizeEnd={endResize}
+      />
+    </motion.aside>
+  );
+}
+
+/**
+ * The preview at its fitted width. The width is also published as
+ * `--preview-w`, so floating UI anchored to the window (the toast stack) can
+ * stay off the native page view.
+ */
+function PreviewPane({ resizing, children }: { resizing: boolean; children: ReactNode }) {
+  const width = useLayout(selectPreviewWidth);
+  // Not per drag frame (a root custom property restyles the whole document); the view is hidden meanwhile anyway.
+  useLayoutEffect(() => {
+    if (!resizing) document.documentElement.style.setProperty('--preview-w', `${width}px`);
+  }, [width, resizing]);
+  useLayoutEffect(
+    () => () => {
+      document.documentElement.style.removeProperty('--preview-w');
+    },
+    [],
+  );
+  return (
+    <>
+      <PanelResizer aria-label="Resize website preview" onResize={resizePreview} onResizeStart={startResize} onResizeEnd={endResize} />
+      <div className="min-w-0 shrink-0 border-l border-line" style={{ width }}>
+        {children}
+      </div>
+    </>
   );
 }

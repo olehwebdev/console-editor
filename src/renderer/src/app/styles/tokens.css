@@ -50,4 +50,6 @@
   --titlebar-h: 44px;
   --statusbar-h: 26px;
   --rail-w: 48px;
+  /* Width of the website preview; set by the editor page while it is shown. */
+  --preview-w: 0px;
 }

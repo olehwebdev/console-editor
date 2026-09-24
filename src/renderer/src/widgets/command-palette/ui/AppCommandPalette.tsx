@@ -7,13 +7,13 @@ import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
-import { uniqueResources, useResourceStore } from '@/entities/resource';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
 import { setOverrideEnabled } from '@/features/toggle-override';
+import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 
 const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon };
@@ -27,9 +27,25 @@ export interface AppCommandPaletteProps {
 export function AppCommandPalette({ onShowSettings, onFocusAddressBar }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
-  const byKey = useResourceStore((s) => s.byKey);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
   const active = useTabStore(selectActiveTab);
+
+  const resources = usePageFiles(open);
+  const files = useMemo<CommandGroup>(
+    () => ({
+      heading: 'Page files',
+      // Every file: the list is virtualized, so a page with thousands stays fast.
+      items: resources.map((r) => ({
+        id: r.url,
+        label: fileName(r.url),
+        hint: `${hostOf(r.url)}${pathOf(r.url)}${r.frame ? ' · iframe' : ''}`,
+        icon: KIND_ICON[r.kind],
+        keywords: [r.url, ...(r.frame ? ['iframe', r.frame.url] : [])],
+        onSelect: () => void openResource(r.url),
+      })),
+    }),
+    [resources],
+  );
 
   const groups = useMemo<CommandGroup[]>(() => {
     if (!open) return [];
@@ -64,21 +80,8 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar }: AppComm
         },
       ]),
     };
-    const files: CommandGroup = {
-      heading: 'Page files',
-      items: uniqueResources(byKey)
-        .slice(0, 2000)
-        .map((r) => ({
-          id: r.url,
-          label: fileName(r.url),
-          hint: `${hostOf(r.url)}${pathOf(r.url)}${r.frame ? ' · iframe' : ''}`,
-          icon: KIND_ICON[r.kind],
-          keywords: [r.url, ...(r.frame ? ['iframe', r.frame.url] : [])],
-          onSelect: () => void openResource(r.url),
-        })),
-    };
     return [files, overrideGroup, actions].filter((g) => g.items.length);
-  }, [open, byKey, overrides, active, onShowSettings, onFocusAddressBar]);
+  }, [open, files, overrides, active, onShowSettings, onFocusAddressBar]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

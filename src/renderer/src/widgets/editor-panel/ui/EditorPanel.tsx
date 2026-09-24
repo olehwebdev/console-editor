@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { icons } from '@/shared/config';
 import { EASE_OUT, fileName } from '@/shared/lib';
-import { CodeEditor, DiffEditor, monaco } from '@/shared/monaco';
+import { CodeEditor, DiffEditor, monaco, requestEditorFocus } from '@/shared/monaco';
 import { EditorTabs } from '@/shared/ui/editor-tabs';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { IconButton } from '@/shared/ui/icon-button';
@@ -13,6 +13,7 @@ import { closeTab } from '@/features/close-tab';
 import { closeDiff, toggleBaseDiff, useDiffSource } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { saveTab } from '@/features/save-override';
+import { openedTabId } from '../lib/focus';
 import { FileHeader } from './FileHeader';
 
 const STEPS: Array<{ keys?: string[]; text: string }> = [
@@ -44,6 +45,18 @@ function useEditorActions() {
   }, []);
 }
 
+/** Opening or switching to a tab asks the editor to take focus; closing one doesn't. */
+function useFocusOnOpen() {
+  useEffect(
+    () =>
+      useTabStore.subscribe((state, prev) => {
+        const opened = openedTabId(state, prev);
+        if (opened) requestEditorFocus(getTabModel(opened));
+      }),
+    [],
+  );
+}
+
 /** Tabs, file header and the Monaco editor (or diff) for the active file. */
 export function EditorPanel() {
   // Select the store's own array (a stable reference); new objects from a selector would re-render forever.
@@ -56,6 +69,7 @@ export function EditorPanel() {
   const activate = useTabStore((s) => s.activate);
   const onMount = useEditorActions();
   const model = getTabModel(activeId);
+  useFocusOnOpen();
 
   return (
     <section className="flex h-full min-w-0 flex-col bg-surface-editor" aria-label="Editor" data-testid="editor-panel">

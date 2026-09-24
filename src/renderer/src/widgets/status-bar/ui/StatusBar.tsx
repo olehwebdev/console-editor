@@ -7,7 +7,7 @@ import { Spinner } from '@/shared/ui/spinner';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectEnabledCount, selectOverrideList, useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
-import { KIND_NAME, useResourceStore } from '@/entities/resource';
+import { KIND_NAME, selectIframeCount, useResourceStore } from '@/entities/resource';
 
 /** Quiet one-line summary: page state, what is being served, the active file. */
 export function StatusBar() {
@@ -16,7 +16,7 @@ export function StatusBar() {
   const url = usePageStore((s) => s.page.url);
   const live = useOverrideStore(selectEnabledCount);
   const total = useOverrideStore(useShallow((s) => selectOverrideList(s).length));
-  const iframes = useResourceStore((s) => new Set(Object.values(s.byKey).flatMap((e) => (e.frame ? [e.frame.url] : []))).size);
+  const iframes = useResourceStore(selectIframeCount);
   const active = useTabStore(useShallow((s) => {
     const t = selectActiveTab(s);
     return t ? { kind: t.kind, lite: t.lite } : null;

@@ -1,1 +1,1 @@
-export { EditorPage } from './ui/EditorPage';
+export { EditorPage, type EditorPageProps, type PageCommands } from './ui/EditorPage';

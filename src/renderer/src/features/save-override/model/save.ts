@@ -5,19 +5,34 @@ import { getTabBase, getTabModel, markTabSaved, useTabStore } from '@/entities/e
 import { useOverrideStore } from '@/entities/override';
 import { useSettingsStore } from '@/entities/settings';
 
-const inFlight = new Map<string, Promise<void>>();
+/** A tab's running save, the model version it sends, and the one save queued behind it. */
+interface SaveJob {
+  task: Promise<void>;
+  version: number | undefined;
+  next?: Promise<void>;
+}
+
+const jobs = new Map<string, SaveJob>();
 
 /**
  * Saves a tab: creates the override on first save, updates it afterwards, then
- * reloads the page (when enabled). Concurrent saves of one tab are coalesced.
- * The content crosses IPC once; nothing is echoed back.
+ * reloads the page (when enabled). Concurrent saves of one tab are coalesced:
+ * saves requested while one runs share a single follow-up, which sends the
+ * newer text if it changed. The content crosses IPC once; nothing is echoed back.
  */
 export function saveTab(tabId: string | null = useTabStore.getState().activeId): Promise<void> {
   if (!tabId) return Promise.resolve();
-  const running = inFlight.get(tabId);
-  if (running) return running;
-  const task = doSave(tabId).finally(() => inFlight.delete(tabId));
-  inFlight.set(tabId, task);
+  const job = jobs.get(tabId);
+  if (!job) return startSave(tabId);
+  job.next ??= job.task.then(() => (getTabModel(tabId)?.getAlternativeVersionId() === job.version ? undefined : startSave(tabId)));
+  return job.next;
+}
+
+function startSave(tabId: string): Promise<void> {
+  // doSave snapshots the model before its first await, so this is the version it sends.
+  const version = getTabModel(tabId)?.getAlternativeVersionId();
+  const task = doSave(tabId).finally(() => jobs.delete(tabId));
+  jobs.set(tabId, { task, version });
   return task;
 }
 

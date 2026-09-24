@@ -57,7 +57,9 @@ const levelOf = (el: HTMLElement) => Number(el.getAttribute('aria-level') ?? '1'
  * marks selection with an accent tint and a 2 px accent bar. Opts into
  * <HoverHighlight> and implements the WAI-ARIA tree keys: ↑/↓/Home/End move
  * focus between rendered rows, →/← expand/collapse or step to child/parent,
- * Enter/Space click. Handle `onKeyDown` and `preventDefault()` to override.
+ * Enter/Space click. Handle `onKeyDown` and `preventDefault()` to override:
+ * virtualized trees move focus with `treeKeyTarget` over their row model and
+ * pass `aria-setsize`/`aria-posinset` from `treePositions`.
  */
 export function TreeRow({
   depth,

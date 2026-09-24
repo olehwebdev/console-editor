@@ -105,12 +105,12 @@ Each component lives in its own folder with an `index.ts` public API. Props belo
 | `Tooltip` | `content`, `side?`, `shortcut?: string[]` | 400 ms open delay, instant when moving between tooltips |
 | `Menu` / `ContextMenu` | `items: MenuItem[]` (`label`, `icon?`, `shortcut?`, `danger?`, `onSelect`, `separator?`) | scale-in from pointer, keyboard nav |
 | `CommandPalette` | `open`, `onOpenChange`, `groups: {heading, items: CommandItem[]}[]`, `placeholder` | fuzzy filter, spring panel, moving highlight |
-| `ToastStack` + `toast()` | `toast({title, description?, tone?, action?})` | stacked, swipe/auto-dismiss, bottom-left of the editor |
+| `ToastStack` + `toast()` | `toast({title, description?, tone?, action?})` | stacked, swipe/auto-dismiss, bottom-left of the editor; its width is capped by `--preview-w` (published by the preview pane) so it never reaches the native page view |
 | `ConfirmDialog` + `confirm()` | `confirm({title, body, confirmLabel, tone}) => Promise<boolean>` | replaces `window.confirm` |
 | `HoverHighlight` | wraps a list; one pill follows the hovered row | port of beUI SharedLayoutBg |
 | `Collapsible` / `Section` | `title`, `count?`, `actions?`, `defaultOpen?` | height auto animation, caps header |
 | `Tree` | rows rendered by the caller; `TreeRow` = `depth`, `expanded?`, `onToggle?`, `selected?`, `icon`, `label`, `meta?` | 26 px rows, guide lines, chevron rotates |
-| `Tabs` (editor tabs) | `items`, `activeId`, `onSelect`, `onClose`, `renderLabel` | layout pill, enter/exit width animation |
+| `EditorTabs` | `items`, `activeId`, `onSelect`, `onClose`, `onReorder?`, `renderLabel?`, `trailing?`, `onTabContextMenu?` | layout pill, enter/exit width animation; a click selects without taking focus from the editor |
 | `Spinner`, `Shimmer` | loading states | shimmer for "Pretty-printing…" |
 | `EmptyState` | `icon`, `title`, `children` | used by editor & preview |
 
@@ -142,7 +142,9 @@ Code shared with the main process (`src/shared`: IPC types, URL matching) is imp
 ## 6. State management
 
 - **Zustand** stores, one per entity (`entities/*/model`), created with `create<State & Actions>()`. State is serializable and normalized (records keyed by id/url); actions are pure state transitions.
-- **Side effects live in features** (`features/*/model`): they call `shared/api`, then update entity stores through their actions. Components never call IPC directly.
+- **UI-only state lives with the slice that owns the UI**, never in entities: the workspace layout in `pages/editor/model`, the palette's open state in `widgets/command-palette/model`, a feature's own transient state in that feature (`compare-changes`' diff source, `filter-resources`' query), and the overlay counter in `shared/lib`.
+- **Side effects live in features** (`features/*/model`): they call `shared/api`, then update entity stores through their actions. Widgets call `shared/api` directly only for stateless view plumbing: the native page view's bounds and snapshot (`PagePreview`) and revealing the overrides folder.
+- **Events are batched:** the bridge queues resource, navigation and iframe events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file.
 - **One IPC bridge**: `startBridge()` in `app/model/bridge.ts` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features).
 - **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
 - **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models.ts`, `shared/monaco/editors.ts`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode).

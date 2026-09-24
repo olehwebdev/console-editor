@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { cn } from '@/shared/lib';
-import { getActiveEditor, setActiveEditor } from './editors';
+import { focusWhenFree, getActiveEditor, setActiveEditor } from './editors';
 import { guardFloatingWidgets } from './floatingGuard';
 import { EDITOR_OPTIONS, FULL_EDITOR_OPTIONS, LITE_EDITOR_OPTIONS } from './options';
-import { LARGE_FILE_CHARS, monaco } from './setup';
+import { isLiteModel } from './languages';
+import { monaco } from './setup';
 import { THEME } from './theme';
 
 type Model = monaco.editor.ITextModel;
@@ -51,10 +52,12 @@ export function DiffEditor({ original, modified, onMount, className }: DiffEdito
   }, []);
 
   useEffect(() => {
-    const lite = modified.getValueLength() >= LARGE_FILE_CHARS || original.getValueLength() >= LARGE_FILE_CHARS;
-    diffRef.current?.updateOptions(lite ? LITE_EDITOR_OPTIONS : FULL_EDITOR_OPTIONS);
-    diffRef.current?.setModel({ original, modified });
-    diffRef.current?.getModifiedEditor().focus();
+    const diff = diffRef.current;
+    if (!diff) return;
+    diff.updateOptions(isLiteModel(original) || isLiteModel(modified) ? LITE_EDITOR_OPTIONS : FULL_EDITOR_OPTIONS);
+    diff.setModel({ original, modified });
+    // Every diff shown here was asked for; still, never pull focus from a field or the tab strip.
+    return focusWhenFree(diff.getModifiedEditor());
   }, [original, modified]);
 
   return <div ref={host} className={cn('h-full w-full', className)} data-testid="diff-editor" />;

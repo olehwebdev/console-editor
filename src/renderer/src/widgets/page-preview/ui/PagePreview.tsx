@@ -10,10 +10,18 @@ import { goBack, goForward, openPageDevTools, reloadPage } from '@/features/navi
 import { AddressBar } from './AddressBar';
 
 const NO_BOUNDS = { x: 0, y: 0, width: 0, height: 0 };
+/** Frames the host must stay put before position tracking stops. */
+const SETTLE_FRAMES = 10;
 
 export interface PagePreviewProps {
   /** Hide the native view (e.g. while a panel is being resized: it would swallow the drag). */
   suspended?: boolean;
+  /**
+   * Change it when something beside the panel may move it without resizing it
+   * (e.g. a sidebar animating in or out): the view then follows the host
+   * until it settles. Size changes are picked up on their own.
+   */
+  layoutKey?: unknown;
   addressBarRef?: (el: HTMLInputElement | null) => void;
 }
 
@@ -22,7 +30,7 @@ export interface PagePreviewProps {
  * this panel's host box; we keep its bounds in sync, and swap it for a still
  * snapshot while an overlay (palette, menu, dialog) is open.
  */
-export function PagePreview({ suspended = false, addressBarRef }: PagePreviewProps) {
+export function PagePreview({ suspended = false, layoutKey, addressBarRef }: PagePreviewProps) {
   const host = useRef<HTMLDivElement>(null);
   const hasPage = usePageStore(selectHasPage);
   const canGoBack = usePageStore((s) => s.page.canGoBack);
@@ -46,7 +54,28 @@ export function PagePreview({ suspended = false, addressBarRef }: PagePreviewPro
     setNativeViewRect(area);
   }, [hidden, hasPage, suspended]);
 
-  useLayoutEffect(sync, [sync]);
+  // Sync now, then follow the host for a while: moves that don't resize it
+  // (a neighbouring panel animating) never reach the ResizeObserver.
+  useLayoutEffect(() => {
+    sync();
+    const el = host.current;
+    if (!el) return;
+    let last = el.getBoundingClientRect();
+    let still = 0;
+    let frame = 0;
+    const track = () => {
+      const r = el.getBoundingClientRect();
+      if (r.x !== last.x || r.y !== last.y || r.width !== last.width || r.height !== last.height) {
+        last = r;
+        still = 0;
+        sync();
+      } else still++;
+      frame = still < SETTLE_FRAMES ? requestAnimationFrame(track) : 0;
+    };
+    frame = requestAnimationFrame(track);
+    return () => cancelAnimationFrame(frame);
+  }, [sync, layoutKey]);
+
   useEffect(() => () => setNativeViewRect(null), []);
 
   useEffect(() => {

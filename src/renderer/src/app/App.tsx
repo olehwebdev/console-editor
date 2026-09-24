@@ -4,7 +4,7 @@ import { ConfirmDialog } from '@/shared/ui/dialog';
 import { ToastStack } from '@/shared/ui/toast';
 import { EditorPage } from '@/pages/editor';
 import { Gallery } from './gallery/Gallery';
-import { focusTargets, startBridge } from './model/bridge';
+import { setPageCommands, startBridge } from './model/bridge';
 
 /** Root: global providers and overlays around the one page. `#gallery` shows the design system instead. */
 export function App() {
@@ -34,8 +34,9 @@ export function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      {gallery ? <Gallery /> : <EditorPage addressBarRef={(el) => (focusTargets.addressBar = el)} />}
-      <ToastStack className="bottom-9 left-[calc(var(--rail-w)+12px)]" />
+      {gallery ? <Gallery /> : <EditorPage onCommands={setPageCommands} />}
+      {/* Past the rail and never wider than the room left of the website preview (the native page view hides whatever overlaps it). */}
+      <ToastStack className="bottom-9 left-[calc(var(--rail-w)+12px)] max-w-[calc(100vw-var(--rail-w)-var(--preview-w)-24px)]" />
       <ConfirmDialog />
     </MotionConfig>
   );

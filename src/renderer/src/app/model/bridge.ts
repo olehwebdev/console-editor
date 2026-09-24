@@ -6,15 +6,20 @@ import { toast } from '@/shared/ui/toast';
 import { selectHasDirtyTabs, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
-import { useResourceStore } from '@/entities/resource';
+import { useResourceStore, type ResourceOp } from '@/entities/resource';
 import { useSettingsStore } from '@/entities/settings';
 import { toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { reloadPage } from '@/features/navigate-page';
 import { saveTab } from '@/features/save-override';
+import type { PageCommands } from '@/pages/editor';
 
-/** Elements that want focus on "Focus Address Bar" register themselves here. */
-export const focusTargets = { addressBar: null as HTMLInputElement | null };
+let pageCommands: PageCommands | null = null;
+
+/** The page registers what menu commands like "Focus Address Bar" should do while it is shown. */
+export function setPageCommands(commands: PageCommands | null): void {
+  pageCommands = commands;
+}
 
 function runCommand(command: MenuCommand): void {
   switch (command) {
@@ -28,8 +33,13 @@ function runCommand(command: MenuCommand): void {
       toggleBaseDiff();
       return;
     case 'focus-url':
-      focusTargets.addressBar?.focus();
-      focusTargets.addressBar?.select();
+      pageCommands?.focusAddressBar();
+      return;
+    case 'toggle-palette':
+      pageCommands?.togglePalette();
+      return;
+    case 'toggle-sidebar':
+      pageCommands?.toggleSidebar();
       return;
     case 'undo':
     case 'redo':
@@ -43,18 +53,46 @@ function runCommand(command: MenuCommand): void {
   }
 }
 
+/**
+ * Resource list changes, applied once per frame in the order they arrived: a
+ * page load reports thousands of files, one message each, and every store
+ * update rebuilds the resource tree.
+ */
+let resourceOps: ResourceOp[] = [];
+let resourceFrame = 0;
+let resourceTimer: ReturnType<typeof setTimeout> | undefined;
+/** Frames stop while the window is hidden (minimized, occluded); the store and the queue must not. */
+const HIDDEN_FLUSH_MS = 250;
+
+function queueResourceOp(op: ResourceOp): void {
+  // A reset makes everything queued before it moot.
+  if (op.type === 'reset') resourceOps = [op];
+  else resourceOps.push(op);
+  if (resourceFrame) return;
+  resourceFrame = requestAnimationFrame(flushResourceOps);
+  resourceTimer = setTimeout(flushResourceOps, HIDDEN_FLUSH_MS);
+}
+
+function flushResourceOps(): void {
+  cancelAnimationFrame(resourceFrame);
+  clearTimeout(resourceTimer);
+  resourceFrame = 0;
+  const ops = resourceOps;
+  resourceOps = [];
+  useResourceStore.getState().apply(ops);
+}
+
 /** Routes one main-process event into the entity stores. */
 export function handleAppEvent(event: AppEvent): void {
   switch (event.type) {
     case 'navigated':
-      if (event.iframeId) useResourceStore.getState().dropIframe(event.iframeId);
-      else useResourceStore.getState().reset();
+      queueResourceOp(event.iframeId ? { type: 'drop-iframe', iframeId: event.iframeId } : { type: 'reset' });
       return;
     case 'iframe-detached':
-      useResourceStore.getState().dropIframe(event.iframeId);
+      queueResourceOp({ type: 'drop-iframe', iframeId: event.iframeId });
       return;
     case 'resource':
-      useResourceStore.getState().add(event.resource);
+      queueResourceOp({ type: 'add', entry: event.resource });
       return;
     case 'override-served':
       useOverrideStore.getState().hit(event.overrideId);
@@ -73,7 +111,7 @@ export function handleAppEvent(event: AppEvent): void {
       toast({
         id: `missed:${event.overrideId}`,
         title: `Your override didn't apply to ${fileName(event.url)}`,
-        description: 'The page received the live file (an iframe changed process mid-load). Reloading usually fixes it.',
+        description: 'The page loaded the live file instead, e.g. it was already loading when the override was turned on. Reloading usually fixes it.',
         tone: 'warning',
         action: { label: 'Reload page', onClick: () => void reloadPage() },
         duration: 8000,
@@ -109,6 +147,8 @@ export async function startBridge(): Promise<() => void> {
   ]);
   useSettingsStore.getState().setSettings(settings);
   useOverrideStore.getState().setAll(overrides);
+  // Events queued while loading are older than this snapshot.
+  flushResourceOps();
   useResourceStore.getState().addMany(resources);
   usePageStore.getState().setPage(page);
 

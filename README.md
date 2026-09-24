@@ -18,6 +18,7 @@ The app embeds Chromium. When the page — or any iframe in it — requests a fi
 - **Survives deploys.** Match hashed names such as `main.*.js` with one click, and get a warning when the live file changed.
 - **Handles what normally breaks this:** compressed responses, Subresource Integrity (static and runtime-set), HTTP cache, service workers, stale source maps, and Chromium's local-network checks on patched pages.
 - **Overrides persist** and can be switched on and off individually.
+- **The site stays contained.** It gets no permissions silently (camera, clipboard, location… are asked for or denied), its pop-ups and new tabs stay under the editor's control, and a "Leave site?" guard can't block a reload.
 
 Is this a good idea, and how does it compare to DevTools overrides, proxies and extensions? See **[docs/RESEARCH.md](docs/RESEARCH.md)**. Design and roadmap: **[docs/SPEC.md](docs/SPEC.md)**. The UI's tokens, motion and components: **[docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)**.
 
@@ -46,6 +47,9 @@ To open a URL on start: `CONSOLE_EDITOR_URL=https://example.com npm run dev`.
 | Ctrl/Cmd+L | Focus the address bar |
 | Ctrl/Cmd+B | Show/hide the sidebar |
 | Ctrl/Cmd+Shift+J | DevTools for the page |
+| Ctrl/Cmd+Alt+I | DevTools for the editor itself |
+
+Shortcuts also work while the page has focus, unless the page handles the same keys itself.
 
 ## Development
 
