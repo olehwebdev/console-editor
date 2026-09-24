@@ -5,6 +5,8 @@ import { icons } from '@/shared/config';
 import { cn, SPRING_SWAP } from '@/shared/lib';
 import { HOVER_ROW_ATTR, useInHoverHighlight } from '@/shared/ui/hover-highlight';
 import { Icon, type IconGlyph } from '@/shared/ui/icon';
+import { isGlyph } from './isGlyph';
+import { TREE_ROW_KEY_HANDLERS } from './treeRowKeyHandlers';
 
 /** Row height (px): 26, per the design system. Use it as the virtualizer's estimateSize. */
 export const TREE_ROW_HEIGHT = 26;
@@ -36,20 +38,6 @@ export interface TreeRowProps extends Omit<ComponentPropsWithRef<'div'>, 'childr
   /** Draw the faint vertical indent guides (default true). */
   guides?: boolean;
 }
-
-function isGlyph(value: unknown): value is IconGlyph {
-  return Array.isArray(value) && value.length > 0 && Array.isArray(value[0]) && typeof value[0][0] === 'string';
-}
-
-function treeRows(row: HTMLElement): HTMLElement[] {
-  const tree = row.closest<HTMLElement>('[role="tree"]') ?? row.parentElement;
-  if (!tree) return [row];
-  return Array.from(tree.querySelectorAll<HTMLElement>('[role="treeitem"]')).filter(
-    (el) => el.closest('[role="tree"]') === row.closest('[role="tree"]'),
-  );
-}
-
-const levelOf = (el: HTMLElement) => Number(el.getAttribute('aria-level') ?? '1');
 
 /**
  * One 26 px row of a tree the caller renders (flat or virtualized). Indents
@@ -84,52 +72,13 @@ export function TreeRow({
   const isFolder = expanded !== undefined;
   const handleClick = onClick ?? (isFolder && onToggle ? () => onToggle() : undefined);
 
-  const focusRow = (from: HTMLElement, pick: (rows: HTMLElement[], index: number) => HTMLElement | undefined) => {
-    const rows = treeRows(from);
-    const target = pick(rows, rows.indexOf(from));
-    target?.focus();
-  };
-
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     onKeyDown?.(event);
     if (event.defaultPrevented || event.target !== event.currentTarget) return;
     if (event.altKey || event.ctrlKey || event.metaKey) return;
-    const row = event.currentTarget;
-    switch (event.key) {
-      case 'ArrowDown':
-        focusRow(row, (rows, i) => rows[i + 1]);
-        break;
-      case 'ArrowUp':
-        focusRow(row, (rows, i) => rows[i - 1]);
-        break;
-      case 'Home':
-        focusRow(row, (rows) => rows[0]);
-        break;
-      case 'End':
-        focusRow(row, (rows) => rows[rows.length - 1]);
-        break;
-      case 'ArrowRight':
-        if (expanded === false) onToggle?.();
-        else if (expanded === true) focusRow(row, (rows, i) => (rows[i + 1] && levelOf(rows[i + 1]) > levelOf(row) ? rows[i + 1] : undefined));
-        else return;
-        break;
-      case 'ArrowLeft':
-        if (expanded === true && onToggle) onToggle();
-        else
-          focusRow(row, (rows, i) => {
-            const level = levelOf(row);
-            for (let j = i - 1; j >= 0; j--) if (levelOf(rows[j]) < level) return rows[j];
-            return undefined;
-          });
-        break;
-      case 'Enter':
-      case ' ':
-        if (event.repeat) break;
-        row.click();
-        break;
-      default:
-        return;
-    }
+    if (!Object.hasOwn(TREE_ROW_KEY_HANDLERS, event.key)) return;
+    const handled = TREE_ROW_KEY_HANDLERS[event.key]({ row: event.currentTarget, expanded, onToggle, repeat: event.repeat });
+    if (handled === false) return;
     event.preventDefault();
   };
 

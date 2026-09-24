@@ -1,8 +1,9 @@
 import { motion, useReducedMotion } from 'motion/react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
-import { cn, isMac, SPRING_PRESS } from '@/shared/lib';
+import { cn, SPRING_PRESS } from '@/shared/lib';
 import { Icon, type IconGlyph } from '@/shared/ui/icon';
 import { Tooltip, type TooltipSide } from '@/shared/ui/tooltip';
+import { ariaShortcut } from './ariaShortcut';
 
 type MotionConflicts = 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration' | 'onDrag' | 'onDragStart' | 'onDragEnd';
 
@@ -36,21 +37,6 @@ const SIZE: Record<IconButtonSize, { box: string; icon: number }> = {
   md: { box: 'size-7 rounded-lg', icon: 16 },
   lg: { box: 'size-9 rounded-xl', icon: 18 },
 };
-
-const ARIA_KEY: Record<string, string> = {
-  mod: isMac ? 'Meta' : 'Control',
-  ctrl: 'Control',
-  cmd: 'Meta',
-  shift: 'Shift',
-  alt: 'Alt',
-  enter: 'Enter',
-  esc: 'Escape',
-};
-
-/** `['mod', 'S']` → `Meta+S` / `Control+S` for `aria-keyshortcuts`. */
-function ariaShortcut(keys: string[]): string {
-  return keys.map((k) => ARIA_KEY[k.toLowerCase()] ?? (k.length === 1 ? k.toUpperCase() : k)).join('+');
-}
 
 /**
  * Square icon-only button (28 px) with its label in a tooltip. Press spring,
