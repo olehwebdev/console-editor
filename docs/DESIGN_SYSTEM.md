@@ -36,7 +36,7 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 | Token | Meaning | Value |
 |---|---|---|
 | `--accent` | primary actions, focus ring, active rail item | ember `oklch(72% 0.19 45)` |
-| `--accent-grad` | brand mark, primary button fill | `linear-gradient(135deg, oklch(78% 0.18 65), oklch(66% 0.23 30))` |
+| `--accent-grad` | primary button fill | `linear-gradient(135deg, oklch(78% 0.18 65), oklch(66% 0.23 30))` |
 | `--live` | override active / served, "live" dot | lime `oklch(88% 0.2 128)` |
 | `--info` | links, iframe markers | sky `oklch(76% 0.12 235)` |
 | `--warning` | upstream changed | amber `oklch(82% 0.15 80)` |

@@ -39,7 +39,12 @@ const config: Configuration = {
     // grantFileProtocolExtraPrivileges stays on: the editor UI is loaded from file:// and starts module workers there.
   },
 
+  // Icons are prebuilt for each system (build/icon.png is the 1024 px original). macOS gets Apple's icon
+  // grid: the tile at 824 of 1024 px with a drop shadow, 16-1024 px. Windows gets the tile edge to edge,
+  // 16-256 px, since its taskbar and Explorer show icons without a margin. Linux follows the grid from
+  // 48 px up; below that, in panels and menus, the tile fills the frame.
   mac: {
+    icon: 'build/icon.icns',
     target: [{ target: 'dmg', arch: ['arm64', 'x64'] }],
     category: 'public.app-category.developer-tools',
     artifactName: 'console-editor-${version}-mac-${arch}.${ext}',
@@ -59,6 +64,7 @@ const config: Configuration = {
   dmg: { writeUpdateInfo: false },
 
   win: {
+    icon: 'build/icon.ico',
     target: ['nsis'],
     artifactName: 'console-editor-${version}-win-${arch}-setup.${ext}',
   },
