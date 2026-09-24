@@ -10,5 +10,3 @@ const TINT = { Script: 'text-kind-js', Stylesheet: 'text-kind-css', Document: 't
 export function KindIcon({ kind, size = 15, className }: { kind: ResourceKind; size?: number; className?: string }) {
   return <Icon icon={GLYPH[kind]} size={size} className={cn(TINT[kind], className)} />;
 }
-
-export const KIND_NAME: Record<ResourceKind, string> = { Script: 'JavaScript', Stylesheet: 'CSS', Document: 'HTML' };

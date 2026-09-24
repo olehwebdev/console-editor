@@ -1,1 +1,2 @@
-export { useSettingsStore, SETTING_META } from './model/store';
+export { SETTING_META } from './model/constants';
+export { useSettingsStore } from './model/store';
