@@ -41,7 +41,7 @@ jobs:
       - name: Allow Chromium's sandbox
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # The engine and iframe tests run against real Chromium.
+      # The engine, iframe and worker tests run against real Chromium.
       - name: Install Chromium for the integration tests
         run: npx playwright-core install --with-deps chromium
 

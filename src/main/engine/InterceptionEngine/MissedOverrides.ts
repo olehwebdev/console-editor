@@ -1,3 +1,4 @@
+import type { MissedReason } from '../../../shared/types';
 import type { OverrideMatcher } from './OverrideMatcher';
 import type { EngineOptions } from './types';
 
@@ -21,14 +22,15 @@ export class MissedOverrides {
    * An enabled override matched a file that arrived unmodified. Chromium has at
    * least one such gap (an out-of-process iframe navigating back to its
    * parent's site); telling the user to reload beats failing silently.
+   * `reason`: why, when it's known (a worker's gaps).
    */
-  report(url: string, resourceType: string): void {
+  report(url: string, resourceType: string, reason?: MissedReason): void {
     const override = this.matcher.find(url, resourceType);
     if (!override) return;
     const key = `${override.id}${MISSED_KEY_SEPARATOR}${url}`;
     if (this.reported.has(key)) return;
     this.reported.add(key);
-    this.opts.emit({ type: 'override-missed', overrideId: override.id, url });
+    this.opts.emit({ type: 'override-missed', overrideId: override.id, url, ...(reason ? { reason } : {}) });
   }
 
   /** A new document committed: its misses are reported afresh. */

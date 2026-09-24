@@ -17,6 +17,7 @@ export {
   CommandIcon,
   CommandLineIcon as ConsoleIcon,
   Copy01Icon as CopyIcon,
+  CpuIcon as WorkerIcon,
   CssFile01Icon as CssIcon,
   Delete02Icon as DeleteIcon,
   Download04Icon as DownloadIcon,

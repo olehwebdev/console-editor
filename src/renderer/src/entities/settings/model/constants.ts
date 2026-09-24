@@ -7,7 +7,7 @@ export const SETTING_META: Array<{ key: keyof Settings; label: string; help: str
   { key: 'stripIntegrity', label: 'Strip integrity checks (SRI)', help: 'Otherwise the browser refuses edited files loaded with integrity="…".' },
   { key: 'stripSourceMaps', label: 'Strip source maps from overrides', help: 'Edited files no longer line up with their source maps.' },
   { key: 'disableCache', label: 'Disable HTTP cache', help: 'Every load goes to the network, so overrides always apply.' },
-  { key: 'bypassServiceWorker', label: 'Bypass service workers', help: 'Service workers can answer from their cache and skip overrides.' },
+  { key: 'bypassServiceWorker', label: 'Bypass service workers', help: 'Otherwise service workers can answer from their cache, and Chromium checks them for updates after every page load, which can undo edits to their scripts.' },
   { key: 'bypassCSP', label: 'Bypass Content-Security-Policy', help: 'Allow eval/inline code in patches on sites with a strict CSP.' },
   { key: 'captureConsole', label: 'Record the console', help: 'Logs and errors from the page and all its frames. Turn it off for a site that acts differently while it is on.' },
   { key: 'checkForUpdates', label: 'Check for updates', help: 'Look for a new release on GitHub at start and every few hours.' },

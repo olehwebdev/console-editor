@@ -18,7 +18,8 @@ export async function readResourceContent(
   fallbackFetch: EngineOptions['fallbackFetch'],
 ): Promise<ResourceContent> {
   const attempts: Array<() => Promise<string>> = [];
-  if (tracked && !tracked.entry.overrideId) {
+  // What the page got may be an override either way when a service worker answered it.
+  if (tracked && !tracked.entry.overrideId && !tracked.fromServiceWorker) {
     attempts.push(() => networkBody(cdp, tracked.requestId, tracked.entry.mimeType));
     if (tracked.frameId) {
       const frameId = tracked.frameId;

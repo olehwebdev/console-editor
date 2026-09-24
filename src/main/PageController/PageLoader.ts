@@ -32,6 +32,7 @@ export class PageLoader {
     const url = normalizeUrl(input);
     // Never load a site before interception is set up, or overrides would be missed.
     await this.ready;
+    await this.engine.prepareReload(url);
     try {
       await this.wc.loadURL(url);
     } catch (err) {
