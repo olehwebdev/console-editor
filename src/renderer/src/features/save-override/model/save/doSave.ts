@@ -1,45 +1,12 @@
 import { api, errorMessage } from '@/shared/api';
+import { TOAST_DURATION } from '@/shared/config';
 import { fileName } from '@/shared/lib';
-import { dismissEditorWidgets } from '@/shared/monaco';
 import { toast } from '@/shared/ui/toast';
 import { getTabBase, getTabModel, markTabSaved, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { useSettingsStore } from '@/entities/settings';
 
-/** A tab's running save, the model version it sends, and the one save queued behind it. */
-interface SaveJob {
-  task: Promise<void>;
-  version: number | undefined;
-  next?: Promise<void>;
-}
-
-const jobs = new Map<string, SaveJob>();
-
-/**
- * Saves a tab: creates the override on first save, updates it afterwards, then
- * reloads the page (when enabled). Concurrent saves of one tab are coalesced:
- * saves requested while one runs share a single follow-up, which sends the
- * newer text if it changed. The content crosses IPC once; nothing is echoed back.
- */
-export function saveTab(tabId: string | null = useTabStore.getState().activeId): Promise<void> {
-  if (!tabId) return Promise.resolve();
-  // An autocomplete list left open over the page would keep it frozen and hide the reload.
-  dismissEditorWidgets();
-  const job = jobs.get(tabId);
-  if (!job) return startSave(tabId);
-  job.next ??= job.task.then(() => (getTabModel(tabId)?.getAlternativeVersionId() === job.version ? undefined : startSave(tabId)));
-  return job.next;
-}
-
-function startSave(tabId: string): Promise<void> {
-  // doSave snapshots the model before its first await, so this is the version it sends.
-  const version = getTabModel(tabId)?.getAlternativeVersionId();
-  const task = doSave(tabId).finally(() => jobs.delete(tabId));
-  jobs.set(tabId, { task, version });
-  return task;
-}
-
-async function doSave(tabId: string): Promise<void> {
+export async function doSave(tabId: string): Promise<void> {
   const tab = useTabStore.getState().tabs.find((t) => t.id === tabId);
   const model = getTabModel(tabId);
   if (!tab || !model) return;
@@ -67,7 +34,7 @@ async function doSave(tabId: string): Promise<void> {
     }
     markTabSaved(tabId, version);
     const reload = useSettingsStore.getState().settings.autoReloadOnSave;
-    toast({ title: `Saved ${fileName(tab.url)}`, description: reload ? 'Reloading the page with your version.' : undefined, tone: 'success', duration: 2500 });
+    toast({ title: `Saved ${fileName(tab.url)}`, description: reload ? 'Reloading the page with your version.' : undefined, tone: 'success', duration: TOAST_DURATION.confirm });
     if (reload) await api.reload();
   } catch (err) {
     toast({ title: `Could not save ${fileName(tab.url)}`, description: errorMessage(err), tone: 'danger' });
