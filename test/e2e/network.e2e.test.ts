@@ -199,8 +199,8 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
     await menuItem('Lengthen every text').click();
     await expect.poll(editorText).toContain('"name": "Saved Lorem ipsum');
     await win.getByTestId('save-button').click();
-    expect(await inSite(start("tryGql('GetUser').then((r) => JSON.parse(r.body).data.user.name)"))).toBe(true);
-    await expect.poll(settled, RELOAD_TIMEOUT).toMatch(/^Saved Lorem ipsum/);
+    // Saving reloads the page: each poll asks again, until the reloaded page gets the saved text.
+    await expect.poll(() => inSite("tryGql('GetUser').then((r) => JSON.parse(r.body).data.user.name)"), RELOAD_TIMEOUT).toMatch(/^Saved Lorem ipsum/);
   });
 
   it('edits a response as a tree: open, retype, rename and remove with the keyboard, then saves it', async () => {
@@ -224,23 +224,22 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
     await win.getByTestId('response-tree-toggle').click();
     await expect.poll(editorText).toBe('{ "data": { "user": { "userId": 7 } } }');
     await win.getByTestId('save-button').click();
-    expect(await inSite(start("tryGql('GetUser').then((r) => r.body)"))).toBe(true);
-    await expect.poll(settled, RELOAD_TIMEOUT).toBe('{ "data": { "user": { "userId": 7 } } }');
+    await expect.poll(() => inSite("tryGql('GetUser').then((r) => r.body)"), RELOAD_TIMEOUT).toBe('{ "data": { "user": { "userId": 7 } } }');
   });
 
   it('takes the page offline from the network speed menu, and back', async () => {
-    const broken = start(`fetch('${BROKEN_PATH}').then((r) => ({ status: r.status }), (e) => ({ error: e.name }))`);
+    // The status bar shows the speed picked at once, and the page's session gets it a moment later:
+    // each poll fetches again until it has.
+    const broken = () => inSite(`fetch('${BROKEN_PATH}').then((r) => ({ status: r.status }), (e) => ({ error: e.name }))`);
     await openMenu('network-throttling');
     await menuItem('Offline').click();
     await expect.poll(() => win.getByTestId('status-throttling').textContent()).toBe('Offline');
-    expect(await inSite(broken)).toBe(true);
-    await expect.poll(settled).toEqual({ error: 'TypeError' });
+    await expect.poll(broken).toEqual({ error: 'TypeError' });
 
     await openMenu('network-throttling');
     await menuItem('No throttling').click();
     await expect.poll(() => win.getByTestId('status-throttling').count()).toBe(0);
-    expect(await inSite(broken)).toBe(true);
-    await expect.poll(settled).toEqual({ status: 500 });
+    await expect.poll(broken).toEqual({ status: 500 });
   });
 
   it("lists a WebSocket and shows the messages it sent and got", async () => {
