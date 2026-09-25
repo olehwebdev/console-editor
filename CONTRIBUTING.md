@@ -1,16 +1,16 @@
 # Contributing to Console Editor
 
-Thanks for helping! Bug reports, ideas and pull requests are all welcome.
+Thanks for helping! Bug reports, ideas and pull requests are all welcome. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Reporting a bug
 
-Open an issue with:
+[Open an issue](https://github.com/olehwebdev/console-editor/issues/new/choose) with the **Bug report** form. It asks for:
 
 - what you did, what you expected, and what happened;
 - the kind of page involved (framework, bundler, iframes, SRI…) — a public URL or a minimal page that reproduces it is ideal;
-- your OS and the output of **View › Editor DevTools** (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Alt</kbd> + <kbd>I</kbd>) or **Page DevTools** if something failed there.
+- the app's version, how you installed it, your OS, and the output of **View › Editor DevTools** (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Alt</kbd> + <kbd>I</kbd>) or **Page DevTools** if something failed there.
 
-Please don't paste private URLs, cookies or tokens into issues.
+Please don't paste private URLs, cookies or tokens into issues. Ideas go in the **Feature request** form, and a security problem goes through the [security policy](SECURITY.md), privately, never in an issue.
 
 ## Setting up
 
@@ -36,7 +36,7 @@ npm run test:e2e       # the built app end to end (headless Linux: xvfb-run npm 
 
 If you change packaging (`electron-builder.ts`, `build/`, anything the installed app loads), also build and drive the packaged app: `npm run dist -- --dir && npm run test:packaged` (headless Linux: `xvfb-run npm run test:packaged`). If you change updating, build a newer copy to update to (`npx electron-builder --publish never -c.directories.output=dist-next -c.extraMetadata.version=99.0.0`) and run `npm run test:update -- <installed app or AppImage> dist-next`.
 
-A good pull request:
+A good pull request (its template lists the same checks):
 
 - **comes from a git flow branch** (`feature/…`, `bugfix/…`; see [CLAUDE.md › Branches](CLAUDE.md#branches-git-flow)) into `main`;
 - **fixes one thing** and explains why, with a test that fails without the change (behaviour of Chromium or CDP is best pinned in `test/integration`);

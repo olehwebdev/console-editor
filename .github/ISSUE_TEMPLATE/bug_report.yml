@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in Console Editor doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it! Issues are public, so please don't paste private URLs, cookies or tokens. A security problem goes through the [security policy](https://github.com/olehwebdev/console-editor/security/policy) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Override …
+        3. Reload the page: …
+    validations:
+      required: true
+  - type: textarea
+    id: page
+    attributes:
+      label: The page involved
+      description: Its framework and bundler, and whether iframes, workers or SRI are involved. A public URL, or a minimal page that reproduces it, is ideal.
+  - type: input
+    id: version
+    attributes:
+      label: Console Editor version
+      description: "**Help › About**, or **Console Editor › About Console Editor** on macOS."
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: dropdown
+    id: installed-from
+    attributes:
+      label: Installed from
+      options:
+        - macOS disk image
+        - Windows installer
+        - .deb
+        - .rpm
+        - AppImage
+        - .tar.gz
+        - Run from source
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 15.5 (Apple silicon), Windows 11, Ubuntu 24.04…
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Errors
+      description: Anything logged in **View › Editor DevTools** (Ctrl/⌘ + Alt + I), or in **View › Page DevTools** (Ctrl/⌘ + Shift + J) if something failed in the page.
+      render: text

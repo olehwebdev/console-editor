@@ -269,7 +269,7 @@ When running as root on Linux (containers, CI), Electron needs its sandbox off: 
 
 ## Contributing
 
-Issues and pull requests are welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** explains how to set up, test and what a good PR looks like.
+Issues and pull requests are welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** explains how to set up, test and what a good PR looks like. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Found a security problem? Report it privately, as [SECURITY.md](SECURITY.md) explains, not in an issue.
 
 ## License
 
