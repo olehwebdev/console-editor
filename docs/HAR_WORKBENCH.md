@@ -2,7 +2,7 @@
 
 **Question.** A HAR file is how a bug report carries its network: a teammate, a customer or a CI run records what the page asked for and got. Today the app can write its Network panel as a HAR and turn a HAR's API responses into overrides, but it can't show you a HAR, tell you what's secret in it before you send it, or tell you what differs between two of them. Can it open, clean, compare and replay HAR files, including the big ones real sessions produce, and which tools should it build on?
 
-**Status.** Research (this document). Nothing here is built yet; §9 splits it into phases.
+**Status.** Researched, with the decisions made (§11). Nothing here is built yet; §9 splits it into phases.
 
 **Short answer.** Yes, with the parts the app already has. A HAR opens as an editor tab that reuses the Network panel's list and details, because a HAR entry carries the same request and response the live log shows. The file is indexed once, in a worker, by the byte range of each entry, so size stops mattering: the probe below indexed a 700 MB HAR in 10 s using about 170 MB of memory, where reading it whole fails at V8's 512 MB string limit. Bodies are then read from disk only when shown. Comparing two sessions lines up their requests in order (a sequence diff over method, URL and GraphQL operation) and diffs each pair's status, headers and body, with the noise (dates, trace ids, cache busters) ignored by rule. Cleaning redacts cookies, tokens and keys in place, keeping the JSON's shape so a cleaned HAR still replays and compares. Replay already works through overrides, and Playwright's `routeFromHAR` already accepts the app's exports.
 
@@ -186,10 +186,12 @@ The request list and details move from `widgets/network-panel` to a shared place
 - Compare lines up by request identity: a request whose URL carries a fresh id every time (`/orders/8421`) pairs only if its path segment is ignored or generalized (a later rule: `/orders/:id`).
 - Redaction finds what its rules describe; a secret under an unusual name or in an unusual format survives unless a rule is added. The findings list is there to be read before sending.
 
-## 11. Decisions to make
+## 11. Decisions
 
-1. **Tab or panel?** This proposal opens HARs as editor tabs (room, several at once, restored on restart). The alternative is a source switch in the Network panel (Live | file.har): less new UI, but the bottom pane is short and holds one source at a time.
-2. **Export clean by default?** Proposed yes, with an opt-in for cookies and tokens per export.
-3. **Where replayed answers come from when a request isn't in the HAR:** the network (proposed, Playwright's `notFound: 'fallback'`), or an error (Playwright's default, `'abort'`: it proves a page needs nothing else).
-4. **Redacted headers:** keep the name with a placeholder (proposed, so replay and compare still see them), or remove them as Chrome does.
-5. **Which phase first?** Proposed order: open and browse, then clean, compare, replay; clean could come first if sharing HARs safely matters most.
+Made on 2026-09-25, as recommended:
+
+1. **HARs open as editor tabs**, not as a source switch in the Network panel: room for the list and its details, several at once, restored on restart.
+2. **Export is clean by default**; cookies and tokens go in only when turned on for that export.
+3. **While replaying, a request the HAR doesn't hold goes to the network** (Playwright's `notFound: 'fallback'`).
+4. **Redacted headers keep their names**, with a placeholder value, so replay and compare still see them.
+5. **Phases in §9's order:** open and browse, clean and export, compare, replay.
