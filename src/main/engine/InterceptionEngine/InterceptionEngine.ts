@@ -6,8 +6,10 @@ import {
   buildOverrideHeaders,
   buildRewrittenHeaders,
   decodeBody,
+  headerEntries,
   headerValue,
   isRedirect,
+  sourceMapHeader,
   SRI_GUARD_SOURCE,
   stripIntegrityAttributes,
   stripSourceMapComments,
@@ -71,6 +73,11 @@ export class InterceptionEngine {
    * `Network.getResponseBody`, only ever saw the rewritten HTML.
    */
   private readonly rewritten = new Map<string, string>();
+  /**
+   * Network requestId -> the source map header of the upstream response of a file we served from an
+   * override, until its response is tracked: the page's copy has it stripped.
+   */
+  private readonly upstreamSourceMaps = new Map<string, string>();
   private readonly disposers: Array<() => void> = [];
   private mainFrameId: string | undefined;
   /** Parent frame of an iframe session's root frame (it lives in the parent's session). */
@@ -245,7 +252,12 @@ export class InterceptionEngine {
     for (const attempt of attempts) {
       try {
         const content = await attempt();
-        return { url, content, hash: tracked?.upstreamHash ?? sha256(content) };
+        return {
+          url,
+          content,
+          hash: tracked?.upstreamHash ?? sha256(content),
+          ...(tracked?.sourceMap ? { sourceMap: tracked.sourceMap } : {}),
+        };
       } catch (err) {
         lastError = err;
       }
@@ -357,6 +369,8 @@ export class InterceptionEngine {
     }
 
     if (p.networkId) this.servedBy.set(p.networkId, override.id);
+    const upstreamMap = sourceMapHeader(p.responseHeaders);
+    if (p.networkId && upstreamMap) this.upstreamSourceMaps.set(p.networkId, upstreamMap);
     // An override also answers requests whose upstream failed (404, 500, offline).
     await this.cdp.send(CDP.Fetch.fulfillRequest, {
       requestId: p.requestId,
@@ -428,6 +442,7 @@ export class InterceptionEngine {
     this.resources.clear();
     this.servedBy.clear();
     this.rewritten.clear();
+    this.upstreamSourceMaps.clear();
     this.missed.clear();
     // The old document's subframes are gone (Chromium doesn't always say so); the new ones attach after this.
     for (const id of [...this.frameUrls.keys()]) if (id !== this.mainFrameId) this.frameUrls.delete(id);
@@ -445,14 +460,16 @@ export class InterceptionEngine {
     loaderId?: string;
     type?: string;
     frameId?: string;
-    response: { url: string; status: number; mimeType: string };
+    response: { url: string; status: number; mimeType: string; headers?: Record<string, string> };
   }): void {
     const url = p.response.url;
     // Overrides also answer fetch()/XHR requests: forget those too, not only listed kinds.
     const overrideId = this.servedBy.get(p.requestId);
     const upstreamHash = this.rewritten.get(p.requestId);
+    const upstreamMap = this.upstreamSourceMaps.get(p.requestId);
     this.servedBy.delete(p.requestId);
     this.rewritten.delete(p.requestId);
+    this.upstreamSourceMaps.delete(p.requestId);
     if (!isKind(p.type) || UNLISTED_URL.test(url)) return;
     // While a navigation is pending, only its own document counts; it's listed when it commits.
     const heldForCommit = !!this.pending && p.loaderId === this.pending.loaderId;
@@ -472,7 +489,15 @@ export class InterceptionEngine {
       ...(frame ? { frame } : {}),
       ...(iframeId ? { iframeId } : {}),
     };
-    const tracked: TrackedResource = { entry, requestId: p.requestId, frameId: p.frameId, loaderId: p.loaderId, upstreamHash };
+    const sourceMap = upstreamMap ?? sourceMapHeader(headerEntries(p.response.headers));
+    const tracked: TrackedResource = {
+      entry,
+      requestId: p.requestId,
+      frameId: p.frameId,
+      loaderId: p.loaderId,
+      upstreamHash,
+      ...(sourceMap ? { sourceMap } : {}),
+    };
     if (heldForCommit) {
       this.pending!.held.push(tracked);
       return;

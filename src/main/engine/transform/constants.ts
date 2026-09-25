@@ -36,3 +36,9 @@ export const CONTENT_TYPE_HEADER = 'Content-Type';
 
 /** The charset of every body we serve, and of bodies whose charset is unknown or unsupported. */
 export const UTF8 = 'utf-8';
+
+/**
+ * Headers that name a response's source map, lower-case, in precedence order: `SourceMap`, then the
+ * deprecated `X-SourceMap`.
+ */
+export const SOURCE_MAP_HEADERS = ['sourcemap', 'x-sourcemap'] as const;

@@ -31,6 +31,11 @@ export interface TrackedResource {
   loaderId?: string;
   /** Hash of the raw upstream body when we rewrote this response (SRI stripped). */
   upstreamHash?: string;
+  /**
+   * The source map the upstream response named in its headers. For a file served from an override,
+   * taken before the override replaced its headers (the page's copy may have none).
+   */
+  sourceMap?: string;
 }
 
 /** Subset of `Fetch.requestPaused` params that we use. */
