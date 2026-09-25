@@ -37,6 +37,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && vitest run -c vitest.e2e.config.mts",
+    "test:perf": "electron-vite build && vitest run -c vitest.perf.config.mts",
     "dist": "electron-vite build && electron-builder --publish never",
     "test:packaged": "node --no-warnings test/smoke/packaged.ts",
     "test:update": "node --no-warnings test/smoke/update.ts",

@@ -1,4 +1,4 @@
-import { MAX_VUE2_SCAN } from './constants';
+import { MAX_VUE2_SCAN, STATE_DEPTH } from './constants';
 
 /**
  * Page-side, in the store stand-in (`STORE_HOOK_JS`): Pinia's and Vuex's stores,
@@ -6,23 +6,47 @@ import { MAX_VUE2_SCAN } from './constants';
  * properties hold `$pinia` and `$store` (production builds too), a Vue 2 root
  * instance its own. A Pinia store's actions are heard through `$onAction` (the
  * state written out before, and again once the action returns or its promise
- * settles); changes outside an action through a synchronous `$subscribe`. A
- * store created later is caught by a Pinia plugin. Vuex's mutations are heard
- * through `subscribe`, after they ran. Each listener does nothing while nothing
- * records; the states kept are written out again when recording starts.
+ * settles); changes outside an action through a synchronous `$subscribe`, which
+ * is a deep watcher (Vue walks the state on every change): it is on only while
+ * recording (`detach` takes it off), and only `STATE_DEPTH` levels deep, what the
+ * diff shows. A store created later is caught by a Pinia plugin. Vuex's
+ * mutations are heard through `subscribe`, after they ran. The other listeners
+ * do nothing while nothing records; the states kept are written out again when
+ * recording starts.
  */
 export const VUE_STORES_JS = String.raw`
   const attached = new WeakSet();
   const refreshers = [];
+  const detachers = [];
   const hookPinia = (store) => {
     if (!store || typeof store.$onAction !== 'function' || attached.has(store)) return;
     attached.add(store);
     const name = String(store.$id);
     let snapshot = snap(store.$state);
     let running = 0;
+    let unwatch = null;
+    const stopWatching = () => {
+      if (unwatch) unwatch();
+      unwatch = null;
+    };
+    const onDirect = (mutation) => {
+      if (!recording()) return stopWatching();
+      if (running) return;
+      const next = snap(store.$state);
+      const changes = diffSnaps(snapshot, next);
+      snapshot = next;
+      const payload = mutation.type === 'patch object' ? preview(mutation.payload) : null;
+      if (changes.length) record({ store: name, library: 'pinia', type: String(mutation.type), payload, changes, duration: null, stack: stackOf() });
+    };
+    const watchDirect = () => {
+      if (!unwatch) unwatch = store.$subscribe(onDirect, { detached: true, flush: 'sync', deep: ${STATE_DEPTH} });
+    };
     refreshers.push(() => {
       snapshot = snap(store.$state);
+      watchDirect();
     });
+    detachers.push(stopWatching);
+    watchDirect();
     store.$onAction(({ name: type, args, after, onError }) => {
       if (!recording()) return;
       const stack = stackOf();
@@ -39,17 +63,6 @@ export const VUE_STORES_JS = String.raw`
       after(done);
       onError(done);
     }, true);
-    store.$subscribe(
-      (mutation) => {
-        if (!recording() || running) return;
-        const next = snap(store.$state);
-        const changes = diffSnaps(snapshot, next);
-        snapshot = next;
-        const payload = mutation.type === 'patch object' ? preview(mutation.payload) : null;
-        if (changes.length) record({ store: name, library: 'pinia', type: String(mutation.type), payload, changes, duration: null, stack: stackOf() });
-      },
-      { detached: true, flush: 'sync' },
-    );
   };
   const attachPinia = (pinia) => {
     if (!pinia || typeof pinia.use !== 'function') return;
@@ -76,6 +89,7 @@ export const VUE_STORES_JS = String.raw`
       snapshot = next;
     });
   };
+  const detach = () => detachers.forEach((stop) => stop());
   const attach = () => {
     try {
       refreshers.forEach((refresh) => refresh());

@@ -1,3 +1,5 @@
+import type { LogRowKind } from './types';
+
 /** Commits the log draws, the newest; older ones stay kept until cleared. */
 export const MAX_SHOWN = 200;
 /** Digits a commit's render time is shown with (ms). */
@@ -14,3 +16,7 @@ export const RENDERS_VIEWS = [
 export type RendersView = (typeof RENDERS_VIEWS)[number]['id'];
 /** The By component view's columns: component, renders, mounts, skipped, time, why, code. */
 export const PROFILE_GRID = 'grid grid-cols-[minmax(120px,1.2fr)_56px_56px_56px_72px_minmax(0,1fr)_auto] items-center gap-x-3';
+/** How tall each row of the Renders log is (px): a commit's heading, one of its components, the count of those not listed. */
+export const LOG_ROW_HEIGHT: Record<LogRowKind, number> = { heading: 32, component: 24, more: 22 };
+/** Rows drawn beyond those in view, so scrolling doesn't show gaps. */
+export const LOG_OVERSCAN = 10;

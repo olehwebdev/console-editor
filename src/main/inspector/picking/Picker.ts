@@ -4,6 +4,7 @@ import { CDP } from '../../engine/constants';
 import { HIGHLIGHT_CONFIG, HOVER_INTERVAL_MS, INSPECT_MODE } from '../constants';
 import type { PickerOptions } from '../types';
 import { enterInspectMode } from './enterInspectMode';
+import { hideHighlights } from './hideHighlights';
 import { readHover } from './readHover';
 
 /**
@@ -11,6 +12,7 @@ import { readHover } from './readHover';
  * go into any frame, cross-site ones included. While it moves, what is under it
  * is read at most every `HOVER_INTERVAL_MS` (the latest node wins); a click ends
  * picking everywhere and hands the node over. Esc in the page cancels it too.
+ * Ending it turns the Overlay domain off, which taxes the page's layouts.
  */
 export class Picker {
   private picking = false;
@@ -54,6 +56,7 @@ export class Picker {
     this.opts.send({ type: 'inspect-hover', hover: null });
     const off = { mode: INSPECT_MODE.off, highlightConfig: HIGHLIGHT_CONFIG };
     await Promise.all(this.opts.sessions.all().map(([, session]) => session.transport.send(CDP.Overlay.setInspectMode, off).catch(() => undefined)));
+    await hideHighlights(this.opts.sessions, false);
   }
 
   private async chosen(id: SessionKey, backendNodeId: number): Promise<void> {

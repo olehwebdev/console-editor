@@ -35,6 +35,7 @@ export const CDP = {
   },
   Overlay: {
     enable: 'Overlay.enable',
+    disable: 'Overlay.disable',
     hideHighlight: 'Overlay.hideHighlight',
     highlightNode: 'Overlay.highlightNode',
     setInspectMode: 'Overlay.setInspectMode',

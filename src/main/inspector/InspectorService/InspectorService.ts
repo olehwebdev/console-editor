@@ -34,7 +34,7 @@ export class InspectorService implements SessionObserver {
     const sessions: InspectedSessions = { get: (id) => this.sessions.get(id), all: () => [...this.sessions] };
     this.stacks = new StackTracker({ sessions, frames: opts.frames, send: opts.send });
     this.picker = new Picker({ sessions, send: opts.send, picked: (id, node) => void this.picked(id, node) });
-    this.reader = new ComponentReader(sessions);
+    this.reader = new ComponentReader(sessions, () => this.picker.active);
     this.tree = new TreeReader(sessions, opts.frames, this.reader);
     this.renders = new RenderRecorder({ sessions, frames: opts.frames, send: opts.send });
     this.stores = new StoreRecorder({ sessions, frames: opts.frames, send: opts.send });

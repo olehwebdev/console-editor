@@ -29,10 +29,12 @@
     "electron.vite.config.ts",
     "electron-builder.ts",
     "vitest.config.mts",
-    "vitest.e2e.config.mts"
+    "vitest.e2e.config.mts",
+    "vitest.perf.config.mts"
   ],
   "exclude": [
     "test/renderer/**/*",
-    "test/fixtures/apps/**/*"
+    "test/fixtures/apps/**/*",
+    "test/perf/apps/**/*"
   ]
 }

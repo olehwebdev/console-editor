@@ -1,7 +1,7 @@
 import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
 import type { InspectorApi } from './inspector';
-import type { AppEvent } from './events';
+import type { WireEvent } from './events';
 import type { NetworkApi } from './networkApi';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
 import type { PageState, Rect } from './page';
@@ -131,5 +131,6 @@ export interface ConsoleEditorApi extends InspectorApi, NetworkApi {
   /** Opens an http(s) link in the default browser. */
   openExternal(url: string): Promise<void>;
 
-  onEvent(listener: (event: AppEvent) => void): () => void;
+  /** The main process's events; the large ones arrive as JSON (`decodeEvent`). */
+  onEvent(listener: (event: WireEvent) => void): () => void;
 }

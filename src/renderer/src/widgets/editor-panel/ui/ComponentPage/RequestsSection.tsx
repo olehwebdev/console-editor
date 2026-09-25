@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { InspectedComponent } from '@common/types';
 import { fileName, formatTime } from '@/shared/lib';
 import { locationKey, useInspectorStore } from '@/entities/inspector';
@@ -15,8 +16,9 @@ export function RequestsSection({ component }: { component: InspectedComponent }
   const file = useInspectorStore((s) => (location ? s.origins[locationKey(location)]?.url : undefined));
   const origins = useInspectorStore((s) => s.origins);
   const requests = useNetworkStore((s) => s.requests);
+  // Up to thousands of requests with their initiators' calls: matched once per change, not per render.
+  const sent = useMemo(() => (file ? requestsFrom(requests, file, component.frameId, origins) : []), [requests, file, component.frameId, origins]);
   if (!file) return null;
-  const sent = requestsFrom(requests, file, component.frameId, origins);
   return (
     <section className="flex flex-col gap-1.5" data-testid="component-requests">
       <h2 className="label-caps">Requests{sent.length ? ` · ${sent.length}` : ''}</h2>

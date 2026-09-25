@@ -64,6 +64,8 @@ export interface BindingRecordingOptions extends Omit<RecorderOptions, 'send'> {
   received(sessionId: SessionKey, transport: CdpTransport, contextId: number, payload: string): Promise<void>;
   /** Recording started, or went on after the console recorded again: what the documents already loaded need. */
   started?(): Promise<void>;
+  /** Recording stopped: what the documents loaded should let go of. */
+  stopped?(): Promise<void>;
 }
 
 export interface PickerOptions {

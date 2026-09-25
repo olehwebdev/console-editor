@@ -1,5 +1,6 @@
 import { app } from 'electron';
 import appIcon from '../../../build/icons/512x512.png?asset&asarUnpack';
+import { encodeEvent } from '../../shared/appEventWire';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent } from '../../shared/types';
 import { REPO_URL } from '../appInfo';
@@ -36,7 +37,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const win = createEditorWindow();
 
   const send = (event: AppEvent) => {
-    if (!win.isDestroyed()) win.webContents.send(IPC_CHANNEL.onEvent, event);
+    if (!win.isDestroyed()) win.webContents.send(IPC_CHANNEL.onEvent, encodeEvent(event));
     // The Actions panel's own window, if it has one, shows what its panel needs.
     actionsWindow.forward(event);
   };

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { ConsoleFrame, StoreAction } from '@common/types';
+import { memo, useState } from 'react';
+import type { StoreAction } from '@common/types';
 import { icons } from '@/shared/config';
 import { cn, formatTime } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
@@ -7,15 +7,17 @@ import { FrameChip, frameKey } from '@/entities/frame';
 import { appFrame, useInspectorStore } from '@/entities/inspector';
 import { CallStack, CodeLink } from '@/features/open-resource';
 import { DURATION_DIGITS, LIBRARY_LABEL } from './constants';
+import type { ResolveFrame } from './types';
 
 /**
  * One store action: its number, time, frame, store, type and payload, and how long the store took, with a
- * link to the app's own call that dispatched it; then what it changed. The whole stack on request.
+ * link to the app's own call that dispatched it; then what it changed. The whole stack on request. It
+ * re-renders when the call it links to changes as its stack's originals become known, not for others'.
  */
-export function ActionRow({ action, frame, label }: { action: StoreAction; frame: ConsoleFrame | undefined; label: string | undefined }) {
+export const ActionRow = memo(function ActionRow({ action, resolve }: { action: StoreAction; resolve: ResolveFrame }) {
   const [stackOpen, setStackOpen] = useState(false);
-  const origins = useInspectorStore((s) => s.origins);
-  const dispatchedAt = appFrame(action.stack, origins);
+  const dispatchedAt = useInspectorStore((s) => appFrame(action.stack, s.origins));
+  const { frame, label } = resolve(action.frameId);
   return (
     <div className="flex flex-col border-b border-line py-1.5" data-testid="store-action">
       <div className="flex h-6 min-w-0 items-center gap-2 px-3 text-[12px]">
@@ -53,4 +55,4 @@ export function ActionRow({ action, frame, label }: { action: StoreAction; frame
       {stackOpen ? <CallStack stack={action.stack} className="ml-9 mr-3 mt-1" /> : null}
     </div>
   );
-}
+});

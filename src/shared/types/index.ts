@@ -10,7 +10,7 @@ export { BREAKPOINT_STAGES, FAIL_REASONS } from './breakpoints';
 export type { ConsoleEditorApi } from './api';
 export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, ConsoleProperty, ConsoleSource, ConsoleValue, ConsoleValueKind } from './console';
 export { CONSOLE_LEVELS } from './console';
-export type { AppEvent, EngineEvent } from './events';
+export type { AppEvent, EngineEvent, WireEvent } from './events';
 export type {
   ActionTrigger,
   CodeLocation,

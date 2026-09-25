@@ -7,6 +7,7 @@ export {
   goToOriginal,
   jumpToMappedCode,
   locateComponent,
+  locateFrameRequests,
   forgetMapFile,
   loadMapFile,
   locateLocations,

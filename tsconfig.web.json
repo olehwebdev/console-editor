@@ -36,6 +36,7 @@
     "test/renderer/**/*",
     "test/fixtures/sourceMaps.ts",
     "test/fixtures/esbuildApp.ts",
-    "test/fixtures/apps/**/*"
+    "test/fixtures/apps/**/*",
+    "test/perf/apps/**/*"
   ]
 }

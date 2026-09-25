@@ -15,14 +15,18 @@ export const useInspectorStore = create<InspectorStore>()((set, get) => ({
   setPicking: (picking) => set(picking ? { picking } : { picking, hover: null }),
   setHover: (hover) => set({ hover }),
   setComponent: (component) => set({ component }),
-  setOrigin: (key, place) => set((s) => ({ origins: { ...s.origins, [key]: place } })),
+  setOrigins: (entries) =>
+    set((s) => {
+      const changed = entries.filter(([key, place]) => s.origins[key] !== place);
+      return changed.length ? { origins: { ...s.origins, ...Object.fromEntries(changed) } } : s;
+    }),
   setHookNames: (key, names) => set((s) => ({ hookNames: { ...s.hookNames, [key]: names } })),
   setLastEdit: (lastEdit) => set({ lastEdit }),
   forgetBundle: (bundleUrl) => {
     const { origins, hookNames } = get();
-    const gone = Object.keys(origins).filter((key) => keyLocation(key)?.url === bundleUrl);
-    const keep = <T>(record: Record<string, T>) => Object.fromEntries(Object.entries(record).filter(([key]) => !gone.includes(key)));
+    const gone = new Set(Object.keys(origins).filter((key) => keyLocation(key)?.url === bundleUrl));
+    const keep = <T>(record: Record<string, T>) => Object.fromEntries(Object.entries(record).filter(([key]) => !gone.has(key)));
     set({ origins: keep(origins), hookNames: keep(hookNames) });
-    return gone.flatMap((key) => keyLocation(key) ?? []);
+    return [...gone].flatMap((key) => keyLocation(key) ?? []);
   },
 }));

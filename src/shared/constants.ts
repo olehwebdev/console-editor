@@ -20,6 +20,13 @@ export const ACTIONS_WINDOW_HASH = 'actions-window';
  */
 export const ACTIONS_WINDOW_EVENTS = ['actions-changed', 'actions-window', 'frames-changed', 'settings-changed', 'workspaces-changed'] as const satisfies readonly AppEvent['type'][];
 
+/**
+ * The events that can carry megabytes (a batch of commits of hundreds of components, of requests with their
+ * initiators): sent to a window as JSON. A string is copied as one block by IPC and by the preload's bridge, and
+ * parsed fast; an object graph is cloned value by value, twice, which blocks the window for as long again.
+ */
+export const JSON_EVENTS = ['renders-recorded', 'stores-recorded', 'network-requests'] as const satisfies readonly AppEvent['type'][];
+
 /** The longest name a workspace can be given. */
 export const MAX_WORKSPACE_NAME = 40;
 

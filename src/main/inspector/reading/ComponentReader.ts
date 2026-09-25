@@ -2,7 +2,9 @@ import type { InspectedComponent } from '../../../shared/types';
 import type { SessionKey } from '../../console/ConsoleFrames';
 import type { RemoteObject } from '../../console/types';
 import { CDP } from '../../engine/constants';
-import { HIGHLIGHT_CONFIG, LISTENERS_GROUP_SUFFIX, MAX_PICKS, NOT_SETTABLE, PICK_GONE, PICK_GROUP_PREFIX, READ_GROUP_PREFIX } from '../constants';
+import { LISTENERS_GROUP_SUFFIX, MAX_PICKS, NOT_SETTABLE, PICK_GONE, PICK_GROUP_PREFIX, READ_GROUP_PREFIX } from '../constants';
+import { hideHighlights } from '../picking/hideHighlights';
+import { showHighlight } from '../picking/showHighlight';
 import type { InspectedSessions, Pick } from '../types';
 import { angularRegistry } from './angularRegistry';
 import { frameOfNode } from './frameOfNode';
@@ -22,7 +24,11 @@ export class ComponentReader {
   private readonly picks = new Map<string, Pick>();
   private count = 0;
 
-  constructor(private readonly sessions: InspectedSessions) {}
+  /** `picking`: whether an element is being picked (the highlights' overlay stays on for it). */
+  constructor(
+    private readonly sessions: InspectedSessions,
+    private readonly picking: () => boolean,
+  ) {}
 
   /** A new pick's id and object group, for a handle made before it is kept (`pickObject`). */
   newPick(): { id: string; group: string } {
@@ -77,11 +83,8 @@ export class ComponentReader {
   async highlight(pickId: unknown): Promise<void> {
     const pick = typeof pickId === 'string' ? this.picks.get(pickId) : undefined;
     const session = pick && this.sessions.get(pick.sessionId);
-    if (pick && session) {
-      await session.transport.send(CDP.Overlay.highlightNode, { backendNodeId: pick.backendNodeId, highlightConfig: HIGHLIGHT_CONFIG }).catch(() => undefined);
-      return;
-    }
-    await Promise.all(this.sessions.all().map(([, s]) => s.transport.send(CDP.Overlay.hideHighlight).catch(() => undefined)));
+    if (pick && session) return showHighlight(session.transport, { backendNodeId: pick.backendNodeId }).catch(() => undefined);
+    await hideHighlights(this.sessions, this.picking());
   }
 
   /** A session went away: its picks' handles went with it. */

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { lastRendered, renderKey, treeRows, useRenderLog, useTreeStore } from '@/entities/inspector';
 import { INDENT_PX, MORE_START_PX } from './constants';
 import { TreeHeader } from './TreeHeader';
@@ -9,8 +10,10 @@ export function ComponentTree() {
   const { frames, frameId } = useTreeFrame();
   const levels = useTreeStore((s) => s.levels);
   const expanded = useTreeStore((s) => s.expanded);
-  const rows = treeRows(levels, expanded);
-  const fresh = lastRendered(useRenderLog((s) => s.commits), frameId);
+  const rows = useMemo(() => treeRows(levels, expanded), [levels, expanded]);
+  // The frame's last commit only: a batch of other frames' commits leaves the tree as it is.
+  const last = useRenderLog((s) => s.commits.findLast((commit) => commit.frameId === frameId));
+  const fresh = useMemo(() => lastRendered(last ? [last] : [], frameId), [last, frameId]);
   const top = levels[''];
   return (
     <section className="mt-4 flex flex-col gap-0.5 border-t border-line px-3 pt-3" data-testid="component-tree">

@@ -66,6 +66,10 @@ export const RENDERS_FLUSH_MS = 100;
 export const MAX_RENDERED = 200;
 export const MAX_COMMIT_BATCH = 200;
 export const MAX_CHANGES = 20;
+/** The most component functions a document's stand-in tells apart by id; those after it go unlocated. */
+export const MAX_TYPES = 10_000;
+/** Batches from the page waiting to be handled; past it, the page's newest are dropped rather than kept in memory. */
+export const MAX_QUEUED_BATCHES = 50;
 /** The largest batch taken from the page. */
 export const MAX_RENDERS_PAYLOAD = 4 * 1024 * 1024;
 export const RENDERS_GROUP_PREFIX = 'inspector-renders-';

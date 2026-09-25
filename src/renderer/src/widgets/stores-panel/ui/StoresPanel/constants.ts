@@ -13,3 +13,9 @@ export const LIBRARY_LABEL: Record<StoreLibrary, string> = {
   pinia: 'Pinia store',
   vuex: 'Vuex store',
 };
+/** How tall an action's parts are before it is measured (px): its padding and border, its heading, each change. */
+export const ACTION_FRAME_HEIGHT = 13;
+export const ACTION_HEADING_HEIGHT = 24;
+export const CHANGE_ROW_HEIGHT = 20;
+/** Actions drawn beyond those in view, so scrolling doesn't show gaps. */
+export const LOG_OVERSCAN = 5;

@@ -86,3 +86,6 @@ export type AppEvent =
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };
+
+/** An event as it crosses to a window: itself, or its JSON when it is one of `JSON_EVENTS` (`encodeEvent`). */
+export type WireEvent = AppEvent | string;

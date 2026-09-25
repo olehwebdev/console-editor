@@ -40,7 +40,8 @@ export interface InspectorStore {
   setPicking(picking: boolean): void;
   setHover(hover: InspectHover | null): void;
   setComponent(component: InspectedComponent | null): void;
-  setOrigin(key: string, place: OriginalPlace | null): void;
+  /** Writes originals found, all at once (one update however many); those that change nothing are skipped. */
+  setOrigins(entries: ReadonlyArray<readonly [string, OriginalPlace | null]>): void;
   setHookNames(key: string, names: Array<string | null>): void;
   setLastEdit(edit: LastStateEdit | null): void;
   /** Forgets the originals and hook names of every place in a bundle (its map changed). Returns the places forgotten. */

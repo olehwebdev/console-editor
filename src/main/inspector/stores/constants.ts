@@ -4,8 +4,9 @@
  */
 export const STORES_BINDING = '__consoleEditorStores';
 /**
- * The stand-in's own global: `attach()` finds a frame's Vue apps and listens to their Pinia and Vuex stores;
- * `libraries()` says which libraries' stores it heard of (`redux`), for the page stack.
+ * The stand-in's own global: `attach()` finds a frame's Vue apps and listens to their Pinia and Vuex stores,
+ * `detach()` takes off what costs while nothing records (Pinia's deep watchers), and `libraries()` says
+ * which libraries' stores it heard of (`redux`), for the page stack.
  */
 export const STORE_HOOK_GLOBAL = '__consoleEditorStoreHook';
 /** The Redux DevTools extension's globals, which Redux Toolkit, NgRx's StoreDevtools and Zustand's devtools look for. */

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { IPC_CHANNEL } from '../shared/ipcChannels';
-import type { AppEvent, ConsoleEditorApi } from '../shared/types';
+import type { ConsoleEditorApi, WireEvent } from '../shared/types';
 
 /** The global the renderer reaches the API through (`window.consoleEditor`, declared in its shared/api). */
 const API_GLOBAL = 'consoleEditor';
@@ -101,7 +101,7 @@ const api: ConsoleEditorApi = {
   openExternal: (url) => ipcRenderer.invoke(IPC_CHANNEL.openExternal, url),
 
   onEvent(listener) {
-    const handler = (_event: IpcRendererEvent, payload: AppEvent) => listener(payload);
+    const handler = (_event: IpcRendererEvent, payload: WireEvent) => listener(payload);
     ipcRenderer.on(IPC_CHANNEL.onEvent, handler);
     return () => ipcRenderer.off(IPC_CHANNEL.onEvent, handler);
   },

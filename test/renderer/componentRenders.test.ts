@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentTreeLevel, InspectedComponent, RenderCommit, RenderedComponent } from '../../src/shared/types';
-import { hookName, lastRendered, locationKey, pathKey, profileComponents, reasonCounts, renderedWhy, renderKey, treeRows, triggerLabel, useInspectorStore, useRenderLog, useTreeStore } from '@/entities/inspector';
+import { hookName, lastRendered, locationKey, pathKey, profileComponents, reasonCounts, sortProfiles, renderedWhy, renderKey, treeRows, triggerLabel, useInspectorStore, useRenderLog, useTreeStore } from '@/entities/inspector';
 
 const api = vi.hoisted(() => ({ componentTree: vi.fn(), openTreeNode: vi.fn(), highlightTreeNode: vi.fn(), setComponentState: vi.fn(), recordRenders: vi.fn(), getSourceMap: vi.fn() }));
 const toast = vi.hoisted(() => vi.fn());
@@ -13,6 +13,9 @@ const { handleAppEvent } = await import('@/app/model/bridge');
 const { chooseFrame, openNode, revealInTree, toggleNode } = await import('@/features/inspect/tree');
 const { setStateValue } = await import('@/features/inspect/pick');
 const { stateAction } = await import('@common/stateAction');
+const { logLayout } = await import('@/widgets/renders-panel/ui/RendersPanel/logLayout');
+const { rowAt } = await import('@/widgets/renders-panel/ui/RendersPanel/rowAt');
+const { rowKind } = await import('@/widgets/renders-panel/ui/RendersPanel/rowKind');
 
 const APP_JS = 'https://site.test/app.js';
 const at = (column: number) => ({ url: APP_JS, line: 0, column });
@@ -176,12 +179,49 @@ describe('renders by component (entities/inspector)', () => {
       ]),
     ];
     expect(profileComponents(commits)).toEqual([
-      { key: locationKey(at(1)), name: 'Sd', location: at(1), mounts: 1, renders: 2, skips: 0, time: 4, reasons: { state: 2, props: 1 } },
+      { key: locationKey(at(1)), name: 'Sd', location: at(1), mounts: 1, renders: 2, skips: 0, time: 4, timed: 3, reasons: { state: 2, props: 1 } },
       // A tie keeps the order they were first seen in.
-      { key: locationKey(at(2)), name: 'Sd', location: at(2), mounts: 1, renders: 0, skips: 1, time: null, reasons: {} },
-      { key: 'name:Anon', name: 'Anon', location: null, mounts: 0, renders: 1, skips: 0, time: null, reasons: { parent: 1 } },
+      { key: locationKey(at(2)), name: 'Sd', location: at(2), mounts: 1, renders: 0, skips: 1, time: null, timed: 0, reasons: {} },
+      { key: 'name:Anon', name: 'Anon', location: null, mounts: 0, renders: 1, skips: 0, time: null, timed: 0, reasons: { parent: 1 } },
     ]);
     expect(reasonCounts({ props: 1, state: 2 })).toBe('state 2 · props 1');
     expect(reasonCounts({})).toBeNull();
+  });
+
+  it('keeps the profile as commits come and go, the same as summing the commits kept', () => {
+    useRenderLog.getState().clear();
+    const mixed = (id: number) =>
+      commit(id, [
+        rendered({ location: at(id % 7), kind: id % 3 ? 'render' : 'mount', duration: id % 2 ? 0.5 : null, reasons: [{ kind: 'props', changes: [] }] }),
+        rendered({ location: at(100 + (id % 5)), kind: 'skip' }),
+      ]);
+    for (let batch = 0; batch < 25; batch++) useRenderLog.getState().add(Array.from({ length: 100 }, (_, i) => mixed(batch * 100 + i + 1)));
+    const { commits, profiles } = useRenderLog.getState();
+    expect(commits).toHaveLength(2000);
+    // The same profiles (ties may keep an order first seen in commits since dropped), times summed in and out.
+    const byKey = (list: ReturnType<typeof sortProfiles>) => list.map((p) => ({ ...p, time: p.time === null ? null : Number(p.time.toFixed(6)) })).sort((a, b) => a.key.localeCompare(b.key));
+    expect(byKey(sortProfiles(profiles))).toEqual(byKey(profileComponents(commits)));
+    // A component no commit kept names any more leaves the profile.
+    useRenderLog.getState().add(Array.from({ length: 2000 }, (_, i) => commit(5000 + i, [rendered({ location: at(999) })])));
+    expect([...useRenderLog.getState().profiles.keys()]).toEqual([locationKey(at(999))]);
+    useRenderLog.getState().clear();
+    expect(useRenderLog.getState().profiles.size).toBe(0);
+  });
+
+  it("lays the Renders log out as rows: each commit's heading, its components, the count of the rest", () => {
+    const commits = [commit(3, [rendered(), rendered()]), { ...commit(2, [rendered()]), more: 4 }, commit(1, [])];
+    const layout = logLayout(commits);
+    expect(layout).toEqual({ starts: [0, 3, 6], count: 7 });
+    const rows = Array.from({ length: layout.count }, (_, row) => rowAt(layout, row));
+    expect(rows).toEqual([
+      { commit: 0, offset: 0 },
+      { commit: 0, offset: 1 },
+      { commit: 0, offset: 2 },
+      { commit: 1, offset: 0 },
+      { commit: 1, offset: 1 },
+      { commit: 1, offset: 2 },
+      { commit: 2, offset: 0 },
+    ]);
+    expect(rows.map(({ commit: index, offset }) => rowKind(commits[index]!, offset))).toEqual(['heading', 'component', 'component', 'heading', 'component', 'more', 'heading']);
   });
 });

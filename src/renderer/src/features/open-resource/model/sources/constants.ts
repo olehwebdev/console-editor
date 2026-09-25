@@ -8,3 +8,6 @@ export const VIEW_KEY_SEPARATOR = ':';
 export const UNCHANGED = Symbol('unchanged');
 /** Where V8 places functions: in scripts, whose maps are looked up for a picked component. */
 export const SCRIPT_KIND: SourceMapKind = 'Script';
+
+/** How long originals found are gathered before they are written, in one update (a frame). */
+export const ORIGIN_FLUSH_MS = 16;

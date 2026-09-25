@@ -10,8 +10,9 @@ import { toStoreActions } from './toStoreActions';
  * session has the binding (`STORES_BINDING`), which the store stand-in sums each
  * action up for and hands them to (`BindingRecording`); when recording starts,
  * every frame's document is asked to find its Vue apps' stores (a document
- * loaded later finds them itself). Each batch is checked, its frame told by the
- * context it came from, and it is sent on in order.
+ * loaded later finds them itself), and when it stops, to let go of what costs.
+ * Each batch is checked, its frame told by the context it came from, and it is
+ * sent on in order.
  */
 export class StoreRecorder {
   private nextId = 0;
@@ -26,6 +27,8 @@ export class StoreRecorder {
       announce: (recording) => opts.send({ type: 'stores-recording', recording }),
       received: async (id, _transport, contextId, payload) => this.received(id, contextId, payload),
       started: () => this.binding.inEveryFrame(`window.${STORE_HOOK_GLOBAL} && window.${STORE_HOOK_GLOBAL}.attach()`),
+      // Pinia's watchers cost on every change of a store: they go with the recording.
+      stopped: () => this.binding.inEveryFrame(`window.${STORE_HOOK_GLOBAL} && window.${STORE_HOOK_GLOBAL}.detach()`),
     });
   }
 

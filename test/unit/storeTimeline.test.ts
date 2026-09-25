@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
+import { MAX_QUEUED_BATCHES } from '../../src/main/inspector/constants';
 import { HOOKS_SOURCE } from '../../src/main/inspector/hooksSource';
 import { MAX_ACTION_BATCH, MAX_STACK_FRAMES, STORE_HOOK_GLOBAL, STORES_BINDING } from '../../src/main/inspector/stores/constants';
 import { toStoreActions } from '../../src/main/inspector/stores/toStoreActions';
@@ -89,7 +90,7 @@ describe('recording store actions (main)', () => {
     expect(() => new Function(HOOKS_SOURCE)).not.toThrow();
   });
 
-  it("puts the binding in every session while recording, asks each frame's document to find its Vue stores, and takes it out when it stops", async () => {
+  it("puts the binding in every session while recording, asks each frame's document to find its Vue stores, and takes both out when it stops", async () => {
     await attach('child');
     await services.inspector.recordStores(true);
     expect(cdp.sent('Runtime.addBinding').map((c) => [c.sessionId, c.params?.name])).toEqual([
@@ -107,7 +108,9 @@ describe('recording store actions (main)', () => {
       [undefined, STORES_BINDING],
       ['child', STORES_BINDING],
     ]);
-    expect(cdp.sent('Runtime.evaluate').at(-1)?.params).toMatchObject({ expression: `delete window.${STORES_BINDING}`, uniqueContextId: 'u-top-1' });
+    expect(cdp.sent('Runtime.evaluate').at(-2)?.params).toMatchObject({ expression: `delete window.${STORES_BINDING}`, uniqueContextId: 'u-top-1' });
+    // What costs while nothing records (Pinia's watchers) is let go of.
+    expect(cdp.sent('Runtime.evaluate').at(-1)?.params).toMatchObject({ expression: `window.${STORE_HOOK_GLOBAL} && window.${STORE_HOOK_GLOBAL}.detach()`, uniqueContextId: 'u-top-1' });
     expect(of('stores-recording').at(-1)).toEqual({ type: 'stores-recording', recording: false });
   });
 
@@ -123,6 +126,16 @@ describe('recording store actions (main)', () => {
     binding(JSON.stringify([pageAction()]));
     await new Promise((r) => setTimeout(r, 10));
     expect(recorded()).toHaveLength(2);
+  });
+
+  it('drops the newest batches while too many wait to be handled, rather than keeping them all', async () => {
+    await services.inspector.recordStores(true);
+    for (let i = 0; i < MAX_QUEUED_BATCHES + 10; i++) binding(JSON.stringify([pageAction({ type: `t${i}` })]));
+    await vi.waitFor(() => expect(recorded()).toHaveLength(MAX_QUEUED_BATCHES));
+    expect(recorded().at(-1)).toMatchObject({ type: `t${MAX_QUEUED_BATCHES - 1}` });
+    // Once handled, batches are taken again.
+    binding(JSON.stringify([pageAction({ type: 'later' })]));
+    await vi.waitFor(() => expect(recorded().at(-1)).toMatchObject({ type: 'later' }));
   });
 
   it('checks what the page says of its actions: known libraries only, labels, stacks in loaded files, caps', () => {

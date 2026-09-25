@@ -1,7 +1,8 @@
 import type { ComponentTreeLevel, InspectedComponent } from '../../../shared/types';
 import { CDP } from '../../engine/constants';
-import { ADAPTER_MODE, FRAME_GONE, HIGHLIGHT_CONFIG, NO_ELEMENT, TREE_GROUP_PREFIX } from '../constants';
+import { ADAPTER_MODE, FRAME_GONE, NO_ELEMENT, TREE_GROUP_PREFIX } from '../constants';
 import type { FrameTargets, InspectedSessions } from '../types';
+import { showHighlight } from '../picking/showHighlight';
 import type { ComponentReader } from './ComponentReader';
 import { locateTreeNode } from './locateTreeNode';
 import { readAnswer } from './readAnswer';
@@ -54,7 +55,7 @@ export class TreeReader {
     const { transport, uniqueId, at } = this.find(frameId, path);
     const group = `${TREE_GROUP_PREFIX}${++this.count}`;
     const located = await locateTreeNode(transport, uniqueId, at.path, group).catch(() => null);
-    if (located) await transport.send(CDP.Overlay.highlightNode, { objectId: located.objectId, highlightConfig: HIGHLIGHT_CONFIG }).catch(() => undefined);
+    if (located) await showHighlight(transport, { objectId: located.objectId }).catch(() => undefined);
     transport.send(CDP.Runtime.releaseObjectGroup, { objectGroup: group }).catch(() => undefined);
   }
 

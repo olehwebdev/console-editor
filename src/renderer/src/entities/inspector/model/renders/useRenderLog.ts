@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { profileCommits } from '../../lib/profile';
 import { MAX_COMMITS } from './constants';
 import type { RenderLogStore } from './types';
 
@@ -6,8 +7,14 @@ import type { RenderLogStore } from './types';
 export const useRenderLog = create<RenderLogStore>()((set) => ({
   recording: false,
   commits: [],
+  profiles: new Map(),
 
   setRecording: (recording) => set({ recording }),
-  add: (commits) => set((s) => ({ commits: [...s.commits, ...commits].slice(-MAX_COMMITS) })),
-  clear: () => set({ commits: [] }),
+  add: (commits) =>
+    set((s) => {
+      const all = [...s.commits, ...commits];
+      const dropped = all.slice(0, Math.max(0, all.length - MAX_COMMITS));
+      return { commits: all.slice(dropped.length), profiles: profileCommits(s.profiles, commits, dropped) };
+    }),
+  clear: () => set({ commits: [], profiles: new Map() }),
 }));

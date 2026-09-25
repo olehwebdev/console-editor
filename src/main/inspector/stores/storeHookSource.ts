@@ -52,7 +52,7 @@ export const STORE_HOOK_JS = `
   ${STORE_STATE_JS}
   ${REDUX_STAND_IN_JS}
   ${VUE_STORES_JS}
-  Object.defineProperty(window, '${STORE_HOOK_GLOBAL}', { configurable: true, value: Object.freeze({ attach, libraries: () => [...libraries] }) });
+  Object.defineProperty(window, '${STORE_HOOK_GLOBAL}', { configurable: true, value: Object.freeze({ attach, detach, libraries: () => [...libraries] }) });
   // Most apps have mounted by the time the document loads; a later one, a moment after.
   listen('load', () => {
     if (recording()) attach();

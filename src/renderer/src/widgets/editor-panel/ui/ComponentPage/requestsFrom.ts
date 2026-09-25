@@ -8,8 +8,9 @@ import { locationKey, type OriginalPlace } from '@/entities/inspector';
 export function requestsFrom(requests: readonly NetworkRequest[], file: string, frameId: string | null, origins: Record<string, OriginalPlace | null>): Array<{ request: NetworkRequest; call: StackFrame }> {
   return requests
     .flatMap((request) => {
+      if (frameId !== null && request.frameId !== frameId) return [];
       const call = request.initiator?.find((frame) => origins[locationKey(frame)]?.url === file);
-      return call && (frameId === null || request.frameId === frameId) ? [{ request, call }] : [];
+      return call ? [{ request, call }] : [];
     })
     .reverse();
 }

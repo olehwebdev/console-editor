@@ -1,4 +1,5 @@
-import { MAX_CHANGES, MAX_COMMIT_BATCH, MAX_RENDERED, RENDERS_BINDING, RENDERS_FLUSH_MS } from './constants';
+import { MAX_COMMIT_BATCH, MAX_RENDERED, MAX_TYPES, RENDERS_BINDING, RENDERS_FLUSH_MS } from './constants';
+import { RENDER_REASONS_JS } from './renderReasonsSource';
 import { ACTION_TRIGGER_MS } from './stores/constants';
 
 /**
@@ -9,7 +10,9 @@ import { ACTION_TRIGGER_MS } from './stores/constants';
  * a store's snapshot, a context's value, else its parent), or skipped although
  * its parent rendered (memo, or the same props). A subtree whose children are
  * the same fibers as before took no part and isn't walked. Summaries are handed
- * over every `RENDERS_FLUSH_MS`; component functions go by id (`RENDERED_TYPES`).
+ * over every `RENDERS_FLUSH_MS`; component functions go by id (`RENDERED_TYPES`), the first `MAX_TYPES`
+ * (a page making a new one each render goes on unlocated). The tree is walked without recursion, so a deep
+ * one can't run out of stack, and why a component rendered is worked out only for those listed.
  * A store action just before (`lastAction`, from the store stand-in) is named once.
  * Probed on React 19, production and development builds.
  */
@@ -34,60 +37,13 @@ export const RENDER_SUMMARY_JS = `
   const isComponent = (f) => f.tag !== MEMO_TAG && renderFunction(f.type) !== null;
   const typeId = (type) => {
     const fn = renderFunction(type);
-    if (!typeIds.has(fn)) typeIds.set(fn, typeList.push(fn) - 1);
+    if (!typeIds.has(fn)) {
+      if (typeList.length >= ${MAX_TYPES}) return -1;
+      typeIds.set(fn, typeList.push(fn) - 1);
+    }
     return typeIds.get(fn);
   };
-  const short = (v) => {
-    if (v === null) return 'null';
-    const t = typeof v;
-    if (t === 'string') return JSON.stringify(v.length > 40 ? v.slice(0, 40) + '…' : v);
-    if (t === 'function') return 'ƒ ' + (v.name || '');
-    if (t !== 'object') return String(v);
-    if (Array.isArray(v)) return 'Array(' + v.length + ')';
-    if (v.$$typeof) return '<' + (typeof v.type === 'string' ? v.type : nameOf(v.type)) + '>';
-    const keys = Object.keys(v);
-    return '{' + keys.slice(0, 3).join(', ') + (keys.length > 3 ? ', …' : '') + '}';
-  };
-  const change = (name, from, to) => ({ name, from: short(from), to: short(to) });
-  const didWork = (f) => {
-    const prev = f.alternate;
-    if (!prev) return true;
-    if (isComponent(f) || f.tag === MEMO_TAG) return (f.flags & PERFORMED_WORK) !== 0;
-    return f.memoizedProps !== prev.memoizedProps || f.memoizedState !== prev.memoizedState;
-  };
-  const stateReasons = (f, prev) => {
-    if (f.tag === CLASS_TAG) {
-      const now = f.memoizedState || {};
-      const was = prev.memoizedState || {};
-      const changes = Object.keys(Object.assign({}, was, now)).filter((k) => now[k] !== was[k]).map((k) => change(k, was[k], now[k]));
-      return changes.length ? [{ kind: 'state', changes }] : [];
-    }
-    const state = [];
-    const store = [];
-    let index = 0;
-    for (let hook = f.memoizedState, old = prev.memoizedState; hook && old; hook = hook.next, old = old.next) {
-      index += 1;
-      const queue = hook.queue;
-      if (!queue || hook.memoizedState === old.memoizedState) continue;
-      if (typeof queue.getSnapshot === 'function') store.push(change(String(index), old.memoizedState, hook.memoizedState));
-      else if (typeof queue.dispatch === 'function') state.push(change(String(index), old.memoizedState, hook.memoizedState));
-    }
-    return [state.length && { kind: 'state', changes: state }, store.length && { kind: 'store', changes: store }].filter(Boolean);
-  };
-  const reasons = (f, prev, parentWorked) => {
-    const now = f.memoizedProps || {};
-    const was = prev.memoizedProps || {};
-    const props = [...new Set([...Object.keys(was), ...Object.keys(now)])].filter((k) => now[k] !== was[k]).map((k) => change(k, was[k], now[k]));
-    const read = new Map();
-    for (let d = prev.dependencies && prev.dependencies.firstContext; d; d = d.next) read.set(d.context, d.memoizedValue);
-    const contexts = [];
-    for (let d = f.dependencies && f.dependencies.firstContext; d; d = d.next) {
-      if (read.has(d.context) && read.get(d.context) !== d.memoizedValue) contexts.push(change(d.context.displayName || 'Context', read.get(d.context), d.memoizedValue));
-    }
-    const out = [props.length && { kind: 'props', changes: props }, ...stateReasons(f, prev), contexts.length && { kind: 'context', changes: contexts }].filter(Boolean);
-    out.forEach((reason) => (reason.changes = reason.changes.slice(0, ${MAX_CHANGES})));
-    return out.length ? out : [{ kind: parentWorked ? 'parent' : 'update', changes: [] }];
-  };
+  ${RENDER_REASONS_JS}
   const targetOf = (event) => {
     const target = event.target;
     if (target === window) return 'window';
@@ -109,18 +65,39 @@ export const RENDER_SUMMARY_JS = `
     let more = 0;
     const add = (f, kind, extra) =>
       components.length < ${MAX_RENDERED}
-        ? components.push(Object.assign({ name: nameOf(f.type), key: f.key == null ? null : String(f.key), type: typeId(f.type), kind, memo: false, reasons: [], duration: selfDuration(f, kind) }, extra))
+        ? components.push(Object.assign({ name: nameOf(f.type), key: f.key == null ? null : String(f.key), type: typeId(f.type), kind, memo: false, reasons: [], duration: selfDuration(f, kind) }, extra && extra()))
         : (more += 1);
+    // One fiber: listed if it took part; whether it did work, for its children.
     const visit = (f, parentWorked) => {
       const prev = f.alternate;
       const worked = didWork(f);
       if (!prev && isComponent(f)) add(f, 'mount');
-      else if (prev && isComponent(f) && worked) add(f, 'render', { reasons: reasons(f, prev, parentWorked) });
-      else if (prev && (isComponent(f) || f.tag === MEMO_TAG) && !worked && parentWorked) add(f, 'skip', { memo: f.tag === MEMO_TAG || f.tag === SIMPLE_MEMO_TAG });
-      if (prev && f.child === prev.child) return;
-      for (let child = f.child; child; child = child.sibling) visit(child, worked);
+      else if (prev && isComponent(f) && worked) add(f, 'render', () => ({ reasons: reasons(f, prev, parentWorked) }));
+      else if (prev && (isComponent(f) || f.tag === MEMO_TAG) && !worked && parentWorked) add(f, 'skip', () => ({ memo: f.tag === MEMO_TAG || f.tag === SIMPLE_MEMO_TAG }));
+      return worked;
     };
-    visit(root.current, false);
+    // Depth first, in order, with the fibers above kept on a stack of their own.
+    const top = root.current;
+    const parents = [];
+    const parentsWorked = [];
+    let f = top;
+    let parentWorked = false;
+    for (;;) {
+      const worked = visit(f, parentWorked);
+      if (f.child && !(f.alternate && f.child === f.alternate.child)) {
+        parents.push(f);
+        parentsWorked.push(parentWorked);
+        parentWorked = worked;
+        f = f.child;
+        continue;
+      }
+      while (!f.sibling && parents.length) {
+        f = parents.pop();
+        parentWorked = parentsWorked.pop();
+      }
+      if (f === top || !f.sibling) break;
+      f = f.sibling;
+    }
     return {
       at: performance.timeOrigin + performance.now(),
       duration: typeof root.current.actualDuration === 'number' ? root.current.actualDuration : null,

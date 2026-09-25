@@ -262,10 +262,22 @@ describe('component inspector (picking and reading)', () => {
     await services.inspector.startPicking();
     cdp.emit('Overlay.inspectNodeRequested', { backendNodeId: 5 });
     await vi.waitFor(() => expect(picked()).toBeDefined());
+    // Picking over, the Overlay domain goes off: while on, it taxes every layout of the page.
+    expect(cdp.sent('Overlay.disable', undefined)).toHaveLength(1);
     await services.inspector.highlightPick(picked()!.pickId);
+    const methods = () => cdp.calls.filter((c) => c.method === 'DOM.enable' || c.method.startsWith('Overlay.')).map((c) => c.method);
+    expect(methods().slice(-3)).toEqual(['DOM.enable', 'Overlay.enable', 'Overlay.highlightNode']);
     expect(cdp.sent('Overlay.highlightNode', undefined)[0]!.params).toMatchObject({ backendNodeId: 5 });
     await services.inspector.highlightPick(null);
+    expect(methods().slice(-2)).toEqual(['Overlay.hideHighlight', 'Overlay.disable']);
+  });
+
+  it('keeps the Overlay domain on when a highlight hides while picking', async () => {
+    await attach();
+    await services.inspector.startPicking();
+    await services.inspector.highlightPick(null);
     expect(cdp.sent('Overlay.hideHighlight', undefined)).toHaveLength(1);
+    expect(cdp.sent('Overlay.disable', undefined)).toHaveLength(0);
   });
 
   it('says so, and sends nothing picked, when the picked node cannot be read', async () => {
