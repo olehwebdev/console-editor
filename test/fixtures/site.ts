@@ -31,6 +31,8 @@ import {
   XSSI_JS,
   XSSI_JS_MAP,
 } from './sourceMaps.ts';
+import { EVENT_INTERVAL_MS, networkRoutes, SOCKET_PATH } from './networkPages.ts';
+import { attachSocketEcho } from './socketServer.ts';
 
 export { MAIN_JS, STYLE_CSS };
 
@@ -142,6 +144,8 @@ export interface FixtureRoute {
   status?: number;
   /** Answers a CORS preflight (OPTIONS) with 405 and no CORS headers, as many APIs do. */
   rejectPreflight?: boolean;
+  /** An event stream: an event every `EVENT_INTERVAL_MS` for as long as the client listens (the body is ignored). */
+  eventStream?: boolean;
 }
 
 // --- console fixtures --------------------------------------------------------
@@ -293,6 +297,13 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
       res.end('not found');
       return;
     }
+    if (entry.eventStream) {
+      res.writeHead(200, { 'Content-Type': entry.type, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
+      let n = 0;
+      const timer = setInterval(() => res.write(`data: tick ${n++}\n\n`), EVENT_INTERVAL_MS);
+      req.on('close', () => clearInterval(timer));
+      return;
+    }
     if (entry.rejectPreflight && req.method === 'OPTIONS') {
       res.writeHead(405, { 'Content-Type': 'text/plain', 'Content-Length': '0' });
       res.end();
@@ -317,6 +328,7 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
     res.end(payload);
   });
 
+  attachSocketEcho(server, SOCKET_PATH);
   await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
   const { port: actualPort } = server.address() as AddressInfo;
   const add = (path: string, type: string, body: string, headers?: Record<string, string>) => bodies.set(path, { type, body, headers });
@@ -388,6 +400,8 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   );
   // Blocking, header and CORS rules (test/integration/rules.chromium.test.ts, test/e2e): all under /headers/.
   for (const [path, route] of headersRoutes(actualPort)) bodies.set(path, route);
+  // The Network panel and response overrides (test/integration/network.chromium.test.ts, test/e2e): all under /network/.
+  for (const [path, route] of networkRoutes) bodies.set(path, route);
   return {
     url: `http://127.0.0.1:${actualPort}`,
     server,
@@ -403,6 +417,6 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 if (process.argv[1]?.endsWith('site.ts')) {
   const port = Number(process.env.PORT ?? 5174);
   void startFixtureSite(port).then((site) =>
-    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/services.html services in iframes that log and message each other\n  ${site.url}/workers/    dedicated, shared and service workers, and a worklet\n  ${site.url}/maps.html   source maps named every way there is`),
+    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/services.html services in iframes that log and message each other\n  ${site.url}/workers/    dedicated, shared and service workers, and a worklet\n  ${site.url}/maps.html   source maps named every way there is\n  ${site.url}/network/    a page that talks to a JSON API, GraphQL and an event stream`),
   );
 }

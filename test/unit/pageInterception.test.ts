@@ -392,17 +392,18 @@ describe('PageInterception', () => {
       cdp.emit('Target.attachedToTarget', worker('W1'));
       cdp.emit('Target.attachedToTarget', worker('WL', 'worklet'));
       // Nothing awaited yet: an installed service worker starting on a new session fetches right away.
-      expect(cdp.of('SW')).toEqual(['Fetch.enable', 'Network.enable', 'Network.setCacheDisabled', 'Inspector.enable', 'Runtime.runIfWaitingForDebugger']);
+      expect(cdp.of('SW')).toEqual(['Fetch.enable', 'Network.enable', 'Network.setCacheDisabled', 'Network.emulateNetworkConditions', 'Inspector.enable', 'Runtime.runIfWaitingForDebugger']);
       expect(cdp.of('SH')).toEqual([
         'Fetch.enable',
         'Network.enable',
         'Network.setCacheDisabled',
         'Network.setBypassServiceWorker',
+        'Network.emulateNetworkConditions',
         'Inspector.enable',
         'Runtime.runIfWaitingForDebugger',
       ]);
       // Its nested workers attach through its session, before it runs.
-      expect(cdp.of('W1')).toEqual(['Network.enable', 'Network.setCacheDisabled', 'Network.setBypassServiceWorker', 'Target.setAutoAttach', 'Runtime.runIfWaitingForDebugger']);
+      expect(cdp.of('W1')).toEqual(['Network.enable', 'Network.setCacheDisabled', 'Network.setBypassServiceWorker', 'Network.emulateNetworkConditions', 'Target.setAutoAttach', 'Runtime.runIfWaitingForDebugger']);
       expect(cdp.of('WL')).toEqual(['Network.enable', 'Runtime.runIfWaitingForDebugger']);
       await flush();
       expect(pi.targets()).toEqual([

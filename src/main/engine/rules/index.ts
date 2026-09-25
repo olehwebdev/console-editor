@@ -5,6 +5,7 @@ export { findBlockRule } from './findBlockRule';
 export { findResponseRules } from './findResponseRules';
 export { isPreflight } from './isPreflight';
 export { pausedRequestOf } from './pausedRequestOf';
+export { preflightMethod } from './preflightMethod';
 export { ruleMatches } from './ruleMatches';
 export { ruleTypeOf } from './ruleTypeOf';
 export { sameHead } from './sameHead';

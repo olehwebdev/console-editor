@@ -1,4 +1,5 @@
 import { SHORTCUT } from '@common/constants';
+import { RESPONSE_KIND } from '@common/overrides';
 import { icons } from '@/shared/config';
 import { hostOf, pathSegments } from '@/shared/lib';
 import { Badge } from '@/shared/ui/badge';
@@ -10,9 +11,12 @@ import { useOverrideStore } from '@/entities/override';
 import { KindIcon } from '@/entities/resource';
 import { isMappableKind, useSourceMapStore } from '@/entities/source-map';
 import { closeDiff, compareWithLive, showBaseDiff } from '@/features/compare-changes';
+import { ResponseRule } from '@/features/edit-response-rule';
+import { TreeViewToggle } from '@/features/network/response-tree';
 import { formatTab } from '@/features/format-document';
 import { bundleUrlOf, goToOriginal } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
+import { comparesWithLive } from '../../lib/comparesWithLive';
 import { Banners } from '../Banners';
 import { Breadcrumbs } from '../Breadcrumbs';
 import { MatchRule } from '../MatchRule';
@@ -33,6 +37,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
   // Offered on scripts and stylesheets until the file is known to have no map.
   const noMap = useSourceMapStore((s) => s.byBundle[bundleUrlOf(tab)]?.status === 'none');
   const mappable = isMappableKind(tab.kind) && !noMap;
+  const isResponse = tab.kind === RESPONSE_KIND;
 
   return (
     <div className="shrink-0 border-b border-line bg-surface-editor" data-testid="file-header">
@@ -44,7 +49,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
             {override.enabled ? 'Override live' : 'Override off'}
           </Badge>
         ) : (
-          <Badge tone="neutral">Live file</Badge>
+          <Badge tone="neutral">{isResponse ? 'Live response' : 'Live file'}</Badge>
         )}
         <div className="ml-1 flex items-center gap-0.5">
           {mappable ? (
@@ -57,6 +62,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
             />
           ) : null}
           <IconButton icon={icons.PrettifyIcon} label="Pretty-print" shortcut={SHORTCUT.format} onClick={() => void formatTab(tab.id)} />
+          {isResponse ? <TreeViewToggle tabId={tab.id} /> : null}
           <IconButton
             icon={icons.DiffIcon}
             label={diff === 'base' ? 'Close diff' : 'Diff with where you started'}
@@ -64,7 +70,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
             active={diff === 'base'}
             onClick={() => (diff === 'base' ? closeDiff() : void showBaseDiff(tab.id))}
           />
-          {override ? (
+          {override && comparesWithLive(override) ? (
             <IconButton
               icon={icons.GlobeIcon}
               label={diff === 'live' ? 'Close compare' : 'Compare with the live file'}
@@ -81,12 +87,13 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
           leading={<Icon icon={saved ? icons.CheckIcon : icons.SaveIcon} size={14} />}
           onClick={() => void saveTab(tab.id)}
           data-testid="save-button"
-          title={override ? 'Save and reload (Ctrl/Cmd+S)' : 'Serve this file instead of the live one (Ctrl/Cmd+S)'}
+          title={override ? 'Save and reload (Ctrl/Cmd+S)' : `Serve this ${isResponse ? 'response' : 'file'} instead of the live one (Ctrl/Cmd+S)`}
         >
           <Swap value={saveState.key}>{saveState.label}</Swap>
         </Button>
       </div>
       {override ? <MatchRule key={override.id} override={override} /> : null}
+      {isResponse ? <ResponseRule key={tab.id} tab={tab} override={override} /> : null}
       <Banners override={override} tab={tab} />
     </div>
   );

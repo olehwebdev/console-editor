@@ -17,6 +17,8 @@ export interface PausedRequest {
   headers: Record<string, string>;
   /** URL of the frame that made the request, when this session knows it. */
   frameUrl?: string;
+  /** Its body, when it had one as text (for a response override's GraphQL operation). */
+  body?: string;
 }
 
 export interface RuleActionSpec {

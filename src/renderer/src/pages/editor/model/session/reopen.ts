@@ -1,8 +1,10 @@
+import { RESPONSE_KIND } from '@common/overrides';
 import type { SessionTab } from '@common/types';
 import { api } from '@/shared/api';
 import { createTabModel, getTabModel, replaceTabText, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
-import { openOverride, openResource } from '@/features/open-resource';
+import { openOverride, openResource, reopenLiveResponse } from '@/features/open-resource';
+import { pending } from './pending';
 import { sessionSync } from './sessionSync';
 
 export async function reopen(tab: SessionTab): Promise<void> {
@@ -15,7 +17,9 @@ export async function reopen(tab: SessionTab): Promise<void> {
     const { lite } = createTabModel(tab.id, tab.url, tab.kind, base, base);
     useTabStore
       .getState()
-      .add({ id: tab.id, url: tab.url, kind: tab.kind, originalHash: tab.originalHash, lite, dirty: false, saving: false }, false);
+      .add({ id: tab.id, url: tab.url, kind: tab.kind, originalHash: tab.originalHash, lite, dirty: false, saving: false, ...pending(tab) }, false);
+  } else if (tab.kind === RESPONSE_KIND) {
+    await reopenLiveResponse(tab);
   } else {
     await openResource(tab.url, { tabId: tab.id, activate: false });
   }

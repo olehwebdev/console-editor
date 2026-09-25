@@ -9,6 +9,7 @@ import { FILES_DIR, INDEX_FILE } from './constants';
 import { ContentFiles } from './ContentFiles';
 import { newOverride } from './newOverride';
 import { patchOverride } from './patchOverride';
+import { responseFieldsOf } from './responseFieldsOf';
 
 /**
  * Persists overrides on disk:
@@ -80,10 +81,11 @@ export class OverrideStore {
   async create(input: CreateOverrideInput): Promise<Override> {
     const match = input.match ?? defaultMatcherFor(input.sourceUrl);
     assertMatcher(match);
+    const fields = responseFieldsOf(input.kind, input.request, input.response);
     // The workspace active when it was asked for, even if another becomes active before it is written.
     const { workspaceId } = this;
     return this.committed.mutate(async (overrides) => {
-      const override = newOverride(input, match, workspaceId, overrides);
+      const override = { ...newOverride(input, match, workspaceId, overrides), ...fields };
       await this.files.write(override, 'content', override.content);
       if (input.base !== undefined && input.base !== input.content) await this.files.write(override, 'base', input.base);
       overrides.set(override.id, override);
@@ -92,8 +94,9 @@ export class OverrideStore {
   }
 
   async update(id: string, patch: OverridePatch): Promise<Override> {
-    this.get(id);
+    const { kind } = this.get(id);
     if (patch.match) assertMatcher(patch.match);
+    if (patch.request || patch.response) responseFieldsOf(kind, patch.request, patch.response, this.get(id));
     return this.committed.mutate(async (overrides) => {
       // Built from the latest committed state, so queued updates don't undo each other.
       const current = overrides.get(id);

@@ -1,6 +1,7 @@
 import { fileName } from '@/shared/lib';
 import { confirm } from '@/shared/ui/dialog';
 import { disposeTabModel, isPageDirty, useTabStore } from '@/entities/editor-tab';
+import { letHeldGo } from './letHeldGo';
 
 /** Closes a tab, an original or a page, asking first when it has unsaved edits (a rule page's unapplied ones). */
 export async function closeTab(tabId: string): Promise<void> {
@@ -27,6 +28,7 @@ export async function closeTab(tabId: string): Promise<void> {
   }
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) return;
+  if (tab.held) return letHeldGo({ ...tab, held: tab.held });
   if (tab.dirty) {
     const ok = await confirm({
       title: `Discard your edits to ${fileName(tab.url)}?`,

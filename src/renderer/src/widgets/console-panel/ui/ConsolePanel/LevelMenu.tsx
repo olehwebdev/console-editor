@@ -14,7 +14,7 @@ export function LevelMenu() {
   const levels = useConsoleFilter((s) => s.levels);
   return (
     <Menu label="Levels" align="end" items={CONSOLE_LEVELS.map((level) => ({ label: LEVEL_LABEL[level], checked: levels[level], onSelect: () => toggleLevel(level) }))}>
-      <Button variant="ghost" size="sm" trailing={<Icon icon={icons.ChevronDownIcon} size={12} />} className="shrink-0">
+      <Button variant="ghost" size="sm" trailing={<Icon icon={icons.ChevronDownIcon} size={12} />} className="min-w-0 shrink">
         <span className="truncate">{levelSummary(levels)}</span>
       </Button>
     </Menu>
