@@ -75,6 +75,7 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Block requests and change headers.** Right-click a file to block it (an analytics script, a slow third-party iframe) before it reaches the server, or to remove a page's Content-Security-Policy. Rules can also set or remove any response header, or let the page call an API on another origin, preflights and cookies included. Each rule shows how often it applied and to which URLs, and switches on and off like an override.
 - **Try UI states on real API data.** The **Network** tab beside the console lists the requests of the page, its iframes and its workers, the page's fetch and XHR calls first, with their headers, payload and response. **Override response** opens one as formatted JSON, with its keys suggested as you type: empty a list, lengthen a name, drop a field, save, and the page gets your version. Answer with another status (a 500, a 503), changed headers or a delay to see the loading state, and match a GraphQL call by its operation. Turn off **Send request** and the server never sees the call: a POST changes nothing.
 - **Pause a request and change it.** Breakpoints stop a fetch or XHR before it goes out or before the page gets its response: edit its URL, method, headers and body, or the answer, then send it on, send it as it was, fail it with a network error, or keep your version as an override. **Copy as fetch** gives any request as a `fetch()` call.
+- **Test UI states quickly.** **Patch live** applies your edit to each live response instead of freezing it; **Quick edits** empty every list, lengthen every text or null a value in one click; the network speed menu slows the page to 3G or takes it offline; WebSocket messages are listed as they come; and a HAR file (yours or a teammate's) exports your requests or imports its responses as overrides.
 - **One workspace per task.** Keep a workspace for each site or fix you're working on, each with its own page, tabs, unsaved edits, overrides and rules, and switch between them from the left rail. A tile shows the site's icon, or a letter on a colour you pick.
 - **Reads the original sources.** When the site publishes source maps, expand a bundle to see the TypeScript, JSX or SCSS it was built from, open any file read-only, and jump between a line of it and the bundle code it became (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>), pretty-printed, edited or overridden.
 - **Works across screens.** Move the website into a window of its own and put it on another monitor, next to the code; it keeps running as it was, and goes back into the editor with one click or by closing its window.
@@ -228,6 +229,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - Rules change only what the page sees: the browser's HTTP cache keeps the server's headers (**Settings › Disable HTTP cache**, on by default, skips it), cookies are stored before a rule runs, and a CSP set in a `<meta>` tag isn't a header (**Settings › Bypass Content-Security-Policy** covers it).
 - A response override with **Send request** on (the default for a GET) answers after the server has: the request is still sent, so a POST would still create what it creates, which is why overrides made from anything but a GET start with it off. An event stream an override matches is replaced as a whole, which ends it.
 - A paused request waits only as long as the page does: if the page gives up on it (a timeout, leaving the page), its tab closes with a note.
+- WebSocket messages are shown, not changed: Chromium reports them but can't hold or edit them. A HAR import makes overrides for fetch and XHR responses only, not for documents or scripts.
 - Chromium's local-network checks are off in the app's browser, so a patched localhost or intranet page can still reach its own servers. Browse only sites you're working on (see [SPEC §8](docs/SPEC.md#8-security)).
 
 ## Roadmap
@@ -251,6 +253,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Source-map explorer: open the original sources behind a bundle
 - [x] Network panel: the page's requests, and response overrides for fetch and XHR with a JSON editor
 - [x] Network breakpoints, and answering a request without sending it
+- [x] Patch mode, quick edits for UI states, network speed, WebSocket messages, HAR export and import
 
 ## Development
 

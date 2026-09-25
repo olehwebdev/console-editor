@@ -39,7 +39,7 @@ export function NetworkToolbar({ heading, shownIds, onClose }: NetworkToolbarPro
           aria-label="Filter requests"
           data-testid="network-filter"
           leading={<Icon icon={icons.FilterIcon} size={12} className="text-fg-subtle" />}
-          className="w-40 min-w-20 shrink"
+          className="w-40 min-w-10 shrink"
         />
         <ThrottlingMenu />
         <BreakpointsButton />

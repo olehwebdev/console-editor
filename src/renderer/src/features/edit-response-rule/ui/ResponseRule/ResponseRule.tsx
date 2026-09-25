@@ -71,7 +71,8 @@ export function ResponseRule({ tab, override }: { tab: TabMeta; override?: Overr
             onKeyDown={(e) => e.key === KEY.enter && apply()}
           />
         </div>
-        <div className="flex items-center gap-2">
+        {/* The answer's own controls wrap too: a narrow editor can't fit them all on a line. */}
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[12px] text-fg-subtle">Answer</span>
           <NumberField value={form.status} label="Status" invalid={invalid.status} onChange={(status) => change({ status })} onEnter={apply} className="w-14" testId="response-status" />
           <NumberField

@@ -208,6 +208,8 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
     it('lists a socket with its handshake, and keeps the messages it sends and gets, until it closes', async () => {
       await page.goto(url(NETWORK_PATH));
       expect(await state('openSocket()')).toBe(true);
+      // Sent once the greeting is in, so the messages come in a known order.
+      await waitFor(() => state('socketMessages.length === 1'));
       await state(`socket.send('ping'); socket.send(new Uint8Array([1, 2, 3]))`);
       await waitFor(() => state('socketMessages.length === 3'));
 
@@ -328,7 +330,8 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       expect(await state(`fetch('${CART_PATH}').then(() => 'ok', (e) => e.name)`)).toBe('TypeError');
       const before = rows().filter((r) => r.url === url(WORKER_DATA_PATH)).length;
       await state('askWorker()');
-      expect(await waitFor(() => rows().filter((r) => r.url === url(WORKER_DATA_PATH)).at(before))).toMatchObject({ state: 'failed' });
+      // Offline, the worker's own fetch fails too.
+      expect(await waitFor(() => rows().filter((r) => r.url === url(WORKER_DATA_PATH) && r.state !== 'pending').at(before))).toMatchObject({ state: 'failed' });
 
       settings = { ...settings, throttling: 'slow-4g' };
       await interception.applySettings();

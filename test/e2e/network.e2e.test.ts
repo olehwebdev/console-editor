@@ -3,14 +3,15 @@
  * response, edit the JSON, save it and see the page change; then answer with another status from the
  * response row, and find the override (with its method) in the Explorer. Then breakpoints: pause a
  * request like the selected one, edit its response and send it, save one as an override, and fail
- * one held before it is sent.
+ * one held before it is sent. Then phase 3: patch the live response, quick edits, throttling, a
+ * WebSocket's messages, and a HAR exported and imported back.
  */
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ElectronApplication, Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { CART_PATH, NETWORK_PATH } from '../fixtures/networkPages';
+import { BROKEN_PATH, CART_PATH, NETWORK_PATH } from '../fixtures/networkPages';
 import { startFixtureSite, type FixtureSite } from '../fixtures/site';
 import { built, evalInSite, goTo, launch } from '../helpers/electronApp';
 
@@ -35,6 +36,8 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
   const rows = () => win.getByTestId('network-row');
   const cartRow = () => rows().filter({ hasText: CART_PATH }).last();
   const settled = () => inSite('window.settled');
+  const overrideRow = (text: string) => win.locator('[data-override-id]').filter({ hasText: text });
+  const menuItem = (name: string | RegExp) => win.getByRole('menuitem', { name }).or(win.getByRole('menuitemcheckbox', { name }));
   const editorText = async () => (await win.locator('.monaco-editor .view-lines').textContent())?.replace(/\u00a0/g, ' ');
 
   /** Replaces the active editor's text. Pasted: typing would have the editor close each bracket as it opens. */
@@ -169,5 +172,81 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
     await win.keyboard.press('Escape');
     expect(await inSite(start('tryCart()'))).toBe(true);
     await expect.poll(settled).toMatchObject({ status: 200 });
+  });
+
+  it('patches the live response with the saved edits', async () => {
+    const cart = overrideRow('cart');
+    await cart.getByRole('switch').click();
+    await cart.getByTestId('override-method').click();
+    await expect.poll(() => win.getByTestId('response-status').inputValue()).toBe('503');
+    await win.getByTestId('response-status').fill('200');
+    await win.getByRole('switch', { name: 'Patch live' }).click();
+    await win.getByTestId('response-apply').click();
+    await expect.poll(() => cart.getByTestId('override-patch').count()).toBe(1);
+    // The live cart with the edit applied, written back compactly: not the saved text as typed.
+    await expect.poll(() => inSite(`fetch('${CART_PATH}').then((r) => r.text())`), RELOAD_TIMEOUT).toBe('{"items":[],"total":0}');
+  });
+
+  it('lengthens every text with a quick edit, and the page gets it once saved', async () => {
+    await overrideRow('GetUser').getByTestId('override-method').click();
+    await expect.poll(editorText).toBe(SAVED_USER);
+    await win.getByTestId('response-quick-edits').click();
+    await menuItem('Lengthen every text').click();
+    await expect.poll(editorText).toContain('"name": "Saved Lorem ipsum');
+    await win.getByTestId('save-button').click();
+    expect(await inSite(start("tryGql('GetUser').then((r) => JSON.parse(r.body).data.user.name)"))).toBe(true);
+    await expect.poll(settled, RELOAD_TIMEOUT).toMatch(/^Saved Lorem ipsum/);
+  });
+
+  it('takes the page offline from the network speed menu, and back', async () => {
+    const broken = start(`fetch('${BROKEN_PATH}').then((r) => ({ status: r.status }), (e) => ({ error: e.name }))`);
+    await win.getByTestId('network-throttling').click();
+    await menuItem('Offline').click();
+    await expect.poll(() => win.getByTestId('status-throttling').textContent()).toBe('Offline');
+    expect(await inSite(broken)).toBe(true);
+    await expect.poll(settled).toEqual({ error: 'TypeError' });
+
+    await win.getByTestId('network-throttling').click();
+    await menuItem('No throttling').click();
+    await expect.poll(() => win.getByTestId('status-throttling').count()).toBe(0);
+    expect(await inSite(broken)).toBe(true);
+    await expect.poll(settled).toEqual({ status: 500 });
+  });
+
+  it("lists a WebSocket and shows the messages it sent and got", async () => {
+    expect(await inSite('openSocket()')).toBe(true);
+    // Sent once the greeting is in, so the three come in a known order.
+    await expect.poll(() => inSite('socketMessages.length')).toBe(1);
+    expect(await inSite('socket.send("ping"), true')).toBe(true);
+    await win.locator('[data-testid="network-group"][data-group="ws"]').click();
+    await rows().filter({ hasText: '/network/socket' }).last().click();
+    await win.getByRole('tab', { name: 'Messages' }).click();
+    const messages = win.getByTestId('network-message');
+    await expect.poll(() => messages.count()).toBe(3);
+    expect(await messages.evaluateAll((els) => els.map((el) => el.getAttribute('data-direction')))).toEqual(['received', 'sent', 'received']);
+    expect(await messages.nth(2).textContent()).toContain('{"echo":"ping"}');
+    await win.locator('[data-testid="network-group"][data-group="fetch"]').click();
+  });
+
+  it('exports the requests shown as a HAR, and imports it back as overrides', async () => {
+    const harPath = join(userData, 'requests.har');
+    // Stand-ins for the native file dialogs, which Playwright can't drive.
+    await app.evaluate(({ dialog }, path) => {
+      dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as unknown as typeof dialog.showSaveDialog;
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as unknown as typeof dialog.showOpenDialog;
+    }, harPath);
+
+    await win.getByTestId('network-har').click();
+    await menuItem(/^Export these \d+ requests as HAR/).click();
+    await expect.poll(async () => JSON.parse(await readFile(harPath, 'utf8').catch(() => '{}')).log?.entries?.length ?? 0, RELOAD_TIMEOUT).toBeGreaterThan(0);
+    const har = JSON.parse(await readFile(harPath, 'utf8'));
+    expect(har.log.entries.some((e: { request: { url: string } }) => e.request.url.includes(CART_PATH))).toBe(true);
+
+    const before = await win.locator('[data-override-id]').count();
+    // The export's menu is gone before the next opens.
+    await expect.poll(() => win.getByRole('menu').count()).toBe(0);
+    await win.getByTestId('network-har').click();
+    await menuItem('Import a HAR as overrides…').click();
+    await expect.poll(() => win.locator('[data-override-id]').count(), RELOAD_TIMEOUT).toBeGreaterThan(before);
   });
 });
