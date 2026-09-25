@@ -1,4 +1,5 @@
 import { LINUX_APP_NAME, LINUX_CATEGORY } from '../appInfo';
+import { OWN_ENTRY_MARKER } from './constants';
 import { escapeDesktopValue } from './escapeDesktopValue';
 import { quoteExecArgument } from './quoteExecArgument';
 
@@ -27,6 +28,7 @@ export function desktopEntryText(launcher: string): string | null {
     `StartupWMClass=${LINUX_APP_NAME}`,
     'Terminal=false',
     `Categories=${LINUX_CATEGORY};`,
+    OWN_ENTRY_MARKER,
     '',
   ].join('\n');
 }

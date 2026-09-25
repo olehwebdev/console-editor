@@ -103,6 +103,9 @@ const config: Configuration = {
   },
   rpm: {
     artifactName: '${name}-${version}.${arch}.${ext}',
+    // electron-builder's install script, plus a refresh of GTK's icon cache, which Debian and Ubuntu do through a
+    // dpkg trigger: without it, a system with no such trigger for rpm installs shows a generic icon.
+    afterInstall: 'build/linux/after-install.tpl',
     packageCategory: 'Development/Tools',
     depends: [
       'gtk3',
