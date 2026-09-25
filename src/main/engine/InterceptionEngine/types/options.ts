@@ -32,6 +32,12 @@ export interface EngineOptions {
    */
   servedBy?: Map<string, string>;
   /**
+   * Network requestId -> the source map header of the upstream response of a
+   * file served from an override (the page's copy may have it stripped), until
+   * its response is tracked. Shared like `servedBy`.
+   */
+  upstreamSourceMaps?: Map<string, string>;
+  /**
    * While shared workers are being set up, their first script must wait: a
    * worker that starts before its session intercepts never will. Returns
    * undefined when nothing is pending.

@@ -21,7 +21,7 @@ export interface SessionObserver {
   detached(id: string | undefined): void;
 }
 
-export type PageInterceptionOptions = Omit<EngineOptions, 'iframe' | 'worker' | 'servedBy' | 'workerSetups'> & { sessions?: SessionObserver };
+export type PageInterceptionOptions = Omit<EngineOptions, 'iframe' | 'worker' | 'servedBy' | 'upstreamSourceMaps' | 'workerSetups'> & { sessions?: SessionObserver };
 
 /** What a child session belongs to: a cross-site iframe or a worker. */
 export type ChildType = typeof TARGET_TYPE.iframe | WorkerType;

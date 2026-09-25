@@ -6,7 +6,7 @@ import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
-import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { selectRuleList, useRuleStore } from '@/entities/rule';
@@ -22,6 +22,7 @@ import { setOverrideEnabled } from '@/features/toggle-override';
 import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
 import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
+import { sourceActions, useOriginalSources } from '../model/sources';
 import { OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
 import { newRuleItems } from './newRuleItems';
 import { ruleItems } from './ruleItems';
@@ -30,19 +31,22 @@ const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icon
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
+  /** Shows the Explorer sidebar, filter cleared. */
+  onShowExplorer(): void;
   onFocusAddressBar(): void;
   onSwitchWorkspace(id: string): void;
   onNewWorkspace(): void;
   onToggleConsole(): void;
 }
 
-/** Ctrl/Cmd+K: jump to any file the page loaded, an override or a rule, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole }: AppCommandPaletteProps) {
+/** Ctrl/Cmd+K: jump to any file the page loaded, an original of a loaded map, an override or a rule, switch workspaces or run a command. */
+export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
   const rules = useRuleStore(useShallow(selectRuleList));
   const active = useTabStore(selectActiveTab);
+  const activeSource = useTabStore(selectActiveSource);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
   const detached = usePageStore((s) => s.page.detached);
@@ -67,6 +71,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
     }),
     [resources],
   );
+  const sources = useOriginalSources(resources);
 
   const groups = useMemo<CommandGroup[]>(() => {
     if (!open) return [];
@@ -85,6 +90,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
               ...(active.overrideId ? [{ id: 'live', label: 'Compare with the live file', icon: icons.GlobeIcon, onSelect: () => void compareWithLive() }] : []),
             ]
           : []),
+        ...sourceActions(active, activeSource, onShowExplorer),
         { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
         { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
@@ -127,8 +133,8 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
         { id: 'workspace-new', label: 'New workspace', icon: icons.AddIcon, keywords: ['workspace', 'site', 'project'], onSelect: onNewWorkspace },
       ],
     };
-    return [files, overrideGroup, ruleGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, overrides, rules, active, workspaces, activeWorkspaceId, detached, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
+    return [files, sources, overrideGroup, ruleGroup, workspaceGroup, actions].filter((g) => g.items.length);
+  }, [open, files, sources, overrides, rules, active, activeSource, workspaces, activeWorkspaceId, detached, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

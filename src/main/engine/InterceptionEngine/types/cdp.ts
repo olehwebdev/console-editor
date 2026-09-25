@@ -48,7 +48,7 @@ export interface ResponseReceivedParams {
   loaderId?: string;
   type?: string;
   frameId?: string;
-  response: { url: string; status: number; mimeType: string; fromServiceWorker?: boolean };
+  response: { url: string; status: number; mimeType: string; fromServiceWorker?: boolean; headers?: Record<string, string> };
 }
 
 /** The frame of a `Page.frameNavigated` event. */

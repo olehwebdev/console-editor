@@ -19,6 +19,7 @@ const api: ConsoleEditorApi = {
 
   listResources: () => ipcRenderer.invoke(IPC_CHANNEL.listResources),
   getResourceContent: (url) => ipcRenderer.invoke(IPC_CHANNEL.getResourceContent, url),
+  getSourceMap: (request) => ipcRenderer.invoke(IPC_CHANNEL.getSourceMap, request),
 
   listOverrides: () => ipcRenderer.invoke(IPC_CHANNEL.listOverrides),
   getOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.getOverride, id),

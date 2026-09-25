@@ -17,6 +17,11 @@ export interface TrackedResource {
   upstreamHash?: string;
   /** Answered by a service worker, which may have been served an override on its own session. */
   fromServiceWorker?: boolean;
+  /**
+   * The source map the upstream response named in its headers. For a file served from an override,
+   * taken before the override replaced its headers.
+   */
+  sourceMap?: string;
 }
 
 /** What a {@link ResourceTracker} works with. */
@@ -25,7 +30,7 @@ export interface ResourceTrackerContext {
   navigation: NavigationTracker;
   /** Finds the overrides a response arrived without (to report them). */
   matcher: OverrideMatcher;
-  opts: Pick<EngineOptions, 'emit' | 'iframe' | 'servedBy' | 'getRules'>;
+  opts: Pick<EngineOptions, 'emit' | 'iframe' | 'servedBy' | 'upstreamSourceMaps' | 'getRules'>;
   /** Set on a worker session: the worker's own scripts. */
   worker?: WorkerScripts;
 }

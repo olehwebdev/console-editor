@@ -17,6 +17,8 @@ export { RESOURCE_KINDS } from './resources';
 export type { BlockRule, CorsRule, CreateRuleInput, HeaderEdit, HeaderOperation, HeaderRule, Rule, RuleAction, RuleBase, RuleOf, RulePatch, RuleResourceType } from './rules';
 export { HEADER_OPERATIONS, RULE_ACTIONS, RULE_RESOURCE_TYPES } from './rules';
 export type { SessionDraft, SessionState, SessionTab } from './session';
+export type { SourceMapBody, SourceMapFetchFailure, SourceMapFile, SourceMapKind, SourceMapRequest } from './sourceMaps';
+export { SOURCE_MAP_KINDS } from './sourceMaps';
 export type { Settings } from './settings';
 export { DEFAULT_SETTINGS } from './settings';
 export type { AppInfo, AvailableUpdate, UpdateInstall, UpdateState } from './updates';

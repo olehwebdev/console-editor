@@ -39,7 +39,7 @@ export async function readResourceContent(
   for (const attempt of attempts) {
     try {
       const content = await attempt();
-      return { url, content, hash: tracked?.upstreamHash ?? sha256(content) };
+      return { url, content, hash: tracked?.upstreamHash ?? sha256(content), ...(tracked?.sourceMap ? { sourceMap: tracked.sourceMap } : {}) };
     } catch (err) {
       lastError = err;
     }

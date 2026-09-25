@@ -5,6 +5,7 @@ import type { PageState, Rect } from './page';
 import type { ResourceContent, ResourceEntry } from './resources';
 import type { CreateRuleInput, Rule, RulePatch } from './rules';
 import type { SessionDraft, SessionState, SessionTab } from './session';
+import type { SourceMapFile, SourceMapRequest } from './sourceMaps';
 import type { Settings } from './settings';
 import type { AppInfo, UpdateState } from './updates';
 import type { Workspace, WorkspacePatch, WorkspacesState } from './workspaces';
@@ -30,6 +31,11 @@ export interface ConsoleEditorApi {
 
   listResources(): Promise<ResourceEntry[]>;
   getResourceContent(url: string): Promise<ResourceContent>;
+  /**
+   * Finds and reads a listed script's or stylesheet's source map: http(s) through the site's session,
+   * data: handed over undecoded, other schemes refused.
+   */
+  getSourceMap(request: SourceMapRequest): Promise<SourceMapFile>;
 
   /** The active workspace's overrides. */
   listOverrides(): Promise<OverrideMeta[]>;

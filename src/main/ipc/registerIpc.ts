@@ -10,6 +10,8 @@ import {
   type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
+import { loadSiteSourceMap } from '../PageController';
+import { assertSourceMapRequest } from './assertSourceMapRequest';
 import { assertString } from './assertString';
 import { registerRuleIpc } from './registerRuleIpc';
 import type { IpcDeps } from './types';
@@ -53,6 +55,10 @@ export function registerIpc({ win, page, store, rules, settings, session, worksp
   handle(IPC_CHANNEL.getResourceContent, (url: unknown) => {
     assertString(url, 'url');
     return page.getResourceContent(url);
+  });
+  handle(IPC_CHANNEL.getSourceMap, (request: unknown) => {
+    assertSourceMapRequest(request);
+    return loadSiteSourceMap(request, page.siteSession, (url) => page.getResourceContent(url), page.view.webContents.getURL());
   });
 
   handle(IPC_CHANNEL.listOverrides, () => store.metas());

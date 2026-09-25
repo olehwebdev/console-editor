@@ -24,6 +24,7 @@ import { PreviewPane } from './PreviewPane';
 import { removeWorkspace } from './removeWorkspace';
 import { setAddressBar } from './setAddressBar';
 import { shortcutKey } from './shortcutKey';
+import { showExplorer } from './showExplorer';
 import { showSettings } from './showSettings';
 import { SidebarPane } from './SidebarPane';
 import { toggleWebsitePreview } from './toggleWebsitePreview';
@@ -112,7 +113,7 @@ export function EditorPage() {
 
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1">
-            <EditorPanel />
+            <EditorPanel onShowExplorer={showExplorer} />
           </div>
           {consoleVisible ? (
             <ConsolePane>
@@ -129,7 +130,14 @@ export function EditorPage() {
         ) : null}
       </div>
       <StatusBar />
-      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} onSwitchWorkspace={openWorkspace} onNewWorkspace={newWorkspace} onToggleConsole={toggleConsole} />
+      <AppCommandPalette
+        onShowSettings={showSettings}
+        onShowExplorer={showExplorer}
+        onFocusAddressBar={focusAddressBar}
+        onSwitchWorkspace={openWorkspace}
+        onNewWorkspace={newWorkspace}
+        onToggleConsole={toggleConsole}
+      />
     </div>
   );
 }

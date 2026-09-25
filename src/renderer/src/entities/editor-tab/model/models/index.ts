@@ -1,3 +1,4 @@
+export { createSourceModel } from './createSourceModel';
 export { createTabModel } from './createTabModel';
 export { disposeTabModel } from './disposeTabModel';
 export { getTabBase } from './getTabBase';

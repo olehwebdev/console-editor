@@ -55,6 +55,8 @@ export const SHORTCUT = {
   reload: ['mod', 'R'],
   reloadF5: ['F5'],
   diff: ['mod', 'shift', 'D'],
+  /** From an original source to the bundle code it became, or back. */
+  jumpToMapped: ['mod', 'shift', 'M'],
   pageDevTools: ['mod', 'shift', 'J'],
   editorDevTools: ['mod', 'alt', 'I'],
 } satisfies Record<string, string[]>;

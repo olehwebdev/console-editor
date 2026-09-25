@@ -38,6 +38,12 @@ export const CONTENT_TYPE_HEADER = 'Content-Type';
 export const UTF8 = 'utf-8';
 
 /**
+ * Headers that name a response's source map, lower-case, in precedence order: `SourceMap`, then the
+ * deprecated `X-SourceMap`.
+ */
+export const SOURCE_MAP_HEADERS = ['sourcemap', 'x-sourcemap'] as const;
+
+/**
  * Headers that describe how upstream framed and encoded its bytes. A body we
  * pass back is already decoded, so they go; ETag and Last-Modified stay, as
  * the bytes themselves don't change.

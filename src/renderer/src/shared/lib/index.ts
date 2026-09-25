@@ -7,5 +7,18 @@ export { fileName, hostOf, originOf, pathOf, pathSegments, webAddress } from './
 export { predicateFor } from './match';
 export { isMac, keyLabel } from './platform';
 export { formatCode, looksMinified } from './format';
+export { askSourceMapWorker, stopSourceMapWorker } from './source-map';
+export type {
+  AlignmentFit,
+  Miss,
+  MissReason,
+  OriginalSource,
+  SourceMapParseFailure,
+  SourceMapRequestOf,
+  SourceMapRequestType,
+  SourceMapWorkerReplies,
+  SourceMapWorkerRequest,
+  ViewRef,
+} from './source-map';
 export { useOverlayStore, useRegisterOverlay, selectAnyOverlayOpen } from './overlays';
 export { getNativeViewRect, rectsOverlap, setNativeViewRect, type NativeViewRect } from './nativeView';

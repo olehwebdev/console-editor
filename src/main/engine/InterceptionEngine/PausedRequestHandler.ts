@@ -1,7 +1,7 @@
 import type { Override } from '../../../shared/types';
 import { CDP } from '../constants';
 import { applyResponseRules, findResponseRules, isPreflight, pausedRequestOf, type PausedRequest, type ResponseHead, type ResponseRule } from '../rules';
-import { buildOverrideHeaders, isRedirect, withUtf8ContentType } from '../transform';
+import { buildOverrideHeaders, isRedirect, sourceMapHeader, withUtf8ContentType } from '../transform';
 import { answerRequestStage } from './answerRequestStage';
 import { OTHER_RESOURCE_TYPE, OVERRIDE_STATUS, WORKER_SCRIPT_TYPES } from './constants';
 import { continueRequest } from './continueRequest';
@@ -96,6 +96,8 @@ export class PausedRequestHandler {
     const reportedAs = p.networkId ?? (worker?.isOwnScript(p.request.url, p.resourceType) ? worker.info.targetId : undefined);
     // Recorded first: the response can be reported before the fulfil is answered.
     if (reportedAs) resources.markServed(reportedAs, override.id);
+    const upstreamMap = sourceMapHeader(p.responseHeaders);
+    if (reportedAs && upstreamMap) resources.sourceMaps.mark(reportedAs, upstreamMap);
     // An override also answers requests whose upstream failed (404, 500, offline). Rules land last,
     // so a rule's Cache-Control beats the forced no-store, and CORS still checks what they wrote.
     const base: ResponseHead = { status: OVERRIDE_STATUS, headers: buildOverrideHeaders(p.responseHeaders, override.kind, settings) };

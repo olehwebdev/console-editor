@@ -12,21 +12,29 @@ import type { AddressInfo } from 'node:net';
 import { gzipSync } from 'node:zlib';
 import { STORE_BUNDLE, STORE_BUNDLE_PATH, STORE_CSS, STORE_CSS_PATH, STORE_HTML, STORE_ICON, STORE_ICON_PATH } from './demoStore.ts';
 import { headersRoutes } from './headersPages.ts';
+import {
+  BOTH_JS,
+  BOTH_JS_MAP,
+  HTML_JS,
+  INLINE_JS_CODE,
+  INLINE_JS_MAP,
+  LEGACY_JS,
+  LEGACY_JS_MAP,
+  MAIN_JS,
+  MAIN_JS_MAP,
+  MAPS_HTML,
+  MAPS_PATH,
+  MISSING_JS,
+  STYLE_CSS,
+  THEME_CSS,
+  THEME_CSS_MAP,
+  XSSI_JS,
+  XSSI_JS_MAP,
+} from './sourceMaps.ts';
+
+export { MAIN_JS, STYLE_CSS };
 
 export const APP_JS = `window.appValue = 'original';\ndocument.addEventListener('DOMContentLoaded', () => { document.querySelector('#app').textContent = 'app: ' + window.appValue; });\n`;
-
-/** A realistic minified bundle (one long line plus a source map comment). */
-export const MAIN_JS =
-  `(()=>{"use strict";var e={version:"1.0.0",greet:function(n){return"Hello, "+n},sum:function(n){return n.reduce(function(t,r){return t+r},0)},` +
-  `clamp:function(n,t,r){return Math.min(Math.max(n,t),r)},debounce:function(n,t){var r;return function(){var o=this,u=arguments;clearTimeout(r),r=setTimeout(function(){n.apply(o,u)},t)}},` +
-  `format:function(n){return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n)}};function t(n){var t=document.createElement("li");return t.textContent=n,t}` +
-  `function r(n,r){var o=document.querySelector(n);o&&r.forEach(function(n){o.appendChild(t(n))})}var o=[{id:1,name:"Alpha",price:12.5},{id:2,name:"Beta",price:7.25},` +
-  `{id:3,name:"Gamma",price:30}],u={items:o,total:e.sum(o.map(function(n){return n.price})),selected:null};function i(n){u.selected=o.find(function(t){return t.id===n})||null,` +
-  `c()}function c(){var n=document.querySelector("#main");n&&(n.textContent=e.greet("world")+" \u00b7 "+o.length+" items \u00b7 total "+e.format(u.total)+(u.selected?" \u00b7 selected "+u.selected.name:""))}` +
-  `window.mainValue="original-main",window.lib=e,window.store=u,window.select=i,document.addEventListener("DOMContentLoaded",function(){c(),r("#list",o.map(function(n){return n.name}))})})();\n` +
-  `//# sourceMappingURL=main.3f9a1c2b.js.map\n`;
-
-export const STYLE_CSS = `body{font-family:sans-serif;color:rgb(0, 0, 0)}#app{padding:8px;border:1px solid #ccc}\n`;
 
 export const MAIN_JS_PATH = '/static/js/main.3f9a1c2b.js';
 
@@ -263,12 +271,15 @@ export interface FixtureSite {
   close(): Promise<void>;
 }
 
+const JSON_TYPE = 'application/json';
+
 export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   const bodies = new Map<string, FixtureRoute>([
     ['/', { type: 'text/html; charset=utf-8', body: indexHtml() }],
     ['/app.js', { type: 'application/javascript', body: APP_JS }],
     ['/style.css', { type: 'text/css', body: STYLE_CSS }],
-    [MAIN_JS_PATH, { type: 'application/javascript; charset=utf-8', body: MAIN_JS }],
+    [MAIN_JS_PATH, { type: 'application/javascript; charset=utf-8', body: MAIN_JS, headers: { SourceMap: 'main.3f9a1c2b.js.map' } }],
+    [`${MAIN_JS_PATH}.map`, { type: JSON_TYPE, body: MAIN_JS_MAP }],
     ['/lazy.js', { type: 'text/javascript', body: LAZY_JS }],
   ]);
 
@@ -292,7 +303,6 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Access-Control-Allow-Origin': '*',
     };
-    if (path === MAIN_JS_PATH) headers.SourceMap = 'main.3f9a1c2b.js.map';
     for (const [name, value] of Object.entries(entry.headers ?? {})) {
       for (const other of Object.keys(headers)) if (other.toLowerCase() === name.toLowerCase()) delete headers[other];
       if (value !== null) headers[name] = value;
@@ -309,7 +319,7 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 
   await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
   const { port: actualPort } = server.address() as AddressInfo;
-  const add = (path: string, type: string, body: string) => bodies.set(path, { type, body });
+  const add = (path: string, type: string, body: string, headers?: Record<string, string>) => bodies.set(path, { type, body, headers });
   add('/frames.html', 'text/html; charset=utf-8', framesHtml(actualPort));
   add('/frames/same.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/same.js"></script><p>same-site frame</p>');
   add('/frames/same.js', 'text/javascript', SAME_FRAME_JS);
@@ -351,6 +361,20 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   add(STORE_BUNDLE_PATH, 'application/javascript; charset=utf-8', STORE_BUNDLE);
   add(STORE_CSS_PATH, 'text/css', STORE_CSS);
   add(STORE_ICON_PATH, 'image/svg+xml', STORE_ICON);
+  // Source maps named every way there is (the main bundle's is served with it, above).
+  add(MAPS_PATH.page, 'text/html; charset=utf-8', MAPS_HTML);
+  add(MAPS_PATH.both, 'text/javascript', BOTH_JS, { SourceMap: 'both.js.map' });
+  add('/maps/both.js.map', JSON_TYPE, BOTH_JS_MAP);
+  add(MAPS_PATH.legacy, 'text/javascript', LEGACY_JS, { 'X-SourceMap': 'legacy.js.map' });
+  add('/maps/legacy.js.map', JSON_TYPE, LEGACY_JS_MAP);
+  add(MAPS_PATH.inline, 'text/javascript', `${INLINE_JS_CODE}//# sourceMappingURL=data:application/json;charset=utf-8;base64,${Buffer.from(INLINE_JS_MAP).toString('base64')}\n`);
+  add(MAPS_PATH.theme, 'text/css', THEME_CSS, { SourceMap: 'wrong.css.map' });
+  add('/maps/theme.css.map', JSON_TYPE, THEME_CSS_MAP);
+  add(MAPS_PATH.missing, 'text/javascript', MISSING_JS);
+  add(MAPS_PATH.html, 'text/javascript', HTML_JS);
+  add('/maps/html.js.map', 'text/html; charset=utf-8', '<!doctype html><title>App</title><div id="root"></div>');
+  add(MAPS_PATH.xssi, 'text/javascript', XSSI_JS);
+  add('/maps/xssi.js.map', JSON_TYPE, `)]}'\n${XSSI_JS_MAP}`);
   // A page with an unsaved-changes guard, a new-tab link and a pop-up (site view policy).
   add(
     '/guard.html',
@@ -379,6 +403,6 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 if (process.argv[1] && /site\.ts$/.test(process.argv[1])) {
   const port = Number(process.env.PORT ?? 5174);
   startFixtureSite(port).then((site) =>
-    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/services.html services in iframes that log and message each other\n  ${site.url}/workers/    dedicated, shared and service workers, and a worklet`),
+    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/services.html services in iframes that log and message each other\n  ${site.url}/workers/    dedicated, shared and service workers, and a worklet\n  ${site.url}/maps.html   source maps named every way there is`),
   );
 }
