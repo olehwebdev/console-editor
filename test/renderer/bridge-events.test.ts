@@ -187,7 +187,7 @@ describe('app event bridge', () => {
 
   it('shows the preview when the website comes back from its own window, and only then', () => {
     const showPreview = vi.fn();
-    pageCommands.current = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview };
+    pageCommands.current = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview, showInspect: vi.fn() };
     const state: PageState = { url: 'https://a.com/', title: 'A', loading: false, canGoBack: false, canGoForward: false, detached: false };
     handleAppEvent({ type: 'page-state', state });
     handleAppEvent({ type: 'page-state', state: { ...state, detached: true } });
@@ -340,7 +340,7 @@ describe('app event bridge', () => {
 
 describe('menu commands', () => {
   const execCommand = vi.fn();
-  const page = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview: vi.fn() };
+  const page = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview: vi.fn(), showInspect: vi.fn() };
 
   beforeEach(() => {
     vi.stubGlobal('document', { execCommand });

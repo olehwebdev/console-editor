@@ -3,6 +3,7 @@
  * one vocabulary. Import icons from here, not from the package directly.
  */
 export {
+  Activity01Icon as RendersIcon,
   Alert02Icon as WarningIcon,
   AlertCircleIcon as ErrorIcon,
   ApiIcon as ResponseIcon,
@@ -24,11 +25,15 @@ export {
   CodeFolderIcon as SourceRootIcon,
   CodeIcon as DevToolsIcon,
   CommandIcon,
+  ComponentIcon,
   CommandLineIcon as ConsoleIcon,
   Copy01Icon as CopyIcon,
   CpuIcon as WorkerIcon,
   CssFile01Icon as CssIcon,
+  CubeIcon as StackIcon,
+  CursorRectangleSelection01Icon as PickIcon,
   DashboardSpeed01Icon as ThrottleIcon,
+  Database01Icon as StoresIcon,
   Delete02Icon as DeleteIcon,
   Download04Icon as DownloadIcon,
   EraserIcon as ClearValueIcon,

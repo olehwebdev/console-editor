@@ -5,6 +5,7 @@ import { usePageStore } from '@/entities/page';
 import { goBack, goForward, openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { AddressBar } from '../AddressBar';
 import { MOVE_BUTTON } from './constants';
+import { PickButton } from './PickButton';
 import type { PagePreviewProps, PreviewPlacement } from './types';
 
 export interface PreviewToolbarProps extends Pick<PagePreviewProps, 'addressBarRef'> {
@@ -14,7 +15,8 @@ export interface PreviewToolbarProps extends Pick<PagePreviewProps, 'addressBarR
 
 /**
  * The preview's navigation bar: back, forward, reload (spinning while the page loads), the address, the
- * page's DevTools, and moving the website to its own window or back.
+ * page's DevTools, picking an element (in the editor, which shows what was picked), and moving the website to its own
+ * window or back.
  */
 export function PreviewToolbar({ hasPage, placement, addressBarRef }: PreviewToolbarProps) {
   const move = MOVE_BUTTON[placement];
@@ -36,6 +38,7 @@ export function PreviewToolbar({ hasPage, placement, addressBarRef }: PreviewToo
         className={loading ? '[&_svg]:animate-spin-slow' : undefined}
       />
       <AddressBar inputRef={addressBarRef} className="mx-1" />
+      {placement === 'editor' ? <PickButton disabled={!hasPage} /> : null}
       <IconButton icon={icons.DevToolsIcon} label="DevTools for the page" shortcut={SHORTCUT.pageDevTools} size="sm" disabled={!hasPage} onClick={() => void openPageDevTools()} />
       <IconButton icon={move.icon} label={move.label} size="sm" onClick={() => void move.move()} />
     </header>

@@ -22,6 +22,7 @@ import { newWorkspace } from './newWorkspace';
 import { openWorkspace } from './openWorkspace';
 import { PreviewPane } from './PreviewPane';
 import { removeWorkspace } from './removeWorkspace';
+import { saveAsAction } from './saveAsAction';
 import { setAddressBar } from './setAddressBar';
 import { shortcutKey } from './shortcutKey';
 import { showExplorer } from './showExplorer';
@@ -31,7 +32,7 @@ import { SidebarPane } from './SidebarPane';
 import { toggleWebsitePreview } from './toggleWebsitePreview';
 
 // Actions never change, so they are read once instead of subscribed to.
-const { toggleSidebar, showSidebarView, sidebarExited, toggleConsole } = useLayout.getState();
+const { toggleSidebar, showSidebarView, sidebarExited, toggleConsole, showBottomView } = useLayout.getState();
 const { toggle: togglePalette } = usePalette.getState();
 
 /** Global shortcuts, by lower-cased `KeyboardEvent.key` with Ctrl/Cmd (no Alt or Shift): the app menu's accelerators. */
@@ -114,7 +115,7 @@ export function EditorPage() {
 
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1">
-            <EditorPanel onShowExplorer={showExplorer} />
+            <EditorPanel onShowExplorer={showExplorer} onSaveAsAction={saveAsAction} />
           </div>
           {consoleVisible ? (
             <ConsolePane>
@@ -140,6 +141,7 @@ export function EditorPage() {
         onToggleConsole={toggleConsole}
         onNewAction={newAction}
         onShowNetwork={showNetwork}
+        onShowLog={showBottomView}
       />
     </div>
   );

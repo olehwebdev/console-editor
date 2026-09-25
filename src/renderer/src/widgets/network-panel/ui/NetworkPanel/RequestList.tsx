@@ -6,6 +6,7 @@ import { cn } from '@/shared/lib';
 import { useNetworkSelection } from '../../model';
 import { OVERSCAN_ROWS, ROW_HEIGHT, STICK_TO_BOTTOM_PX } from './constants';
 import { ListHeader } from './ListHeader';
+import { openRequest } from './openRequest';
 import { RequestRow } from './RequestRow';
 import type { ResolveFrame } from './types';
 
@@ -15,9 +16,6 @@ export interface RequestListProps {
   /** The details are open beside it: a narrower list (none in a narrow panel), rows without type, size and time. */
   compact: boolean;
 }
-
-// Actions never change, so they are read once instead of subscribed to.
-const { select } = useNetworkSelection.getState();
 
 /** How far each key moves the selection. */
 const STEP: Readonly<Record<string, number>> = { [KEY.arrowDown]: 1, [KEY.arrowUp]: -1 };
@@ -49,7 +47,7 @@ export function RequestList({ requests, resolve, compact }: RequestListProps) {
     event.preventDefault();
     const at = requests.findIndex((r) => r.id === selectedId);
     const next = Math.min(requests.length - 1, Math.max(0, at === -1 ? requests.length - 1 : at + STEP[event.key]!));
-    select(requests[next]!.id);
+    openRequest(requests[next]!);
     virtual.scrollToIndex(next);
   };
 
@@ -75,7 +73,7 @@ export function RequestList({ requests, resolve, compact }: RequestListProps) {
             const request = requests[item.index]!;
             return (
               <div key={item.key} className="absolute inset-x-0 top-0" style={{ transform: `translateY(${item.start}px)` }}>
-                <RequestRow request={request} frame={resolve(request.frameId)} selected={request.id === selectedId} compact={compact} onSelect={() => select(request.id)} />
+                <RequestRow request={request} frame={resolve(request.frameId)} selected={request.id === selectedId} compact={compact} onSelect={() => openRequest(request)} />
               </div>
             );
           })}

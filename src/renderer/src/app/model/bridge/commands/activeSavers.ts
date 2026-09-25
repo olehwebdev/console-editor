@@ -6,6 +6,8 @@ import type { ActiveSavers } from './types';
 export const ACTIVE_SAVERS: ActiveSavers = {
   file: () => saveFileTab(),
   'whats-new': () => undefined,
+  stack: () => undefined,
+  component: () => undefined,
   rule: (id) => void applyRulePage(id),
   'new-rule': (id) => void createRulePage(id),
 };

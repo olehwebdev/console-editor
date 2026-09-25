@@ -1,19 +1,20 @@
 import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
-import type { AppEvent } from './events';
+import type { InspectorApi } from './inspector';
+import type { WireEvent } from './events';
 import type { NetworkApi } from './networkApi';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
 import type { PageState, Rect } from './page';
 import type { ResourceContent, ResourceEntry } from './resources';
 import type { CreateRuleInput, Rule, RulePatch } from './rules';
 import type { SessionDraft, SessionState, SessionTab } from './session';
-import type { SourceMapFile, SourceMapRequest } from './sourceMaps';
+import type { SourceMapFile, SourceMapRequest, SourceMapFileInfo } from './sourceMaps';
 import type { Settings } from './settings';
 import type { AppInfo, UpdateState } from './updates';
 import type { Workspace, WorkspacePatch, WorkspacesState } from './workspaces';
 
 /** The API exposed to the renderer as `window.consoleEditor`. */
-export interface ConsoleEditorApi extends NetworkApi {
+export interface ConsoleEditorApi extends InspectorApi, NetworkApi {
   navigate(url: string): Promise<void>;
   reload(): Promise<void>;
   goBack(): Promise<void>;
@@ -38,6 +39,12 @@ export interface ConsoleEditorApi extends NetworkApi {
    * data: handed over undecoded, other schemes refused.
    */
   getSourceMap(request: SourceMapRequest): Promise<SourceMapFile>;
+  /** The active workspace's source maps loaded from files. */
+  listSourceMapFiles(): Promise<SourceMapFileInfo[]>;
+  /** Asks for a source map file for a bundle with the system's dialog and keeps it with the workspace, in place of the bundle's own; null when none was picked. */
+  loadSourceMapFile(bundleUrl: string): Promise<SourceMapFileInfo | null>;
+  /** Forgets the map loaded from a file for a bundle: its own map (if any) is used again. */
+  forgetSourceMapFile(bundleUrl: string): Promise<void>;
 
   /** The active workspace's overrides. */
   listOverrides(): Promise<OverrideMeta[]>;
@@ -124,5 +131,6 @@ export interface ConsoleEditorApi extends NetworkApi {
   /** Opens an http(s) link in the default browser. */
   openExternal(url: string): Promise<void>;
 
-  onEvent(listener: (event: AppEvent) => void): () => void;
+  /** The main process's events; the large ones arrive as JSON (`decodeEvent`). */
+  onEvent(listener: (event: WireEvent) => void): () => void;
 }

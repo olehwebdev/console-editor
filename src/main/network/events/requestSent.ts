@@ -1,5 +1,6 @@
 import { GET_METHOD, graphqlOperation } from '../../../shared/overrides';
 import { durationMs } from '../durationMs';
+import { initiatorFrames } from '../initiatorFrames';
 import { MS_PER_SECOND } from '../constants';
 import { startsPageLoad } from '../startsPageLoad';
 import { toHeaders } from '../toHeaders';
@@ -31,6 +32,7 @@ export function requestSent(ctx: NetworkLogContext, p: RequestWillBeSent, sessio
   // Held before it was listed.
   const heldId = ctx.heldMarks.get(p.requestId);
   ctx.heldMarks.delete(p.requestId);
+  const initiator = initiatorFrames(p.initiator);
   const entry = log.add({
     sessionId,
     requestId: p.requestId,
@@ -52,6 +54,7 @@ export function requestSent(ctx: NetworkLogContext, p: RequestWillBeSent, sessio
       hasBody: !!request.hasPostData || request.postData !== undefined,
       ...(operation ? { operation } : {}),
       ...(heldId ? { heldId } : {}),
+      ...(initiator.length ? { initiator } : {}),
       pageLoad: page.load,
     },
   });

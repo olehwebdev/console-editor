@@ -7,7 +7,8 @@ export { fileName, hostOf, originOf, pathOf, pathSegments, webAddress } from './
 export { predicateFor } from './match';
 export { isMac, keyLabel } from './platform';
 export { formatCode, looksMinified, responseText } from './format';
-export { askSourceMapWorker, stopSourceMapWorker } from './source-map';
+export { formatTime } from './formatTime';
+export { askSourceMapWorker, isLibrarySource, stopSourceMapWorker } from './source-map';
 export type {
   AlignmentFit,
   Miss,

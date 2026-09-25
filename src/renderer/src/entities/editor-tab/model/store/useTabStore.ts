@@ -22,6 +22,7 @@ export const useTabStore = create<TabStore>()((set) => ({
       activeId: page.id,
       diff: 'off',
     })),
+  retitlePage: (id, title) => set((s) => (s.pages.some((p) => p.id === id && p.title !== title) ? { pages: s.pages.map((p) => (p.id === id ? { ...p, title } : p)) } : s)),
   activate: (id) => set((s) => (s.activeId === id ? s : { activeId: id, diff: 'off' })),
   remove: (id) =>
     set((s) => {
@@ -57,8 +58,8 @@ export const useTabStore = create<TabStore>()((set) => ({
   setPageDraft: (id, draft) =>
     set((s) => {
       const page = s.pages.find((p) => p.id === id);
-      // What's New has no drafts; an unchanged draft keeps the store (and its subscribers) still.
-      if (!page || page.page === 'whats-new' || page.draft === draft) return s;
+      // Only rule pages have drafts; an unchanged draft keeps the store (and its subscribers) still.
+      if (!page || (page.page !== 'rule' && page.page !== 'new-rule') || page.draft === draft) return s;
       return { pages: s.pages.map((p) => (p === page ? { ...page, draft } : p)) };
     }),
   setDiff: (diff) => set({ diff }),

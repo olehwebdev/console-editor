@@ -2,17 +2,23 @@ import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
+import { useInspectorStore, useRenderLog, useStoreLog } from '@/entities/inspector';
 import { useNetworkStore } from '@/entities/network-request';
+import { usePageStackStore } from '@/entities/page-stack';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
-import { receiveRequests } from '@/features/network/filter';
 import { receiveHeld } from '@/features/network/held';
 import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
 import { answerFlushSession } from './events/answerFlushSession';
 import { applyPageState } from './events/applyPageState';
-import { dropNavigatedResources } from './events/dropNavigatedResources';
+import { followNavigation } from './events/followNavigation';
+import { receivePick } from './events/receivePick';
+import { receiveNetworkRequests } from './events/receiveNetworkRequests';
+import { receiveRenders } from './events/receiveRenders';
+import { receiveStoreActions } from './events/receiveStoreActions';
+import { showPicking } from './events/showPicking';
 import { showAppError } from './events/showAppError';
 import { syncOverrides } from './events/syncOverrides';
 import { syncRules } from './events/syncRules';
@@ -27,7 +33,7 @@ import type { AppEventHandlers } from './types';
 
 /** What each main-process event does. Annotated rather than `satisfies`: `handleAppEvent`'s generic lookup needs the mapped type. */
 export const APP_EVENT_HANDLERS: AppEventHandlers = {
-  navigated: dropNavigatedResources,
+  navigated: followNavigation,
   'iframe-detached': (event) => queueIframeDrop(event.iframeId),
   'worker-detached': (event) => queueResourceOp({ type: 'drop-worker', workerId: event.workerId }),
   resource: (event) => queueResourceOp({ type: 'add', entry: event.resource }),
@@ -46,8 +52,16 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'frames-changed': (event) => useFrameStore.getState().setAll(event.frames),
   'console-entries': (event) => receiveEntries(event.entries),
   'console-cleared': () => useConsoleStore.getState().clear(),
+  'stack-changed': (event) => usePageStackStore.getState().setAll(event.stacks),
+  'inspect-picking': showPicking,
+  'inspect-hover': (event) => useInspectorStore.getState().setHover(event.hover),
+  'inspect-picked': (event) => receivePick(event.component),
+  'renders-recording': (event) => useRenderLog.getState().setRecording(event.recording),
+  'renders-recorded': (event) => receiveRenders(event.commits),
+  'stores-recording': (event) => useStoreLog.getState().setRecording(event.recording),
+  'stores-recorded': (event) => receiveStoreActions(event.actions),
   'actions-changed': (event) => useActionStore.getState().setAll(event.actions),
-  'network-requests': (event) => receiveRequests(event.requests),
+  'network-requests': (event) => receiveNetworkRequests(event.requests),
   'network-cleared': () => useNetworkStore.getState().clear(),
   'held-requests': (event) => receiveHeld(event.held),
   'actions-window': (event) => useActionStore.getState().setWindow(event.state),

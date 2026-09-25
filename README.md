@@ -77,6 +77,9 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Pause a request and change it.** Breakpoints stop a fetch or XHR before it goes out or before the page gets its response: edit its URL, method, headers and body, or the answer, then send it on, send it as it was, fail it with a network error, or keep your version as an override. **Copy as fetch** gives any request as a `fetch()` call.
 - **Test UI states quickly.** **Patch live** applies your edit to each live response instead of freezing it; **Quick edits** empty every list, lengthen every text or null a value in one click; the network speed menu slows the page to 3G or takes it offline; WebSocket messages are listed as they come; a HAR file (yours or a teammate's) exports your requests or imports its responses as overrides; and a response can be browsed and edited as a tree.
 - **One workspace per task.** Keep a workspace for each site or fix you're working on, each with its own page, tabs, unsaved edits, overrides and rules, and switch between them from the left rail. A tile shows the site's icon, or a letter on a colour you pick.
+- **Tells what each frame runs.** The status bar names the page's UI libraries, and the Page stack lists every frame, cross-site iframes included, with its UI library (React, Vue, Angular, Svelte…), framework (Next.js, Nuxt…), state library and bundler, their versions and whether each is a production build.
+- **Shows the component behind an element.** Pick anything in the page, in any frame, to see the React, Vue, Angular or web component that rendered it (or, on a plain page, its listeners): its file and line (a minified production build's too, through its source map, or one you load from a file), props, state (and set it), context, the element's handlers and the components above it, with the original file or the bundle code a click away. Browse each frame's components as a tree.
+- **Tells why React rendered.** Record renders to see, commit by commit, what triggered it and why each component rendered: its props, its state, a store, a context or its parent.
 - **Reads the original sources.** When the site publishes source maps, expand a bundle to see the TypeScript, JSX or SCSS it was built from, open any file read-only, and jump between a line of it and the bundle code it became (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>), pretty-printed, edited or overridden.
 - **Works across screens.** Move the website into a window of its own and put it on another monitor, next to the code; it keeps running as it was, and goes back into the editor with one click or by closing its window.
 - **Stays fast on big bundles.** Multi-megabyte files open in a lighter highlight-only mode, and the file tree is virtualized.
@@ -153,6 +156,7 @@ To open a URL on start, pass it to the app (`console-editor https://example.com`
 | <kbd>Shift</kbd> + <kbd>Alt</kbd> + <kbd>F</kbd> | Pretty-print |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd> | Diff against the text you started from |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd> | Go to the original source, or back to the bundle code |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> | Pick an element in the page to see its component |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>R</kbd> | Reload the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>L</kbd> | Focus the address bar |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>B</kbd> | Show or hide the sidebar |
@@ -255,6 +259,12 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Network breakpoints, and answering a request without sending it
 - [x] Patch mode, quick edits for UI states, network speed, WebSocket messages, HAR export and import
 - [x] A response's JSON as a tree with in-place edits
+- [x] Page stack: the UI library, framework, state library and bundler of each frame
+- [x] Component inspector: pick an element to see the React or Vue component that rendered it, its source file, props, state, context and handlers
+- [x] Components tree, setting state, and why each React component rendered (Renders)
+- [x] Angular, Vue 2 and web components, an element's listeners, and loading a source map from a file
+- [x] Store actions (Redux, NgRx, Zustand, Pinia, Vuex), who sent a request, state kept as an action, and renders by component
+- [ ] Component inspector, next: Vue's renders and a data-flow view ([research](docs/INSPECTOR_RESEARCH.md))
 
 ## Development
 

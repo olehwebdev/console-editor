@@ -3,17 +3,19 @@ import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useFrameStore } from '@/entities/frame';
 import { usePageStore } from '@/entities/page';
+import { useRenderLog, useStoreLog } from '@/entities/inspector';
+import { usePageStackStore } from '@/entities/page-stack';
 import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
-import { receiveRequests } from '@/features/network/filter';
 import { receiveHeld } from '@/features/network/held';
 import { startUpdates } from '@/features/update-app';
 import type { PageCommands, PageSession } from '@/pages/editor';
 import { pageCommands } from './commands/pageCommands';
 import { handleAppEvent } from './handleAppEvent';
 import { pageSession } from './pageSession';
+import { receiveNetworkRequests } from './events/receiveNetworkRequests';
 import { applyResourceSnapshot } from './resources/applyResourceSnapshot';
 
 /**
@@ -37,12 +39,15 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     api.getActionsWindow().then((window) => useActionStore.getState().setWindow(window)),
     api.listResources().then(applyResourceSnapshot),
     api.getPageState().then((page) => usePageStore.getState().setPage(page)),
+    api.listStacks().then((stacks) => usePageStackStore.getState().setAll(stacks)),
+    api.isRecordingRenders().then((recording) => useRenderLog.getState().setRecording(recording)),
+    api.isRecordingStores().then((recording) => useStoreLog.getState().setRecording(recording)),
     // Frames first: the rows name them.
     api.listFrames().then(async (frames) => {
       useFrameStore.getState().setAll(frames);
       receiveEntries(await api.getConsoleEntries());
     }),
-    api.listNetworkRequests().then((requests) => receiveRequests(requests, true)),
+    api.listNetworkRequests().then((requests) => receiveNetworkRequests(requests, true)),
     api.listHeldRequests().then(receiveHeld),
   ]);
 

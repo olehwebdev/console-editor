@@ -32,6 +32,7 @@ npm run lint:fsd
 npm run lint:structure # files of at most 150 lines, one function each, no switch (CLAUDE.md › Code structure)
 npm test               # unit, renderer, and engine tests in real Chromium (npx playwright install chromium)
 npm run test:e2e       # the built app end to end (headless Linux: xvfb-run npm run test:e2e)
+npm run test:perf      # the inspector and its UI on large apps, against budgets (headless Linux: xvfb-run -a); not in CI
 ```
 
 If you change packaging (`electron-builder.ts`, `build/`, anything the installed app loads), also build and drive the packaged app: `npm run dist -- --dir && npm run test:packaged` (headless Linux: `xvfb-run npm run test:packaged`). If you change updating, build a newer copy to update to (`npx electron-builder --publish never -c.directories.output=dist-next -c.extraMetadata.version=99.0.0`) and run `npm run test:update -- <installed app or AppImage> dist-next`.

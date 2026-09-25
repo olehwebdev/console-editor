@@ -7,6 +7,7 @@ import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
 import type { SettingsStore } from '../store/SettingsStore';
+import type { SourceMapFileStore } from '../store/SourceMapFileStore';
 import type { UpdateService } from '../update/UpdateService';
 import type { WorkspaceController } from '../WorkspaceController';
 
@@ -21,6 +22,7 @@ export interface IpcDeps {
   settings: SettingsStore;
   session: SessionStore;
   actions: ActionStore;
+  sourceMaps: SourceMapFileStore;
   /** Where the Actions panel is; its own window's UI may use the action channels too. */
   actionsWindow: ActionsWindow;
   workspaces: WorkspaceController;

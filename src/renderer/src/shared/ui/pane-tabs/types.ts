@@ -3,6 +3,8 @@ export interface PaneTab<T extends string> {
   label: string;
   /** Something waiting in the view (requests paused at a breakpoint): a warning-toned count beside the label while above zero. */
   count?: number;
+  /** Something running in the view (the Renders log recording): a small red dot beside the label. */
+  live?: boolean;
 }
 
 export interface PaneTabsProps<T extends string> {

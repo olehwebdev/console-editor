@@ -33,7 +33,20 @@ export type SourceMapFile =
       bundleHash: string;
       /** The bundle text the map describes (upstream, even when an override serves it); null when too large to line up. */
       bundle: string | null;
-      /** Resolved map URL; null for an inline data: map (its sources resolve against the bundle URL). */
+      /** Resolved map URL; null for an inline data: map or one loaded from a file (their sources resolve against the bundle URL). */
       mapUrl: string | null;
       map: SourceMapBody;
+      /** The file's name, when the map is one loaded from a file (**Load a source map…**) rather than the bundle's own. */
+      file?: string;
     };
+
+/** A source map loaded from a file for a bundle (**Load a source map…**), kept with the workspace. */
+export interface SourceMapFileInfo {
+  bundleUrl: string;
+  /** The file's name, as picked. */
+  name: string;
+  /** In bytes. */
+  size: number;
+  /** When it was loaded (ms since the epoch). */
+  addedAt: number;
+}

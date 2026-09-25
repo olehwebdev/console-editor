@@ -60,6 +60,10 @@ export interface SourceTab {
 /** A tab showing an app page rather than a file (like VS Code's release notes). Not kept between runs. */
 export type PageTab =
   | (PageTabBase & { page: 'whats-new' })
+  /** What each frame of the page runs. */
+  | (PageTabBase & { page: 'stack' })
+  /** The component picked last in the page (the inspector's store holds it). */
+  | (PageTabBase & { page: 'component' })
   /** A saved rule's editor. */
   | (PageTabBase & { page: 'rule'; ruleId: string; draft?: RulePageDraft })
   /** A rule being written, not created yet. */
@@ -91,6 +95,8 @@ export interface TabStore {
    * with the same id takes the new fields in place, keeping its position and anything not given (its draft).
    */
   openPage(page: PageTab): void;
+  /** Renames an open page's tab in place: it keeps its position, and isn't activated. */
+  retitlePage(id: string, title: string): void;
   activate(id: string): void;
   /** Closes a file tab, source tab or page. */
   remove(id: string): void;

@@ -20,6 +20,9 @@ export const IPC_CHANNEL = {
 
   listResources: 'resources:list',
   getResourceContent: 'resources:content',
+  listSourceMapFiles: 'source-map:files',
+  loadSourceMapFile: 'source-map:load-file',
+  forgetSourceMapFile: 'source-map:forget-file',
   getSourceMap: 'resources:source-map',
 
   listOverrides: 'overrides:list',
@@ -50,6 +53,21 @@ export const IPC_CHANNEL = {
   evaluateInFrame: 'console:evaluate',
   getConsoleProperties: 'console:properties',
   clearConsole: 'console:clear',
+
+  listStacks: 'inspect:stacks',
+  scanStacks: 'inspect:scan',
+  startPicking: 'inspect:pick',
+  stopPicking: 'inspect:pick-stop',
+  inspectComponent: 'inspect:component',
+  setComponentState: 'inspect:set-state',
+  highlightPick: 'inspect:highlight',
+  componentTree: 'inspect:tree',
+  recordRenders: 'inspect:record-renders',
+  isRecordingRenders: 'inspect:recording-renders',
+  recordStores: 'inspect:record-stores',
+  isRecordingStores: 'inspect:recording-stores',
+  openTreeNode: 'inspect:tree-open',
+  highlightTreeNode: 'inspect:tree-highlight',
 
   listActions: 'actions:list',
   createAction: 'actions:create',

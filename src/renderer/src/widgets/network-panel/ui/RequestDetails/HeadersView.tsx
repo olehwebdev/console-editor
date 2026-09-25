@@ -1,8 +1,9 @@
+import { CallStack } from '@/features/open-resource';
 import { DetailSection } from './DetailSection';
 import { FieldList } from './FieldList';
 import type { DetailViewProps } from './types';
 
-/** What was asked and answered: the request's facts, then the response's headers and the request's. */
+/** What was asked and answered: the request's facts and the script that sent it, then the response's headers and the request's. */
 export function HeadersView({ request, detail }: DetailViewProps) {
   const general = [
     { name: 'URL', value: request.url },
@@ -20,6 +21,11 @@ export function HeadersView({ request, detail }: DetailViewProps) {
       <DetailSection title="General">
         <FieldList fields={general} empty="" />
       </DetailSection>
+      {request.initiator ? (
+        <DetailSection title="Sent by">
+          <CallStack stack={request.initiator} />
+        </DetailSection>
+      ) : null}
       <DetailSection title="Response headers">
         <FieldList fields={detail?.responseHeaders ?? []} empty={request.state === 'pending' ? 'Waiting for the response…' : 'None.'} />
       </DetailSection>

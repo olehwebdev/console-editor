@@ -10,7 +10,40 @@ export { BREAKPOINT_STAGES, FAIL_REASONS } from './breakpoints';
 export type { ConsoleEditorApi } from './api';
 export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, ConsoleProperty, ConsoleSource, ConsoleValue, ConsoleValueKind } from './console';
 export { CONSOLE_LEVELS } from './console';
-export type { AppEvent, EngineEvent } from './events';
+export type { AppEvent, EngineEvent, WireEvent } from './events';
+export type {
+  ActionTrigger,
+  CodeLocation,
+  ComponentLink,
+  ComponentNode,
+  ComponentTreeLevel,
+  FrameStack,
+  InspectedComponent,
+  InspectedContext,
+  InspectedElement,
+  InspectedHandler,
+  InspectedListener,
+  InspectedState,
+  InspectedValue,
+  InspectFramework,
+  InspectHover,
+  RenderChange,
+  RenderCommit,
+  RenderedComponent,
+  RenderKind,
+  RenderReason,
+  RenderReasonKind,
+  RenderTrigger,
+  ScriptCoverage,
+  StackHit,
+  StackFrame,
+  StateEdit,
+  StateKind,
+  StoreAction,
+  StoreChange,
+  StoreLibrary,
+} from './inspector';
+export { INSPECT_FRAMEWORKS, RENDER_KINDS, RENDER_REASONS, STATE_KINDS, STORE_LIBRARIES } from './inspector';
 export type { MenuCommand } from './menu';
 export type { HarImport, HttpHeader, NetworkBody, NetworkBodyGap, NetworkRequest, NetworkRequestDetail, NetworkRequestState, SocketDirection, SocketMessage, SocketMessages } from './network';
 export { NETWORK_BODY_GAPS, NETWORK_REQUEST_STATES } from './network';
@@ -22,7 +55,7 @@ export { FILE_KINDS, RESOURCE_KINDS } from './resources';
 export type { BlockRule, CorsRule, CreateRuleInput, HeaderEdit, HeaderOperation, HeaderRule, Rule, RuleAction, RuleBase, RuleOf, RulePatch, RuleResourceType } from './rules';
 export { HEADER_OPERATIONS, RULE_ACTIONS, RULE_RESOURCE_TYPES } from './rules';
 export type { SessionDraft, SessionState, SessionTab } from './session';
-export type { SourceMapBody, SourceMapFetchFailure, SourceMapFile, SourceMapKind, SourceMapRequest } from './sourceMaps';
+export type { SourceMapBody, SourceMapFetchFailure, SourceMapFile, SourceMapFileInfo, SourceMapKind, SourceMapRequest } from './sourceMaps';
 export { SOURCE_MAP_KINDS } from './sourceMaps';
 export type { Settings, SwitchSetting, Throttling } from './settings';
 export { DEFAULT_SETTINGS, THROTTLING_PRESETS } from './settings';

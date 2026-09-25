@@ -29,8 +29,8 @@ export function NetworkToolbar({ heading, shownIds, onClose }: NetworkToolbarPro
   return (
     <div className="flex shrink-0 flex-col border-b border-line">
       <div className="flex h-9 items-center gap-1.5 px-2">
-        {/* The heading (the pane's tabs) keeps its width; the filter gives way. */}
-        <div className="flex h-full flex-auto items-center">{heading}</div>
+        {/* The filter gives way first; then the heading (the pane's tabs) scrolls sideways. */}
+        <div className="flex h-full min-w-0 flex-auto items-center">{heading}</div>
         <Input
           size="sm"
           value={text}
@@ -39,7 +39,7 @@ export function NetworkToolbar({ heading, shownIds, onClose }: NetworkToolbarPro
           aria-label="Filter requests"
           data-testid="network-filter"
           leading={<Icon icon={icons.FilterIcon} size={12} className="text-fg-subtle" />}
-          className="w-40 min-w-10 shrink"
+          className="w-40 min-w-10 shrink-[100]"
         />
         <ThrottlingMenu />
         <BreakpointsButton />

@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import type { ConsoleEntry } from '@common/types';
 import { icons } from '@/shared/config';
-import { cn } from '@/shared/lib';
+import { cn, formatTime } from '@/shared/lib';
 import { Icon } from '@/shared/ui/icon';
 import { FrameChip } from '@/entities/frame';
 import { LEVEL_ROW, SOURCE_MARK } from './constants';
-import { formatTime } from './formatTime';
 import { NavigationRow } from './NavigationRow';
 import { SaveActionButton } from './SaveActionButton';
 import { SourceLink } from './SourceLink';

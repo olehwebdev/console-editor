@@ -1,7 +1,7 @@
+import { formatTime } from '@/shared/lib';
 import type { ConsoleEntry } from '@common/types';
 import { entryText } from '@/entities/console-log';
 import { FrameChip } from '@/entities/frame';
-import { formatTime } from './formatTime';
 import type { FrameInfo } from './types';
 
 /** A divider where a frame loaded a page: rows after it are the new page's. */
