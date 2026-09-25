@@ -6,5 +6,17 @@ export { DURATION, EASE_IN_OUT, EASE_OUT, FADE_UP, ICON_PRESS_SCALE, PRESS_SCALE
 export { fileName, hostOf, originOf, pathOf, pathSegments } from './url';
 export { isMac, keyLabel } from './platform';
 export { formatCode, looksMinified } from './format';
+export type {
+  AlignmentFit,
+  Miss,
+  MissReason,
+  OriginalSource,
+  SourceMapParseFailure,
+  SourceMapRequestOf,
+  SourceMapRequestType,
+  SourceMapWorkerReplies,
+  SourceMapWorkerRequest,
+  ViewRef,
+} from './source-map';
 export { useOverlayStore, useRegisterOverlay, selectAnyOverlayOpen } from './overlays';
 export { getNativeViewRect, rectsOverlap, setNativeViewRect, type NativeViewRect } from './nativeView';
