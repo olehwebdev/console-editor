@@ -1,0 +1,1 @@
+export { predicateFor } from './predicateFor';

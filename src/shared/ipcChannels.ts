@@ -20,6 +20,7 @@ export const IPC_CHANNEL = {
 
   listResources: 'resources:list',
   getResourceContent: 'resources:content',
+  getSourceMap: 'resources:source-map',
 
   listOverrides: 'overrides:list',
   getOverride: 'overrides:get',
@@ -28,6 +29,11 @@ export const IPC_CHANNEL = {
   updateOverride: 'overrides:update',
   deleteOverride: 'overrides:delete',
   revealOverridesFolder: 'overrides:reveal',
+
+  listRules: 'rules:list',
+  createRule: 'rules:create',
+  updateRule: 'rules:update',
+  deleteRule: 'rules:delete',
 
   getSettings: 'settings:get',
   updateSettings: 'settings:update',

@@ -10,10 +10,14 @@ import {
   type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
+import { loadSiteSourceMap } from '../PageController';
+import { assertSourceMapRequest } from './assertSourceMapRequest';
 import { assertString } from './assertString';
+import { registerActionIpc } from './registerActionIpc';
+import { registerRuleIpc } from './registerRuleIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, settings, session, actions, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, actions, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -53,6 +57,10 @@ export function registerIpc({ win, page, store, settings, session, actions, work
     assertString(url, 'url');
     return page.getResourceContent(url);
   });
+  handle(IPC_CHANNEL.getSourceMap, (request: unknown) => {
+    assertSourceMapRequest(request);
+    return loadSiteSourceMap(request, page.siteSession, (url) => page.getResourceContent(url), page.view.webContents.getURL());
+  });
 
   handle(IPC_CHANNEL.listOverrides, () => store.metas());
   handle(IPC_CHANNEL.getOverride, (id: unknown) => {
@@ -87,6 +95,8 @@ export function registerIpc({ win, page, store, settings, session, actions, work
     await shell.openPath(store.filesDir);
   });
 
+  registerRuleIpc(handle, rules, page);
+
   handle(IPC_CHANNEL.getSettings, () => settings.get());
   handle(IPC_CHANNEL.updateSettings, async (patch: Partial<Settings>) => {
     const next = await settings.update(patch);
@@ -108,16 +118,7 @@ export function registerIpc({ win, page, store, settings, session, actions, work
   handle(IPC_CHANNEL.evaluateInFrame, (frameId: unknown, code: unknown) => page.console.evaluate(frameId, code));
   handle(IPC_CHANNEL.getConsoleProperties, (handle: unknown) => page.console.properties(handle));
   handle(IPC_CHANNEL.clearConsole, () => page.console.clear());
-
-  // Every change is announced, so whatever shows the actions shows them as they are.
-  const actionsChanged = <T>(result: T): T => {
-    send({ type: 'actions-changed', actions: actions.list() });
-    return result;
-  };
-  handle(IPC_CHANNEL.listActions, () => actions.list());
-  handle(IPC_CHANNEL.createAction, async (input: unknown) => actionsChanged(await actions.create(input)));
-  handle(IPC_CHANNEL.updateAction, async (id: unknown, patch: unknown) => actionsChanged(await actions.update(id, patch)));
-  handle(IPC_CHANNEL.deleteAction, async (id: unknown) => actionsChanged(await actions.remove(id)));
+  registerActionIpc(handle, actions, send);
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

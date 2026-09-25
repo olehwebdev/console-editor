@@ -19,6 +19,7 @@ const api: ConsoleEditorApi = {
 
   listResources: () => ipcRenderer.invoke(IPC_CHANNEL.listResources),
   getResourceContent: (url) => ipcRenderer.invoke(IPC_CHANNEL.getResourceContent, url),
+  getSourceMap: (request) => ipcRenderer.invoke(IPC_CHANNEL.getSourceMap, request),
 
   listOverrides: () => ipcRenderer.invoke(IPC_CHANNEL.listOverrides),
   getOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.getOverride, id),
@@ -27,6 +28,11 @@ const api: ConsoleEditorApi = {
   updateOverride: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateOverride, id, patch),
   deleteOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteOverride, id),
   revealOverridesFolder: () => ipcRenderer.invoke(IPC_CHANNEL.revealOverridesFolder),
+
+  listRules: () => ipcRenderer.invoke(IPC_CHANNEL.listRules),
+  createRule: (input) => ipcRenderer.invoke(IPC_CHANNEL.createRule, input),
+  updateRule: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateRule, id, patch),
+  deleteRule: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteRule, id),
 
   getSettings: () => ipcRenderer.invoke(IPC_CHANNEL.getSettings),
   updateSettings: (patch) => ipcRenderer.invoke(IPC_CHANNEL.updateSettings, patch),

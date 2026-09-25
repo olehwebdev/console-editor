@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildOverrideHeaders,
+  buildRefulfilledHeaders,
   buildRewrittenHeaders,
   charsetOf,
   decodeBody,
+  headerEntries,
   isRedirect,
+  isSuccessful,
+  sourceMapHeader,
   stripIntegrityAttributes,
   stripSourceMapComments,
+  toBase64Body,
+  withUtf8ContentType,
 } from '../../src/main/engine/transform';
 
 describe('stripIntegrityAttributes', () => {
@@ -78,6 +84,25 @@ describe('buildOverrideHeaders', () => {
   });
 });
 
+describe('source map headers', () => {
+  it('sourceMapHeader prefers SourceMap to X-SourceMap in any letter case, and takes the first of several values', () => {
+    expect(sourceMapHeader([{ name: 'X-SourceMap', value: 'old.map' }, { name: 'sourcemap', value: 'new.map' }])).toBe('new.map');
+    expect(sourceMapHeader([{ name: 'x-sourcemap', value: 'old.map' }])).toBe('old.map');
+    expect(sourceMapHeader([{ name: 'SourceMap', value: ' a.map\nb.map' }])).toBe('a.map');
+    expect(sourceMapHeader([{ name: 'SourceMap', value: '  ' }, { name: 'X-SourceMap', value: 'x.map' }])).toBe('x.map');
+    expect(sourceMapHeader([{ name: 'Content-Type', value: 'text/javascript' }])).toBeUndefined();
+    expect(sourceMapHeader(undefined)).toBeUndefined();
+  });
+
+  it('headerEntries turns a CDP headers object into entries', () => {
+    expect(headerEntries({ SourceMap: 'a.map', 'content-type': 'text/css' })).toEqual([
+      { name: 'SourceMap', value: 'a.map' },
+      { name: 'content-type', value: 'text/css' },
+    ]);
+    expect(headerEntries(undefined)).toEqual([]);
+  });
+});
+
 describe('buildRewrittenHeaders', () => {
   it('keeps caching headers but drops encoding/length', () => {
     const headers = buildRewrittenHeaders(
@@ -119,5 +144,57 @@ describe('isRedirect', () => {
     expect(isRedirect(302, [{ name: 'Location', value: '/x' }])).toBe(true);
     expect(isRedirect(304, [])).toBe(false);
     expect(isRedirect(200, [{ name: 'Location', value: '/x' }])).toBe(false);
+  });
+});
+
+describe('buildRefulfilledHeaders', () => {
+  it('drops how upstream framed the bytes, and keeps everything that still holds for them', () => {
+    const headers = buildRefulfilledHeaders([
+      { name: 'Content-Type', value: 'text/html' },
+      { name: 'Content-Encoding', value: 'gzip' },
+      { name: 'content-length', value: '75' },
+      { name: 'Transfer-Encoding', value: 'chunked' },
+      { name: 'Digest', value: 'sha-256=x' },
+      { name: 'Content-Digest', value: 'sha-256=:x:' },
+      { name: 'Repr-Digest', value: 'sha-256=:x:' },
+      { name: 'Content-MD5', value: 'x' },
+      { name: 'ETag', value: '"v1"' },
+      { name: 'Last-Modified', value: 'Mon, 01 Jan 2024 00:00:00 GMT' },
+      { name: 'Content-Security-Policy', value: "script-src 'self'" },
+    ]);
+    expect(headers.map((h) => h.name)).toEqual(['Content-Type', 'ETag', 'Last-Modified', 'Content-Security-Policy']);
+    expect(buildRefulfilledHeaders(undefined)).toEqual([]);
+  });
+});
+
+describe('withUtf8ContentType', () => {
+  it('makes every Content-Type say UTF-8, keeping its spelling and the other headers', () => {
+    const headers = [
+      { name: 'content-type', value: 'text/javascript; charset=iso-8859-1' },
+      { name: 'X-Other', value: 'charset=latin1' },
+    ];
+    expect(withUtf8ContentType(headers)).toEqual([
+      { name: 'content-type', value: 'text/javascript; charset=utf-8' },
+      { name: 'X-Other', value: 'charset=latin1' },
+    ]);
+    expect(headers[0].value).toBe('text/javascript; charset=iso-8859-1');
+  });
+});
+
+describe('isSuccessful', () => {
+  it('is true for 2xx only', () => {
+    expect(isSuccessful(200)).toBe(true);
+    expect(isSuccessful(299)).toBe(true);
+    expect(isSuccessful(199)).toBe(false);
+    expect(isSuccessful(300)).toBe(false);
+    expect(isSuccessful(404)).toBe(false);
+    expect(isSuccessful(undefined)).toBe(false);
+  });
+});
+
+describe('toBase64Body', () => {
+  it('passes base64 through, and encodes text as UTF-8', () => {
+    expect(toBase64Body({ body: 'aGk=', base64Encoded: true })).toEqual({ body: 'aGk=', reencoded: false });
+    expect(toBase64Body({ body: 'héllo', base64Encoded: false })).toEqual({ body: Buffer.from('héllo', 'utf8').toString('base64'), reencoded: true });
   });
 });

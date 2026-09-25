@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AppEvent, MenuCommand, OverrideMeta, PageState, ResourceEntry, UpdateState } from '../../src/shared/types';
+import type { AppEvent, CreateRuleInput, MenuCommand, OverrideMeta, PageState, ResourceEntry, Rule, UpdateState } from '../../src/shared/types';
 import { handleAppEvent } from '@/app/model/bridge';
+import { HIDDEN_FLUSH_MS } from '@/app/model/bridge/resources/constants';
 import { APP_EVENT_HANDLERS } from '@/app/model/bridge/appEventHandlers';
 import { pageCommands } from '@/app/model/bridge/commands/pageCommands';
 import { pageSession } from '@/app/model/bridge/pageSession';
@@ -10,8 +11,11 @@ import { useTabStore, type TabMeta } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore } from '@/entities/resource';
+import { toRuleInput, useRuleStore } from '@/entities/rule';
+import { useSourceMapStore } from '@/entities/source-map';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { toggleBaseDiff } from '@/features/compare-changes';
+import { jumpToMappedCode } from '@/features/open-resource';
 import { formatTab } from '@/features/format-document';
 import { saveTab } from '@/features/save-override';
 import { checkForUpdatesNow, handleUpdateState, openWhatsNew } from '@/features/update-app';
@@ -33,6 +37,7 @@ vi.mock('@/shared/monaco', () => ({
 vi.mock('@/features/save-override', () => ({ saveTab: vi.fn(async () => {}) }));
 vi.mock('@/features/format-document', () => ({ formatTab: vi.fn(async () => {}) }));
 vi.mock('@/features/compare-changes', () => ({ toggleBaseDiff: vi.fn() }));
+vi.mock('@/features/open-resource', async (importOriginal) => ({ ...(await importOriginal<object>()), jumpToMappedCode: vi.fn(async () => {}) }));
 vi.mock('@/features/update-app', () => ({ openWhatsNew: vi.fn(), checkForUpdatesNow: vi.fn(async () => {}), handleUpdateState: vi.fn(), startUpdates: vi.fn(async () => {}) }));
 
 const meta = (id: string, updatedAt = 0): OverrideMeta => ({
@@ -56,6 +61,15 @@ const tab = (id: string, overrideId?: string): TabMeta => ({
   saving: false,
 });
 const res = (url: string): ResourceEntry => ({ url, kind: 'Script', mimeType: 'text/javascript', status: 200 });
+const rule = (id: string, pattern = `https://a.com/${id}/*`): Rule => ({
+  id,
+  action: 'block',
+  match: { type: 'glob', pattern, ignoreQuery: true },
+  resourceTypes: [],
+  enabled: true,
+  createdAt: 0,
+  updatedAt: 0,
+});
 const command = (name: MenuCommand) => handleAppEvent({ type: 'command', command: name });
 
 interface ShownToast {
@@ -70,8 +84,9 @@ const shown = () => (toast.mock.calls as unknown as Array<[ShownToast]>).map(([t
 beforeEach(() => {
   vi.clearAllMocks();
   editor.hasFocus.mockReturnValue(false);
-  useTabStore.setState({ tabs: [], activeId: null, diff: 'off' });
+  useTabStore.setState({ tabs: [], pages: [], activeId: null, diff: 'off' });
   useOverrideStore.setState({ byId: {}, hits: {}, upstreamChanged: {} });
+  useRuleStore.setState({ byId: {}, hits: {}, recent: {} });
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -228,6 +243,88 @@ describe('app event bridge', () => {
     apply.mockRestore();
   });
 
+  it("has loaded source maps checked again after a top-level navigation, not an iframe's", () => {
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const { generation } = useSourceMapStore.getState();
+    handleAppEvent({ type: 'navigated', url: 'https://site.test/frame', iframeId: 'f1' });
+    expect(useSourceMapStore.getState().generation).toBe(generation);
+    handleAppEvent({ type: 'navigated', url: 'https://site.test/' });
+    expect(useSourceMapStore.getState().generation).toBe(generation + 1);
+  });
+
+  it("takes the new rule list: a deleted rule's page closes, and an applied rule keeps only the edits typed since", () => {
+    const [r1, r2, r3, r4] = [rule('r1'), rule('r2'), rule('r3'), rule('r4')];
+    useRuleStore.getState().setAll([r1, r2, r3, r4]);
+    const tabs = useTabStore.getState();
+    const scripts = (input: CreateRuleInput): CreateRuleInput => ({ ...input, resourceTypes: ['Script'] });
+    const draftOf = (base: CreateRuleInput, value = scripts(base)) => ({ base, value, rowKeys: [] });
+    // r1's edits were all applied; r2's pattern was applied while its types were still being edited.
+    const r2Typed = { ...scripts(toRuleInput(r2)), match: { ...r2.match, pattern: 'https://b.com/*' } };
+    tabs.openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1', draft: draftOf(toRuleInput(r1), { ...scripts(toRuleInput(r1)), match: { ...r1.match, pattern: ' https://b.com/* ' } }) });
+    tabs.openPage({ id: 'page:rule:r2', page: 'rule', ruleId: 'r2', title: 'r2', draft: draftOf(toRuleInput(r2), r2Typed) });
+    tabs.openPage({ id: 'page:rule:r3', page: 'rule', ruleId: 'r3', title: 'r3' });
+    const r4Draft = draftOf(toRuleInput(r4));
+    tabs.openPage({ id: 'page:rule:r4', page: 'rule', ruleId: 'r4', title: 'r4', draft: r4Draft });
+
+    // r4 was only turned off (not part of the input), r3 deleted.
+    const r1Applied: Rule = { ...rule('r1', 'https://b.com/*'), resourceTypes: ['Script'] };
+    const r2Applied = rule('r2', 'https://b.com/*');
+    handleAppEvent({ type: 'rules-changed', rules: [r1Applied, r2Applied, { ...r4, enabled: false }] });
+
+    expect(useRuleStore.getState().byId).toEqual({ r1: r1Applied, r2: r2Applied, r4: { ...r4, enabled: false } });
+    const pages = useTabStore.getState().pages;
+    expect(pages.map((p) => p.id)).toEqual(['page:rule:r1', 'page:rule:r2', 'page:rule:r4']);
+    const drafts = pages.map((p) => ('draft' in p ? p.draft : null));
+    expect(drafts[0]).toBeUndefined();
+    expect(drafts[1]).toEqual({ base: toRuleInput(r2Applied), value: r2Typed, rowKeys: [] });
+    expect(drafts[2]).toBe(r4Draft);
+    expect(useTabStore.getState().activeId).toBe('page:rule:r4');
+  });
+
+  it('counts rule hits once per frame: three in one frame are one store update', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const recordHits = vi.spyOn(useRuleStore.getState(), 'recordHits');
+    handleAppEvent({ type: 'rule-applied', ruleId: 'r1', url: 'https://a.com/beacon' });
+    handleAppEvent({ type: 'rule-applied', ruleId: 'r1', url: 'https://a.com/beacon' });
+    handleAppEvent({ type: 'rule-applied', ruleId: 'r2', url: 'https://a.com/app.js' });
+    expect(frames).toHaveLength(1);
+    expect(recordHits).not.toHaveBeenCalled();
+    frames[0]!(0);
+    expect(recordHits).toHaveBeenCalledExactlyOnceWith([
+      { ruleId: 'r1', url: 'https://a.com/beacon' },
+      { ruleId: 'r1', url: 'https://a.com/beacon' },
+      { ruleId: 'r2', url: 'https://a.com/app.js' },
+    ]);
+    recordHits.mockRestore();
+    expect(useRuleStore.getState().hits).toEqual({ r1: 2, r2: 1 });
+    expect(useRuleStore.getState().recent.r1).toEqual([{ url: 'https://a.com/beacon', count: 2, lastAt: expect.any(Number) }]);
+  });
+
+  it('counts rule hits while the window is hidden too (no frames), after HIDDEN_FLUSH_MS', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    handleAppEvent({ type: 'rule-applied', ruleId: 'r1', url: 'https://a.com/beacon' });
+    expect(useRuleStore.getState().hits).toEqual({});
+    vi.advanceTimersByTime(HIDDEN_FLUSH_MS);
+    expect(useRuleStore.getState().hits).toEqual({ r1: 1 });
+    vi.useRealTimers();
+  });
+
+  it('shows one "rule missed" toast per rule and URL, whose action reloads the page', async () => {
+    handleAppEvent({ type: 'rule-missed', ruleId: 'r1', url: 'https://a.com/analytics.js' });
+    handleAppEvent({ type: 'rule-missed', ruleId: 'r1', url: 'https://a.com/analytics.js' });
+    const calls = toast.mock.calls as unknown as Array<[{ id: string; title: string; tone: string; action: { label: string; onClick(): void } }]>;
+    expect(calls).toHaveLength(2);
+    expect(calls[0]![0].id).toBe(calls[1]![0].id);
+    expect(calls[0]![0]).toMatchObject({ title: expect.stringContaining('analytics.js'), tone: 'warning', action: { label: 'Reload page' } });
+    calls[0]![0].action.onClick();
+    await vi.waitFor(() => expect(api.reload).toHaveBeenCalledTimes(1));
+  });
+
   it('hands update states to the update feature', () => {
     const state: UpdateState = { status: 'idle' };
     handleAppEvent({ type: 'update', state });
@@ -261,6 +358,11 @@ describe('menu commands', () => {
   it('toggles the base diff', () => {
     command('toggle-diff');
     expect(toggleBaseDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it('jumps between a bundle and its original code', () => {
+    command('jump-to-mapped');
+    expect(jumpToMappedCode).toHaveBeenCalledExactlyOnceWith();
   });
 
   it.each([

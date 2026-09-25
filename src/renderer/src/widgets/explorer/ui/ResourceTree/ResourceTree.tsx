@@ -3,14 +3,15 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { icons } from '@/shared/config';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { HoverHighlight } from '@/shared/ui/hover-highlight';
-import { Icon } from '@/shared/ui/icon';
-import { TreeRow, treeKeyTarget, treePositions } from '@/shared/ui/tree';
-import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { treeKeyTarget, treePositions } from '@/shared/ui/tree';
+import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { buildResourceRows, selectUniqueResources, useResourceStore } from '@/entities/resource';
+import { sourceKey, useSourceMapStore, type IsOpen } from '@/entities/source-map';
 import { useResourceFilter } from '@/features/filter-resources';
-import { ROW_ICON_SIZE } from '../constants';
-import { FileRow } from './FileRow';
-import type { RowNav } from './types';
+import { useSourceTree } from '@/features/open-resource';
+import { bundlesMatching, withSourceRows } from '../../lib';
+import { ExplorerRowView } from './ExplorerRowView';
+import type { RowContext, RowNav } from './types';
 
 /** Every row's height: the virtualizer's estimate, a page for PageUp/PageDown, and each row's box. */
 const ROW_HEIGHT = 26;
@@ -18,9 +19,13 @@ const ROW_HEIGHT = 26;
 /** Rows rendered beyond each edge of the visible window, so a fast scroll doesn't show gaps. */
 const OVERSCAN_ROWS = 12;
 
+const { clearReveal } = useSourceTree.getState();
+
 /**
- * Files the page loaded, as origin → folder → file. Virtualized: pages with
- * thousands of chunks stay smooth. Components subscribe to narrow slices only.
+ * Files the page loaded, as origin → folder → file, with the originals of
+ * scripts and stylesheets nested under them. Virtualized: pages with thousands
+ * of chunks, and maps with thousands of files, stay smooth. Components
+ * subscribe to narrow slices only.
  */
 export function ResourceTree() {
   const entries = useResourceStore(selectUniqueResources);
@@ -29,8 +34,19 @@ export function ResourceTree() {
     const tab = selectActiveTab(s);
     return tab ? tab.url : null;
   });
+  const activeSourceKey = useTabStore((s) => {
+    const source = selectActiveSource(s);
+    return source ? sourceKey(source.bundleUrl, source.url) : null;
+  });
+  const byBundle = useSourceMapStore((s) => s.byBundle);
+  const toggled = useSourceTree((s) => s.toggled);
+  const reveal = useSourceTree((s) => s.reveal);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const rows = useMemo(() => buildResourceRows(entries, query, collapsed), [entries, query, collapsed]);
+  const matching = useMemo(() => bundlesMatching(byBundle, query), [byBundle, query]);
+  const rows = useMemo(() => {
+    const isOpen: IsOpen = (key, byDefault) => byDefault !== toggled.has(key);
+    return withSourceRows(buildResourceRows(entries, query, collapsed, matching), { byBundle, isOpen, query, matching });
+  }, [entries, query, collapsed, matching, byBundle, toggled]);
   const positions = useMemo(() => treePositions(rows), [rows]);
 
   const scroller = useRef<HTMLDivElement>(null);
@@ -63,6 +79,14 @@ export function ResourceTree() {
   };
   useEffect(focusPending);
 
+  // Scrolls to a bundle row another view asked to show (a header, the palette), then marks the ask done.
+  useEffect(() => {
+    if (!reveal) return;
+    const index = rows.findIndex((row) => row.type === 'file' && row.entry.url === reveal.bundleUrl);
+    if (index !== -1) virtual.scrollToIndex(index, { align: 'center' });
+    clearReveal(reveal.token);
+  }, [reveal, rows, virtual]);
+
   const onRowKeyDown = (index: number) => (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) return;
     const pageSize = Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / ROW_HEIGHT) - 1);
@@ -81,6 +105,8 @@ export function ResourceTree() {
       else next.add(key);
       return next;
     });
+
+  const context: RowContext = { query, activeUrl, activeSourceKey, toggleFolder: toggle };
 
   if (!entries.length) {
     return (
@@ -110,21 +136,7 @@ export function ResourceTree() {
               className="absolute inset-x-1.5"
               style={{ top: 0, transform: `translateY(${item.start}px)`, height: ROW_HEIGHT }}
             >
-              {row.type === 'file' ? (
-                <FileRow {...nav} row={row} selected={row.entry.url === activeUrl} query={query} />
-              ) : (
-                <TreeRow
-                  {...nav}
-                  depth={row.depth}
-                  expanded={row.expanded}
-                  onToggle={() => toggle(row.key)}
-                  onClick={() => toggle(row.key)}
-                  icon={<Icon icon={row.type === 'origin' ? icons.GlobeIcon : row.expanded ? icons.FolderOpenIcon : icons.FolderIcon} size={ROW_ICON_SIZE} className={row.type === 'origin' ? 'text-info' : 'text-fg-subtle'} />}
-                  label={<span className={row.type === 'origin' ? 'font-medium text-fg' : undefined}>{row.label}</span>}
-                  meta={<span className="tabular-nums text-fg-subtle">{row.count}</span>}
-                  title={row.type === 'origin' ? row.origin : row.label}
-                />
-              )}
+              <ExplorerRowView row={row} context={context} nav={nav} />
             </div>
           );
         })}

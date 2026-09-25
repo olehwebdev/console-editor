@@ -1,9 +1,10 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { cn } from '@/shared/lib';
-import { focusWhenFree, getActiveEditor, setActiveEditor, takeFocusRequest, trackTreeNavigation } from './editors';
+import { focusWhenFree, getActiveEditor, revealPosition, setActiveEditor, takeFocusRequest, takeRevealRequest, trackTreeNavigation } from './editors';
 import { guardFloatingWidgets } from './guardFloatingWidgets';
 import { EDITOR_OPTIONS, FULL_EDITOR_OPTIONS, LITE_EDITOR_OPTIONS } from './options';
 import { isLiteModel } from './languages';
+import { readOnlyOptionsFor } from './models';
 import { monaco } from './setup';
 import { THEME } from './theme';
 
@@ -49,17 +50,20 @@ export function CodeEditor({ model, onMount, className }: CodeEditorProps) {
     const editor = editorRef.current;
     if (!editor) return;
     const requested = takeFocusRequest(model);
+    const reveal = takeRevealRequest(model);
     const previous = editor.getModel();
     if (previous === model) return;
     // setModel rebuilds the view, which drops DOM focus.
     const hadFocus = editor.hasWidgetFocus();
     if (previous && !previous.isDisposed()) viewStates.set(previous, editor.saveViewState());
     const usable = model && !model.isDisposed() ? model : null;
-    editor.updateOptions(usable && isLiteModel(usable) ? LITE_EDITOR_OPTIONS : FULL_EDITOR_OPTIONS);
+    editor.updateOptions({ ...(usable && isLiteModel(usable) ? LITE_EDITOR_OPTIONS : FULL_EDITOR_OPTIONS), ...readOnlyOptionsFor(usable) });
     editor.setModel(usable);
     if (!usable) return;
     const state = viewStates.get(usable);
     if (state) editor.restoreViewState(state);
+    // A jump's target wins over where the tab was left.
+    if (reveal) revealPosition(editor, reveal);
     // Keep focus it had; take it only when asked (an open or switch), never from another control.
     if (hadFocus) editor.focus();
     else if (requested) return focusWhenFree(editor);

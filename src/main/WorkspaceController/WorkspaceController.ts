@@ -3,14 +3,15 @@ import type { AppEvent, Workspace, WorkspacePatch } from '../../shared/types';
 import type { PageController } from '../PageController';
 import type { ActionStore } from '../store/ActionStore';
 import type { OverrideStore } from '../store/OverrideStore';
+import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
 import { PageFollower } from './PageFollower';
 
 /**
  * Workspaces: each has its own page, tabs (kept by the renderer through the
- * session store), overrides and actions. Switching leaves the page, makes the
- * other workspace's overrides the ones served and its actions the ones listed,
- * and loads its last page.
+ * session store), overrides, rules and actions. Switching leaves the page,
+ * makes the other workspace's overrides and rules the ones applied and its
+ * actions the ones listed, and loads its last page.
  */
 export class WorkspaceController {
   /** Switches and deletions run one at a time. */
@@ -21,6 +22,7 @@ export class WorkspaceController {
     private readonly page: PageController,
     private readonly session: SessionStore,
     private readonly store: OverrideStore,
+    private readonly rules: RuleStore,
     private readonly actions: ActionStore,
     private readonly send: (event: AppEvent) => void,
   ) {
@@ -28,13 +30,18 @@ export class WorkspaceController {
   }
 
   /**
-   * Serves the active workspace's overrides, handing it any that belong to no
-   * workspace (those saved before workspaces existed), and lists its actions.
+   * Serves the active workspace's overrides, applies its rules and lists its
+   * actions, handing it any overrides and rules that belong to no workspace
+   * (overrides saved before workspaces existed, or those of a workspace that was lost).
    */
   async start(): Promise<void> {
-    await this.store.adopt(new Set(this.session.workspaces().workspaces.map((w) => w.id)), this.session.activeId);
-    this.store.setWorkspace(this.session.activeId);
-    this.actions.setWorkspace(this.session.activeId);
+    const known = new Set(this.session.workspaces().workspaces.map((w) => w.id));
+    const { activeId } = this.session;
+    await this.store.adopt(known, activeId);
+    await this.rules.adopt(known, activeId);
+    this.store.setWorkspace(activeId);
+    this.rules.setWorkspace(activeId);
+    this.actions.setWorkspace(activeId);
   }
 
   /** Follows the page: remembers where the active workspace is, and its site's icon. */
@@ -66,14 +73,16 @@ export class WorkspaceController {
     return updated;
   }
 
-  /** Deletes a workspace other than the active one, with its actions and overrides. */
+  /** Deletes a workspace other than the active one, with its actions, overrides and rules. */
   remove(id: unknown): Promise<void> {
     return this.serialize(async () => {
       if (!this.session.has(id)) throw new Error('Unknown workspace');
       if (id === this.session.activeId) throw new Error('The workspace in use cannot be deleted');
-      // What it owns goes first: were the workspace to go first and this fail, its overrides would be handed to another at the next start.
+      // What it owns goes first: were the workspace to go first and a deletion fail, the next
+      // start would hand its overrides and rules to another workspace.
       await this.actions.removeWorkspace(id as string);
       await this.store.removeWorkspace(id as string);
+      await this.rules.removeWorkspace(id as string);
       await this.session.remove(id);
       this.pushState();
     });
@@ -88,9 +97,13 @@ export class WorkspaceController {
       await this.page.leave();
       // In memory at once, written after: a failed write is reported, but the switch is whole.
       const saved = this.session.setActive(id);
+      // All together, before anything awaits: no request is ever served one workspace's overrides and another's rules.
       this.store.setWorkspace(this.session.activeId);
+      this.rules.setWorkspace(this.session.activeId);
       this.actions.setWorkspace(this.session.activeId);
+      // One pattern refresh reads both stores; the rules then only need their event.
       await this.page.overridesChanged();
+      await this.page.rulesChanged(false);
       this.send({ type: 'actions-changed', actions: this.actions.list() });
       this.pushState();
       const { url } = this.session.get();

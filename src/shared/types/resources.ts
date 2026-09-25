@@ -12,6 +12,8 @@ export interface ResourceEntry {
   status: number;
   /** Set when the response the page received was served from an override. */
   overrideId?: string;
+  /** Set when this rule blocked the request: the page got no response (`status` 0, `mimeType` ''). */
+  blockedBy?: string;
   /**
    * Set when the file was loaded by an iframe rather than the top-level page:
    * the iframe's document URL and nesting depth (1 = iframe, 2 = iframe in an iframe…).
@@ -40,4 +42,9 @@ export interface ResourceContent {
   content: string;
   /** sha256 of the content as delivered by the server (hex). */
   hash: string;
+  /**
+   * The `SourceMap` (else `X-SourceMap`) header the response carried, as written (unresolved). For a
+   * file served from an override: the upstream response's, taken before the override replaced it.
+   */
+  sourceMap?: string;
 }

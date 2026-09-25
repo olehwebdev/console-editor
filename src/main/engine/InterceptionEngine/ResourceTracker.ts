@@ -1,8 +1,11 @@
 import type { MissedReason, ResourceEntry } from '../../../shared/types';
+import { blockedResource } from './blockedResource';
 import { DOCUMENT_KIND, UNLISTED_URL } from './constants';
 import { listedKind } from './listedKind';
 import { MissedOverrides } from './MissedOverrides';
-import type { ResourceTrackerContext, ResponseReceivedParams, TrackedResource } from './types';
+import { MissedRules } from './MissedRules';
+import type { RequestPausedParams, ResourceTrackerContext, ResponseReceivedParams, TrackedResource } from './types';
+import { UpstreamSourceMaps } from './UpstreamSourceMaps';
 
 /**
  * The scripts, stylesheets and documents of the session's current page (or
@@ -19,11 +22,16 @@ export class ResourceTracker {
    * `Network.getResponseBody`, only ever saw the rewritten HTML.
    */
   private readonly rewritten = new Map<string, string>();
+  /** The source map each response names (see {@link UpstreamSourceMaps}). */
+  readonly sourceMaps: UpstreamSourceMaps;
   private readonly missed: MissedOverrides;
+  private readonly missedRules: MissedRules;
 
   constructor(private readonly ctx: ResourceTrackerContext) {
     this.servedBy = ctx.opts.servedBy ?? new Map();
+    this.sourceMaps = new UpstreamSourceMaps(ctx.opts.upstreamSourceMaps);
     this.missed = new MissedOverrides(ctx.matcher, ctx.opts);
+    this.missedRules = new MissedRules(ctx);
   }
 
   list(): ResourceEntry[] {
@@ -65,13 +73,23 @@ export class ResourceTracker {
     this.missed.report(url, resourceType, reason);
   }
 
+  /** Lists a file this rule blocked (see {@link blockedResource}). */
+  listBlocked(p: RequestPausedParams, ruleId: string): void {
+    const tracked = blockedResource(this.ctx, p, ruleId, this.resources.get(p.request.url));
+    if (tracked) this.add(tracked);
+  }
+
   /** Forgets everything: the root frame committed a new document. */
   clear(): void {
     this.resources.clear();
     // Shared with the page's other sessions: only the page's own navigation ends them all.
-    if (!this.ctx.opts.iframe) this.servedBy.clear();
+    if (!this.ctx.opts.iframe) {
+      this.servedBy.clear();
+      this.sourceMaps.clear();
+    }
     this.rewritten.clear();
     this.missed.clear();
+    this.missedRules.clear();
   }
 
   /** Lists a resource and reports it. */
@@ -87,6 +105,7 @@ export class ResourceTracker {
     const overrideId = this.takeServed(p.requestId);
     const upstreamHash = this.rewritten.get(p.requestId);
     this.rewritten.delete(p.requestId);
+    const sourceMap = this.sourceMaps.take(p.requestId, p.response.headers);
     const isMainScript = !!worker && worker.responded(p.requestId, url);
     const kind = listedKind(p.type, p.response.mimeType, !!worker);
     if (!kind || UNLISTED_URL.test(url)) return;
@@ -95,6 +114,7 @@ export class ResourceTracker {
     if (navigation.active && !heldForCommit) return;
     // A service worker's answer was served (or not) on its own session, under another request id.
     if (!overrideId && !p.response.fromServiceWorker) this.missed.report(url, kind, worker?.missedReason(url, isMainScript));
+    this.missedRules.report(url, kind, p.frameId);
     // A worker session knows no frames; its entries are labelled with the worker.
     const frame = worker ? undefined : frames.frameOf(p.frameId, kind === DOCUMENT_KIND ? url : undefined);
     const existing = this.resources.get(url);
@@ -118,6 +138,7 @@ export class ResourceTracker {
       loaderId: p.loaderId,
       upstreamHash,
       ...(p.response.fromServiceWorker ? { fromServiceWorker: true } : {}),
+      ...(sourceMap ? { sourceMap } : {}),
     };
     if (heldForCommit) {
       navigation.hold(tracked);
