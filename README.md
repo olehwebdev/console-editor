@@ -59,7 +59,7 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 </td>
 <td width="50%" valign="top">
 
-**Iframes too.** Same-site, cross-site (out-of-process) and nested iframes. Each iframe is set up before it is allowed to load anything.
+**Iframes and workers too.** Same-site, cross-site (out-of-process) and nested iframes, each set up before it is allowed to load anything. What Web Workers, shared workers, service workers and worklets load gets your overrides too, a service worker's own script included. The console (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>J</kbd>) shows every frame's logs in one list, each row tagged with its frame, and runs code in the frame you pick.
 
 <img src="docs/screenshots/iframes.png" alt="Explorer grouping files by iframe origin, with a cross-site iframe running the edited script">
 
@@ -129,6 +129,8 @@ Type a URL in the preview's address bar (`https://…` or `localhost:3000`), pic
 | `http://127.0.0.1:5174/store/` | The shop from the GIF: a checkout with a bug to fix |
 | `http://127.0.0.1:5174/` | Files built to be awkward: gzip, SRI, a hashed bundle, source maps |
 | `http://127.0.0.1:5174/frames.html` | Cross-site and nested iframes |
+| `http://127.0.0.1:5174/services.html` | Services in iframes that log and message each other (try the console) |
+| `http://127.0.0.1:5174/workers/` | Dedicated, shared and service workers, and a worklet |
 | `http://127.0.0.1:5174/maps.html` | Source maps named every way: a header, `X-SourceMap`, an inline map, a stylesheet's, a missing one, an HTML page instead |
 
 To open a URL on start, pass it to the app (`console-editor https://example.com` after installing the Linux package) or set `CONSOLE_EDITOR_URL`: `CONSOLE_EDITOR_URL=https://example.com npm run dev`. On Linux and Windows, starting the app again with a URL opens it in the window that's already running.
@@ -148,6 +150,7 @@ To open a URL on start, pass it to the app (`console-editor https://example.com`
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>R</kbd> | Reload the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>L</kbd> | Focus the address bar |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>B</kbd> | Show or hide the sidebar |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>J</kbd> | Show or hide the console |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>J</kbd> | DevTools for the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Alt</kbd> + <kbd>I</kbd> | DevTools for the editor itself |
 
@@ -165,7 +168,7 @@ flowchart LR
     Store[("Overrides<br/>on disk")]
   end
   Page["Website<br/>(embedded Chromium)"]
-  Frames["Cross-site iframes<br/>(own processes)"]
+  Frames["Cross-site iframes<br/>and workers<br/>(own CDP targets)"]
   Server["The real server"]
 
   UI -- "save" --> Store
@@ -173,13 +176,13 @@ flowchart LR
   Page -- "requests app.js" --> Server
   Server -- "original app.js" --> Engine
   Engine -- "Fetch.fulfillRequest:<br/>your app.js" --> Page
-  Engine -. auto-attach .-> Frames
+  Engine -. attaches .-> Frames
 ```
 
 1. The site runs in an embedded Chromium view; the editor talks to it through the **Chrome DevTools Protocol**, the same channel DevTools uses.
 2. Requests an override applies to are paused at the **response** stage (`Fetch` domain). The real response arrives with its headers and cookies intact. Its body is hashed to detect redeploys, then replaced with your file.
 3. Documents are rewritten to drop `integrity` attributes, and a small guard does the same for ones set at runtime, so the browser accepts edited scripts.
-4. Every cross-site iframe is its own CDP target. The app auto-attaches to each one (and to theirs, recursively) and sets it up before the frame may load anything.
+4. Every cross-site iframe is its own CDP target, and so is every worker. The app attaches to each one (and to theirs, recursively) and sets it up before it runs. A Web Worker's or worklet's requests are paused on the session of the frame that started it, a service or shared worker's mostly on its own.
 
 The details, including facts about Chromium verified in tests, are in **[docs/SPEC.md](docs/SPEC.md)**.
 
@@ -212,17 +215,20 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 
 - You edit the **built output** (bundled JS), not the original TypeScript or JSX. It's readable after pretty-printing, but identifiers stay minified. When the site publishes source maps with their sources, you can read the originals and jump between them and the bundle, but not edit them.
 - Edits exist only in the app's browser. The real fix still goes through your normal build and deploy.
-- Workers aren't intercepted yet.
+- A worker started by another worker runs its own first script unchanged: Chromium gives the app no way to change it (what that worker loads still gets your overrides). The app tells you when this happens.
+- A service worker keeps the scripts it installed, so an edit to one takes effect when the app reloads the page: it unregisters the old worker and the page installs your version. That needs the page to register its service worker on every load, and the worker's push subscriptions are lost. After you restart the app, it doesn't know which of your edits a site's service worker installed: if the site has any script override (even one that's off, or for a file the worker doesn't load), the app's first reload with that worker running reinstalls it, and its push subscriptions are lost. Leaving the site and coming back doesn't do this.
+- Chromium's update checks fetch a service worker's scripts where the app can't change them, and can put the live ones back: when the page calls `registration.update()`, whatever your settings, and with **Settings › Bypass service workers** off, after page loads too. The app tells you when it sees this, and its next reload puts your version back. With that setting off, what a service worker answers from its own cache isn't overridden, and a copy it cached while an override was on keeps your edit until the site caches it again. With it on, after you restart the app, a page reaches a service worker it installed earlier only from its second load (a Chromium quirk).
 - Chromium's local-network checks are off in the app's browser, so a patched localhost or intranet page can still reach its own servers. Browse only sites you're working on (see [SPEC §8](docs/SPEC.md#8-security)).
 
 ## Roadmap
 
 - [x] Overrides for scripts, stylesheets and HTML; SRI, gzip, hashed names, redeploy detection
 - [x] Cross-site and nested iframes
+- [x] A console for the page and every iframe: each frame's logs in one list, and code run in the frame you pick
 - [x] Session restore with unsaved drafts
 - [x] Workspaces: a page, tabs and overrides per site or task, switched from the rail
 - [x] Installers for macOS, Windows and Linux
-- [ ] Workers and service workers
+- [x] Workers and service workers
 - [ ] Edit in your own editor (watch the overrides folder), and export/import patch sets for teammates
 - [ ] Response header overrides and request blocking
 - [ ] Search across every file the page loaded
@@ -239,14 +245,15 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 | `npm run build` / `npm start` | Production build / run the build |
 | `npm run typecheck` | TypeScript, main process and renderer |
 | `npm run lint:fsd` | [Feature-Sliced Design](https://feature-sliced.design) architecture check ([Steiger](https://github.com/feature-sliced/steiger)) |
-| `npm test` | Unit and renderer tests, plus the interception engine and iframes against real Chromium (skipped without it: `npx playwright install chromium`) |
+| `npm run lint:structure` | Code-structure check: files of at most 150 lines, one function or component each, no `switch` ([CLAUDE.md › Code structure](CLAUDE.md#code-structure)) |
+| `npm test` | Unit and renderer tests, plus the interception engine, iframes and workers against real Chromium (skipped without it: `npx playwright install chromium`) |
 | `npm run test:e2e` | Builds the app and drives it end to end with Playwright (headless Linux: `xvfb-run npm run test:e2e`) |
 | `npm run dist` | Builds the installers for your system into `dist/` (`npm run dist -- --dir` for just the app) |
 | `npm run test:packaged` | Drives the packaged app end to end: pass the app's executable, or run it after `npm run dist` |
 | `npm run test:update` | Updates an installed app (or an AppImage) to a newer build served locally: pass its executable and the newer build's `dist` folder |
 | `npm run demo-site` | Serves the demo site on port 5174 |
 
-- **Main process** (`src/main`): the interception engine (`engine/InterceptionEngine/`, one per CDP session) and its iframe coordinator (`engine/PageInterception/`), the embedded page, persistence and IPC.
+- **Main process** (`src/main`): the interception engine (`engine/InterceptionEngine/`, one per CDP session) and its coordinator for iframe and worker sessions (`engine/PageInterception/`), the embedded page, persistence and IPC.
 - **Renderer** (`src/renderer/src`): React 19 organized with Feature-Sliced Design (`app → pages → widgets → features → entities → shared`), Zustand stores per entity, and a design system with Motion animations and [Hugeicons](https://hugeicons.com). Tokens, motion rules and components are in **[docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)**; `CONSOLE_EDITOR_GALLERY=1 npm run dev` opens the component gallery.
 - **Shared** (`src/shared`): IPC types and URL matching used by both.
 

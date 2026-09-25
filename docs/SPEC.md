@@ -29,11 +29,12 @@ A desktop app where you enter a website's URL, see every script, stylesheet and 
 | U10 | I can open DevTools for the page to use the console, breakpoints and network panel | ✅ |
 | U11 | I can edit override files in my own editor (VS Code) and the app picks up changes | 🔜 M2 |
 | U12 | Overrides and file listing inside iframes, including cross-site (out-of-process) and nested ones | ✅ |
-| U12b | Overrides for scripts loaded by workers | 🔜 M2 |
+| U12b | Overrides and file listing for what workers load: dedicated, shared and service workers, and worklets | ✅ (except a nested worker's first script, §6.6) |
 | U13 | Export/import a workspace's overrides to share them with teammates | 🔜 M2 |
 | U14 | Use my own Chrome (existing profile, extensions) instead of the embedded browser | 🔜 M3 |
-| U15 | Browse original sources from source maps (read-only) and jump to the matching bundle code | ✅ (§6.7) |
+| U15 | Browse original sources from source maps (read-only) and jump to the matching bundle code | ✅ (§6.8) |
 | U16 | I keep a workspace per site or task (its page, tabs, unsaved edits and overrides) and switch between them from the rail, which shows each one's favicon or a colour I pick | ✅ (§5.1) |
+| U17 | I read the console of the page and every iframe in it as one stream, each row tagged with its frame, and run code in the frame I pick: send an event in one service, watch another react | ✅ (§6.7) |
 
 ## 3. Architecture
 
@@ -76,29 +77,38 @@ flowchart LR
 
 ```
 src/
-  shared/            types.ts (IPC + data model), constants.ts (gallery hash, env var names),
+  shared/            types/ (IPC + data model, one file per domain), constants.ts (gallery hash, env var names),
                      ipcChannels.ts (the IPC channel of each API method, for main and preload),
                      matcher/ (URL matching), minified/, version/ (semver comparison),
                      changelog/ (CHANGELOG.md sections)
   main/
     index.ts         app bootstrap: data folder, Chromium switches, single-instance lock
-    launch/          createWindow.ts (window, stores, updater, session flush on close), handOver.ts (a second
-                     launch's URL), launchState.ts (the open window they share), URL and data-folder helpers
+    launch/          createWindow.ts (window, stores, controllers, updater), CloseGuard.ts (session flush on close),
+                     handOver.ts (a second launch's URL), launchState.ts (the open window they share), URL and
+                     data-folder helpers
     constants.ts     http(s) URL patterns, file-not-found code
     appInfo.ts       app id and repository URL (shared with electron-builder.ts)
-    PageController/  PageController.ts (WebContentsView for the site, navigation, engine wiring), normalizeUrl.ts
+    PageController/  PageController.ts (WebContentsView for the site, engine and console wiring), PageLoader.ts
+                     (attach, navigate, leave), normalizeUrl.ts and view/session helpers
     WorkspaceController.ts  workspaces: switching, the page URL, title and favicon each remembers (§5.1)
+    console/         ConsoleService/ (logs, errors and evaluation on every CDP session: rows, batches, handles),
+                     ConsoleFrames/ (the page's frames across sessions, and their JavaScript contexts), value
+                     previews (§6.7)
     favicon/         a page's favicon as a small data URL (sniffed, size-capped)
     sourceMap/       a script's or stylesheet's source map: found (SourceMap/X-SourceMap header or trailing
                      comment, per-kind precedence) and read out of page (http(s) through the site session,
-                     data: handed over undecoded; 64 MB, 30 s) (§6.7)
+                     data: handed over undecoded; 64 MB, 30 s) (§6.8)
     readCapped.ts    capped streaming reads (favicons, source maps)
     electronTransport.ts  webContents.debugger → CdpTransport
-    engine/          PageInterception/ (one engine per CDP session: page + iframes),
-                     InterceptionEngine/, transform/ (SRI/source maps/headers, the SourceMap header a response names),
+    engine/          PageInterception/ (one engine per CDP session: page, iframes, workers; hands each frame
+                     session to the console too),
+                     InterceptionEngine/ (the coordinator, with frame, navigation, resource, paused-request,
+                     settings and worker-script collaborators), transform/ (SRI/source maps/headers,
+                     the SourceMap header a response names),
                      cdp/ (transport interface), websocketTransport/ (browser-level CDP, used by tests),
                      constants.ts (CDP command and event names, HTTP status classes)
-    store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts, writeAtomic.ts and their helpers
+    store/           OverrideStore/, SessionStore/ (each a store with its file and record helpers), SettingsStore.ts,
+                     WriteQueue.ts, writeAtomic.ts and shared sanitizers
     update/          UpdateService/ (checks, downloads, installs: §10.1), electronInstaller/ (electron-updater),
                      updateEndpoints.ts (GitHub, or a local update server in tests)
     sitePermissions/ permission policy for the site view
@@ -109,13 +119,17 @@ src/
   renderer/src/      React UI, Feature-Sliced Design (see DESIGN_SYSTEM.md §6):
     app/             entry, providers, event bridge (main → stores), styles/tokens, component gallery
     pages/editor/    the workspace layout and its persisted layout store; session sync and workspace switching
-    widgets/         title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel, command-palette
-    features/        open-resource (also original sources and the jumps between them and bundles), save-override, format-document, compare-changes, toggle/delete-override,
+    widgets/         title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel, command-palette,
+                     console-panel
+    features/        open-resource (also original sources and the jumps between them and bundles), save-override,
+                     format-document, compare-changes, toggle/delete-override,
                      edit-match-rule, navigate-page, filter-resources, update-settings, close-tab,
-                     update-app (notifications, the What's New page, the status-bar entry), edit-workspace
+                     update-app (notifications, the What's New page, the status-bar entry), edit-workspace,
+                     run-in-frame, filter-console, name-frame, clear-console, expand-console-value
     entities/        page, settings, override, editor-tab (+ Monaco model registry, page tabs, read-only source tabs),
-                     resource, source-map (each bundle's map state, the originals tree), app-update (updater state,
-                     the bundled CHANGELOG.md), workspace (+ its rail tile)
+                     resource, app-update (updater state, the bundled CHANGELOG.md), workspace (+ its rail tile),
+                     frame (the page's frames, their labels and colours), console-log, source-map (each bundle's
+                     map state, the originals tree)
     shared/          api (preload bridge), ui (design system), monaco, lib (format and source-map workers,
                      overlays, motion), config
 test/
@@ -123,18 +137,21 @@ test/
                      source maps (finding, loading, header capture)
   renderer/          resource tree building, palette fuzzy matching, original sources (parsing, positions through
                      pretty-printing, tabs, jumps, tree)
-  integration/       engine and iframe sessions against real Chromium + fixture site, source maps in every form
+  integration/       engine, iframe and worker sessions against real Chromium + fixture site, source maps in
+                     every form
   e2e/               the built Electron app driven by Playwright
   smoke/packaged.ts  a packaged build (installed app) driven over the remote debugging port
   smoke/update.ts    an installed app updated to a newer build from a local stand-in for GitHub
-  fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, iframes, source maps (header,
-                     X-SourceMap, comment, data: URI, a stylesheet's, HTML fallback, XSSI, a missing one);
-                     sourceMaps.ts builds them, esbuildApp.ts is a checked-in esbuild build
+  fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps, iframes (/frames.html),
+                     every kind of worker (/workers/), source maps in every form (/maps.html: header, X-SourceMap,
+                     comment, data: URI, a stylesheet's, HTML fallback, XSSI, a missing one); sourceMaps.ts builds
+                     them, esbuildApp.ts is a checked-in esbuild build
   helpers/           Chromium launcher with the app's flags, WebSocket CDP harness
 build/               app icon (icon.png 1024 px original, icon.icns macOS, icon.ico Windows, icons/ Linux sizes),
                      macOS entitlements, NSIS hooks (electron-builder's build resources)
 electron-builder.ts  installer configuration
-scripts/             release-notes.ts (a release's notes from CHANGELOG.md)
+scripts/             release-notes.ts (a release's notes from CHANGELOG.md), check-structure.ts and structure/
+                     (the code-structure check, `npm run lint:structure`)
 CHANGELOG.md         release notes: shown as What's New, and at the top of each GitHub release
 .github/workflows/   ci.yml (checks, tests), release.yml (installers on three systems, update tests, draft release)
 ```
@@ -178,7 +195,7 @@ interface SessionState {  // what a workspace reopens (the active one's: on star
 // Each override belongs to one workspace (`workspaceId` in overrides.json).
 ```
 
-Originals opened from source maps (§6.7) are tabs of their own kind, kept apart from file tabs as pages are: they are read-only, never saved or restored, and close with the workspace.
+Originals opened from source maps (§6.8) are tabs of their own kind, kept apart from file tabs as pages are: they are read-only, never saved or restored, and close with the workspace.
 
 **Storage** (`<userData>/workspace/`, written atomically via temp file + rename, one write at a time):
 
@@ -210,9 +227,11 @@ A workspace is a saved workflow: a page (URL, title and favicon), the tabs open 
 
 **Creating** adds an empty workspace (in the first colour no other has) and switches to it, with the address bar focused; if the switch doesn't happen, the new workspace is removed again. **Deleting** asks first and removes the workspace's overrides (first: were the workspace to go first and this fail, the next start would hand them to another), then the workspace with its drafts and favicon; the active one hands over to its neighbour first, and the last one can't be deleted. The site's cookies and logins (`persist:site`) are shared by all workspaces.
 
+**Frame names.** Each workspace keeps the names you give the page's frames in the console (`frameNames`, by frame key: `top` for the top page, else the frame's address without query or hash, else `name:` and its `name` attribute, else `id:` and its id), at most 200, each up to 40 characters.
+
 `CONSOLE_EDITOR_USER_DATA` overrides `<userData>` (used by tests; handy for throwaway profiles).
 
-**Settings** (all booleans; defaults in brackets): reload page on save [on] · pretty-print minified files on open [on] · strip SRI [on] · strip source maps from overrides [on] · disable HTTP cache [on] · bypass service workers [on] · bypass CSP [off].
+**Settings** (all booleans; defaults in brackets): reload page on save [on] · pretty-print minified files on open [on] · strip SRI [on] · strip source maps from overrides [on] · disable HTTP cache [on] · bypass service workers [on] · bypass CSP [off] · record the console [on] · check for updates [on].
 
 ## 6. Interception engine
 
@@ -226,19 +245,19 @@ A workspace is a saved workflow: a page (URL, title and favicon), the tabs open 
 ### 6.2 Which requests get paused
 Only requests that could need a change are paused (`requestStage: 'Response'`):
 - each enabled **exact/glob** override → a precise CDP URL pattern (CDP wildcards `*`/`?` escaped in literal parts; trailing `*` when ignoring the query);
-- each enabled **regex** override → `*` restricted to the override's resource type;
+- each enabled **regex** override → `*` restricted to the override's resource type; a script override also pauses `Other`, the type of a worker's first script and of its static module imports (§6.6);
 - if SRI stripping is on and any script/stylesheet override is enabled → every `Document`.
 
-Patterns are recomputed whenever overrides are created, deleted, enabled/disabled or re-matched. Content-only saves don't touch patterns (content is read at request time).
+Patterns are recomputed whenever overrides are created, deleted, enabled/disabled or re-matched. Content-only saves don't touch patterns (content is read at request time). A service or shared worker's session gets the same patterns, plus every `Script` and `Other` request, and never `Fetch.disable` (§6.6).
 
 ### 6.3 On `Fetch.requestPaused`
-1. Find the override for the URL: exact beats glob beats regex, then the most recently updated wins.
+1. Find the override for the URL: exact beats glob beats regex, then the most recently updated wins. It must answer the request's kind: documents, scripts and stylesheets are answered by an override of their own kind, `Other` (mostly what workers load as scripts, §6.6) by a script override, anything else (fetch, XHR, preload) by a script or style override. On a service worker's session, while the page bypasses service workers, only its scripts (`Script`, `Other`) are answered; its own fetches are continued unmodified (§6.6).
 2. **Override found and the upstream response is not a redirect** (3xx + `Location`):
    - if the override has `originalHash` and upstream was 2xx: read the upstream body (`Fetch.getResponseBody`), decode it (base64 → bytes → `charset` from `Content-Type`, UTF-8 fallback), hash it, and emit `upstream-changed` if it differs;
    - body = override content; Documents get SRI stripped (if on); Scripts/Stylesheets get `sourceMappingURL` comments removed (if on);
    - headers = upstream headers **minus** `Content-Encoding`, `Content-Length`, `Transfer-Encoding`, digests, `ETag`, `Last-Modified`, `Cache-Control`/`Expires`/`Pragma` (and `SourceMap`/`X-SourceMap` when stripping), **plus** `Content-Type: <upstream type or default>; charset=utf-8` and `Cache-Control: no-store`;
    - `Fetch.fulfillRequest` with status **200**. This also answers 404/5xx/network errors, so you can patch files that are missing or while the server is down;
-   - remember `networkId → overrideId` so the resource list can mark the file "served from override"; emit `override-served`.
+   - remember `networkId → overrideId` so the resource list can mark the file "served from override" (one map for all of a page's sessions: a worker's file is served on one session and reported on another, §6.6; a service worker's own script paused with no `networkId` goes under the worker's target id); emit `override-served`.
 3. **Document with SRI stripping on** (2xx HTML): read the body; if it has `integrity` attributes on `<script>`/`<link>`, fulfill with them removed (original status, headers minus body-specific ones).
 4. Otherwise `Fetch.continueRequest`. Any error → emit `error` and continue the request, so a bug in the engine never hangs the page.
 
@@ -263,17 +282,92 @@ With site isolation, a cross-site iframe runs in its own renderer process and is
 | A document served via `Fetch.fulfillRequest` has no IP address space, so Chromium's Local Network Access checks treat it as public and block its requests to loopback/intranet hosts | The app disables those checks for its browser (`src/main/chromiumFlags/`) |
 | With the `RenderDocument` feature disabled (Playwright's Electron launcher does this), Electron 44 crashes (SIGSEGV) when a page with out-of-process iframe sessions reloads | `withDisabledFeatures` (`chromiumFlags/`) keeps it enabled whatever else is passed in `--disable-features` |
 
-Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session; workers are excluded for now (M2).
+Auto-attach (`AUTO_ATTACH`) uses `filter: [{type: 'iframe'}, {type: 'worker'}, {type: 'worklet'}, {type: 'service_worker'}, {exclude: true}]` on the page's session, every iframe's and every dedicated worker's. Every type Chromium pauses on start must be listed: a dedicated worker or worklet left out is still paused but never attached, so it never runs (§6.6).
 
 **Events:** resources from cross-site iframes carry `iframeId`; `navigated` with an `iframeId` means that iframe loaded a new document (drop its entries), `iframe-detached` means the session went away (drop its entries and its descendants').
 
-### 6.6 Resource list
-- `Network.responseReceived` with type Document/Script/Stylesheet (not `data:`/`blob:`/internal URLs) → entry `{ url, kind, mimeType, status, overrideId?, frame?, iframeId? }`. `frame` (URL and depth) marks files loaded inside an iframe; an iframe's own document is labelled with its new URL.
-- **Navigations reset the list when they commit, not when they start.** A main-frame document request (`requestId === loaderId`) only marks a navigation as pending. Until `Page.frameNavigated` commits it, late responses of the old page are not listed, and the new document's own response is held. On commit the list is cleared, `navigated` is emitted, then the held document is listed. A navigation that never commits (a download, a 204, a cancelled load: `Page.frameStoppedLoading` with nothing committed) leaves the list as it was. A commit without a request (back/forward cache, `about:blank`) resets the list too. Each iframe session applies the same rules to its own root frame and tags its `navigated` event with its `iframeId`.
-- **Missed overrides:** an enabled override whose URL arrived without being served (it was enabled after the request, or an iframe loaded it on no session, §6.5) emits `override-missed` once per override and URL until the next navigation; the UI offers "Reload page".
-- **Content for the editor:** for files served from an override, re-fetch upstream out-of-page (session cookies included) so the edited copy is never mistaken for the original. Otherwise try `Network.getResponseBody`, then `Page.getResourceContent`, then the out-of-page fetch. The result carries a sha256 hash (becomes `originalHash`), and the `SourceMap` (else `X-SourceMap`) header the response named, if any. For a file served from an override that is the upstream response's header, taken at `Fetch.requestPaused` before the override replaces the response (and its header, when source maps are stripped).
+### 6.6 Workers
 
-### 6.7 Source maps
+Dedicated workers, shared workers, service workers and worklets are CDP targets of their own. `PageInterception` runs an `InterceptionEngine` on each worker's session too, in worker mode (`EngineOptions.worker`: the worker's type, target id and script URL, whether another worker started it, and for a service worker attached again, what its last session knew). A worker's session has no `Page` domain, and only service and shared workers have `Fetch`. Behaviour below was probed in Electron 44 (Chromium 152), Chromium 141 and Chrome 153 (where they differ, it says so); `test/integration/workers.chromium.test.ts` checks the engine against real Chromium.
+
+Where a worker's requests are paused and reported:
+
+| Request | Paused (`Fetch`) on | `resourceType` | Reported (`Network`) on |
+|---|---|---|---|
+| A dedicated worker's first script | the session of the frame that started it (the page or a cross-site iframe) | `Other` | the worker's session (`responseReceived`, `requestId` = the worker's target id) |
+| Its `importScripts` and dynamic `import()` | the same frame's session | `Script` | the worker's session (type `Other` / `Script`) |
+| Its static module imports | the same frame's session | `Other` | the worker's session (type `Script`) |
+| A nested worker's first script (a worker started by a worker) | **nowhere** in 152 and 153 (the page's session in 141) | `Other` | the nested worker's session |
+| A worklet's module | the frame's session | `Script` | the worklet's session (audio) or the page's (paint) |
+| A shared worker's first script | the frame's session | `Other` | only `requestWillBeSent`, on the frame's session |
+| A shared worker's `importScripts` and imports | the shared worker's session (with `Fetch` on before it starts) | `Script` / `Other` | the shared worker's session |
+| A service worker's own script (`sw.js`) | the service worker's session | `Other` | its session: `requestWillBeSent`, `responseReceived` (type `Script`, `requestId` = the worker's target id), `loadingFinished` |
+| A service worker's `importScripts` | the service worker's session | `Script` | its session (type `Other`) |
+| The scripts Chromium's update check fetched for a new version (its `sw.js`, and any imports the check fetched) | **nowhere** | — | the new version's session: `requestWillBeSent` and `responseReceived`, type `Other`, under request ids other than its target id |
+| A service worker's own `fetch()`, and pages it proxies (bypass off) | the service worker's session | `XHR` | its session (type `Fetch`) |
+
+A nested worker's other files are paused where its parent's are.
+
+| Fact (verified) | Consequence |
+|---|---|
+| With `waitForDebuggerOnStart`, a dedicated worker or worklet left out of the auto-attach filter is paused but never attached, so it never runs. Chromium 141 stalls service workers that way too; 152 and 153 don't | The filter lists every worker type (§6.5). Before, it listed only iframes, and pages' Web Workers and worklets never started |
+| Dedicated worker and worklet sessions have no `Page` and no `Fetch` domain ("wasn't found") | What they load is served by the engine of the frame's session; theirs only lists the files and reads them |
+| A worker attaches (`waitingForDebugger: true`) on its creator's session only after its first script was answered there. A nested worker attaches on its parent worker's session, and only if that session got `Target.setAutoAttach` | The frame's engine answers the first script without waiting for the worker. Each dedicated worker's session gets `AUTO_ATTACH` too |
+| A dedicated worker's or worklet's file is paused (and served) on one session and reported on another | The map from request id to the override that served it is shared by all of a page's engines, so the file is still marked "served from override". Only the page's own navigation clears it |
+| The page session's `setCacheDisabled` and `setBypassServiceWorker` don't reach requests workers make | Each worker's session gets them, and again when settings change: dedicated and shared workers both, service workers the cache setting, worklets neither |
+| A waiting service or shared worker answers `Network.*` and `Runtime.*` only once it runs; `Fetch.enable`, `Target.*` and `Inspector.enable` answer at once. Awaiting `Network.enable` before resuming deadlocks. An installed service worker starting on a new session fetches at once, so its `Fetch.enable` must go out in the same task as the attach event | A worker is set up without awaiting anything: `Fetch.enable` first, then `Network.enable` and its settings, `Target.setAutoAttach` (dedicated) or `Inspector.enable` (service, shared), then `Runtime.runIfWaitingForDebugger`. The replies are awaited after the resume (5 s timeout), and the worker is resumed again in case a command held it back. Only a failed `Fetch` setup is reported as an error |
+| Shared workers are never auto-attached. `Target.setDiscoverTargets` reports one before its first script is requested (browser-wide in Electron, so filter by `browserContextId`), and `Target.attachToTarget` attaches it (in Electron, `attachedToTarget` is dispatched inside that call). `Fetch` must be enabled before the worker starts, with at least one pattern, and never disabled afterwards, or the worker is never paused again | The page's session discovers the shared workers of its own browser context and attaches each at once. Until a shared worker's `Fetch` is on, `Other` pauses on the page's and iframes' sessions (its first script among them) wait, for at most 2 s (then it's given up on). A worker's session never disables `Fetch`, and its scripts' patterns (below) keep the list from ever being empty |
+| A shared worker isn't paused as it starts, so its session may start reporting (`Network.enable` takes effect) only after its first `importScripts` went out, and then never reports that request. Another debugger attached to the page (DevTools, Playwright) resumes a waiting service worker itself, sometimes before the app's `Network.enable` took effect, with the same result | A service or shared worker's session also pauses every `Script` and `Other` request, and lists each from its pause unless the session reported it. A service worker's own script paused on its session counts as installed through it, whatever the session reports |
+| A stopped service or shared worker keeps its session: `Inspector.targetCrashed`. When it starts again, `Inspector.targetReloadedAfterCrash`, and it waits until `Runtime.runIfWaitingForDebugger`. While a session is attached, a service worker never idles out | Both are resumed on `targetReloadedAfterCrash`. A shared worker ends with its last page, so its session is detached on `targetCrashed`: its next instance is discovered afresh and set up before it starts |
+| A worker's target URL is its script URL before redirects; its session reports the final one | A worker's files are labelled with the final URL |
+| Only the worker's own session can return a worker file's body (`Network.getResponseBody`) | `getResourceContent` reads it there, for at most 5 s (a stopped service worker answers only once it runs again), then falls back to the out-of-page fetch |
+| Chromium keeps a service worker's installed scripts. Its update checks (`registration.update()`, the soft update about 2 s after a navigation of a page it controls with bypass off, the daily check; the app's own reloads bypass the cache, and Chromium hands such a load to no service worker, so none follows them) fetch `sw.js` and its imports paused on **no** session, and reinstall the live scripts. With the page bypassing service workers (the default), reloads never fetch its scripts again, so an override made after the install never reaches it; unregistering it and reloading makes the page's `register()` install it afresh, through interception | The app unregisters an outdated service worker before its reloads (below). On a service worker's session, a response for the worker's own script URL is its first script whatever its request id (listed once). A script listed on that session but never paused on it came from an update check: when an override matches it, it's reported (`service-worker-update`) and the new version counts as outdated |
+| A new service worker version that Chromium creates before fetching its script (seen with bypass off, at a navigation's start) has that script paused with no `networkId`; its session reports the script under the worker's target id | A service worker's own script served with no `networkId` is remembered as served under the target id, so it's marked "served from override" and not reported as missed |
+| Leaving a site detaches its service worker's session; coming back attaches the same worker (same target id) on a new session, started from its installed scripts, which aren't fetched again | When a service worker's session goes away, what it learnt (its script URL, whether it installed through interception, the override version each script was served, the scripts it listed) is kept by target id, for the last 50 service workers; not for one the app unregistered, and not once the page's interception is detached. The same target's next session starts from it and lists those scripts again, their bodies read with the out-of-page fetch |
+| A service worker's own fetches (a precache's `cache.addAll`, say) are paused on its session as `XHR`, like the page requests it answers with bypass off. What it stores in Cache Storage outlives the override | While the page bypasses service workers, a service worker's session answers only its scripts (`Script`, `Other`) and continues everything else unmodified, so no edit is cached. With bypass off its fetches are served (they may answer the page) |
+| `ServiceWorker.unregister` with a registration's scope, on the page's session, works while the worker is stopped; `self.registration.unregister()` evaluated in a stopped worker gets no answer. After an unregister, Chromium keeps the version running as long as a debugger is attached to it | The page's session enables the `ServiceWorker` domain (not awaited) and maps each version's target id to its registration (`workerVersionUpdated`) and each registration to its scope (`workerRegistrationUpdated`). An unregistered service worker's session is detached (`Target.detachFromTarget`), which lets it stop and drops its files. If Chromium attaches it again, it's only resumed |
+| With the page bypassing service workers, the first page load after a restart can't reach a service worker installed in an earlier run: `navigator.serviceWorker.ready` never resolves, and the worker isn't attached. The next load of the page can. Starting the worker or updating its registration (`ServiceWorker.startWorker`, `updateRegistration`) before the first load doesn't help; unregistering it does. Plain Electron does the same with no app code: a debugger session that sends only `Network.enable` and `Network.setBypassServiceWorker`, then loads the page | Not worked around: unregistering every stored service worker on each run would drop the sites' push subscriptions. Documented as a limitation |
+| Commands in flight to a worker session that goes away never settle. Old worker sessions detach on reload; workers under a cross-site iframe get no detach when that iframe's session goes away | As for iframes: in-flight commands are rejected, and removal cascades through the recorded parents, emitting `worker-detached` for each worker |
+
+**Files workers load.** An entry reported on a worker's session carries `worker: { type, url }` (the worker's script URL; a worklet's is the URL of the document that added it) and `workerId` (the session id), and never `frame`. A worker loads no documents or stylesheets: Network type `Script`, or `Other` with a JavaScript MIME type (`importScripts`), is listed as a Script. A worker's own first script is listed from its `responseReceived` (on a service worker's session, the response for its script URL, under whatever request id), once; `loadingFinished` is the fallback when none comes, and `Inspector.workerScriptLoaded` when its session never fetched it (an installed service worker, or a shared worker whose script its page fetched). A service or shared worker's scripts are also listed from their pauses, and a service worker attached again lists its last session's scripts at once (above). A file a service worker answered for the page (`fromServiceWorker`) is never reported as missed on the page's session: it was served, or not, on the worker's. Its content is read with the out-of-page fetch (§6.7). `worker-detached` means the session went away (terminated, its page left, a new service worker version took over, or the app let go of a service worker it unregistered): drop its entries and its descendants'. A top-level `navigated` keeps the entries of service and shared workers, which outlive the page (the main process keeps listing them until `worker-detached`); dedicated workers' and worklets' go with the page. When several sessions list one URL, the page's entry wins, then an iframe's, then a worker's.
+
+**Reloading after a service worker's scripts change.** `PageController.reload()` and `navigate()` first call `PageInterception.prepareReload(url)` with the page they load. A service worker whose scripts were served other override versions than would be served now (an override of one of them added, changed or turned off since it installed, or a script the update check reinstalled while an override matches it: `InterceptionEngine.isOutdated()`) is unregistered, with a 2 s timeout: through `ServiceWorker.unregister` with its registration's scope on the page's session, or, when the scope isn't known, with `self.registration.unregister()` evaluated in the worker. Once that succeeds, the worker is marked retired and its session detached (above); one whose registration is already deleted is let go the same way without unregistering, since its scope may hold a newer registration. One that failed or timed out is tried again on the next reload. The reload then lets the page's `register()` install it afresh, through interception. A service worker attached again after the page left its site and came back knows what its last session knew (above), so that reload leaves it installed while it's up to date. One whose session went with the page it left is judged from that knowledge too, when the page loaded is on its site: switching workspaces leaves the page for a blank one before the other workspace's overrides replace these, so a service worker of the site that runs this workspace's edits is unregistered by its scope before that workspace's page loads, and the page installs it with that workspace's version on that same load. Without a known scope it's left to its next session. One installed before any session of this run saw it (in an earlier run) may run edits of any of its site's scripts, and what it imported is unknown: it counts as outdated while its site has script overrides (turned-off ones too), so after an app restart the app's first reload with it running installs it afresh (the registration's push subscriptions are lost), and from then on it's tracked exactly. The app's own reloads (after a save, the Reload button, Ctrl/Cmd+R) and the navigations it starts do this; back, forward and the page's own navigations don't.
+
+**Missed overrides** (§6.7) carry a `reason` for workers:
+- `nested-worker`: a nested dedicated worker's first script wasn't served. Nothing can pause it in Chromium 152+, so the UI says the override can't apply there (the files that worker loads still get overrides) and offers no reload. Every page load reports it again; the UI says it once per version of the override.
+- `service-worker-update`: a script listed on a service worker's session wasn't served and was never paused on that worker's sessions. Installing through them pauses every script an override matches, so Chromium's update check fetched it and reinstalled the live one. The UI offers a reload, which reinstalls your version, and says that with **Bypass service workers** off Chromium checks after every page load. A script that was paused there but not served (its override was turned on meanwhile) is reported without a reason.
+
+**Limitations**
+- A nested worker's first script can't be changed in Electron 44 (Chromium 152+); what it loads can. Reported as above.
+- A service worker's edited scripts take effect on the app's reload, which unregisters it: that needs the page to call `register()` on load, and the registration's push subscriptions are lost. After an app restart, the app's first reload with a site's service worker running does this whenever the site has any script override, even one turned off (above).
+- Chromium's update checks, which interception can't reach, restore a service worker's live scripts: the page's own `registration.update()` whatever the settings, and with **Bypass service workers** off also the soft update within seconds of a navigation. That's reported, and the app's next reload puts the edit back.
+- With **Bypass service workers** off, requests a service worker answers from Cache Storage are never paused, copies it cached while an override was on keep the edit until it caches them again, and HTML overrides don't apply to navigations it proxies (they are `XHR` on its session).
+- With **Bypass service workers** on (the default), the first page load after a restart doesn't reach a service worker installed in an earlier run (above); from the next load on it does, and the app intercepts it.
+- Over a remote Chromium connection (the integration tests), a shared worker can start before its session intercepts unless its first script is overridden (and so held). In the app the attach happens inside the discovery event, before the worker starts.
+
+### 6.7 Resource list
+- `Network.responseReceived` with type Document/Script/Stylesheet (not `data:`/`blob:`/internal URLs) → entry `{ url, kind, mimeType, status, overrideId?, frame?, iframeId?, worker?, workerId? }`. `frame` (URL and depth) marks files loaded inside an iframe; an iframe's own document is labelled with its new URL. Workers' entries follow §6.6.
+- **Navigations reset the list when they commit, not when they start.** A main-frame document request (`requestId === loaderId`) only marks a navigation as pending. Until `Page.frameNavigated` commits it, late responses of the old page are not listed, and the new document's own response is held. On commit the list is cleared (except service and shared workers' files, §6.6), `navigated` is emitted, then the held document is listed. A navigation that never commits (a download, a 204, a cancelled load: `Page.frameStoppedLoading` with nothing committed) leaves the list as it was. A commit without a request (back/forward cache, `about:blank`) resets the list too. Each iframe session applies the same rules to its own root frame and tags its `navigated` event with its `iframeId`.
+- **Missed overrides:** an enabled override whose URL arrived without being served (it was enabled after the request, or an iframe loaded it on no session, §6.5) emits `override-missed` once per override and URL until the next navigation; the UI offers "Reload page". For a worker's file it may carry a `reason`, and the UI says why instead (§6.6).
+- **Content for the editor:** for files served from an override, and files a service worker answered (`fromServiceWorker`: it may have been served an override on its own session), re-fetch upstream out-of-page (session cookies included) so the edited copy is never mistaken for the original. Otherwise try `Network.getResponseBody` (on the worker's own session for a worker's file, §6.6), then `Page.getResourceContent`, then the out-of-page fetch. The result carries a sha256 hash (becomes `originalHash`), and the `SourceMap` (else `X-SourceMap`) header the response named, if any. For a file served from an override that is the upstream response's header, taken at `Fetch.requestPaused` before the override replaces the response (and its header, when source maps are stripped); like the override that served it, it's shared by a page's sessions.
+
+### 6.7 Console
+
+The console records the page's and every frame's logs as one stream and runs code in any frame (`src/main/console/`). It rides on the sessions interception already has: `PageInterception` hands each frame's CDP session to a `SessionObserver` (the page's once attached, an iframe's while it is still paused, within the same setup budget), so a service's first log line is caught. Worker sessions aren't handed to it: a waiting service or shared worker answers `Runtime` commands only once it runs, and it must be resumed at once (§6.6). The observer's failures never touch interception.
+
+| What | How |
+|---|---|
+| Recording | Per session: `Page.getFrameTree` (seeds its frames), then `Runtime.enable` and `Log.enable`. Off in Settings: `Runtime.disable` and `Log.disable` on every session, and no frames are listed |
+| Frames | Keyed by frame id, which survives a move to another process (a new session). A session hosts its root frame and its same-site descendants; `Page.frameNavigated` and each frame's main-world context (`executionContextCreated` with `isDefault`) say where a frame runs now. A frame removed from its parent (`frameDetached`, not `swap`) goes with the frames in it; a session that goes away takes the frames it hosted |
+| Rows | `Runtime.consoleAPICalled` (format directives filled in, `%c` dropped; the stack for errors, warnings, `trace` and `assert`), `Runtime.exceptionThrown` (uncaught errors and rejections), `Log.entryAdded` (the browser's own messages: failed requests, CSP, interventions), each on the frame of the context it came from (`Log` has none: the session's own frame). A frame loading a web page adds a divider row. What Electron's own scripts log in the page (`node:electron/…`, its security warnings in builds run from source) is left out |
+| Values | A preview per value (`{sku: 42}`, `[1, 2, …]`, `Map(1) {a => 1}`, an error with its stack), and a handle for objects: `getConsoleProperties` lists one level with `Runtime.getProperties`, on the session the value came from |
+| Running code | `Runtime.evaluate` on the frame's session, in its main world by `uniqueContextId`, with `replMode` (top-level `await`, redeclaring `let`), `includeCommandLineAPI` (`$0`, `copy()`), `awaitPromise` and `userGesture`. The code and its result (or what it threw) are rows too |
+| Limits | The last 5,000 rows are kept (`MAX_CONSOLE_ENTRIES`) in the main process and the panel; a row's handles go with it. Clearing drops the rows and frees the page-side values (`Runtime.discardConsoleEntries`, `releaseObjectGroup`) |
+| Delivery | Rows and frame changes go out every 50 ms at most, frames first (`frames-changed`, `console-entries`), so ten chatty services don't flood IPC; `listFrames` and `getConsoleEntries` give a (re)starting renderer the current state |
+
+**Panel** (under the editor, `Ctrl/⌘+J`): the rows with time, frame chip, value previews that open in place, stacks, and the source as `file:line`, which opens the file in an editor tab. A row after code you ran shows how long after it came (`+4ms`). Frame chips filter by frame (with each frame's error and warning counts), a menu by level (as DevTools: verbose off by default; code you ran and page loads always show), a field by text. When the top page loads another page the rows before it go, unless **Keep rows** is on. The prompt runs code in the picked frame; Up and Down go through what you ran in this workspace. Frames are labelled by the name you gave them (per workspace, §5.1), else their `name` attribute, else their host and first folder; frames that would read the same are numbered. A frame's colour comes from its key, so a service keeps it across reloads and runs.
+
+### 6.8 Source maps
 
 Scripts and stylesheets the page loaded can show the original files they were built from, read-only, and jump between a line of an original and the bundle code it became. Nothing is read until you expand a bundle or ask for a jump.
 
@@ -314,7 +408,7 @@ Scripts and stylesheets the page loaded can show the original files they were bu
 | Compare live | Fetch today's live file (pretty-printed if minified) and diff it against the override |
 | Match row | Choose exact/glob/regex, edit the pattern, toggle ignore-query, Apply. Invalid regexes are rejected, and a pattern that no longer matches the source URL asks for confirmation |
 | Build-hash hint | If the file name contains a build hash, offer a one-click glob (`main.3f9a1c2b.js` → `main.*.js`, `index-BkT3x9aQ.js` → `index-*.js`) |
-| Explorer | Overrides (switch on/off, hit counter, ⚠ upstream changed, context menu) and page resources as a tree (origin → folders → files, served-from-override dot, iframe badge); scripts and stylesheets expand to the original files of their source map (root → folders → files, third-party code under a closed **Libraries**; §6.7). A filter box covers both, including iframe URLs and loaded originals (a bundle with matching originals is listed, open). The tree is virtualized and keyboard-navigable over all rows; resource events are applied once per animation frame (every 250 ms while the window is hidden), so pages with thousands of files stay smooth |
+| Explorer | Overrides (switch on/off, hit counter, ⚠ upstream changed, context menu) and page resources as a tree (origin → folders → files, served-from-override dot, iframe badge, a badge naming the kind of worker that loaded the file); scripts and stylesheets expand to the original files of their source map (root → folders → files, third-party code under a closed **Libraries**; §6.8). A filter box covers both, including iframe and worker URLs and loaded originals (a bundle with matching originals is listed, open). The status bar counts the iframes and workers that loaded files. The tree is virtualized and keyboard-navigable over all rows; resource events are applied once per animation frame (every 250 ms while the window is hidden), so pages with thousands of files stay smooth |
 | Original sources | Open read-only from the Explorer or the palette: a tab of their own after the file tabs, a header with a **Read-only** badge, where the file comes from and **Go to bundle code**, and Monaco's read-only message when typed into. Save, pretty-print and diffs don't apply. An original the map has no text for says so, and offers its bundle code |
 | Go to bundle code / Go to original source (Ctrl/Cmd+Shift+M) | From a line of an original to the code it became in the bundle's tab (opened as usual: pretty-printed, or the override that applies), or from the cursor in a script or stylesheet tab to the original line. Header buttons, the editor's context menu, **View** menu and palette. Exact through pretty-printing and outside your edits; inside them, or where a new build changed the file, a toast says why a jump landed short or couldn't be made |
 | Command palette (Ctrl/Cmd+K or P) | Fuzzy search over every page file, the original files of loaded maps, overrides and actions; the list refreshes while open as files arrive |
@@ -339,18 +433,18 @@ Scripts and stylesheets the page loaded can show the original files they were bu
 - IPC inputs are type-checked; matchers are validated before storage; settings are filtered to known boolean keys. Source-map calls take only an http(s) bundle URL: main derives the map URL itself.
 - Original sources are only ever shown as editor text, and their names (which the page chooses) as plain labels with control characters removed.
 - The site sees a standard Chrome user agent (Electron tokens removed).
-- All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open and for the page's favicon (from the site shown, through its session; kept only if its bytes are an image, and shown as an `<img>` data URL, where SVG can't run scripts), the source maps of the page's scripts and stylesheets when you ask for them (§6.7: http(s) through the site's session, with cookies only for the bundle's or the page's origin; `data:` maps decoded locally; any other scheme refused; 64 MB, 30 s), the only other network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
+- All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open and for the page's favicon (from the site shown, through its session; kept only if its bytes are an image, and shown as an `<img>` data URL, where SVG can't run scripts), the source maps of the page's scripts and stylesheets when you ask for them (§6.8: http(s) through the site's session, with cookies only for the bundle's or the page's origin; `data:` maps decoded locally; any other scheme refused; 64 MB, 30 s), the only other network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
 - Updates are verified before they are installed: electron-updater checks the SHA-512 in the release's `latest*.yml`, and manual downloads are checked against the release's `SHA256SUMS.txt` before they are kept. Both come from the same GitHub release, so this guards against damaged downloads, not a compromised release; signed builds would add that (§11). Release notes are Markdown rendered with `marked` and sanitized with DOMPurify (no images, styles, forms or frames), and their links open in the default browser (http and https only). `CONSOLE_EDITOR_UPDATE_FEED` (a local update server, for tests) is honoured only with a data folder of its own, like the debugging port.
 
 ## 9. Testing
 
 | Layer | What | Command |
 |---|---|---|
-| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion), favicon loading (recognising images, size caps), source maps (finding the reference, loading limits, header capture) | `npm test` |
-| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened), original sources (parsing, positions through pretty-printing, tabs, jumps both ways, the tree, the palette) | `npm test` |
-| Architecture | Feature-Sliced Design layer rules | `npm run lint:fsd` |
-| Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target. Source maps named by headers, `X-SourceMap`, comments and `data:` URIs, a stylesheet's, and an override-served bundle's | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
-| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart). Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted. The original sources behind a bundle: listed, opened read-only, jumping to the pretty-printed bundle line and back, found from the palette | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
+| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), worker sessions (setup order and resuming, `Fetch` kept on, settings per worker type, which session lists and credits a worker's files, missed-override reasons, outdated service workers and `prepareReload` (unregistering by scope, letting go, retrying), a service worker's state kept for its next session, shared-worker discovery and holding), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion, frame names), favicon loading (recognising images, size caps), the console service with a fake CDP transport (frames across sessions, contexts, rows and their previews, format directives, running code, properties, the cap, clearing, the setting) and the session observer (handed every session before it runs, never holding interception up), source maps (finding the reference, loading limits, header capture) | `npm test` |
+| Renderer | Resource tree building and filtering (worker entries: kept across navigations for service and shared workers, dropped with their worker, filtered by worker URL), command-palette fuzzy matching, missed-override notices by reason (a nested worker's once per override version), update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened), console frames (keys, labels, colours), rows, filters, Keep rows, prompt history and frame names, original sources (parsing, positions through pretty-printing, tabs, jumps both ways, the tree, the palette) | `npm test` |
+| Architecture | Feature-Sliced Design layer rules; the code-structure rules (files of at most 150 lines, one function, component, class or store per file named after it, data-only constants/types/index files, no `switch`) | `npm run lint:fsd`, `npm run lint:structure` |
+| Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target. The console on a page of service iframes (same-site, and two on sites of their own): every frame's first log line on its own frame, code run in one frame and another frame's logs reacting, top-level `await` and expanding the result, uncaught errors and rejections, a frame keeping its id across a navigation. Workers against the fixture's `/workers/` page (`workers.chromium.test.ts`, a fresh browser context per test): every kind runs while intercepted; edits reach a dedicated and a module worker's first script and imports, what a nested worker imports (its first script is served in Chromium 141, reported as missed in 152+), a shared worker, a service worker's script and imports, and an audio worklet's module; each file is listed with its worker and read through its session; a shared worker's races are forced by holding back its session's commands; workers under a cross-site iframe are served on its session and removed with it; workers are reported gone; an edit to an installed service worker applies on the next reload, and one whose page was left is reinstalled when its site loads again under other overrides (a workspace switch); the page's `registration.update()` is reported and the next reload undoes it; a service worker is listed again, and not reinstalled, when the page comes back to its site; the cache setting reaches what workers load. Source maps named by headers, `X-SourceMap`, comments and `data:` URIs, a stylesheet's, and an override-served bundle's | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
+| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, the fixture's `/workers/` page with its workers' files listed under their worker's badge and edited (imports of each kind of worker; a module worker's static import; the first script of a dedicated worker, a shared worker, a service worker and a worklet; a service worker's script edited again, turned off and on, and deleted; a worker under a cross-site iframe), the update check's toast with Bypass service workers off and its reload, what stays listed when the page leaves (its site's service worker) and when it leaves the site (nothing), each workspace running its own edit of the service worker's script (`workers.e2e.test.ts`), persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart), the console (each frame's rows, running code in a picked frame and seeing another react, filtering by frame, naming a frame and keeping the name across a restart, clearing). Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted. The original sources behind a bundle: listed, opened read-only, jumping to the pretty-printed bundle line and back, found from the palette | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
 | Packaged | The installed app (asar, fuses, signature) fixes the demo store's checkout through the UI, driven over `--remote-debugging-port` since the fuses disable Node's inspector. The release workflow runs it on six runners, one per architecture: macOS (from the disk image), Windows (after a silent install; the x64 runner also checks that the ARM installer refuses it) and Linux (from the installed `.deb`, with Ubuntu's user-namespace restriction left on) | `npm run test:packaged -- <app>` |
 | Update | An installed app updates itself to a build one patch higher, served by a local stand-in for GitHub: the notification, What's New, the download, **Restart to update**, the restarted app running the new version (and What's New after it). The release workflow runs it for the Windows installers (then uninstalls, checking the updater's cache goes too) and the AppImages on their four runners. The `.deb` path (as root, through `sudo`, and with the password refused) and the AppImage installing on quit were checked by hand | `npm run test:update -- <app> <newer dist>` |
 
@@ -391,7 +485,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 
 **M2: Robustness and sharing**
 - ✅ Iframes, including cross-site and nested ones (§6.5).
-- Workers: add `worker`/`service_worker` to the auto-attach filter, with an engine option that skips the Page domain.
+- ✅ Workers: dedicated, shared and service workers, and worklets (§6.6).
 - Watch `workspace/files` for external edits (edit in VS Code, the app reloads the page), with an "Open in external editor" action.
 - ✅ Workspaces: a page, tabs and overrides per site or task (§5.1).
 - Export/import a workspace's overrides as a zip or JSON, so a teammate can reproduce your fix.
@@ -406,17 +500,18 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - Signed and notarized builds, and with them installing updates in place on macOS.
 
 **M4: Sources**
-- ✅ Source-map explorer: list the original files from `sourcesContent`, open them read-only, and jump between an original line and the bundle line (§6.7).
+- ✅ Source-map explorer: list the original files from `sourcesContent`, open them read-only, and jump between an original line and the bundle line (§6.8).
 - Research: editing an original module and recompiling only it (esbuild transform) inside a webpack/Vite bundle's module map.
-- Console panel inside the app (mirror of `Runtime.consoleAPICalled`), and quick snippets.
+- ✅ Console panel for the page and every frame in it (§6.7). Still to come: sending a message to a frame without writing code, a message log of `postMessage` between frames, waiting for a log, showing a frame in the page, reloading or retargeting one frame, snippets and scenarios, network and storage per frame.
 
 ## 12. Risks and open questions
 
 | Risk | Mitigation |
 |---|---|
 | SSO providers blocking embedded browsers | Standard Chrome user agent now; external-Chrome mode (M3) as the fallback |
+| Some anti-bot and sign-in scripts notice a debugger with `Runtime` enabled (the console turns it on in every frame) | **Record the console** in Settings turns it off; try that first when a site acts differently in the app |
 | Huge bundles (10+ MB) are slow to pretty-print and highlight | The formatter runs in a worker that shuts down when idle; files over 1 M characters open in lite mode (no TypeScript service); file contents cross IPC once. Measured on a 2.7 MB bundle: opens in ~1.5 s; the editor window grows from ~190 MB to ~560–600 MB, of which only ~130 MB is JS heap (the rest is Monaco's native line/token buffers and rendering). A small file costs ~125 MB, mostly the TypeScript service, loaded on first use |
 | Self-verifying scripts detect edits | Out of scope; document it |
 | CDP behaviour changes between Chromium versions | Integration tests run the engine against real Chromium; pin and bump Electron deliberately |
-| Minified identifiers make edits hard to write | Pretty-print, and read the original sources through their source maps (§6.7) |
+| Minified identifiers make edits hard to write | Pretty-print, and read the original sources through their source maps (§6.8) |
 | Huge source maps (tens of MB) | Read only when asked for, parsed in a worker; 64 MB cap; at most 4 maps (48 MB) kept decoded, the least recently used dropped, and the worker stopped after 3 idle minutes |

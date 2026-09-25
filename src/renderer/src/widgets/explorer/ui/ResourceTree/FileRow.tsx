@@ -5,7 +5,7 @@ import { Icon } from '@/shared/ui/icon';
 import { ContextMenu } from '@/shared/ui/menu';
 import { Tooltip } from '@/shared/ui/tooltip';
 import { TreeLabel, TreeRow } from '@/shared/ui/tree';
-import { describeFrame, KindIcon } from '@/entities/resource';
+import { describeFrame, describeWorker, KindIcon, WORKER_NAME } from '@/entities/resource';
 import { isMappableKind } from '@/entities/source-map';
 import { openResource, toggleBundleSources } from '@/features/open-resource';
 import type { ExplorerFileRow } from '../../lib';
@@ -14,13 +14,14 @@ import { fileMenu } from './fileMenu';
 import type { RowProps } from './types';
 
 /**
- * A file in the tree: opens on click, with its actions on right-click and badges for iframes and
- * overrides. A script or stylesheet opens onto its originals (chevron, →), loading its map.
+ * A file in the tree: opens on click, with its actions on right-click and badges for iframes, workers
+ * and overrides. A script or stylesheet opens onto its originals (chevron, →), loading its map.
  */
 export function FileRow({ row, context, nav }: RowProps<ExplorerFileRow>) {
   const { entry, nest } = row;
   const { kind } = entry;
   const frameLabel = describeFrame(entry);
+  const workerLabel = describeWorker(entry);
   const toggle = nest && isMappableKind(kind) ? () => void toggleBundleSources(entry.url, kind) : undefined;
   return (
     <ContextMenu items={fileMenu(entry, nest)} label={`${fileName(entry.url)} actions`}>
@@ -34,10 +35,11 @@ export function FileRow({ row, context, nav }: RowProps<ExplorerFileRow>) {
         icon={<KindIcon kind={kind} size={ROW_ICON_SIZE} />}
         label={<TreeLabel text={row.label} highlight={context.query} />}
         meta={nest?.count ?? undefined}
-        title={`${entry.url}\n${entry.mimeType} · ${entry.status}${entry.overrideId ? ' · served from your override' : ''}${frameLabel ? `\n${frameLabel}` : ''}`}
+        title={`${entry.url}\n${entry.mimeType} · ${entry.status}${entry.overrideId ? ' · served from your override' : ''}${frameLabel ? `\n${frameLabel}` : ''}${workerLabel ? `\n${workerLabel}` : ''}`}
         data-url={entry.url}
         data-testid="resource-row"
         data-iframe={entry.frame ? '' : undefined}
+        data-worker={entry.worker?.type}
         data-source-map={nest?.status}
         className={entry.overrideId ? '[&_[data-tree-label]]:text-live' : undefined}
         onClick={() => void openResource(entry.url)}
@@ -54,6 +56,13 @@ export function FileRow({ row, context, nav }: RowProps<ExplorerFileRow>) {
               <Tooltip content={frameLabel}>
                 <Badge tone="info" icon={icons.IframeIcon} aria-label={frameLabel} className="frame-badge">
                   iframe
+                </Badge>
+              </Tooltip>
+            ) : null}
+            {workerLabel && entry.worker ? (
+              <Tooltip content={workerLabel}>
+                <Badge tone="info" icon={icons.WorkerIcon} aria-label={workerLabel} className="worker-badge">
+                  {WORKER_NAME[entry.worker.type]}
                 </Badge>
               </Tooltip>
             ) : null}

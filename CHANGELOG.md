@@ -7,9 +7,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- **Workspaces.** Keep one for each site or task you're working on, and switch between them from the left rail. Each has its own page, open tabs, unsaved edits and overrides, so a fix in progress on one never shows up in another, even on the same site. A workspace's tile shows the site's icon, or the first letter of its name on a colour you pick: click the current tile, or right-click any, to name it or change its icon. **+** adds a workspace, and the command palette switches between them too. Everything you had before is in the first one.
 - **Original sources from source maps.** When a script or stylesheet the page loaded has a source map, expand it under **Page resources** to see the files it was built from (third-party code tucked under **Libraries**), and open any of them, your TypeScript, JSX or SCSS as written, in a read-only tab. **Go to bundle code** takes you from a line of an original to the code it became in the bundle, pretty-printed or not, even in your override, and **Go to original source** takes you back; <kbd>Ctrl/Cmd+Shift+M</kbd> goes either way. The command palette and the Explorer filter find original files too.
+
+## [0.3.0] - 2026-09-24
+
+### Added
+
+- **A console for the page and every iframe in it.** Open it under the editor with **Ctrl/⌘+J** or the new button in the title bar. The logs, errors and browser messages of every frame, even iframes from other sites, arrive in one list, each row tagged with its frame, from the first line a frame logs. Pick a frame and run code in it: send an event in one service and watch another react, with how long it took next to each row (`+4ms`). Filter by frame (each shows its errors and warnings), by level or by text; open logged objects; click where a row came from to open that file. Give frames names such as "billing", kept per workspace. **Record the console** in Settings turns it off, for a site that acts differently while it is on.
+- **Workspaces.** Keep one for each site or task you're working on, and switch between them from the left rail. Each has its own page, open tabs, unsaved edits and overrides, so a fix in progress on one never shows up in another, even on the same site. A workspace's tile shows the site's icon, or the first letter of its name on a colour you pick: click the current tile, or right-click any, to name it or change its icon. **+** adds a workspace, and the command palette switches between them too. Everything you had before is in the first one.
 - **Resize handles show a grip**: three dots in a small tab bulging out of the edges you can drag (the sidebar's and the website preview's), so it's clear which ones move. The tab lights up with the edge on hover, and you can grab it too.
+- **Workers and service workers.** Your overrides now apply to what Web Workers, shared workers, service workers and worklets load, including a worker's own script and the scripts it imports. The Explorer lists these files with a badge naming the kind of worker that loaded them (hover it to see which one). The filter and the command palette also find them by the worker's URL, a file's menu can copy that URL, and the status bar counts the workers.
+- **Service worker edits apply on reload.** A service worker keeps the scripts it installed, so when you save a change to one, the app's reload unregisters the old worker and the page installs your version. This needs the page to register its service worker on every load, and the worker's push subscriptions are lost. After you restart the app, it doesn't know which of your edits a site's service worker installed, so if the site has any script override, the app's first reload with that worker running reinstalls it too, and its push subscriptions are lost. Leaving a site and coming back doesn't reinstall it; switching to another workspace on the same site does when the two workspaces edit its scripts differently, so each runs its own version.
+- **A notice when an edit can't apply.** Chromium doesn't let the app change the first script of a worker started by another worker (the files that worker loads still get your overrides); the app tells you once for each version of your override. Chromium's own update check can reinstall a service worker from the server: when the page asks for one, whatever your settings, and with **Settings › Bypass service workers** off, soon after a page loads. The app tells you, and **Reload page** puts your version back.
 
 ### Changed
 
@@ -18,6 +27,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Pages that use Web Workers or worklets no longer hang.** In the app's browser their workers never started, so whatever a page did in them never finished, with or without overrides. This affected every version so far.
 - **Hiding the website preview** now hides the site too. It used to stay on screen, drawn over the editor.
 
 ## [0.2.0] - 2026-09-24
@@ -44,6 +54,7 @@ The first release.
 - **Session restore:** closing keeps unsaved edits as drafts and reopens your tabs and the last page.
 - **Installers** for macOS (Apple silicon and Intel), Windows (x64 and ARM) and Linux (AppImage, `.deb`, `.rpm`, `.tar.gz`; x64 and arm64).
 
-[Unreleased]: https://github.com/olehwebdev/console-editor/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/olehwebdev/console-editor/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/olehwebdev/console-editor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/olehwebdev/console-editor/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/olehwebdev/console-editor/releases/tag/v0.1.0

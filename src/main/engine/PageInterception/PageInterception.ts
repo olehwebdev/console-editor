@@ -1,28 +1,49 @@
 import type { ResourceContent, ResourceEntry } from '../../../shared/types';
 import { sessionTransport, type CdpTransport } from '../cdp';
-import { CDP } from '../constants';
-import { InterceptionEngine, type EngineOptions } from '../InterceptionEngine';
-import { IFRAME_AUTO_ATTACH, IFRAME_SETUP_TIMEOUT_MS, IFRAME_TARGET_TYPE } from './constants';
-import { SessionGoneError } from './SessionGoneError';
-import type { AttachedToTarget, ChildTarget } from './types';
+import { CDP, TARGET_TYPE } from '../constants';
+import { InterceptionEngine } from '../InterceptionEngine';
+import { attachTarget } from './attachTarget';
+import { ChildSessions } from './ChildSessions';
+import { AUTO_ATTACH, SETUP_TIMEOUT_MS } from './constants';
+import { fanOut } from './fanOut';
+import { observeSession } from './observeSession';
+import { prepareReload } from './prepareReload';
+import { readPageResource } from './readPageResource';
+import { ServiceWorkerRegistry } from './ServiceWorkerRegistry';
+import { SharedWorkers } from './SharedWorkers';
+import type { AttachedToTarget, ChildContext, PageInterceptionOptions, TargetSummary } from './types';
 import { withTimeout } from './withTimeout';
 
 /**
- * Interception for one page and all of its cross-site iframes: one
+ * Interception for one page, its cross-site iframes and its workers: one
  * {@link InterceptionEngine} per CDP session (the page's own, plus one per
- * iframe session, recursively), each bound to its session, so a request paused
- * on one session is always answered on that same session. Presents the same
- * surface as a single engine.
+ * iframe or worker session, recursively), each bound to its session, so a
+ * request paused on one session is always answered on that same session.
+ * Presents the same surface as a single engine.
  */
 export class PageInterception {
   private readonly root: InterceptionEngine;
-  /** Live iframe sessions by session id, in attach order. */
-  private readonly children = new Map<string, ChildTarget>();
+  /** Live child sessions by session id, in attach order. */
+  private readonly children: ChildSessions;
+  private readonly serviceWorkers = new ServiceWorkerRegistry();
+  private readonly sharedWorkers: SharedWorkers;
+  private readonly ctx: ChildContext;
   private readonly disposers: Array<() => void> = [];
   private detached = false;
 
-  constructor(private readonly opts: Omit<EngineOptions, 'iframe'>) {
-    this.root = new InterceptionEngine({ ...opts, transport: sessionTransport(opts.transport) });
+  constructor(private readonly opts: PageInterceptionOptions) {
+    this.sharedWorkers = new SharedWorkers(opts.transport, () => this.detached, (targetId) => this.children.hasTarget(targetId));
+    this.children = new ChildSessions(opts, this.serviceWorkers, this.sharedWorkers);
+    // Shared by every engine: a dedicated worker's requests are served on one session and reported on another.
+    const engineOptions = {
+      ...opts,
+      servedBy: new Map<string, string>(),
+      upstreamSourceMaps: new Map<string, string>(),
+      workerSetups: () => this.sharedWorkers.setups(),
+    };
+    this.root = new InterceptionEngine({ ...engineOptions, transport: sessionTransport(opts.transport) });
+    const { children, serviceWorkers, sharedWorkers } = this;
+    this.ctx = { cdp: opts.transport, opts, engineOptions, root: this.root, children, serviceWorkers, sharedWorkers, stopped: () => this.detached };
   }
 
   private get cdp(): CdpTransport {
@@ -31,11 +52,20 @@ export class PageInterception {
 
   async attach(): Promise<void> {
     this.disposers.push(
-      this.cdp.on(CDP.Target.attachedToTarget, (p: AttachedToTarget, parentSessionId) => void this.onAttached(p, parentSessionId)),
-      this.cdp.on(CDP.Target.detachedFromTarget, (p: { sessionId: string }) => this.removeTarget(p.sessionId)),
+      this.cdp.on(CDP.Target.attachedToTarget, (p: AttachedToTarget, parentSessionId) => void attachTarget(this.ctx, p, parentSessionId)),
+      this.cdp.on(CDP.Target.detachedFromTarget, (p: { sessionId: string }) => this.children.remove(p.sessionId)),
+      ...this.sharedWorkers.listen(),
+      ...this.serviceWorkers.listen(this.cdp),
     );
     await this.root.attach();
-    await this.cdp.send(CDP.Target.setAutoAttach, { ...IFRAME_AUTO_ATTACH });
+    if (this.detached) return;
+    // Bounded like an iframe's setup: the page loads nothing until this returns.
+    await withTimeout(observeSession(this.opts.sessions, undefined, sessionTransport(this.cdp)), SETUP_TIMEOUT_MS, 'Setting up the page').catch(() => undefined);
+    await this.cdp.send(CDP.Target.setAutoAttach, { ...AUTO_ATTACH });
+    await this.sharedWorkers.discover();
+    // Registration scopes, to unregister an outdated service worker even while it's stopped. Not awaited: it
+    // reads every stored registration, and the page needn't wait for that.
+    this.cdp.send(CDP.ServiceWorker.enable).catch(() => undefined);
   }
 
   /**
@@ -45,147 +75,46 @@ export class PageInterception {
   detach(): void {
     this.detached = true;
     for (const dispose of this.disposers.splice(0)) dispose();
-    for (const sessionId of [...this.children.keys()]) this.removeTarget(sessionId, false);
+    // Attached through discovery, not auto-attach: let go of them explicitly.
+    for (const child of this.children.list().filter((c) => c.type === TARGET_TYPE.sharedWorker)) {
+      this.cdp.send(CDP.Target.detachFromTarget, { sessionId: child.sessionId }).catch(() => undefined);
+    }
+    this.children.removeAll();
     this.root.detach();
+    this.sharedWorkers.stop();
+    this.serviceWorkers.clear();
+    this.opts.sessions?.detached(undefined);
+    this.cdp.send(CDP.ServiceWorker.disable).catch(() => undefined);
     this.cdp.send(CDP.Target.setAutoAttach, { autoAttach: false, waitForDebuggerOnStart: false, flatten: true }).catch(() => undefined);
   }
 
-  /** Applies settings on the page and every live iframe session. */
+  /** Applies settings on the page and every live child session. */
   async applySettings(): Promise<void> {
-    await this.fanOut((engine) => engine.applySettings());
+    await fanOut(this.root, this.children, (engine) => engine.applySettings());
   }
 
-  /** Recomputes interception patterns on the page and every live iframe session. */
+  /** Recomputes interception patterns on the page and every live child session. */
   async refreshInterception(): Promise<void> {
-    await this.fanOut((engine) => engine.refreshInterception());
+    await fanOut(this.root, this.children, (engine) => engine.refreshInterception());
   }
 
-  /** Resources of the page and its iframes (entries from cross-site iframes carry `iframeId`). */
+  /** Before loading `url` after overrides changed: reinstalls service workers running outdated code (see {@link prepareReload}). */
+  prepareReload(url?: string): Promise<void> {
+    return prepareReload(this.ctx, url);
+  }
+
+  /** Resources of the page, its iframes and its workers (entries from child sessions carry their id). */
   listResources(): ResourceEntry[] {
-    return this.engines().flatMap((e) => e.listResources());
+    return [this.root, ...this.children.engines()].flatMap((e) => e.listResources());
   }
 
-  /**
-   * Reads a resource through the session that loaded it (the page's first). A
-   * cross-site iframe's own document is reported by its parent, but only the
-   * iframe's session can return its body.
-   */
-  async getResourceContent(url: string): Promise<ResourceContent> {
-    const owner = this.engines().find((e) => e.hasResource(url)) ?? this.root;
-    const tracked = owner.trackedResource(url);
-    const frameSession = tracked?.frameId && [...this.children.values()].find((c) => c.targetId === tracked.frameId && c.engine !== owner);
-    if (tracked && frameSession) {
-      try {
-        const content = await withTimeout(frameSession.engine.readNetworkBody(url, tracked.requestId, tracked.mimeType), IFRAME_SETUP_TIMEOUT_MS, 'Reading the iframe document');
-        // The parent served (and may have rewritten) this document; it knows the raw upstream hash.
-        return { ...content, hash: owner.upstreamHashOf(url) ?? content.hash };
-      } catch {
-        // Fall through to the owner (and its out-of-page fetch).
-      }
-    }
-    return owner.getResourceContent(url);
+  /** Reads a resource through the session that loaded it (see {@link readPageResource}). */
+  getResourceContent(url: string): Promise<ResourceContent> {
+    return readPageResource(this.root, this.children, url);
   }
 
-  /** Live iframe sessions (for diagnostics and tests). */
-  targets(): Array<{ targetId: string; sessionId: string; parentTargetId?: string; depth: number }> {
-    return [...this.children.values()].map((c) => ({
-      targetId: c.targetId,
-      sessionId: c.sessionId,
-      depth: c.depth,
-      ...(c.parentSessionId ? { parentTargetId: this.children.get(c.parentSessionId)?.targetId } : {}),
-    }));
-  }
-
-  private engines(): InterceptionEngine[] {
-    return [this.root, ...[...this.children.values()].map((c) => c.engine)];
-  }
-
-  /** The page's errors propagate; an iframe's are ignored (its session can vanish or stall mid-call). */
-  private async fanOut(task: (engine: InterceptionEngine) => Promise<void>): Promise<void> {
-    const page = task(this.root);
-    const children = [...this.children.values()].map((c) =>
-      withTimeout(task(c.engine), IFRAME_SETUP_TIMEOUT_MS, 'Updating an iframe').catch(() => undefined),
-    );
-    await Promise.all([page, ...children]);
-  }
-
-  private async onAttached(p: AttachedToTarget, parentSessionId: string | undefined): Promise<void> {
-    const { sessionId, targetInfo } = p;
-    if (this.children.has(sessionId)) return;
-    const parent = parentSessionId === undefined ? undefined : this.children.get(parentSessionId);
-    const parentKnown = parentSessionId === undefined || !!parent;
-    if (this.detached || targetInfo.type !== IFRAME_TARGET_TYPE || !parentKnown) {
-      await this.resume(sessionId);
-      return;
-    }
-
-    // Registered synchronously, so a detach or fan-out racing the setup finds it.
-    // In-flight commands are tracked individually (not raced against one long-lived
-    // promise, which would pile up a reaction per command for the session's life).
-    const base = sessionTransport(this.cdp, sessionId);
-    const inFlight = new Set<(reason: Error) => void>();
-    let goneReason: Error | undefined;
-    const gone = (reason: Error) => {
-      goneReason = reason;
-      for (const reject of inFlight) reject(reason);
-      inFlight.clear();
-    };
-    const transport: CdpTransport = {
-      send: (method, params) =>
-        goneReason
-          ? Promise.reject(goneReason)
-          : new Promise((resolve, reject) => {
-              inFlight.add(reject);
-              base.send(method, params).then(resolve, reject).finally(() => inFlight.delete(reject));
-            }),
-      on: base.on,
-    };
-    const depth = (parent?.depth ?? 0) + 1;
-    const engine = new InterceptionEngine({ ...this.opts, transport, iframe: { id: sessionId, depth } });
-    const child: ChildTarget = { sessionId, targetId: targetInfo.targetId, parentSessionId, depth, engine, gone };
-    this.children.set(sessionId, child);
-
-    try {
-      await withTimeout(
-        (async () => {
-          await engine.attach();
-          // Depth counts frames, not sessions: this iframe may sit inside a same-site iframe of its parent.
-          const parentEngine = parent?.engine ?? this.root;
-          if (engine.parentFrameId) engine.setBaseDepth(parentEngine.frameDepth(engine.parentFrameId) + 1);
-          // Nested cross-site iframes attach through this session.
-          if (this.children.get(sessionId) === child) await transport.send(CDP.Target.setAutoAttach, { ...IFRAME_AUTO_ATTACH });
-        })(),
-        IFRAME_SETUP_TIMEOUT_MS,
-        'Setting up the iframe',
-      );
-    } catch (err) {
-      if (this.children.get(sessionId) === child && !(err instanceof SessionGoneError)) {
-        this.opts.emit({
-          type: 'error',
-          message: `Overrides may not apply inside iframe ${targetInfo.url || targetInfo.targetId}: ${(err as Error).message}`,
-        });
-      }
-    } finally {
-      // Always let the iframe run: a frame left paused would hang the page.
-      // (A session that is already gone just answers with an error.)
-      await this.resume(sessionId);
-    }
-  }
-
-  /** Drops a session and, recursively, every iframe session nested in it (Chromium doesn't report those). */
-  private removeTarget(sessionId: string, notify = true): void {
-    const child = this.children.get(sessionId);
-    if (!child) return;
-    for (const nested of [...this.children.values()]) {
-      if (nested.parentSessionId === sessionId) this.removeTarget(nested.sessionId, notify);
-    }
-    this.children.delete(sessionId);
-    child.engine.detach();
-    child.gone(new SessionGoneError(sessionId));
-    if (notify) this.opts.emit({ type: 'iframe-detached', iframeId: sessionId });
-  }
-
-  private async resume(sessionId: string): Promise<void> {
-    await this.cdp.send(CDP.Runtime.runIfWaitingForDebugger, {}, sessionId).catch(() => undefined);
+  /** Live child sessions (for diagnostics and tests). */
+  targets(): TargetSummary[] {
+    return this.children.targets();
   }
 }

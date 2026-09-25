@@ -16,6 +16,7 @@ export const MENU_COMMAND_HANDLERS: MenuCommandHandlers = {
   'focus-url': runPageCommand,
   'toggle-palette': runPageCommand,
   'toggle-sidebar': runPageCommand,
+  'toggle-console': runPageCommand,
   undo: runEditCommand,
   redo: runEditCommand,
   'select-all': runEditCommand,
