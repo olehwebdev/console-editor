@@ -10,6 +10,7 @@ import {
   type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
+import { assertSourceMapRequest } from './assertSourceMapRequest';
 import { assertString } from './assertString';
 import type { IpcDeps } from './types';
 
@@ -45,6 +46,10 @@ export function registerIpc({ win, page, store, settings, session, workspaces, u
   handle(IPC_CHANNEL.getResourceContent, (url: unknown) => {
     assertString(url, 'url');
     return page.getResourceContent(url);
+  });
+  handle(IPC_CHANNEL.getSourceMap, (request: unknown) => {
+    assertSourceMapRequest(request);
+    return page.getSourceMap(request);
   });
 
   handle(IPC_CHANNEL.listOverrides, () => store.metas());

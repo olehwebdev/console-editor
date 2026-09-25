@@ -1,10 +1,11 @@
 import { nativeImage, session, WebContentsView, type BrowserWindow, type Session } from 'electron';
-import type { AppEvent, PageState, Rect } from '../../shared/types';
+import type { AppEvent, PageState, Rect, SourceMapFile, SourceMapRequest } from '../../shared/types';
 import { HTTP_SCHEME } from '../constants';
 import { electronTransport } from '../electronTransport';
 import { PageInterception } from '../engine/PageInterception';
 import { loadFavicon } from '../favicon';
 import { installSitePermissions } from '../sitePermissions';
+import { loadSourceMap } from '../sourceMap';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { SettingsStore } from '../store/SettingsStore';
 import { chromeUserAgent } from './chromeUserAgent';
@@ -225,6 +226,15 @@ export class PageController {
 
   getResourceContent(url: string) {
     return this.engine.getResourceContent(url);
+  }
+
+  /** A listed script's or stylesheet's source map, found and downloaded (never parsed) through the site's session. */
+  getSourceMap(request: SourceMapRequest): Promise<SourceMapFile> {
+    return loadSourceMap(request, {
+      content: (url) => this.engine.getResourceContent(url),
+      fetch: (url, init) => this.siteSession.fetch(url, { ...init, headers: BYPASS_CACHE }),
+      pageUrl: () => this.view.webContents.getURL(),
+    });
   }
 
   /** Call after overrides change. Pass `patterns: false` when only content changed. */
