@@ -8,6 +8,11 @@ export type ResourceKind = 'Document' | 'Script' | 'Stylesheet';
 
 export const RESOURCE_KINDS: readonly ResourceKind[] = ['Document', 'Script', 'Stylesheet'];
 
+/** Resource kinds whose files can name a source map (a document's inline scripts are out of scope). */
+export type SourceMapKind = Extract<ResourceKind, 'Script' | 'Stylesheet'>;
+
+export const SOURCE_MAP_KINDS: readonly SourceMapKind[] = ['Script', 'Stylesheet'];
+
 export type MatchType = 'exact' | 'glob' | 'regex';
 
 /**
@@ -89,7 +94,45 @@ export interface ResourceContent {
   content: string;
   /** sha256 of the content as delivered by the server (hex). */
   hash: string;
+  /**
+   * The `SourceMap` (else `X-SourceMap`) header the response carried, as written (unresolved). For a
+   * file served from an override: the upstream response's, taken before the override replaced it.
+   */
+  sourceMap?: string;
 }
+
+/** Asks main for a bundle's source map (on a user action only). */
+export interface SourceMapRequest {
+  /** A listed script's or stylesheet's URL (its final response URL): http(s) only. */
+  bundleUrl: string;
+  kind: SourceMapKind;
+  /** What the renderer holds: answered `unchanged` (nothing fetched or sent) while both still match. */
+  known?: { bundleHash: string; mapUrl: string | null };
+}
+
+/** The map as main hands it over. Main never decodes or parses it: the renderer's source-map worker does. */
+export type SourceMapBody = { type: 'bytes'; bytes: Uint8Array } | { type: 'inline'; dataUrl: string };
+
+/**
+ * Why main could not hand over a map. `detail`: unreadable/network → the error message; bad-url → the
+ * reference (shortened); scheme → the protocol ('file:'); http → the status ('404'); timeout → seconds;
+ * too-large → megabytes.
+ */
+export type SourceMapFetchFailure = 'unreadable' | 'bad-url' | 'scheme' | 'http' | 'network' | 'timeout' | 'too-large';
+
+export type SourceMapFile =
+  | { status: 'unchanged' }
+  | { status: 'none'; bundleHash: string }
+  | { status: 'failed'; failure: SourceMapFetchFailure; detail: string; mapUrl: string | null }
+  | {
+      status: 'found';
+      bundleHash: string;
+      /** The bundle text the map describes (upstream, even when an override serves it); null when too large to line up. */
+      bundle: string | null;
+      /** Resolved map URL; null for an inline data: map (its sources resolve against the bundle URL). */
+      mapUrl: string | null;
+      map: SourceMapBody;
+    };
 
 export interface Settings {
   /** Reload the page after an override is saved. */
@@ -303,6 +346,11 @@ export interface ConsoleEditorApi {
 
   listResources(): Promise<ResourceEntry[]>;
   getResourceContent(url: string): Promise<ResourceContent>;
+  /**
+   * Finds and reads a listed script's or stylesheet's source map: http(s) through the site's session,
+   * data: handed over undecoded, other schemes refused.
+   */
+  getSourceMap(request: SourceMapRequest): Promise<SourceMapFile>;
 
   /** The active workspace's overrides. */
   listOverrides(): Promise<OverrideMeta[]>;

@@ -18,6 +18,7 @@ export const IPC_CHANNEL = {
 
   listResources: 'resources:list',
   getResourceContent: 'resources:content',
+  getSourceMap: 'resources:source-map',
 
   listOverrides: 'overrides:list',
   getOverride: 'overrides:get',
