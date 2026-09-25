@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron';
 import type { AppEvent } from '../../shared/types';
+import type { ActionsWindow } from '../ActionsWindow';
 import type { PageController } from '../PageController';
 import type { ActionStore } from '../store/ActionStore';
 import type { OverrideStore } from '../store/OverrideStore';
@@ -20,6 +21,8 @@ export interface IpcDeps {
   settings: SettingsStore;
   session: SessionStore;
   actions: ActionStore;
+  /** Where the Actions panel is; its own window's UI may use the action channels too. */
+  actionsWindow: ActionsWindow;
   workspaces: WorkspaceController;
   updates: UpdateService;
   /** Pushes an event to the editor's UI. */

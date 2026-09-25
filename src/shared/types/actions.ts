@@ -21,3 +21,11 @@ export interface ConsoleAction {
 export type ActionInput = Pick<ConsoleAction, 'name' | 'target' | 'targetName' | 'code'>;
 
 export type ActionPatch = Partial<ActionInput>;
+
+/** Where the Actions panel is: docked in the editor's sidebar, or in a window of its own. */
+export interface ActionsWindowState {
+  /** In its own window. */
+  detached: boolean;
+  /** That window stays above the others (kept while it is closed, for the next time). */
+  onTop: boolean;
+}

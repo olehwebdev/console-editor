@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ActionStore } from '../store/ActionStore';
 import { OverrideStore } from '../store/OverrideStore';
-import { PageWindowStore } from '../store/PageWindowStore';
+import { WindowStore } from '../store/WindowStore';
 import { RuleStore } from '../store/RuleStore';
 import { SessionStore } from '../store/SessionStore';
 import { SettingsStore } from '../store/SettingsStore';
@@ -17,8 +17,9 @@ export async function openStores(userData: string): Promise<AppStores> {
   const rules = new RuleStore(join(userData, USER_DATA.workspace));
   const settings = new SettingsStore(join(userData, USER_DATA.settings));
   const session = new SessionStore(join(userData, USER_DATA.session));
-  const pageWindow = new PageWindowStore(join(userData, USER_DATA.pageWindow));
+  const pageWindow = new WindowStore(join(userData, USER_DATA.pageWindow));
+  const actionsWindow = new WindowStore(join(userData, USER_DATA.actionsWindow));
   const actions = new ActionStore(join(userData, USER_DATA.workspace));
-  await Promise.all([store.load(), rules.load(), settings.load(), session.load(), pageWindow.load(), actions.load()]);
-  return { store, rules, settings, session, pageWindow, actions, hadData };
+  await Promise.all([store.load(), rules.load(), settings.load(), session.load(), pageWindow.load(), actionsWindow.load(), actions.load()]);
+  return { store, rules, settings, session, pageWindow, actionsWindow, actions, hadData };
 }

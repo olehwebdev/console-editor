@@ -1,5 +1,5 @@
 import type { BrowserWindow, WebContentsView } from 'electron';
-import type { PageWindowStore } from '../store/PageWindowStore';
+import type { WindowStore } from '../store/WindowStore';
 
 /** What the website window works with. */
 export interface PageWindowDeps {
@@ -7,15 +7,7 @@ export interface PageWindowDeps {
   editor: BrowserWindow;
   /** The page's view, moved between the two. */
   view: WebContentsView;
-  store: PageWindowStore;
+  store: WindowStore;
   /** The website moved to its own window or back: its state (`detached`) is announced. */
   moved(): void;
-}
-
-/** How the website window's own events are handled. */
-export interface PageWindowHooks {
-  /** The window is asked to close (it stays: `closing` puts the website back, or leaves it for the quit). */
-  closing(): void;
-  /** Open it maximized, as it was. */
-  maximized: boolean;
 }

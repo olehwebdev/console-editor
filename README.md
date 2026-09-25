@@ -231,7 +231,8 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Cross-site and nested iframes
 - [x] A console for the page and every iframe: each frame's logs in one list, and code run in the frame you pick
 - [x] Actions: code kept to run in a frame with one click
-- [ ] Actions in a window of their own, with parameters and scenarios
+- [x] Actions in a window of their own, kept on top of the page or on another screen
+- [ ] Parameters and scenarios for actions
 - [x] Session restore with unsaved drafts
 - [x] Workspaces: a page, tabs and overrides per site or task, switched from the rail
 - [x] Rules: request blocking, response header changes, and CORS for APIs

@@ -7,6 +7,8 @@ export const USER_DATA = {
   workspace: 'workspace',
   /** Whether the website had a window of its own, and where. */
   pageWindow: 'page-window.json',
+  /** Whether the Actions panel had a window of its own, where, and whether it stayed on top. */
+  actionsWindow: 'actions-window.json',
   /** The last version run. */
   updateRecord: 'update.json',
   /** Updates downloaded from a local update server (tests). */

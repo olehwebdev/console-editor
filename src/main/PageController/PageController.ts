@@ -4,7 +4,7 @@ import { ConsoleService } from '../console';
 import type { PageInterception } from '../engine/PageInterception';
 import { PageWindow } from '../PageWindow';
 import type { OverrideStore } from '../store/OverrideStore';
-import type { PageWindowStore } from '../store/PageWindowStore';
+import type { WindowStore } from '../store/WindowStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SettingsStore } from '../store/SettingsStore';
 import { attachDebugger } from './attachDebugger';
@@ -39,7 +39,7 @@ export class PageController {
     private readonly rules: RuleStore,
     private readonly settings: SettingsStore,
     private readonly send: (event: AppEvent) => void,
-    windowStore: PageWindowStore,
+    windowStore: WindowStore,
   ) {
     // Permission prompts and pop-ups go to the window showing the site.
     this.siteSession = openSiteSession(() => this.window.host);

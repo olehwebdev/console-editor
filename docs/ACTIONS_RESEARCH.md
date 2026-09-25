@@ -157,7 +157,7 @@ src/renderer/src/
 ## 6. Phases
 
 1. **Actions, docked:** store, IPC, `actions-changed`, the rail view, the form, running and results, "Save as action", and the palette. This is useful on its own, and it doesn't wait on #12. *Built: SPEC §6.9.*
-2. **Detach:** on top of #12 (now merged), generalising its placement store and helpers rather than copying them.
+2. **Detach:** on top of #12 (now merged), generalising its placement store and helpers rather than copying them. *Built: SPEC §6.9, In its own window.*
 3. **Parameters and "send a message".**
 4. **Scenarios, and export/import with U13.**
 

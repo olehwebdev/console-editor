@@ -5,7 +5,7 @@ import { ToastStack } from '@/shared/ui/toast';
 import { markReady } from './lib/markReady';
 import { APP_VIEWS, appViewOf } from './model/views';
 
-/** Root: global providers and overlays around the one page its window shows (the editor, the website's own window, or the gallery). */
+/** Root: global providers and overlays around the one page its window shows (the editor, the website's or the Actions panel's own window, or the gallery). */
 export function App() {
   const view = APP_VIEWS[appViewOf(location.hash)];
 
@@ -30,8 +30,7 @@ export function App() {
       <Root />
       {view.overlays ? (
         <>
-          {/* Past the rail and never wider than the room left of the website preview (the native page view hides whatever overlaps it). */}
-          <ToastStack className="bottom-9 left-[calc(var(--rail-w)+12px)] max-w-[calc(100vw-var(--rail-w)-var(--preview-w)-24px)]" />
+          <ToastStack className={view.toastClassName} />
           <ConfirmDialog />
         </>
       ) : null}
