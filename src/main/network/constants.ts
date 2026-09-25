@@ -35,3 +35,6 @@ export const MS_PER_SECOND = 1000;
 
 /** A held request's id: this prefix and a counter (unique for the app's run). */
 export const HELD_ID_PREFIX = 'held-';
+
+/** A WebSocket frame's opcode for binary data (its payload comes as base64). */
+export const BINARY_OPCODE = 2;

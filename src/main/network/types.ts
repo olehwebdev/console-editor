@@ -1,4 +1,4 @@
-import type { AppEvent, HttpHeader, NetworkRequest, WorkerType } from '../../shared/types';
+import type { AppEvent, HttpHeader, NetworkRequest, SocketMessage, WorkerType } from '../../shared/types';
 import type { CdpTransport } from '../engine/cdp';
 import type { NetworkBatch } from './NetworkBatch';
 import type { RequestLog } from './RequestLog';
@@ -26,6 +26,8 @@ export interface TrackedRequest {
   statusText: string;
   /** Its body, when `requestWillBeSent` carried it (or it was read since). */
   postData?: string;
+  /** A WebSocket's latest messages, oldest first. */
+  messages?: SocketMessage[];
 }
 
 /** What the event handlers work on. */
@@ -98,4 +100,15 @@ export interface HeldRequestsOptions {
   send(event: AppEvent): void;
   /** Marks a request's row as held (by this id), or not any more (undefined). */
   mark(networkId: string, heldId: string | undefined): void;
+}
+
+/** Subset of the `Network.webSocket*` events' params that the log reads. */
+export interface SocketEvent {
+  requestId: string;
+  timestamp?: number;
+  wallTime?: number;
+  url?: string;
+  request?: { headers?: Record<string, string> };
+  response?: { status?: number; statusText?: string; headers?: Record<string, string>; opcode?: number; payloadData?: string };
+  errorMessage?: string;
 }

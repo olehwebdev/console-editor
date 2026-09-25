@@ -31,7 +31,8 @@ import {
   XSSI_JS,
   XSSI_JS_MAP,
 } from './sourceMaps.ts';
-import { EVENT_INTERVAL_MS, networkRoutes } from './networkPages.ts';
+import { EVENT_INTERVAL_MS, networkRoutes, SOCKET_PATH } from './networkPages.ts';
+import { attachSocketEcho } from './socketServer.ts';
 
 export { MAIN_JS, STYLE_CSS };
 
@@ -327,6 +328,7 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
     res.end(payload);
   });
 
+  attachSocketEcho(server, SOCKET_PATH);
   await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
   const { port: actualPort } = server.address() as AddressInfo;
   const add = (path: string, type: string, body: string, headers?: Record<string, string>) => bodies.set(path, { type, body, headers });

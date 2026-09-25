@@ -1,5 +1,5 @@
 /** The groups the Network panel filters requests by, in the order it offers them. */
-export const REQUEST_GROUPS = ['fetch', 'doc', 'js', 'css', 'img', 'media', 'font', 'other'] as const;
+export const REQUEST_GROUPS = ['fetch', 'doc', 'js', 'css', 'img', 'media', 'font', 'ws', 'other'] as const;
 
 export type RequestGroup = (typeof REQUEST_GROUPS)[number];
 
@@ -19,6 +19,7 @@ export const GROUP_OF_TYPE: Readonly<Record<string, RequestGroup>> = {
   Media: 'media',
   TextTrack: 'media',
   Font: 'font',
+  WebSocket: 'ws',
 };
 
 /** A response the Network panel can open as JSON (or plain text): a JSON API's, say. */

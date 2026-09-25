@@ -46,6 +46,8 @@ export interface NetworkRequest {
   hasBody: boolean;
   /** The GraphQL operation its body names. */
   operation?: string;
+  /** A WebSocket's: how many messages it has sent and received so far (`getNetworkMessages` reads them). */
+  messages?: number;
   /**
    * The load of the top-level page it belongs to: when another page loads, the rows of the earlier
    * ones go, unless the panel keeps them.
@@ -75,3 +77,27 @@ export type NetworkBodyGap = (typeof NETWORK_BODY_GAPS)[number];
 
 /** A response's body, as `getNetworkResponseBody` reads it. */
 export type NetworkBody = { available: true; text: string; binary: boolean } | { available: false; gap: NetworkBodyGap };
+
+/** A WebSocket's messages from one on, as `getNetworkMessages` reads them. */
+export interface SocketMessages {
+  /** The number of the first one here, counting every message the socket ever had from 0. */
+  first: number;
+  messages: SocketMessage[];
+}
+
+/** Which way a WebSocket message went. */
+export type SocketDirection = 'sent' | 'received';
+
+/** A message a WebSocket sent or received, as the Network panel shows it. */
+export interface SocketMessage {
+  direction: SocketDirection;
+  /** When, in ms since the epoch. */
+  at: number;
+  /** A binary message: `data` holds its bytes as base64. */
+  binary: boolean;
+  /** Its text, cut at `MAX_SOCKET_MESSAGE_CHARS`. */
+  data: string;
+  /** Its length before any cut: characters of text, or bytes. */
+  length: number;
+  truncated?: boolean;
+}

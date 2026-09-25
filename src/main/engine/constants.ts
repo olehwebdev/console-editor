@@ -38,6 +38,13 @@ export const CDP = {
     requestWillBeSentExtraInfo: 'Network.requestWillBeSentExtraInfo',
     responseReceived: 'Network.responseReceived',
     responseReceivedExtraInfo: 'Network.responseReceivedExtraInfo',
+    webSocketClosed: 'Network.webSocketClosed',
+    webSocketCreated: 'Network.webSocketCreated',
+    webSocketFrameError: 'Network.webSocketFrameError',
+    webSocketFrameReceived: 'Network.webSocketFrameReceived',
+    webSocketFrameSent: 'Network.webSocketFrameSent',
+    webSocketHandshakeResponseReceived: 'Network.webSocketHandshakeResponseReceived',
+    webSocketWillSendHandshakeRequest: 'Network.webSocketWillSendHandshakeRequest',
   },
   Page: {
     addScriptToEvaluateOnNewDocument: 'Page.addScriptToEvaluateOnNewDocument',

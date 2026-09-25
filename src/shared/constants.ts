@@ -29,6 +29,15 @@ export const MAX_CONSOLE_ENTRIES = 5000;
 /** The network requests kept, in the main process and in the panel; older ones drop off. */
 export const MAX_NETWORK_REQUESTS = 2000;
 
+/** The Network type of a WebSocket's row. */
+export const SOCKET_TYPE = 'WebSocket';
+
+/** The messages kept per WebSocket, the latest: a chatty socket must not grow without end. */
+export const MAX_SOCKET_MESSAGES = 1000;
+
+/** A message's text is kept up to this many characters. */
+export const MAX_SOCKET_MESSAGE_CHARS = 64 * 1024;
+
 /** The longest name a frame can be given in the console. */
 export const MAX_FRAME_NAME = 40;
 

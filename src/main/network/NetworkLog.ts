@@ -1,4 +1,4 @@
-import type { EngineEvent, NetworkBody, NetworkRequest, NetworkRequestDetail } from '../../shared/types';
+import type { EngineEvent, NetworkBody, NetworkRequest, NetworkRequestDetail, SocketMessages } from '../../shared/types';
 import { NETWORK_EVENT_HANDLERS } from './events';
 import { HeldRequests } from './HeldRequests';
 import { NetworkBatch } from './NetworkBatch';
@@ -47,6 +47,15 @@ export class NetworkLog {
 
   async responseBody(id: unknown): Promise<NetworkBody> {
     return readResponseBody(this.opts.transport, this.entry(id));
+  }
+
+  /** A WebSocket's messages from number `from` on, of those still kept (none for any other request). */
+  messages(id: unknown, from: unknown = 0): SocketMessages {
+    const entry = this.entry(id);
+    const kept = entry.messages ?? [];
+    const first = (entry.row.messages ?? 0) - kept.length;
+    const skip = Math.max(0, (Number.isSafeInteger(from) ? (from as number) : 0) - first);
+    return { first: first + Math.min(skip, kept.length), messages: kept.slice(skip) };
   }
 
   clear(): void {

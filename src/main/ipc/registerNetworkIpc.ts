@@ -8,6 +8,7 @@ export function registerNetworkIpc(handle: IpcHandle, network: NetworkLog): void
   handle(IPC_CHANNEL.listNetworkRequests, () => network.list());
   handle(IPC_CHANNEL.getNetworkRequest, (id: unknown) => network.detail(id));
   handle(IPC_CHANNEL.getNetworkResponseBody, (id: unknown) => network.responseBody(id));
+  handle(IPC_CHANNEL.getNetworkMessages, (id: unknown, from: unknown) => network.messages(id, from));
   handle(IPC_CHANNEL.clearNetworkLog, () => network.clear());
   handle(IPC_CHANNEL.listHeldRequests, () => network.held.list());
   // The action is checked there, as it arrives.

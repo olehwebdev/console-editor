@@ -57,6 +57,7 @@ const api: ConsoleEditorApi = {
   listNetworkRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listNetworkRequests),
   getNetworkRequest: (id) => ipcRenderer.invoke(IPC_CHANNEL.getNetworkRequest, id),
   getNetworkResponseBody: (id) => ipcRenderer.invoke(IPC_CHANNEL.getNetworkResponseBody, id),
+  getNetworkMessages: (id, from) => ipcRenderer.invoke(IPC_CHANNEL.getNetworkMessages, id, from),
   clearNetworkLog: () => ipcRenderer.invoke(IPC_CHANNEL.clearNetworkLog),
   listHeldRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listHeldRequests),
   resumeHeldRequest: (id, action) => ipcRenderer.invoke(IPC_CHANNEL.resumeHeldRequest, id, action),

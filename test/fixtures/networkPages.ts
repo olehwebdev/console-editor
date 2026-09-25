@@ -14,6 +14,8 @@ export const EVENTS_PATH = '/network/events';
 export const BROKEN_PATH = '/network/api/broken';
 export const NETWORK_WORKER_PATH = '/network/worker.js';
 export const WORKER_DATA_PATH = '/network/api/worker';
+/** A WebSocket that greets, then echoes (socketServer.ts). */
+export const SOCKET_PATH = '/network/socket';
 /** Takes orders by POST from another origin; like many APIs, it turns away CORS preflights. */
 export const ORDERS_PATH = '/network/api/orders';
 
@@ -70,6 +72,13 @@ const NETWORK_HTML = `<!doctype html>
     const settle = (promise) => promise.then(async (res) => ({ status: res.status, body: await res.text() }), (err) => ({ error: err.name }));
     window.placeOrder = (origin) =>
       settle(fetch(origin + '${ORDERS_PATH}', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: 'A1' }), credentials: 'include' }));
+    // A socket: opened on demand; every message it gets is kept in order.
+    window.socketMessages = [];
+    window.openSocket = () => new Promise((resolve) => {
+      window.socket = new WebSocket('ws://' + location.host + '${SOCKET_PATH}');
+      window.socket.onmessage = (e) => window.socketMessages.push(e.data);
+      window.socket.onopen = () => resolve(true);
+    });
     window.tryCart = (timeoutMs) => settle(fetch('${CART_PATH}', timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}));
     window.tryGql = (operationName) => settle(fetch('${GRAPHQL_PATH}', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operationName }) }));
     window.ticks = 0;

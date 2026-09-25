@@ -20,6 +20,7 @@ export const GROUP_LABELS: Record<GroupChoice, string> = {
   img: 'Img',
   media: 'Media',
   font: 'Font',
+  ws: 'WS',
   other: 'Other',
 };
 

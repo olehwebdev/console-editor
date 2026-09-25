@@ -11,7 +11,8 @@ import { PageInterception } from '../../src/main/engine/PageInterception';
 import { NetworkLog } from '../../src/main/network';
 import { defaultMatcherFor } from '../../src/shared/matcher';
 import { DEFAULT_SETTINGS, type AppEvent, type EngineEvent, type NetworkRequest, type Override, type RequestMatch, type ResponseSettings, type Settings } from '../../src/shared/types';
-import { BROKEN_PATH, CART_JSON, CART_PATH, EVENTS_PATH, GRAPHQL_JSON, GRAPHQL_PATH, NETWORK_PATH, WORKER_DATA_PATH } from '../fixtures/networkPages';
+import { BROKEN_PATH, CART_JSON, CART_PATH, EVENTS_PATH, GRAPHQL_JSON, GRAPHQL_PATH, NETWORK_PATH, SOCKET_PATH, WORKER_DATA_PATH } from '../fixtures/networkPages';
+import { SOCKET_GREETING } from '../fixtures/socketServer';
 import { startFixtureSite, type FixtureSite } from '../fixtures/site';
 import { chromiumAvailable, launchChromium, type ChromiumHarness } from '../helpers/chromium';
 
@@ -169,6 +170,34 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       const ticks = (await state('window.ticks')) as number;
       expect(await log.responseBody(stream.id)).toEqual({ available: false, gap: 'stream' });
       await waitFor(() => state(`window.ticks > ${ticks + 2}`));
+    });
+  });
+
+  describe('WebSockets', () => {
+    it('lists a socket with its handshake, and keeps the messages it sends and gets, until it closes', async () => {
+      await page.goto(url(NETWORK_PATH));
+      expect(await state('openSocket()')).toBe(true);
+      await state(`socket.send('ping'); socket.send(new Uint8Array([1, 2, 3]))`);
+      await waitFor(() => state('socketMessages.length === 3'));
+
+      const socketUrl = url(SOCKET_PATH).replace('http', 'ws');
+      const socket = await waitFor(() => rows().find((r) => r.url === socketUrl && (r.messages ?? 0) >= 5));
+      expect(socket).toMatchObject({ type: 'WebSocket', method: 'GET', status: 101, state: 'pending' });
+      expect((await log.detail(socket.id)).requestHeaders.some((h) => h.name.toLowerCase() === 'sec-websocket-key')).toBe(true);
+      const { first, messages } = log.messages(socket.id);
+      expect(first).toBe(0);
+      expect(log.messages(socket.id, 3)).toEqual({ first: 3, messages: messages.slice(3) });
+      expect(messages.map(({ direction, binary, data, length }) => ({ direction, binary, data, length }))).toEqual([
+        { direction: 'received', binary: false, data: SOCKET_GREETING, length: SOCKET_GREETING.length },
+        { direction: 'sent', binary: false, data: 'ping', length: 4 },
+        { direction: 'sent', binary: true, data: 'AQID', length: 3 },
+        { direction: 'received', binary: false, data: '{"echo":"ping"}', length: 15 },
+        { direction: 'received', binary: true, data: 'AQID', length: 3 },
+      ]);
+      expect(messages.every((m, i) => i === 0 || m.at >= messages[i - 1]!.at)).toBe(true);
+
+      await state('socket.close()');
+      expect(await waitFor(() => rows().find((r) => r.id === socket.id && r.state === 'done'))).toBeDefined();
     });
   });
 

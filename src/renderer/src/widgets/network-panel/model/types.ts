@@ -1,5 +1,5 @@
 /** The details pane's views of the selected request. */
-export const DETAIL_TABS = ['headers', 'payload', 'response'] as const;
+export const DETAIL_TABS = ['headers', 'payload', 'response', 'messages'] as const;
 
 export type DetailTab = (typeof DETAIL_TABS)[number];
 

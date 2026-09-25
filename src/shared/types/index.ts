@@ -12,7 +12,7 @@ export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, Console
 export { CONSOLE_LEVELS } from './console';
 export type { AppEvent, EngineEvent } from './events';
 export type { MenuCommand } from './menu';
-export type { HttpHeader, NetworkBody, NetworkBodyGap, NetworkRequest, NetworkRequestDetail, NetworkRequestState } from './network';
+export type { HttpHeader, NetworkBody, NetworkBodyGap, NetworkRequest, NetworkRequestDetail, NetworkRequestState, SocketDirection, SocketMessage, SocketMessages } from './network';
 export { NETWORK_BODY_GAPS, NETWORK_REQUEST_STATES } from './network';
 export type { CreateOverrideInput, MatchType, Override, OverrideMeta, OverridePatch, OverrideWithContent, RequestMatch, ResponseSettings, UnpatchedReason, UrlMatcher } from './overrides';
 export { MATCH_TYPES, UNPATCHED_REASONS } from './overrides';
