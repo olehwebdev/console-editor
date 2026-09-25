@@ -16,6 +16,7 @@ import type { Page } from 'playwright-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { PageInterception } from '../../src/main/engine/PageInterception';
 import { NetworkLog } from '../../src/main/network';
+import { ACTION_SETTLE_MS } from '../../src/main/inspector/stores/constants';
 import { FrameServices } from '../../src/main/PageController/FrameServices';
 import { DEFAULT_SETTINGS, type AppEvent, type RenderCommit, type StackFrame, type StoreAction } from '../../src/shared/types';
 import { bundleApp } from '../helpers/bundleApp';
@@ -177,6 +178,20 @@ describe.skipIf(!chromiumAvailable)('store timelines in Chromium', () => {
     await page.locator('#usd').click();
     const currency = await nextAction(3);
     expect(currency).toMatchObject({ store: 'Vuex', library: 'vuex', type: 'setCurrency', payload: '"USD"', changes: [{ path: 'currency', from: '"EUR"', to: '"USD"' }] });
+  });
+
+  it("hears Pinia's direct changes again once an action that never settles stops counting as running", async () => {
+    await open('pinia');
+    await page.locator('#hang').click();
+    await page.locator('#add-A1').click();
+    await nextAction(1);
+    // Past ACTION_SETTLE_MS, as the stand-in tells time.
+    await page.evaluate((skew) => {
+      const now = performance.now.bind(performance);
+      performance.now = () => now() + skew;
+    }, ACTION_SETTLE_MS + 1000);
+    await page.locator('#reset').click();
+    expect(await nextAction(2)).toMatchObject({ store: 'cart', type: 'direct', changes: [{ path: 'count', from: '1', to: '0' }] });
   });
 
   it("finds a Vue app's stores itself when the document loads while recording", async () => {

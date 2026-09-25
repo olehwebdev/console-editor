@@ -42,6 +42,9 @@ export const TEXT_OPCODE = 1;
 
 /** The most calls of a script's stack a request keeps as what sent it (its initiator). */
 export const MAX_INITIATOR_FRAMES = 20;
+/** The longest URL a call of an initiator is kept with (longer ones are left out), and the most of its function's name kept. */
+export const MAX_INITIATOR_URL = 2048;
+export const MAX_INITIATOR_NAME = 200;
 
 /** Calls in files the page loaded: the only ones a request's initiator keeps. */
 export const LOADED_FILE = /^https?:/;

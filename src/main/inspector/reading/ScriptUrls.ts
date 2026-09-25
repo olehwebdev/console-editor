@@ -1,5 +1,6 @@
 import type { CdpTransport } from '../../engine/cdp';
 import { CDP } from '../../engine/constants';
+import { MAX_SCRIPT_URL } from '../constants';
 
 /** What `Debugger.scriptParsed` says of a script that we keep. */
 interface ParsedScript {
@@ -9,10 +10,10 @@ interface ParsedScript {
   executionContextAuxData?: { frameId?: string; isDefault?: boolean };
 }
 
-/** A script of the session: its URL, the source map it names ('' for none), and the frame whose main world runs it (else null). */
+/** A script of the session: its URL ('' for none, or one past `MAX_SCRIPT_URL`), whether it names a source map, and the frame whose main world runs it (else null). */
 export interface ScriptRecord {
   url: string;
-  sourceMap: string;
+  mapped: boolean;
   frameId: string | null;
 }
 
@@ -23,9 +24,12 @@ export interface ScriptRecord {
  * replays it for every script already parsed: it is turned on just for that,
  * with pauses skipped (a page's `debugger` statement can't stop it), then off
  * again, whenever a script id isn't known yet or a frame's scripts are listed.
+ * Each replay replaces what was kept, so the scripts of documents gone go with
+ * them; a map named is kept as whether there is one (an inline map's URL holds
+ * the whole map).
  */
 export class ScriptUrls {
-  private readonly scripts = new Map<string, ScriptRecord>();
+  private scripts = new Map<string, ScriptRecord>();
   private refreshing: Promise<void> | null = null;
 
   constructor(private readonly cdp: CdpTransport) {}
@@ -49,13 +53,15 @@ export class ScriptUrls {
   }
 
   private async replay(): Promise<void> {
+    const scripts = new Map<string, ScriptRecord>();
     const off = this.cdp.on(CDP.Debugger.scriptParsed, (p: ParsedScript) => {
       const context = p.executionContextAuxData;
-      this.scripts.set(p.scriptId, { url: p.url, sourceMap: p.sourceMapURL ?? '', frameId: context?.isDefault && context.frameId ? context.frameId : null });
+      scripts.set(p.scriptId, { url: p.url.length <= MAX_SCRIPT_URL ? p.url : '', mapped: !!p.sourceMapURL, frameId: context?.isDefault && context.frameId ? context.frameId : null });
     });
     try {
       await this.cdp.send(CDP.Debugger.enable);
       await this.cdp.send(CDP.Debugger.setSkipAllPauses, { skip: true });
+      this.scripts = scripts;
     } finally {
       off();
       await this.cdp.send(CDP.Debugger.disable).catch(() => undefined);
