@@ -7,23 +7,23 @@ export function ConfirmRow({ answer, onAnswer }: { answer: string; onAnswer: (an
   return (
     <Row title="Confirm dialog" note="Enter confirms, Esc cancels, Tab is trapped.">
       <DemoButton
-        onClick={async () => {
-          const ok = await confirm({
+        onClick={() =>
+          void confirm({
             title: 'Delete override?',
             body: 'main.js will be served from the network again.',
             confirmLabel: 'Delete',
             tone: 'danger',
-          });
-          onAnswer(ok ? 'Confirmed (danger)' : 'Cancelled (danger)');
-        }}
+          }).then((ok) => onAnswer(ok ? 'Confirmed (danger)' : 'Cancelled (danger)'))
+        }
       >
         Danger
       </DemoButton>
       <DemoButton
-        onClick={async () => {
-          const ok = await confirm({ title: 'Reload the page?', body: 'Unsaved edits stay in the editor.', confirmLabel: 'Reload' });
-          onAnswer(ok ? 'Confirmed (accent)' : 'Cancelled (accent)');
-        }}
+        onClick={() =>
+          void confirm({ title: 'Reload the page?', body: 'Unsaved edits stay in the editor.', confirmLabel: 'Reload' }).then((ok) =>
+            onAnswer(ok ? 'Confirmed (accent)' : 'Cancelled (accent)'),
+          )
+        }
       >
         Accent
       </DemoButton>

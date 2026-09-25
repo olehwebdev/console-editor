@@ -41,14 +41,14 @@ export function EditorTabs({
   const pillId = useId();
   const scrollerRef = useRef<HTMLDivElement>(null);
   useRevealActive(scrollerRef, activeId, reduce);
-  const pendingFocus = useFocusAfterClose(scrollerRef, items, activeId);
+  const pendingFocusRef = useFocusAfterClose(scrollerRef, items, activeId);
   const edges = useScrollEdges(scrollerRef);
   const { drag, handleDragStart, handleDragOver, handleDrop, handleDragEnd } = useTabDrag(items, onReorder);
 
   const activeIndex = items.findIndex((item) => item.id === activeId);
   const reveal = (el: HTMLElement | null) => revealTab(scrollerRef.current, el, reduce);
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>, id: string) =>
-    handleTabKeyDown(event, id, { scroller: scrollerRef.current, items, onSelect, onClose, onReorder, pendingFocus });
+    handleTabKeyDown(event, id, { scroller: scrollerRef.current, items, onSelect, onClose, onReorder, pendingFocus: pendingFocusRef });
   const mask = edgeMask(edges);
 
   return (
@@ -56,7 +56,7 @@ export function EditorTabs({
       data-slot="editor-tabs"
       className={cn('flex h-9 min-w-0 shrink-0 items-center gap-1 px-1.5', className)}
       onPointerDown={(event) => {
-        pendingFocus.current = null;
+        pendingFocusRef.current = null;
         onPointerDown?.(event);
       }}
       {...rest}

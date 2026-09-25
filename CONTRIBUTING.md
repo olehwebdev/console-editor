@@ -30,6 +30,7 @@ Node.js 22.18 or newer is required. Runs from source keep their data in a `Conso
 npm run typecheck
 npm run lint:fsd
 npm run lint:structure # files of at most 150 lines, one function each, no switch (CLAUDE.md › Code structure)
+npm run lint           # oxlint with type information: React's rules and misused promises (.oxlintrc.json)
 npm test               # unit, renderer, and engine tests in real Chromium (npx playwright install chromium)
 npm run test:e2e       # the built app end to end (headless Linux: xvfb-run npm run test:e2e)
 ```

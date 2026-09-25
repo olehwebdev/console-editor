@@ -8,6 +8,6 @@ export async function flushSession(): Promise<boolean> {
     if (sessionSync.tabsTimer || sessionSync.tabsFailed) saveTabs();
     for (const tabId of new Set([...sessionSync.draftTimers.keys(), ...sessionSync.failedDrafts])) saveDraft(tabId);
   }
-  const results = await Promise.allSettled([...sessionSync.writes]);
+  const results = await Promise.allSettled(sessionSync.writes);
   return results.every((r) => r.status === 'fulfilled');
 }

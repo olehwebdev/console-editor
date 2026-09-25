@@ -255,7 +255,7 @@ describe('save override', () => {
     const create = deferred<OverrideMeta>();
     api.createOverride.mockReturnValue(create.promise);
 
-    saveTab(id);
+    void saveTab(id);
     const again = saveTab(id);
     create.resolve(meta('o9'));
     await again;

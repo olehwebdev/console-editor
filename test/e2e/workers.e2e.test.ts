@@ -145,7 +145,7 @@ async function launchUndebugged(electronBinary: string, userData: string, url: s
             // creates its windows at startup, a call into their WebContents crashes Electron (SIGSEGV). So
             // Electron is only touched from a task of its own.
             evaluate(
-              `new Promise((turn) => setTimeout(turn, 0)).then(() => (${evalInSite})(process.mainModule.require('electron'), ${args(expr)}))`,
+              `new Promise((turn) => setTimeout(turn, 0)).then(() => (${evalInSite.toString()})(process.mainModule.require('electron'), ${args(expr)}))`,
             ),
             exited.then(() => Promise.reject(quit())),
           ]),
