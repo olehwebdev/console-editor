@@ -58,6 +58,8 @@ describe('desktopEntryText', () => {
       Icon: LINUX_APP_NAME,
       StartupWMClass: LINUX_APP_NAME,
       Categories: `${LINUX_CATEGORY};`,
+      // Marks it as the app's own, the only kind it ever removes.
+      'X-Console-Editor-Self-Installed': 'true',
     });
   });
 
@@ -122,16 +124,28 @@ describe('integrateWithDesktop', () => {
   const platform = process.platform;
   const resourcesPath = (process as { resourcesPath?: string }).resourcesPath;
 
-  /** A packaged copy on `os` whose executable is `exe`, with its resources and a data folder of its own. */
-  function copy(os: NodeJS.Platform, exe: string, vars: Record<string, string> = {}) {
+  /**
+   * A packaged copy on `os` whose executable is `exe`, with its resources, a data folder of its own, and system data
+   * folders (where packages install) with no entry of the app's unless `packaged`.
+   */
+  function copy(os: NodeJS.Platform, exe: string, vars: Record<string, string> = {}, packaged = false) {
     const { dir, dataHome } = fixture();
+    const system = join(dir, 'system');
+    mkdirSync(join(system, 'applications'), { recursive: true });
+    if (packaged) writeFileSync(join(system, 'applications', `${LINUX_APP_NAME}.desktop`), '[Desktop Entry]\nName=Console Editor\n');
     Object.defineProperty(process, 'platform', { value: os });
     Object.defineProperty(process, 'execPath', { value: exe });
     Object.defineProperty(process, 'resourcesPath', { value: join(dir, 'resources'), configurable: true });
     delete process.env.APPIMAGE;
     delete process.env.APPDIR;
-    Object.assign(process.env, { XDG_DATA_HOME: dataHome }, vars);
+    Object.assign(process.env, { XDG_DATA_HOME: dataHome, XDG_DATA_DIRS: `relative/ignored:${system}` }, vars);
     return dataHome;
+  }
+
+  /** An entry and icons the app installed earlier, as an AppImage. */
+  async function installedBefore(dataHome: string) {
+    const { bundledIcons } = fixture();
+    await installDesktopEntry({ launcher: '/home/me/Apps/old.AppImage', bundledIcons, dataHome });
   }
 
   beforeEach(() => {
@@ -165,10 +179,44 @@ describe('integrateWithDesktop', () => {
     for (const manager of ['dpkg-query', 'rpm']) {
       owners.clear();
       owners.add(manager);
-      const dataHome = copy('linux', '/opt/Console Editor/console-editor');
+      const dataHome = copy('linux', '/opt/Console Editor/console-editor', {}, true);
       await integrateWithDesktop();
       expect(() => statSync(dataHome)).toThrow();
     }
+  });
+
+  it('removes the entry and icons an AppImage installed, once the .deb is what runs: they would shadow its own', async () => {
+    owners.add('dpkg-query');
+    const dataHome = copy('linux', '/opt/Console Editor/console-editor', {}, true);
+    await installedBefore(dataHome);
+    const past = new Date('2026-01-01T00:00:00Z');
+    utimesSync(join(dataHome, 'icons/hicolor'), past, past);
+
+    await integrateWithDesktop();
+    expect(() => statSync(entryFile(dataHome))).toThrow();
+    for (const size of ['16x16', '48x48', '512x512']) expect(() => statSync(iconFile(dataHome, size))).toThrow();
+    expect(statSync(join(dataHome, 'icons/hicolor')).mtime.getTime()).toBeGreaterThan(past.getTime());
+  });
+
+  it("never removes an entry it didn't install", async () => {
+    owners.add('dpkg-query');
+    const dataHome = copy('linux', '/opt/Console Editor/console-editor', {}, true);
+    mkdirSync(join(dataHome, 'applications'), { recursive: true });
+    const mine = '[Desktop Entry]\nName=My own launcher\nExec=/opt/Console Editor/console-editor --flag\n';
+    writeFileSync(entryFile(dataHome), mine);
+    await integrateWithDesktop();
+    expect(readFileSync(entryFile(dataHome), 'utf8')).toBe(mine);
+  });
+
+  it('leaves the desktop to an installed .deb or .rpm when an AppImage runs beside it, removing its own old entry', async () => {
+    const appDir = join(tmp, '.mount_consolAbC');
+    mkdirSync(appDir, { recursive: true });
+    const vars = { APPIMAGE: '/home/me/Apps/console-editor.AppImage', APPDIR: appDir };
+    const dataHome = copy('linux', join(appDir, 'console-editor'), vars, true);
+    await installedBefore(dataHome);
+    await integrateWithDesktop();
+    expect(() => statSync(entryFile(dataHome))).toThrow();
+    expect(() => statSync(iconFile(dataHome, '48x48'))).toThrow();
   });
 
   it('does nothing for a build run from source, or on other systems', async () => {
