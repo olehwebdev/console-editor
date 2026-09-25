@@ -4,14 +4,20 @@ import { IconButton } from '@/shared/ui/icon-button';
 import { usePageStore } from '@/entities/page';
 import { goBack, goForward, openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { AddressBar } from '../AddressBar';
-import type { PagePreviewProps } from './types';
+import { MOVE_BUTTON } from './constants';
+import type { PagePreviewProps, PreviewPlacement } from './types';
 
 export interface PreviewToolbarProps extends Pick<PagePreviewProps, 'addressBarRef'> {
   hasPage: boolean;
+  placement: PreviewPlacement;
 }
 
-/** The preview's navigation bar: back, forward, reload (spinning while the page loads), the address and the page's DevTools. */
-export function PreviewToolbar({ hasPage, addressBarRef }: PreviewToolbarProps) {
+/**
+ * The preview's navigation bar: back, forward, reload (spinning while the page loads), the address, the
+ * page's DevTools, and moving the website to its own window or back.
+ */
+export function PreviewToolbar({ hasPage, placement, addressBarRef }: PreviewToolbarProps) {
+  const move = MOVE_BUTTON[placement];
   const canGoBack = usePageStore((s) => s.page.canGoBack);
   const canGoForward = usePageStore((s) => s.page.canGoForward);
   const loading = usePageStore((s) => s.page.loading);
@@ -31,6 +37,7 @@ export function PreviewToolbar({ hasPage, addressBarRef }: PreviewToolbarProps) 
       />
       <AddressBar inputRef={addressBarRef} className="mx-1" />
       <IconButton icon={icons.DevToolsIcon} label="DevTools for the page" shortcut={SHORTCUT.pageDevTools} size="sm" disabled={!hasPage} onClick={() => void openPageDevTools()} />
+      <IconButton icon={move.icon} label={move.label} size="sm" onClick={() => void move.move()} />
     </header>
   );
 }

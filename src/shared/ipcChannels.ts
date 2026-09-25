@@ -15,6 +15,8 @@ export const IPC_CHANNEL = {
   getPageState: 'page:state',
   setPageBounds: 'page:bounds',
   capturePage: 'page:capture',
+  detachPage: 'page:detach',
+  attachPage: 'page:attach',
 
   listResources: 'resources:list',
   getResourceContent: 'resources:content',

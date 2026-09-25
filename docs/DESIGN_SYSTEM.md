@@ -137,12 +137,13 @@ src/renderer/src/
   app/        bootstrap, IPC → stores bridge (model/bridge/), motion config, global styles, gallery
   pages/      editor/          — composes widgets into the workspace layout; owns the layout store, the session
                                sync and workspace switching (they reopen files through features)
+              page-window/     — the website's own window: the page-preview widget alone
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
               command-palette, console-panel
   features/   navigate-page, open-resource, save-override, toggle-override, delete-override, close-tab,
               edit-match-rule, format-document, compare-changes, filter-resources, update-settings,
               update-app, edit-workspace, run-in-frame, filter-console, name-frame, clear-console,
-              expand-console-value, rule/ (a slice group: quick-actions, edit, toggle, delete)
+              expand-console-value, detach-page, rule/ (a slice group: quick-actions, edit, toggle, delete)
   entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format worker,
               overlays, native view rect), monaco, config (icons)

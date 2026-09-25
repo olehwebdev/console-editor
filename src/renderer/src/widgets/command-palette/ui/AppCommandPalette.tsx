@@ -8,10 +8,12 @@ import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
+import { usePageStore } from '@/entities/page';
 import { selectRuleList, useRuleStore } from '@/entities/rule';
 import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
 import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
+import { attachPage, detachPage } from '@/features/detach-page';
 import { formatTab } from '@/features/format-document';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
@@ -43,6 +45,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
   const active = useTabStore(selectActiveTab);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
+  const detached = usePageStore((s) => s.page.detached);
 
   const resources = usePageFiles(open);
   const files = useMemo<CommandGroup>(
@@ -67,6 +70,10 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
 
   const groups = useMemo<CommandGroup[]>(() => {
     if (!open) return [];
+    // Moving the website to a window of its own (another screen), or back.
+    const move = detached
+      ? { label: 'Put the website back in the editor window', icon: icons.DockIcon, run: attachPage }
+      : { label: 'Open the website in its own window', icon: icons.PopOutIcon, run: detachPage };
     const actions: CommandGroup = {
       heading: 'Actions',
       items: [
@@ -81,6 +88,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
         { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
         { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
+        { id: 'page-window', label: move.label, icon: move.icon, keywords: ['window', 'screen', 'monitor', 'detach', 'pop out', 'attach'], onSelect: () => void move.run() },
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         ...newRuleItems(),
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },
@@ -120,7 +128,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
       ],
     };
     return [files, overrideGroup, ruleGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, overrides, rules, active, workspaces, activeWorkspaceId, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
+  }, [open, files, overrides, rules, active, workspaces, activeWorkspaceId, detached, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }
