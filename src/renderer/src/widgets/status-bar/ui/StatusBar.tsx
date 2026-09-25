@@ -4,7 +4,7 @@ import { cn } from '@/shared/lib';
 import { Counter } from '@/shared/ui/counter';
 import { Icon } from '@/shared/ui/icon';
 import { Spinner } from '@/shared/ui/spinner';
-import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectEnabledCount, selectOverrideList, useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { KIND_NAME, selectIframeCount, selectWorkerCount, useResourceStore } from '@/entities/resource';
@@ -22,10 +22,15 @@ export function StatusBar() {
   const total = useOverrideStore(useShallow((s) => selectOverrideList(s).length));
   const iframes = useResourceStore(selectIframeCount);
   const workers = useResourceStore(selectWorkerCount);
-  const active = useTabStore(useShallow((s) => {
-    const t = selectActiveTab(s);
-    return t ? { kind: t.kind, lite: t.lite } : null;
-  }));
+  // The active file's language, or an original's (read-only).
+  const active = useTabStore(
+    useShallow((s) => {
+      const t = selectActiveTab(s);
+      if (t) return { language: KIND_NAME[t.kind], lite: t.lite, readOnly: false };
+      const source = selectActiveSource(s);
+      return source ? { language: source.languageName, lite: source.lite, readOnly: true } : null;
+    }),
+  );
 
   return (
     <footer className="flex h-[var(--statusbar-h)] shrink-0 items-center gap-4 border-t border-line bg-canvas px-3 text-[11.5px] text-fg-subtle" data-testid="status-bar">
@@ -60,7 +65,8 @@ export function StatusBar() {
       {active ? (
         <span className="flex items-center gap-3">
           {active.lite ? <span className="text-warning/80">highlight only</span> : null}
-          <span>{KIND_NAME[active.kind]}</span>
+          <span>{active.language}</span>
+          {active.readOnly ? <span data-testid="status-read-only">Read-only</span> : null}
           <span>UTF-8</span>
         </span>
       ) : null}

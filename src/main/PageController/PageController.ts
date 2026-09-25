@@ -29,7 +29,8 @@ export class PageController {
   /** The console of the page and its frames. */
   readonly console: ConsoleService;
   private readonly engine: PageInterception;
-  private readonly siteSession: Session;
+  /** The site's session (cookies, logins): reads out of the page go through it, like its favicon and source maps. */
+  readonly siteSession: Session;
   private readonly loader: PageLoader;
 
   constructor(

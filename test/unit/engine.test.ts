@@ -1050,6 +1050,69 @@ describe('InterceptionEngine', () => {
   });
 });
 
+describe('source map headers', () => {
+  const script = (t: FakeTransport, requestId: string, url: string, headers?: Record<string, string>, type = 'Script') =>
+    t.emit('Network.responseReceived', { requestId, type, frameId: 'main', response: { url, status: 200, mimeType: 'text/javascript', headers } });
+  const paused = (t: FakeTransport, networkId: string, url: string, resourceType = 'Script') =>
+    t.emit('Fetch.requestPaused', {
+      requestId: `f-${networkId}`,
+      networkId,
+      resourceType,
+      request: { url, method: 'GET' },
+      responseStatusCode: 200,
+      responseHeaders: [
+        { name: 'content-type', value: 'text/javascript' },
+        { name: 'SourceMap', value: 'app.js.map' },
+      ],
+    });
+
+  it('remembers the SourceMap header of a listed script, in any letter case, else X-SourceMap', async () => {
+    const { transport, engine } = await setup();
+    transport.responses['Network.getResponseBody'] = { body: 'x();', base64Encoded: false };
+    script(transport, 'r1', 'https://a.com/1.js', { SourceMap: '1.js.map' });
+    script(transport, 'r2', 'https://a.com/2.js', { 'x-sourcemap': '/maps/2.js.map' });
+    script(transport, 'r3', 'https://a.com/3.js', { 'X-SourceMap': 'old.map', sourcemap: 'new.map' });
+    // A header sent twice arrives joined by a newline.
+    script(transport, 'r4', 'https://a.com/4.js', { sourcemap: ' first.map \nsecond.map' });
+    script(transport, 'r5', 'https://a.com/5.js');
+    const mapOf = async (n: number) => (await engine.getResourceContent(`https://a.com/${n}.js`)).sourceMap;
+    expect(await mapOf(1)).toBe('1.js.map');
+    expect(await mapOf(2)).toBe('/maps/2.js.map');
+    expect(await mapOf(3)).toBe('new.map');
+    expect(await mapOf(4)).toBe('first.map');
+    expect(await engine.getResourceContent('https://a.com/5.js')).not.toHaveProperty('sourceMap');
+  });
+
+  it('keeps the upstream SourceMap header of a file served from an override, although the served copy has none', async () => {
+    const { transport, engine } = await setup([override({})], { ...DEFAULT_SETTINGS }, { fallbackFetch: async () => 'upstream();' });
+    paused(transport, 'n1', 'https://a.com/app.js');
+    await flush();
+    const fulfill = transport.calls.find((c) => c.method === 'Fetch.fulfillRequest');
+    expect(fulfill?.params?.responseHeaders).not.toContainEqual(expect.objectContaining({ name: 'SourceMap' }));
+    script(transport, 'n1', 'https://a.com/app.js');
+    expect(await engine.getResourceContent('https://a.com/app.js')).toMatchObject({ content: 'upstream();', sourceMap: 'app.js.map' });
+  });
+
+  it('forgets a stashed header for a fetch() response the list skips', async () => {
+    const { transport, engine } = await setup([override({})], { ...DEFAULT_SETTINGS }, { fallbackFetch: async () => 'upstream();' });
+    paused(transport, 'n1', 'https://a.com/app.js', 'Fetch');
+    await flush();
+    script(transport, 'n1', 'https://a.com/app.js', undefined, 'Fetch');
+    // Were it kept, a later response with that id would pick it up.
+    script(transport, 'n1', 'https://a.com/app.js');
+    expect(await engine.getResourceContent('https://a.com/app.js')).not.toHaveProperty('sourceMap');
+  });
+
+  it('forgets stashed headers when the page navigates', async () => {
+    const { transport, engine } = await setup([override({})], { ...DEFAULT_SETTINGS }, { fallbackFetch: async () => 'upstream();' });
+    paused(transport, 'n1', 'https://a.com/app.js');
+    await flush();
+    transport.emit('Page.frameNavigated', { frame: { id: 'main', loaderId: 'next', url: 'https://a.com/' } });
+    script(transport, 'n1', 'https://a.com/app.js');
+    expect(await engine.getResourceContent('https://a.com/app.js')).not.toHaveProperty('sourceMap');
+  });
+});
+
 type Paused = {
   requestId?: string;
   networkId?: string;

@@ -5,6 +5,7 @@ import { listedKind } from './listedKind';
 import { MissedOverrides } from './MissedOverrides';
 import { MissedRules } from './MissedRules';
 import type { RequestPausedParams, ResourceTrackerContext, ResponseReceivedParams, TrackedResource } from './types';
+import { UpstreamSourceMaps } from './UpstreamSourceMaps';
 
 /**
  * The scripts, stylesheets and documents of the session's current page (or
@@ -21,11 +22,14 @@ export class ResourceTracker {
    * `Network.getResponseBody`, only ever saw the rewritten HTML.
    */
   private readonly rewritten = new Map<string, string>();
+  /** The source map each response names (see {@link UpstreamSourceMaps}). */
+  readonly sourceMaps: UpstreamSourceMaps;
   private readonly missed: MissedOverrides;
   private readonly missedRules: MissedRules;
 
   constructor(private readonly ctx: ResourceTrackerContext) {
     this.servedBy = ctx.opts.servedBy ?? new Map();
+    this.sourceMaps = new UpstreamSourceMaps(ctx.opts.upstreamSourceMaps);
     this.missed = new MissedOverrides(ctx.matcher, ctx.opts);
     this.missedRules = new MissedRules(ctx);
   }
@@ -79,7 +83,10 @@ export class ResourceTracker {
   clear(): void {
     this.resources.clear();
     // Shared with the page's other sessions: only the page's own navigation ends them all.
-    if (!this.ctx.opts.iframe) this.servedBy.clear();
+    if (!this.ctx.opts.iframe) {
+      this.servedBy.clear();
+      this.sourceMaps.clear();
+    }
     this.rewritten.clear();
     this.missed.clear();
     this.missedRules.clear();
@@ -98,6 +105,7 @@ export class ResourceTracker {
     const overrideId = this.takeServed(p.requestId);
     const upstreamHash = this.rewritten.get(p.requestId);
     this.rewritten.delete(p.requestId);
+    const sourceMap = this.sourceMaps.take(p.requestId, p.response.headers);
     const isMainScript = !!worker && worker.responded(p.requestId, url);
     const kind = listedKind(p.type, p.response.mimeType, !!worker);
     if (!kind || UNLISTED_URL.test(url)) return;
@@ -130,6 +138,7 @@ export class ResourceTracker {
       loaderId: p.loaderId,
       upstreamHash,
       ...(p.response.fromServiceWorker ? { fromServiceWorker: true } : {}),
+      ...(sourceMap ? { sourceMap } : {}),
     };
     if (heldForCommit) {
       navigation.hold(tracked);

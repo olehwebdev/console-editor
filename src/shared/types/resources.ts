@@ -42,4 +42,9 @@ export interface ResourceContent {
   content: string;
   /** sha256 of the content as delivered by the server (hex). */
   hash: string;
+  /**
+   * The `SourceMap` (else `X-SourceMap`) header the response carried, as written (unresolved). For a
+   * file served from an override: the upstream response's, taken before the override replaced it.
+   */
+  sourceMap?: string;
 }

@@ -1,4 +1,4 @@
-import type { CreateRuleInput, ResourceKind } from '@common/types';
+import type { CreateRuleInput, ResourceKind, SourceMapKind } from '@common/types';
 
 export type DiffMode = 'off' | 'base' | 'live';
 
@@ -30,6 +30,22 @@ interface PageTabBase {
   title: string;
 }
 
+/** A read-only original from a bundle's source map. Not kept between runs; closes with the file tabs. */
+export interface SourceTab {
+  id: string;
+  /** The original's URL as the map resolves it: its identity in the map, label and breadcrumbs. */
+  url: string;
+  /** The bundle whose map lists it: where Go to bundle code goes. */
+  bundleUrl: string;
+  bundleKind: SourceMapKind;
+  /** Display name of its language (status bar). */
+  languageName: string;
+  /** Opened in highlight-only mode because the original is huge. */
+  lite: boolean;
+  /** The map lists it without its text: there is no model, and the panel says so. */
+  missing: boolean;
+}
+
 /** A tab showing an app page rather than a file (like VS Code's release notes). Not kept between runs. */
 export type PageTab =
   | (PageTabBase & { page: 'whats-new' })
@@ -47,8 +63,9 @@ export type PageTabOf<K extends PageKind> = Extract<PageTab, { page: K }>;
 export type PageScope = 'app' | 'workspace';
 
 export interface TabStore {
-  /** File tabs. Pages are kept apart, so everything that works on files ignores them. */
+  /** File tabs. Sources and pages are kept apart, so everything that works on files ignores them. */
   tabs: TabMeta[];
+  sources: SourceTab[];
   pages: PageTab[];
   /** The active file tab or page. */
   activeId: string | null;
@@ -56,15 +73,17 @@ export interface TabStore {
 
   /** Adds a tab, and makes it the active one unless `activate` is false. */
   add(tab: TabMeta, activate?: boolean): void;
+  /** Adds a source tab after the file tabs (unless its id is open), and activates it unless `activate` is false. */
+  openSource(tab: SourceTab, activate?: boolean): void;
   /**
-   * Shows a page, opening its tab (after the file tabs) if it isn't open yet. An open page with
-   * the same id takes the new fields in place, keeping its position and anything not given (its draft).
+   * Shows a page, opening its tab (after the file and source tabs) if it isn't open yet. An open page
+   * with the same id takes the new fields in place, keeping its position and anything not given (its draft).
    */
   openPage(page: PageTab): void;
   activate(id: string): void;
-  /** Closes a file tab or a page. */
+  /** Closes a file tab, source tab or page. */
   remove(id: string): void;
-  /** Closes every file tab (pages stay open). */
+  /** Closes every file and source tab (pages stay open). */
   removeTabs(): void;
   /** Closes these pages; when the active one goes, its neighbour takes over as with `remove`. */
   removePages(ids: readonly string[]): void;

@@ -1,5 +1,6 @@
 import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
+import { hostOf, pathSegments } from '@/shared/lib';
 import { Badge } from '@/shared/ui/badge';
 import { Button, Swap } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icon';
@@ -7,12 +8,14 @@ import { IconButton } from '@/shared/ui/icon-button';
 import { type TabMeta, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { KindIcon } from '@/entities/resource';
+import { isMappableKind, useSourceMapStore } from '@/entities/source-map';
 import { closeDiff, compareWithLive, showBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
+import { bundleUrlOf, goToOriginal } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
 import { Banners } from '../Banners';
+import { Breadcrumbs } from '../Breadcrumbs';
 import { MatchRule } from '../MatchRule';
-import { Breadcrumbs } from './Breadcrumbs';
 
 /** The Save button's states: the key its Swap rolls on, and the label. */
 const SAVE_STATE = {
@@ -27,12 +30,15 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
   const diff = useTabStore((s) => s.diff);
   const saved = !!override && !tab.dirty;
   const saveState = saved ? SAVE_STATE.saved : override ? SAVE_STATE.save : SAVE_STATE.create;
+  // Offered on scripts and stylesheets until the file is known to have no map.
+  const noMap = useSourceMapStore((s) => s.byBundle[bundleUrlOf(tab)]?.status === 'none');
+  const mappable = isMappableKind(tab.kind) && !noMap;
 
   return (
     <div className="shrink-0 border-b border-line bg-surface-editor" data-testid="file-header">
       <div className="flex h-10 items-center gap-2 px-3">
         <KindIcon kind={tab.kind} size={15} />
-        <Breadcrumbs url={tab.url} />
+        <Breadcrumbs root={hostOf(tab.url)} segments={pathSegments(tab.url)} title={tab.url} />
         {override ? (
           <Badge tone={override.enabled ? 'live' : 'neutral'} dot pulse={override.enabled}>
             {override.enabled ? 'Override live' : 'Override off'}
@@ -41,6 +47,15 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
           <Badge tone="neutral">Live file</Badge>
         )}
         <div className="ml-1 flex items-center gap-0.5">
+          {mappable ? (
+            <IconButton
+              icon={icons.JumpIcon}
+              label="Go to original source"
+              shortcut={SHORTCUT.jumpToMapped}
+              data-testid="go-to-original"
+              onClick={() => void goToOriginal(tab.id)}
+            />
+          ) : null}
           <IconButton icon={icons.PrettifyIcon} label="Pretty-print" shortcut={SHORTCUT.format} onClick={() => void formatTab(tab.id)} />
           <IconButton
             icon={icons.DiffIcon}

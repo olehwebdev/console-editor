@@ -1,7 +1,7 @@
 import { HTTP_SCHEME } from '../constants';
 import { IMAGE_TYPE, MAX_KEPT } from './constants';
 import { imageType } from './imageType';
-import { readCapped } from './readCapped';
+import { readCapped } from '../readCapped';
 import type { FaviconDeps, ImageType } from './types';
 
 /** Bigger downloads aren't favicons (a site that answers /favicon.ico with a page, say). */

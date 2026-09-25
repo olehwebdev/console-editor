@@ -96,7 +96,7 @@ Rules:
 
 ## 3. Icons
 
-Hugeicons (stroke, 1.5 px) through one wrapper: `shared/ui/icon` → `<Icon icon={Search01Icon} size={16} />`. Sizes: 14 (inline), 16 (controls, default), 18 (rail). Icons inherit `currentColor`; file kinds get tinted glyphs (`JavaScriptIcon`, `CssFile01Icon`, `Html5Icon`), and so do rule actions (`BlockIcon` in `--danger`, `HeadersIcon` in `--info`, `CorsIcon` in `--accent`; `RULE_ACTION_GLYPHS` in `entities/rule`). A blocked file's name is struck through in `--fg-subtle`: never colour alone.
+Hugeicons (stroke, 1.5 px) through one wrapper: `shared/ui/icon` → `<Icon icon={Search01Icon} size={16} />`. Sizes: 14 (inline), 16 (controls, default), 18 (rail). Icons inherit `currentColor`; file kinds get tinted glyphs (`JavaScriptIcon`, `CssFile01Icon`, `Html5Icon`), and so do rule actions (`BlockIcon` in `--danger`, `HeadersIcon` in `--info`, `CorsIcon` in `--accent`; `RULE_ACTION_GLYPHS` in `entities/rule`). A blocked file's name is struck through in `--fg-subtle`: never colour alone. Original sources get their language's glyph (`SourceIcon` in `entities/source-map`): TypeScript and JSX (`TypescriptIcon`, `ReactIcon`) in `--info`, JS, CSS and HTML in the kind tints, anything else `FileCodeIcon`. Read-only is marked with a lock (the **Read-only** badge) and a locked-file tab glyph (`FileLockedIcon`) in `--info`, never by colour alone.
 
 ---
 
@@ -140,13 +140,16 @@ src/renderer/src/
               page-window/     — the website's own window: the page-preview widget alone
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
               command-palette, console-panel
-  features/   navigate-page, open-resource, save-override, toggle-override, delete-override, close-tab,
-              edit-match-rule, format-document, compare-changes, filter-resources, update-settings,
-              update-app, edit-workspace, run-in-frame, filter-console, name-frame, clear-console,
-              expand-console-value, detach-page, rule/ (a slice group: quick-actions, edit, toggle, delete)
-  entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule
-  shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format worker,
-              overlays, native view rect), monaco, config (icons)
+  features/   navigate-page, open-resource (also original sources, the jumps between them and bundles,
+              and which of a bundle's originals the Explorer shows open), save-override, toggle-override,
+              delete-override, close-tab, edit-match-rule, format-document, compare-changes,
+              filter-resources, update-settings, update-app, edit-workspace, run-in-frame, filter-console,
+              name-frame, clear-console, expand-console-value, detach-page, rule/ (a slice group:
+              quick-actions, edit, toggle, delete)
+  entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule,
+              source-map
+  shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format and source-map
+              workers, overlays, native view rect), monaco, config (icons)
 ```
 
 Rules (checked by `npm run lint:fsd` with [Steiger](https://github.com/feature-sliced/steiger)):
@@ -167,7 +170,7 @@ Code shared with the main process (`src/shared`: IPC types, URL matching) is imp
 - **One IPC bridge**: `startBridge()` in `app/model/bridge/` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features) through typed handler tables, one handler per event type and per menu command.
 - **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
 - **Page tabs keep their own edits.** A tab that isn't a file (What's New, a rule page, a new-rule page) is a `PageTab`, a union by `page` kind. Each kind declares whether it belongs to the app or to the workspace (`PAGE_SCOPES`: workspace pages close on a switch), whether it holds edits (`PAGE_DIRTY_CHECKS`), and which view renders it (`PAGE_VIEWS` in `widgets/editor-panel`), so a new kind fails typecheck until it has all three. A rule page's unapplied edits are a draft on its tab (`{ base, value, rowKeys }`), not form state, so they survive switching tabs; the form shows them only while `base` is still the saved rule, and the rule's own Apply landing rebases what was typed meanwhile.
-- **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models/`, `shared/monaco/editors/`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode).
+- **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models/`, `shared/monaco/editors/`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode). Decoded source maps live in the source-map worker; `entities/source-map` keeps each bundle's state and file list.
 
 ## 7. Accessibility
 

@@ -1,7 +1,5 @@
 import type { Session } from 'electron';
-
-/** Fetches a live file past the HTTP cache. */
-const BYPASS_CACHE = { 'Cache-Control': 'no-cache' } as const;
+import { BYPASS_CACHE } from './constants';
 
 /** A file's text as the site serves it now, through its session (with its cookies). */
 export async function fetchUncached(siteSession: Session, url: string): Promise<string> {

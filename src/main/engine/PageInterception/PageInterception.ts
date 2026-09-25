@@ -35,7 +35,12 @@ export class PageInterception {
     this.sharedWorkers = new SharedWorkers(opts.transport, () => this.detached, (targetId) => this.children.hasTarget(targetId));
     this.children = new ChildSessions(opts, this.serviceWorkers, this.sharedWorkers);
     // Shared by every engine: a dedicated worker's requests are served on one session and reported on another.
-    const engineOptions = { ...opts, servedBy: new Map<string, string>(), workerSetups: () => this.sharedWorkers.setups() };
+    const engineOptions = {
+      ...opts,
+      servedBy: new Map<string, string>(),
+      upstreamSourceMaps: new Map<string, string>(),
+      workerSetups: () => this.sharedWorkers.setups(),
+    };
     this.root = new InterceptionEngine({ ...engineOptions, transport: sessionTransport(opts.transport) });
     const { children, serviceWorkers, sharedWorkers } = this;
     this.ctx = { cdp: opts.transport, opts, engineOptions, root: this.root, children, serviceWorkers, sharedWorkers, stopped: () => this.detached };

@@ -5,8 +5,10 @@ import {
   buildRewrittenHeaders,
   charsetOf,
   decodeBody,
+  headerEntries,
   isRedirect,
   isSuccessful,
+  sourceMapHeader,
   stripIntegrityAttributes,
   stripSourceMapComments,
   toBase64Body,
@@ -79,6 +81,25 @@ describe('buildOverrideHeaders', () => {
     const headers = buildOverrideHeaders([{ name: 'SourceMap', value: 'x' }], 'Stylesheet', { stripSourceMaps: false });
     expect(headers).toContainEqual({ name: 'SourceMap', value: 'x' });
     expect(headers).toContainEqual({ name: 'Content-Type', value: 'text/css; charset=utf-8' });
+  });
+});
+
+describe('source map headers', () => {
+  it('sourceMapHeader prefers SourceMap to X-SourceMap in any letter case, and takes the first of several values', () => {
+    expect(sourceMapHeader([{ name: 'X-SourceMap', value: 'old.map' }, { name: 'sourcemap', value: 'new.map' }])).toBe('new.map');
+    expect(sourceMapHeader([{ name: 'x-sourcemap', value: 'old.map' }])).toBe('old.map');
+    expect(sourceMapHeader([{ name: 'SourceMap', value: ' a.map\nb.map' }])).toBe('a.map');
+    expect(sourceMapHeader([{ name: 'SourceMap', value: '  ' }, { name: 'X-SourceMap', value: 'x.map' }])).toBe('x.map');
+    expect(sourceMapHeader([{ name: 'Content-Type', value: 'text/javascript' }])).toBeUndefined();
+    expect(sourceMapHeader(undefined)).toBeUndefined();
+  });
+
+  it('headerEntries turns a CDP headers object into entries', () => {
+    expect(headerEntries({ SourceMap: 'a.map', 'content-type': 'text/css' })).toEqual([
+      { name: 'SourceMap', value: 'a.map' },
+      { name: 'content-type', value: 'text/css' },
+    ]);
+    expect(headerEntries(undefined)).toEqual([]);
   });
 });
 
