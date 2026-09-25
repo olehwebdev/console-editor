@@ -11,6 +11,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { gzipSync } from 'node:zlib';
 import { STORE_BUNDLE, STORE_BUNDLE_PATH, STORE_CSS, STORE_CSS_PATH, STORE_HTML, STORE_ICON, STORE_ICON_PATH } from './demoStore.ts';
+import { headersRoutes } from './headersPages.ts';
 
 export const APP_JS = `window.appValue = 'original';\ndocument.addEventListener('DOMContentLoaded', () => { document.querySelector('#app').textContent = 'app: ' + window.appValue; });\n`;
 
@@ -123,16 +124,30 @@ export function widgetHtml(port: number): string {
 `;
 }
 
+/** What the fixture server answers for one path. */
+export interface FixtureRoute {
+  type: string;
+  body: string;
+  /** Changes the default headers: a string sets or replaces one, null drops it. Applied before gzip and Content-Length. */
+  headers?: Record<string, string | null>;
+  /** 200 unless given (a 302 needs a Location in `headers`). */
+  status?: number;
+  /** Answers a CORS preflight (OPTIONS) with 405 and no CORS headers, as many APIs do. */
+  rejectPreflight?: boolean;
+}
+
 export interface FixtureSite {
   url: string;
   server: Server;
   /** Replaces the body served for a path (simulates a new deploy). */
   setBody(path: string, body: string): void;
+  /** How many requests reached the server for a path (query ignored) with a method. */
+  hits(path: string, method?: string): number;
   close(): Promise<void>;
 }
 
 export async function startFixtureSite(port = 0): Promise<FixtureSite> {
-  const bodies = new Map<string, { type: string; body: string }>([
+  const bodies = new Map<string, FixtureRoute>([
     ['/', { type: 'text/html; charset=utf-8', body: indexHtml() }],
     ['/app.js', { type: 'application/javascript', body: APP_JS }],
     ['/style.css', { type: 'text/css', body: STYLE_CSS }],
@@ -140,12 +155,19 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
     ['/lazy.js', { type: 'text/javascript', body: LAZY_JS }],
   ]);
 
+  const requests: Array<{ method: string; path: string }> = [];
   const server = createServer((req, res) => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname;
+    requests.push({ method: req.method ?? 'GET', path });
     const entry = bodies.get(path);
     if (!entry) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('not found');
+      return;
+    }
+    if (entry.rejectPreflight && req.method === 'OPTIONS') {
+      res.writeHead(405, { 'Content-Type': 'text/plain', 'Content-Length': '0' });
+      res.end();
       return;
     }
     const headers: Record<string, string> = {
@@ -154,13 +176,17 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
       'Access-Control-Allow-Origin': '*',
     };
     if (path === MAIN_JS_PATH) headers.SourceMap = 'main.3f9a1c2b.js.map';
+    for (const [name, value] of Object.entries(entry.headers ?? {})) {
+      for (const other of Object.keys(headers)) if (other.toLowerCase() === name.toLowerCase()) delete headers[other];
+      if (value !== null) headers[name] = value;
+    }
     let payload: Buffer = Buffer.from(entry.body, 'utf8');
     if (/\bgzip\b/.test(String(req.headers['accept-encoding'] ?? ''))) {
       payload = gzipSync(payload);
       headers['Content-Encoding'] = 'gzip';
     }
     headers['Content-Length'] = String(payload.length);
-    res.writeHead(200, headers);
+    res.writeHead(entry.status ?? 200, headers);
     res.end(payload);
   });
 
@@ -197,6 +223,8 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 </script>
 <p><a id="tab" href="/?from=tab" target="_blank">new tab</a></p>`,
   );
+  // Blocking, header and CORS rules (test/integration/rules.chromium.test.ts, test/e2e): all under /headers/.
+  for (const [path, route] of headersRoutes(actualPort)) bodies.set(path, route);
   return {
     url: `http://127.0.0.1:${actualPort}`,
     server,
@@ -204,6 +232,7 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
       const entry = bodies.get(path);
       if (entry) entry.body = body;
     },
+    hits: (path, method = 'GET') => requests.filter((r) => r.path === path && r.method === method).length,
     close: () => new Promise((resolve) => server.close(() => resolve())),
   };
 }

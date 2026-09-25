@@ -4,6 +4,7 @@ import { HTTP_SCHEME } from './constants';
 import { parseUrl } from './parseUrl';
 import type { PageController } from './PageController';
 import type { OverrideStore } from './store/OverrideStore';
+import type { RuleStore } from './store/RuleStore';
 import type { SessionStore } from './store/SessionStore';
 
 /** A page title is kept once it has stayed this long. */
@@ -11,8 +12,8 @@ const TITLE_SETTLE_MS = 1000;
 
 /**
  * Workspaces: each has its own page, tabs (kept by the renderer through the
- * session store) and overrides. Switching leaves the page, makes the other
- * workspace's overrides the ones served, and loads its last page.
+ * session store), overrides and rules. Switching leaves the page, makes the
+ * other workspace's overrides and rules the ones applied, and loads its last page.
  */
 export class WorkspaceController {
   /** Switches and deletions run one at a time. */
@@ -24,16 +25,22 @@ export class WorkspaceController {
     private readonly page: PageController,
     private readonly session: SessionStore,
     private readonly store: OverrideStore,
+    private readonly rules: RuleStore,
     private readonly send: (event: AppEvent) => void,
   ) {}
 
   /**
-   * Serves the active workspace's overrides, handing it any that belong to no
-   * workspace (those saved before workspaces existed).
+   * Serves the active workspace's overrides and applies its rules, handing it
+   * any that belong to no workspace (overrides saved before workspaces existed,
+   * or those of a workspace that was lost).
    */
   async start(): Promise<void> {
-    await this.store.adopt(new Set(this.session.workspaces().workspaces.map((w) => w.id)), this.session.activeId);
-    this.store.setWorkspace(this.session.activeId);
+    const known = new Set(this.session.workspaces().workspaces.map((w) => w.id));
+    const { activeId } = this.session;
+    await this.store.adopt(known, activeId);
+    await this.rules.adopt(known, activeId);
+    this.store.setWorkspace(activeId);
+    this.rules.setWorkspace(activeId);
   }
 
   /** Follows the page: remembers where the active workspace is, and its site's icon. */
@@ -106,13 +113,15 @@ export class WorkspaceController {
     return updated;
   }
 
-  /** Deletes a workspace other than the active one, with its overrides. */
+  /** Deletes a workspace other than the active one, with its overrides and rules. */
   remove(id: unknown): Promise<void> {
     return this.serialize(async () => {
       if (!this.session.has(id)) throw new Error('Unknown workspace');
       if (id === this.session.activeId) throw new Error('The workspace in use cannot be deleted');
-      // Its overrides go first: were the workspace to go first and this fail, the next start would hand them to another.
+      // Its overrides and rules go first: were the workspace to go first and a deletion fail, the next
+      // start would hand them to another workspace.
       await this.store.removeWorkspace(id as string);
+      await this.rules.removeWorkspace(id as string);
       await this.session.remove(id);
       this.pushState();
     });
@@ -127,8 +136,12 @@ export class WorkspaceController {
       await this.page.leave();
       // In memory at once, written after: a failed write is reported, but the switch is whole.
       const saved = this.session.setActive(id);
+      // Both together, before anything awaits: no request is ever served one workspace's overrides and another's rules.
       this.store.setWorkspace(this.session.activeId);
+      this.rules.setWorkspace(this.session.activeId);
+      // One pattern refresh reads both stores; the rules then only need their event.
       await this.page.overridesChanged();
+      await this.page.rulesChanged(false);
       this.pushState();
       const { url } = this.session.get();
       if (url) void this.page.navigate(url, { fresh: true });

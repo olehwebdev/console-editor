@@ -10,10 +10,13 @@ import {
   type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
+import { sanitizeRuleInput } from '../store/sanitizeRuleInput';
+import { sanitizeRulePatch } from '../store/sanitizeRulePatch';
+import { toRule } from '../store/toRule';
 import { assertString } from './assertString';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -78,6 +81,27 @@ export function registerIpc({ win, page, store, settings, session, workspaces, u
   });
   handle(IPC_CHANNEL.revealOverridesFolder, async () => {
     await shell.openPath(store.filesDir);
+  });
+
+  // 'rules-changed' is sent before each reply resolves.
+  handle(IPC_CHANNEL.listRules, () => rules.forRenderer());
+  handle(IPC_CHANNEL.createRule, async (input: unknown) => {
+    const created = await rules.create(sanitizeRuleInput(input));
+    await page.rulesChanged();
+    return toRule(created);
+  });
+  handle(IPC_CHANNEL.updateRule, async (id: unknown, patch: unknown) => {
+    assertString(id, 'id');
+    const clean = sanitizeRulePatch(patch);
+    const updated = await rules.update(id, clean);
+    // Only the matcher and on/off change Fetch patterns; request types and header edits are read at pause time.
+    await page.rulesChanged(clean.match !== undefined || clean.enabled !== undefined);
+    return toRule(updated);
+  });
+  handle(IPC_CHANNEL.deleteRule, async (id: unknown) => {
+    assertString(id, 'id');
+    await rules.remove(id);
+    await page.rulesChanged();
   });
 
   handle(IPC_CHANNEL.getSettings, () => settings.get());

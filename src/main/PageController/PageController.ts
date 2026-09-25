@@ -6,6 +6,7 @@ import { PageInterception } from '../engine/PageInterception';
 import { loadFavicon } from '../favicon';
 import { installSitePermissions } from '../sitePermissions';
 import type { OverrideStore } from '../store/OverrideStore';
+import type { RuleStore } from '../store/RuleStore';
 import type { SettingsStore } from '../store/SettingsStore';
 import { chromeUserAgent } from './chromeUserAgent';
 import { normalizeUrl } from './normalizeUrl';
@@ -48,6 +49,7 @@ export class PageController {
   constructor(
     win: BrowserWindow,
     private readonly store: OverrideStore,
+    private readonly rules: RuleStore,
     private readonly settings: SettingsStore,
     private readonly send: (event: AppEvent) => void,
   ) {
@@ -74,6 +76,7 @@ export class PageController {
     this.engine = new PageInterception({
       transport,
       getOverrides: () => this.store.list(),
+      getRules: () => this.rules.list(),
       getSettings: () => this.settings.get(),
       emit: (event) => this.send(event),
       fallbackFetch: async (url) => {
@@ -231,6 +234,12 @@ export class PageController {
   async overridesChanged(patterns = true): Promise<void> {
     if (patterns) await this.engine.refreshInterception();
     this.send({ type: 'overrides-changed', overrides: this.store.metas() });
+  }
+
+  /** Call after rules change. Pass `patterns: false` when only header edits or request types changed (read at pause time). */
+  async rulesChanged(patterns = true): Promise<void> {
+    if (patterns) await this.engine.refreshInterception();
+    this.send({ type: 'rules-changed', rules: this.rules.forRenderer() });
   }
 
   settingsChanged(): Promise<void> {
