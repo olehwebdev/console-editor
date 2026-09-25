@@ -72,6 +72,7 @@ describe.skipIf(!browserAvailable)('InterceptionEngine in Chromium', () => {
     engine = new InterceptionEngine({
       transport,
       getOverrides: () => overrides,
+      getRules: () => [],
       getSettings: () => settings,
       emit: (e) => events.push(e),
       fallbackFetch: async (url) => (await fetch(url)).text(),

@@ -1,24 +1,43 @@
-import { compileMatcher, type UrlPredicate } from '../../../shared/matcher';
-import type { MatchType, Override, ResourceContent, ResourceEntry } from '../../../shared/types';
+import type { MatchType, Override, ResourceContent, ResourceEntry, ResourceKind } from '../../../shared/types';
 import type { CdpTransport } from '../cdp';
-import { CDP, CONTENT_TYPE, HTML_MIME_TYPE, HTTP_REDIRECTION, HTTP_SUCCESSFUL } from '../constants';
+import { BLOCKED_BY_CLIENT, CDP, CONTENT_TYPE, HTML_MIME_TYPE } from '../constants';
+import {
+  applyResponseRules,
+  findBlockRule,
+  findResponseRules,
+  isPreflight,
+  pausedRequestOf,
+  type PausedRequest,
+  type ResponseHead,
+  type ResponseRule,
+} from '../rules';
 import {
   buildOverrideHeaders,
+  buildRefulfilledHeaders,
   buildRewrittenHeaders,
   decodeBody,
   headerValue,
   isRedirect,
+  isSuccessful,
   SRI_GUARD_SOURCE,
   stripIntegrityAttributes,
   stripSourceMapComments,
+  toBase64Body,
+  withUtf8ContentType,
+  type RawBody,
 } from '../transform';
 import { answersKind } from './answersKind';
 import { computeFetchPatterns } from './computeFetchPatterns';
-import { DOCUMENT_KIND } from './constants';
+import { BLOCKED_STATUS, DOCUMENT_KIND } from './constants';
+import { hasResponseHead } from './hasResponseHead';
 import { isBenignCdpError } from './isBenignCdpError';
 import { isKind } from './isKind';
+import { MatcherCache } from './MatcherCache';
+import { pauseStage } from './pauseStage';
+import { phraseFor } from './phraseFor';
 import { sha256 } from './sha256';
-import type { EngineOptions, FrameTree, RequestPausedParams, TrackedResource } from './types';
+import { stripsIntegrity } from './stripsIntegrity';
+import type { EngineOptions, FrameTree, PausedResponse, RequestPausedParams, RequestStage, TrackedResource } from './types';
 
 const MATCH_RANK = { exact: 0, glob: 1, regex: 2 } as const satisfies Record<MatchType, number>;
 
@@ -41,15 +60,18 @@ const SWAP_REASON = 'swap';
 /** Bounds the walk up `frameParents`, which a stale entry could turn into a loop. */
 const MAX_FRAME_DEPTH = 32;
 
-/** Joins the parts of a matcher cache key: a NUL can't occur in them (a regex may contain `|`). */
-const MATCHER_KEY_SEPARATOR = '\u0000';
-/** Joins an override id and a URL into a `missed` key. */
+/** Joins an override or rule id and a URL into a `missed` / `missedRules` key. */
 const MISSED_KEY_SEPARATOR = '|';
 
 /**
- * Serves edited files in place of the originals by driving the Chrome DevTools
- * Protocol `Fetch` domain, and keeps a list of the page's scripts, stylesheets
- * and documents via the `Network` domain.
+ * Serves edited files in place of the originals, blocks requests and edits
+ * response headers by driving the Chrome DevTools Protocol `Fetch` domain, and
+ * keeps a list of the page's scripts, stylesheets and documents via the
+ * `Network` domain.
+ *
+ * A request pauses at the Request stage only for block rules (before anything
+ * is sent), and at the Response stage for overrides, SRI stripping and header
+ * or CORS rules. Whatever goes wrong, a paused request is always let through.
  *
  * The engine only needs a {@link CdpTransport}, so the same code drives an
  * Electron `webContents.debugger`, an external Chrome, or a test double.
@@ -58,13 +80,15 @@ export class InterceptionEngine {
   private readonly resources = new Map<string, TrackedResource>();
   /** Network requestId -> id of the override that served it. */
   private readonly servedBy = new Map<string, string>();
-  private readonly matcherCache = new Map<string, UrlPredicate>();
+  private readonly matchers = new MatcherCache();
   /** Frame id -> document URL for every frame this session knows about. */
   private readonly frameUrls = new Map<string, string>();
   /** Frame id -> parent frame id, to compute iframe depth. */
   private readonly frameParents = new Map<string, string>();
   /** `${overrideId}|${url}` already reported as missed since the last navigation. */
   private readonly missed = new Set<string>();
+  /** `${ruleId}|${url}` of block rules already reported as missed since the last navigation. */
+  private readonly missedRules = new Set<string>();
   /**
    * Network requestId -> hash of the raw upstream body of a document we
    * rewrote (SRI stripped), until its response is tracked. The page, and so
@@ -88,6 +112,11 @@ export class InterceptionEngine {
   /** Identifier of the injected SRI guard script, while installed. */
   private sriGuardId: string | undefined;
   private queue: Promise<void> = Promise.resolve();
+  /** How a paused request is answered, by the stage it paused at. */
+  private readonly stageHandlers: Record<RequestStage, (p: RequestPausedParams) => Promise<void>> = {
+    Request: (p) => this.answerRequest(p),
+    Response: (p) => this.answerResponse(p),
+  };
 
   constructor(private readonly opts: EngineOptions) {
     this.baseDepth = opts.iframe?.depth ?? 0;
@@ -99,7 +128,7 @@ export class InterceptionEngine {
 
   async attach(): Promise<void> {
     this.disposers.push(
-      this.cdp.on(CDP.Fetch.requestPaused, (p: RequestPausedParams) => void this.onRequestPaused(p)),
+      this.cdp.on(CDP.Fetch.requestPaused, (p: RequestPausedParams) => void this.onRequestPaused(p).catch(() => undefined)),
       this.cdp.on(CDP.Network.requestWillBeSent, (p) => this.onRequestWillBeSent(p)),
       this.cdp.on(CDP.Network.responseReceived, (p) => this.onResponseReceived(p)),
       this.cdp.on(CDP.Page.frameNavigated, (p: { frame: { id: string; parentId?: string; url: string; loaderId?: string } }) => {
@@ -160,7 +189,7 @@ export class InterceptionEngine {
     });
   }
 
-  /** Call after overrides were added, removed, enabled/disabled or re-matched. */
+  /** Call after overrides or rules were added, removed, enabled/disabled or re-matched. */
   refreshInterception(): Promise<void> {
     return this.serialize(() => this.updatePatterns());
   }
@@ -215,12 +244,13 @@ export class InterceptionEngine {
   /**
    * Returns the upstream content of a resource the page loaded. Resources that
    * were served from an override are re-fetched so we never mistake the edited
-   * copy for the original.
+   * copy for the original, and so are blocked ones, which the page never got.
    */
   async getResourceContent(url: string): Promise<ResourceContent> {
     const tracked = this.resources.get(url);
     const attempts: Array<() => Promise<string>> = [];
-    if (tracked && !tracked.entry.overrideId) {
+    // A blocked request has no body in the page: it is fetched outside the page's interception.
+    if (tracked && !tracked.entry.overrideId && !tracked.entry.blockedBy) {
       attempts.push(async () => {
         const r = await this.cdp.send<{ body: string; base64Encoded: boolean }>(CDP.Network.getResponseBody, {
           requestId: tracked.requestId,
@@ -263,7 +293,7 @@ export class InterceptionEngine {
   findOverride(url: string, resourceType?: string): Override | undefined {
     let best: Override | undefined;
     for (const o of this.opts.getOverrides()) {
-      if (!o.enabled || !this.matcherFor(o)(url)) continue;
+      if (!o.enabled || !this.matchers.predicate(o.match)(url)) continue;
       if (resourceType && !answersKind(o.kind, resourceType)) continue;
       if (
         !best ||
@@ -276,16 +306,6 @@ export class InterceptionEngine {
     return best;
   }
 
-  private matcherFor(o: Override): UrlPredicate {
-    const key = [o.id, o.match.type, o.match.ignoreQuery, o.match.pattern].join(MATCHER_KEY_SEPARATOR);
-    let predicate = this.matcherCache.get(key);
-    if (!predicate) {
-      predicate = compileMatcher(o.match);
-      this.matcherCache.set(key, predicate);
-    }
-    return predicate;
-  }
-
   private serialize(task: () => Promise<void>): Promise<void> {
     const run = this.queue.then(task);
     this.queue = run.catch(() => undefined);
@@ -293,8 +313,8 @@ export class InterceptionEngine {
   }
 
   private async updatePatterns(): Promise<void> {
-    this.matcherCache.clear();
-    const patterns = computeFetchPatterns(this.opts.getOverrides(), this.opts.getSettings());
+    this.matchers.clear();
+    const patterns = computeFetchPatterns(this.opts.getOverrides(), this.opts.getRules(), this.opts.getSettings());
     if (patterns.length === 0) {
       if (this.fetchEnabled) {
         await this.cdp.send(CDP.Fetch.disable);
@@ -308,42 +328,79 @@ export class InterceptionEngine {
 
   private async onRequestPaused(p: RequestPausedParams): Promise<void> {
     try {
-      const override = this.findOverride(p.request.url, p.resourceType);
-      if (override && !isRedirect(p.responseStatusCode, p.responseHeaders)) {
-        await this.serveOverride(p, override);
-        return;
-      }
-      if (
-        p.resourceType === DOCUMENT_KIND &&
-        this.opts.getSettings().stripIntegrity &&
-        !p.responseErrorReason &&
-        p.responseStatusCode !== undefined &&
-        p.responseStatusCode >= HTTP_SUCCESSFUL &&
-        p.responseStatusCode < HTTP_REDIRECTION &&
-        (headerValue(p.responseHeaders, CONTENT_TYPE) ?? HTML_MIME_TYPE).includes(HTML_TYPE_MARKER)
-      ) {
-        if (await this.serveWithoutIntegrity(p)) return;
-      }
-      await this.continue(p.requestId);
+      await this.stageHandlers[pauseStage(p)](p);
     } catch (err) {
-      // A frame or session that went away mid-request isn't the user's problem.
-      if (!isBenignCdpError(err)) {
-        this.opts.emit({ type: 'error', message: `Interception failed for ${p.request.url}: ${(err as Error).message}` });
-      }
+      // Fail open first: whatever went wrong, the page must never hang on this request.
       await this.continue(p.requestId);
+      // A frame or session that went away mid-request isn't the user's problem.
+      if (!isBenignCdpError(err)) this.report(`Interception failed for ${p.request.url}: ${(err as Error).message}`);
     }
   }
 
-  private async serveOverride(p: RequestPausedParams, override: Override): Promise<void> {
-    const settings = this.opts.getSettings();
-    const upstreamOk =
-      !p.responseErrorReason &&
-      p.responseStatusCode !== undefined &&
-      p.responseStatusCode >= HTTP_SUCCESSFUL &&
-      p.responseStatusCode < HTTP_REDIRECTION;
+  /** Reports an error to the user; the window may be gone, which must not stop anything. */
+  private report(message: string): void {
+    try {
+      this.opts.emit({ type: 'error', message });
+    } catch {
+      // Nobody left to tell.
+    }
+  }
 
-    if (override.originalHash && upstreamOk) {
-      const upstream = await this.readPausedBody(p);
+  /**
+   * Request stage: only block rules pause here (overrides are never consulted,
+   * so a URL both blocked and overridden stays blocked). The top-level page's
+   * own document is never blocked.
+   */
+  private async answerRequest(p: RequestPausedParams): Promise<void> {
+    const rule = this.isPageDocument(p.resourceType, p.frameId)
+      ? undefined
+      : findBlockRule(this.opts.getRules(), p.request.url, p.resourceType, this.matchers);
+    // Continuing here still lets a Response-stage pattern pause it again.
+    if (!rule) return this.continue(p.requestId);
+    await this.cdp.send(CDP.Fetch.failRequest, { requestId: p.requestId, errorReason: BLOCKED_BY_CLIENT });
+    this.listBlocked(p, rule.id);
+    this.opts.emit({ type: 'rule-applied', ruleId: rule.id, url: p.request.url });
+  }
+
+  /**
+   * Whether a request is the top-level page's own document (never blocked). A
+   * pause without a frame counts as the page: the safe side. Iframe documents,
+   * which pause on their parent's session, stay blockable.
+   */
+  private isPageDocument(resourceType: string, frameId: string | undefined): boolean {
+    return !this.opts.iframe && resourceType === DOCUMENT_KIND && (!frameId || frameId === this.mainFrameId);
+  }
+
+  /**
+   * Response stage. An override chooses the body (never for a CORS preflight),
+   * SRI stripping a document's; header and CORS rules edit the resulting
+   * headers last. Anything nothing changes continues untouched.
+   */
+  private async answerResponse(p: RequestPausedParams): Promise<void> {
+    const rules = findResponseRules(this.opts.getRules(), p.request.url, p.resourceType, this.matchers);
+    const request = pausedRequestOf(p, this.frameUrls.get(p.frameId ?? this.mainFrameId ?? ''));
+    const override = isPreflight(request) ? undefined : this.findOverride(p.request.url, p.resourceType);
+    if (override && !isRedirect(p.responseStatusCode, p.responseHeaders)) return this.serveOverride(p, override, rules, request);
+    if (this.isHtmlDocument(p) && (await this.serveDocument(p, rules, request))) return;
+    if (rules.length > 0 && hasResponseHead(p)) return this.continueWithRules(p, rules, request);
+    return this.continue(p.requestId);
+  }
+
+  /** An HTML document with a whole, non-redirect response: never a navigated PDF or a download. */
+  private isHtmlDocument(p: RequestPausedParams): p is PausedResponse {
+    return (
+      p.resourceType === DOCUMENT_KIND &&
+      hasResponseHead(p) &&
+      !isRedirect(p.responseStatusCode, p.responseHeaders) &&
+      (headerValue(p.responseHeaders, CONTENT_TYPE) ?? HTML_MIME_TYPE).includes(HTML_TYPE_MARKER)
+    );
+  }
+
+  private async serveOverride(p: RequestPausedParams, override: Override, rules: readonly ResponseRule[], request: PausedRequest): Promise<void> {
+    const settings = this.opts.getSettings();
+    if (override.originalHash && isSuccessful(p.responseStatusCode)) {
+      const raw = await this.readPausedRaw(p);
+      const upstream = raw && decodeBody(raw.body, raw.base64Encoded, headerValue(p.responseHeaders, CONTENT_TYPE));
       if (upstream !== undefined && sha256(upstream) !== override.originalHash) {
         this.opts.emit({ type: 'upstream-changed', overrideId: override.id, url: p.request.url });
       }
@@ -357,41 +414,130 @@ export class InterceptionEngine {
     }
 
     if (p.networkId) this.servedBy.set(p.networkId, override.id);
-    // An override also answers requests whose upstream failed (404, 500, offline).
+    // An override also answers requests whose upstream failed (404, 500, offline). Rules land last,
+    // so a rule's Cache-Control beats the forced no-store, and CORS still checks what they wrote.
+    const base: ResponseHead = { status: OVERRIDE_STATUS, headers: buildOverrideHeaders(p.responseHeaders, override.kind, settings) };
+    const { head, applied } = applyResponseRules(base, rules, request);
     await this.cdp.send(CDP.Fetch.fulfillRequest, {
       requestId: p.requestId,
-      responseCode: OVERRIDE_STATUS,
-      responseHeaders: buildOverrideHeaders(p.responseHeaders, override.kind, settings),
+      responseCode: head.status,
+      responseHeaders: withUtf8ContentType(head.headers),
       body: Buffer.from(body, 'utf8').toString('base64'),
     });
     this.opts.emit({ type: 'override-served', overrideId: override.id, url: p.request.url });
+    this.emitApplied(applied, p.request.url);
   }
 
-  /** Strips SRI attributes from an HTML document. Returns false when nothing needed changing. */
-  private async serveWithoutIntegrity(p: RequestPausedParams): Promise<boolean> {
-    const html = await this.readPausedBody(p);
-    if (html === undefined) return false;
-    const stripped = stripIntegrityAttributes(html);
-    if (stripped.count === 0) return false;
-    if (p.networkId) this.rewritten.set(p.networkId, sha256(html));
+  /**
+   * Re-serves an HTML document whose SRI attributes need stripping, or whose
+   * headers rules change: a document enforces the CSP, X-Frame-Options and
+   * Content-Type it arrived with, so only `Fetch.fulfillRequest` can change
+   * them. One body read, at most one fulfil. The ruled head is worked out
+   * first, so a document nothing changes is never read. Returns false when it
+   * didn't answer the request.
+   */
+  private async serveDocument(p: PausedResponse, rules: readonly ResponseRule[], request: PausedRequest): Promise<boolean> {
+    const strip = stripsIntegrity(this.opts.getOverrides(), this.opts.getSettings()) && isSuccessful(p.responseStatusCode);
+    const status = p.responseStatusCode;
+    const ruled = applyResponseRules({ status, headers: buildRefulfilledHeaders(p.responseHeaders) }, rules, request);
+    if (!strip && ruled.applied.length === 0) return false;
+
+    const raw = await this.readPausedRaw(p);
+    if (!raw) {
+      if (ruled.applied.length > 0) {
+        this.report(`Could not re-serve ${p.request.url} to change its headers; security headers such as CSP stay as the server sent them`);
+      }
+      return false;
+    }
+
+    if (strip) {
+      const html = decodeBody(raw.body, raw.base64Encoded, headerValue(p.responseHeaders, CONTENT_TYPE));
+      const stripped = stripIntegrityAttributes(html);
+      if (stripped.count > 0) {
+        if (p.networkId) this.rewritten.set(p.networkId, sha256(html));
+        const rewritten = applyResponseRules({ status, headers: buildRewrittenHeaders(p.responseHeaders, HTML_MIME_TYPE) }, rules, request);
+        await this.cdp.send(CDP.Fetch.fulfillRequest, {
+          requestId: p.requestId,
+          responseCode: rewritten.head.status,
+          ...phraseFor(p, rewritten.head.status),
+          responseHeaders: withUtf8ContentType(rewritten.head.headers),
+          body: Buffer.from(stripped.html, 'utf8').toString('base64'),
+        });
+        this.emitApplied(rewritten.applied, p.request.url);
+        return true;
+      }
+    }
+    // Nothing stripped, and the rules change nothing: it continues as it came (fine after a body read).
+    if (ruled.applied.length === 0) return false;
+
+    const { body, reencoded } = toBase64Body(raw);
     await this.cdp.send(CDP.Fetch.fulfillRequest, {
       requestId: p.requestId,
-      responseCode: p.responseStatusCode,
-      responseHeaders: buildRewrittenHeaders(p.responseHeaders, HTML_MIME_TYPE),
-      body: Buffer.from(stripped.html, 'utf8').toString('base64'),
+      responseCode: ruled.head.status,
+      ...phraseFor(p, ruled.head.status),
+      responseHeaders: reencoded ? withUtf8ContentType(ruled.head.headers) : ruled.head.headers,
+      body,
     });
+    this.emitApplied(ruled.applied, p.request.url);
     return true;
   }
 
-  private async readPausedBody(p: RequestPausedParams): Promise<string | undefined> {
+  /**
+   * Passes a response on with the rules' header edits, its body streaming
+   * through untouched. Chromium wants the code with the headers, and takes the
+   * list as the whole new list. A response the rules don't change continues.
+   */
+  private async continueWithRules(p: PausedResponse, rules: readonly ResponseRule[], request: PausedRequest): Promise<void> {
+    const { head, applied } = applyResponseRules({ status: p.responseStatusCode, headers: p.responseHeaders }, rules, request);
+    if (applied.length === 0) return this.continue(p.requestId);
+    await this.cdp.send(CDP.Fetch.continueResponse, {
+      requestId: p.requestId,
+      responseCode: head.status,
+      ...phraseFor(p, head.status),
+      responseHeaders: head.headers,
+    });
+    this.emitApplied(applied, p.request.url);
+  }
+
+  /** One `rule-applied` per rule that changed something, once Chromium took the change. */
+  private emitApplied(ruleIds: readonly string[], url: string): void {
+    for (const ruleId of ruleIds) this.opts.emit({ type: 'rule-applied', ruleId, url });
+  }
+
+  /** The paused response's body as CDP returns it, or undefined when it can't be read. */
+  private async readPausedRaw(p: RequestPausedParams): Promise<RawBody | undefined> {
     try {
-      const r = await this.cdp.send<{ body: string; base64Encoded: boolean }>(CDP.Fetch.getResponseBody, {
-        requestId: p.requestId,
-      });
-      return decodeBody(r.body, r.base64Encoded, headerValue(p.responseHeaders, CONTENT_TYPE));
+      return await this.cdp.send<RawBody>(CDP.Fetch.getResponseBody, { requestId: p.requestId });
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Lists a blocked document, script or stylesheet, which never gets a
+   * `Network.responseReceived`, so the file stays in the tree (and can still be
+   * opened). Not while the main frame is navigating: it would be the old page's.
+   */
+  private listBlocked(p: RequestPausedParams, ruleId: string): void {
+    const url = p.request.url;
+    if (!isKind(p.resourceType) || UNLISTED_URL.test(url) || this.pending) return;
+    const kind = p.resourceType;
+    const frame = this.frameOf(p.frameId, kind === DOCUMENT_KIND ? url : undefined);
+    const existing = this.resources.get(url);
+    // The same file blocked in the top frame and in an iframe is listed as the top frame's.
+    if (existing && !existing.entry.frame && frame && existing.entry.blockedBy === ruleId) return;
+    const iframeId = this.opts.iframe?.id;
+    const entry: ResourceEntry = {
+      url,
+      kind,
+      mimeType: '',
+      status: BLOCKED_STATUS,
+      blockedBy: ruleId,
+      ...(frame ? { frame } : {}),
+      ...(iframeId ? { iframeId } : {}),
+    };
+    this.resources.set(url, { entry, requestId: p.networkId ?? p.requestId, frameId: p.frameId });
+    this.opts.emit({ type: 'resource', resource: entry });
   }
 
   private async continue(requestId: string): Promise<void> {
@@ -429,6 +575,7 @@ export class InterceptionEngine {
     this.servedBy.clear();
     this.rewritten.clear();
     this.missed.clear();
+    this.missedRules.clear();
     // The old document's subframes are gone (Chromium doesn't always say so); the new ones attach after this.
     for (const id of [...this.frameUrls.keys()]) if (id !== this.mainFrameId) this.frameUrls.delete(id);
     this.frameParents.clear();
@@ -458,6 +605,7 @@ export class InterceptionEngine {
     const heldForCommit = !!this.pending && p.loaderId === this.pending.loaderId;
     if (this.pending && !heldForCommit) return;
     if (!overrideId) this.reportIfMissed(url, p.type);
+    this.reportRuleMissed(url, p.type, p.frameId);
     const frame = this.frameOf(p.frameId, p.type === DOCUMENT_KIND ? url : undefined);
     const existing = this.resources.get(url);
     // The same file loaded by the top frame and by an iframe is listed as the top frame's.
@@ -512,5 +660,20 @@ export class InterceptionEngine {
     if (this.missed.has(key)) return;
     this.missed.add(key);
     this.opts.emit({ type: 'override-missed', overrideId: override.id, url });
+  }
+
+  /**
+   * An enabled block rule matched a file that arrived anyway: a blocked request
+   * never gets a response, so it was in flight before the rule, or Chromium had
+   * an interception gap. The page's own document is never blocked, so never missed.
+   */
+  private reportRuleMissed(url: string, resourceType: ResourceKind, frameId: string | undefined): void {
+    if (this.isPageDocument(resourceType, frameId)) return;
+    const rule = findBlockRule(this.opts.getRules(), url, resourceType, this.matchers);
+    if (!rule) return;
+    const key = `${rule.id}${MISSED_KEY_SEPARATOR}${url}`;
+    if (this.missedRules.has(key)) return;
+    this.missedRules.add(key);
+    this.opts.emit({ type: 'rule-missed', ruleId: rule.id, url });
   }
 }

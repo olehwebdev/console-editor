@@ -10,6 +10,7 @@ import { installMenu } from '../installMenu';
 import { registerIpc } from '../ipc';
 import { PageController } from '../PageController';
 import { OverrideStore } from '../store/OverrideStore';
+import { RuleStore } from '../store/RuleStore';
 import { SessionStore } from '../store/SessionStore';
 import { SettingsStore } from '../store/SettingsStore';
 import { detectInstallMethod, electronAutoInstaller } from '../update/electronInstaller';
@@ -72,9 +73,10 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   // Looked at before the stores create their folders.
   const hadData = [USER_DATA.settings, USER_DATA.session, USER_DATA.workspace].some((name) => existsSync(join(userData, name)));
   const store = new OverrideStore(join(userData, USER_DATA.workspace));
+  const rules = new RuleStore(join(userData, USER_DATA.workspace));
   const settings = new SettingsStore(join(userData, USER_DATA.settings));
   const session = new SessionStore(join(userData, USER_DATA.session));
-  await Promise.all([store.load(), settings.load(), session.load()]);
+  await Promise.all([store.load(), rules.load(), settings.load(), session.load()]);
 
   const win = new BrowserWindow({
     width: WINDOW_SIZE.width,
@@ -99,10 +101,18 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     if (!win.isDestroyed()) win.webContents.send(IPC_CHANNEL.onEvent, event);
   };
 
-  const page = new PageController(win, store, settings, send);
+  // Told once the editor UI can show it.
+  const { setAside } = rules;
+  if (setAside) {
+    win.webContents.once('did-finish-load', () =>
+      send({ type: 'error', message: `rules.json could not be read and was kept as ${setAside}; you start with no rules` }),
+    );
+  }
+
+  const page = new PageController(win, store, rules, settings, send);
   launchState.running = { win, page };
-  // Before the engine attaches: it serves the active workspace's overrides from the start.
-  const workspaces = new WorkspaceController(page, session, store, send);
+  // Before the engine attaches: it serves the active workspace's overrides and rules from the start.
+  const workspaces = new WorkspaceController(page, session, store, rules, send);
   await workspaces.start();
   const attached = page.attach();
   installMenu(win, page, store, send);
@@ -181,7 +191,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     },
   });
   win.on('closed', () => updates.dispose());
-  registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed: (ok) => answerFlush?.(ok) });
+  registerIpc({ win, page, store, rules, settings, session, workspaces, updates, onSessionFlushed: (ok) => answerFlush?.(ok) });
 
   // The editor UI must never navigate away or open windows.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

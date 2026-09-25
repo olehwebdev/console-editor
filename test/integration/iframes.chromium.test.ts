@@ -76,6 +76,7 @@ describe.skipIf(!chromiumAvailable)('iframes in Chromium', () => {
     interception = new PageInterception({
       transport: opened.transport,
       getOverrides: () => overrides,
+      getRules: () => [],
       getSettings: () => settings,
       emit: (e) => events.push(e),
       fallbackFetch: async (url) => {
