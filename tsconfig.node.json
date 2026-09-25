@@ -33,6 +33,6 @@
   ],
   "exclude": [
     "test/renderer/**/*",
-    "test/fixtures/stack/**/*"
+    "test/fixtures/apps/**/*"
   ]
 }

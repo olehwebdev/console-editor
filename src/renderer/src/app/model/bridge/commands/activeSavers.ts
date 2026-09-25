@@ -8,6 +8,7 @@ export const ACTIVE_SAVERS: ActiveSavers = {
   file: () => void saveTab(),
   'whats-new': () => undefined,
   stack: () => undefined,
+  component: () => undefined,
   rule: (id) => void applyRulePage(id),
   'new-rule': (id) => void createRulePage(id),
 };

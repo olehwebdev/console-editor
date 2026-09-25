@@ -16,6 +16,32 @@ export const CDP = {
     // Events
     requestPaused: 'Fetch.requestPaused',
   },
+  Debugger: {
+    disable: 'Debugger.disable',
+    enable: 'Debugger.enable',
+    setSkipAllPauses: 'Debugger.setSkipAllPauses',
+    // Events
+    scriptParsed: 'Debugger.scriptParsed',
+  },
+  DOM: {
+    describeNode: 'DOM.describeNode',
+    enable: 'DOM.enable',
+    getDocument: 'DOM.getDocument',
+    getFrameOwner: 'DOM.getFrameOwner',
+    pushNodesByBackendIdsToFrontend: 'DOM.pushNodesByBackendIdsToFrontend',
+    resolveNode: 'DOM.resolveNode',
+    setInspectedNode: 'DOM.setInspectedNode',
+  },
+  Overlay: {
+    enable: 'Overlay.enable',
+    hideHighlight: 'Overlay.hideHighlight',
+    highlightNode: 'Overlay.highlightNode',
+    setInspectMode: 'Overlay.setInspectMode',
+    // Events
+    inspectModeCanceled: 'Overlay.inspectModeCanceled',
+    inspectNodeRequested: 'Overlay.inspectNodeRequested',
+    nodeHighlightRequested: 'Overlay.nodeHighlightRequested',
+  },
   Inspector: {
     enable: 'Inspector.enable',
     // Events
@@ -50,6 +76,7 @@ export const CDP = {
     disable: 'Runtime.disable',
     discardConsoleEntries: 'Runtime.discardConsoleEntries',
     enable: 'Runtime.enable',
+    callFunctionOn: 'Runtime.callFunctionOn',
     evaluate: 'Runtime.evaluate',
     getProperties: 'Runtime.getProperties',
     releaseObjectGroup: 'Runtime.releaseObjectGroup',

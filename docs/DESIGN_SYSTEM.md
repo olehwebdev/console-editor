@@ -56,7 +56,7 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 
 ### Spacing and density
 
-4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px, status bar 26 px, activity rail 48 px wide. The rail holds the views (Explorer, Actions, Search), a hairline, the workspaces (28 px tiles in 36 px hit areas; the active one gets a `--fg` bar on the left, gliding with `SPRING_LAYOUT`, the others sit at 65 % opacity), +, and Settings at the bottom.
+4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px, status bar 26 px, activity rail 48 px wide. The rail holds the views (Explorer, Actions, Inspect, Search), a hairline, the workspaces (28 px tiles in 36 px hit areas; the active one gets a `--fg` bar on the left, gliding with `SPRING_LAYOUT`, the others sit at 65 % opacity), +, and Settings at the bottom.
 
 ---
 
@@ -140,16 +140,16 @@ src/renderer/src/
               page-window/     — the website's own window: the page-preview widget alone
               actions-window/  — the Actions panel's own window: the actions-panel widget alone
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
-              command-palette, console-panel, actions-panel
+              command-palette, console-panel, actions-panel, inspect-panel
   features/   navigate-page, open-resource (also original sources, the jumps between them and bundles,
               and which of a bundle's originals the Explorer shows open), save-override, toggle-override,
               delete-override, close-tab, edit-match-rule, format-document, compare-changes,
               filter-resources, update-settings, update-app, edit-workspace, run-in-frame, filter-console,
               name-frame, clear-console, expand-console-value, detach-page, rule/ (a slice group:
               quick-actions, edit, toggle, delete), action/ (a slice group: run, edit, detach),
-              inspect/ (a slice group: stack)
+              inspect/ (a slice group: stack, pick)
   entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule,
-              source-map, action, page-stack
+              source-map, action, page-stack, inspector
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format and source-map
               workers, overlays, native view rect), monaco, config (icons)
 ```

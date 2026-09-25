@@ -45,6 +45,8 @@ export type SourceMapWorkerRequest =
   | { type: 'content'; bundleUrl: string; url: string }
   /** `offset`: 0-based UTF-16 offset into the bundle tab's text. */
   | { type: 'toOriginal'; bundleUrl: string; view: ViewRef; offset: number }
+  /** `line`, `column`: 0-based, in the bundle as served (where V8 places a function). */
+  | { type: 'toOriginalRaw'; bundleUrl: string; line: number; column: number }
   /** `line`: 1-based line of the original (its editor line). */
   | { type: 'toBundle'; bundleUrl: string; url: string; line: number }
   /** `rawOffset`: from `toBundle`. */
@@ -55,6 +57,11 @@ export interface SourceMapWorkerReplies {
   content: { content: string } | Miss;
   /** Editor-style: 1-based line and column. */
   toOriginal: { url: string; line: number; column: number; mismatch: boolean } | Miss;
+  /**
+   * Editor-style line and column; `name`: the map's, else read off the original's text (null if neither says);
+   * `rawOffset`: where it is in the raw bundle (null when the bundle is too large to have been sent), for `toView`.
+   */
+  toOriginalRaw: { url: string; line: number; column: number; name: string | null; rawOffset: number | null; mismatch: boolean } | Miss;
   /** `rawOffset`: 0-based UTF-16 offset into the raw bundle; `line`: the original line actually used (after probing). */
   toBundle: { rawOffset: number; line: number; mismatch: boolean } | Miss;
   /** `offset`: 0-based UTF-16 offset into the view's text; for `edited`, where the edits start. */

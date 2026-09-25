@@ -2,6 +2,7 @@ import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
+import { useInspectorStore } from '@/entities/inspector';
 import { usePageStackStore } from '@/entities/page-stack';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
@@ -11,6 +12,8 @@ import { runCommand } from './commands/runCommand';
 import { answerFlushSession } from './events/answerFlushSession';
 import { applyPageState } from './events/applyPageState';
 import { dropNavigatedResources } from './events/dropNavigatedResources';
+import { receivePick } from './events/receivePick';
+import { showPicking } from './events/showPicking';
 import { showAppError } from './events/showAppError';
 import { syncOverrides } from './events/syncOverrides';
 import { syncRules } from './events/syncRules';
@@ -43,6 +46,9 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'console-entries': (event) => receiveEntries(event.entries),
   'console-cleared': () => useConsoleStore.getState().clear(),
   'stack-changed': (event) => usePageStackStore.getState().setAll(event.stacks),
+  'inspect-picking': showPicking,
+  'inspect-hover': (event) => useInspectorStore.getState().setHover(event.hover),
+  'inspect-picked': (event) => receivePick(event.component),
   'actions-changed': (event) => useActionStore.getState().setAll(event.actions),
   'actions-window': (event) => useActionStore.getState().setWindow(event.state),
   'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),

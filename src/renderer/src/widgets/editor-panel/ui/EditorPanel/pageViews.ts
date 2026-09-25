@@ -1,3 +1,4 @@
+import { ComponentPage } from '../ComponentPage';
 import { NewRulePage, RulePage } from '../RulePage';
 import { StackPage } from '../StackPage';
 import type { PageViews } from './types';
@@ -7,6 +8,7 @@ import { WhatsNewPageView } from './WhatsNewPageView';
 export const PAGE_VIEWS: PageViews = {
   'whats-new': WhatsNewPageView,
   stack: StackPage,
+  component: ComponentPage,
   rule: RulePage,
   'new-rule': NewRulePage,
 };

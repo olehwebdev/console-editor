@@ -75,5 +75,7 @@ export const SHORTCUT = {
   /** From an original source to the bundle code it became, or back. */
   jumpToMapped: ['mod', 'shift', 'M'],
   pageDevTools: ['mod', 'shift', 'J'],
+  /** As DevTools' element picker. */
+  pickElement: ['mod', 'shift', 'C'],
   editorDevTools: ['mod', 'alt', 'I'],
 } satisfies Record<string, string[]>;

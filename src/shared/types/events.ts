@@ -1,6 +1,6 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame } from './console';
-import type { FrameStack } from './inspector';
+import type { FrameStack, InspectedComponent, InspectHover } from './inspector';
 import type { MenuCommand } from './menu';
 import type { OverrideMeta } from './overrides';
 import type { PageState } from './page';
@@ -53,6 +53,12 @@ export type AppEvent =
   | { type: 'console-cleared' }
   /** A frame's stack was found, or went with its document: every frame's, the top page first. */
   | { type: 'stack-changed'; stacks: FrameStack[] }
+  /** Picking an element in the page started or stopped. */
+  | { type: 'inspect-picking'; picking: boolean }
+  /** What is under the pointer while picking; null when nothing is. */
+  | { type: 'inspect-hover'; hover: InspectHover | null }
+  /** An element was picked: the component that rendered it. */
+  | { type: 'inspect-picked'; component: InspectedComponent }
   /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
   | { type: 'actions-changed'; actions: ConsoleAction[] }
   /** The Actions panel moved into its own window or back, or that window's Keep on top changed. */

@@ -53,6 +53,10 @@ export const IPC_CHANNEL = {
 
   listStacks: 'inspect:stacks',
   scanStacks: 'inspect:scan',
+  startPicking: 'inspect:pick',
+  stopPicking: 'inspect:pick-stop',
+  inspectComponent: 'inspect:component',
+  highlightPick: 'inspect:highlight',
 
   listActions: 'actions:list',
   createAction: 'actions:create',

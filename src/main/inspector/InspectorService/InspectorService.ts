@@ -1,37 +1,42 @@
-import type { FrameStack } from '../../../shared/types';
+import type { FrameStack, InspectedComponent } from '../../../shared/types';
 import type { SessionKey } from '../../console/ConsoleFrames';
 import type { CdpTransport } from '../../engine/cdp';
 import type { SessionObserver } from '../../engine/PageInterception';
-import { DETECT_DELAY_MS } from '../constants';
-import { detectFrame } from '../detectFrame';
 import { HookScript } from '../HookScript';
 import { listenForLoads } from '../listenForLoads';
-import type { InspectedSession, InspectorServiceOptions } from '../types';
+import { Picker } from '../picking/Picker';
+import { ComponentReader } from '../reading/ComponentReader';
+import { ScriptUrls } from '../reading/ScriptUrls';
+import { StackTracker } from '../StackTracker';
+import type { InspectedSession, InspectedSessions, InspectorServiceOptions } from '../types';
 
 /**
- * What the page's frames run (the page stack): a moment after a frame loads, a
- * detector in its main world finds its UI library, framework, state library and
- * bundler. It rides on the sessions interception has, as the console does, and
- * runs code where the console's frames and contexts say; while **Framework
- * hooks** is on, it also puts the hooks (`REACT_HOOK_SOURCE`) in every new
- * document, before the page's own scripts.
+ * The inspector of the page's frames. It rides on the sessions interception has,
+ * as the console does, and coordinates: the page stack (what each frame runs),
+ * picking an element in any frame, and reading the component that rendered it.
+ * While **Framework hooks** is on, it also puts the hooks (`REACT_HOOK_SOURCE`)
+ * in every new document, before the page's own scripts.
  */
 export class InspectorService implements SessionObserver {
   private readonly sessions = new Map<SessionKey, InspectedSession>();
-  private readonly stacks = new Map<string, FrameStack>();
-  /** Frames waiting to be looked at, `DETECT_DELAY_MS` after they loaded. */
-  private readonly pending = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly stacks: StackTracker;
+  private readonly picker: Picker;
+  private readonly reader: ComponentReader;
   private recording: boolean;
 
   constructor(private readonly opts: InspectorServiceOptions) {
+    const sessions: InspectedSessions = { get: (id) => this.sessions.get(id), all: () => [...this.sessions] };
+    this.stacks = new StackTracker({ sessions, frames: opts.frames, send: opts.send });
+    this.picker = new Picker({ sessions, send: opts.send, picked: (id, node) => void this.picked(id, node) });
+    this.reader = new ComponentReader(sessions);
     this.recording = opts.getSettings().captureConsole;
   }
 
   async attached(id: SessionKey, transport: CdpTransport): Promise<void> {
     const hook = new HookScript(transport);
-    const dispose = listenForLoads(transport, { loaded: (frameId) => this.schedule(frameId), gone: (frameId) => this.forget(frameId) });
-    this.sessions.set(id, { transport, hook, dispose });
-    await hook.sync(this.opts.getSettings().frameworkHooks);
+    const dispose = [...listenForLoads(transport, this.stacks.sinks), ...this.picker.listen(id, transport)];
+    this.sessions.set(id, { transport, hook, scripts: new ScriptUrls(transport), dispose });
+    await Promise.all([hook.sync(this.opts.getSettings().frameworkHooks), this.picker.joined(transport)]);
   }
 
   detached(id: SessionKey): void {
@@ -40,8 +45,9 @@ export class InspectorService implements SessionObserver {
     for (const key of gone) {
       for (const dispose of this.sessions.get(key)?.dispose.splice(0) ?? []) dispose();
       this.sessions.delete(key);
+      this.reader.dropSession(key);
     }
-    this.publish();
+    this.stacks.publish();
   }
 
   /** Installs or removes the hooks; once the console records again, every frame is looked at (their contexts are known then). */
@@ -50,52 +56,44 @@ export class InspectorService implements SessionObserver {
     const started = captureConsole && !this.recording;
     this.recording = captureConsole;
     await Promise.all([...this.sessions.values()].map(({ hook }) => hook.sync(frameworkHooks).catch(() => undefined)));
-    if (started) await this.scan();
-    else if (!captureConsole) this.publish();
+    if (started) await this.stacks.scan();
+    else if (!captureConsole) this.stacks.publish();
   }
 
   /** Every frame's stack, the top page first. */
   list(): FrameStack[] {
-    return this.opts.frames.list().flatMap((frame) => this.stacks.get(frame.id) ?? []);
+    return this.stacks.list();
   }
 
-  /** Looks at every frame now. */
-  async scan(): Promise<void> {
-    await Promise.all(this.opts.frames.list().map((frame) => this.detect(frame.id)));
+  scan(): Promise<void> {
+    return this.stacks.scan();
   }
 
-  private schedule(frameId: string): void {
-    clearTimeout(this.pending.get(frameId));
-    this.pending.set(frameId, setTimeout(() => void this.detect(frameId), DETECT_DELAY_MS));
+  startPicking(): Promise<void> {
+    return this.picker.start();
   }
 
-  /** A frame's document is gone, and what it ran with it. */
-  private forget(frameId: string): void {
-    clearTimeout(this.pending.get(frameId));
-    this.pending.delete(frameId);
-    if (this.stacks.delete(frameId)) this.publish();
+  stopPicking(): Promise<void> {
+    return this.picker.stop();
   }
 
-  private async detect(frameId: string): Promise<void> {
-    clearTimeout(this.pending.get(frameId));
-    this.pending.delete(frameId);
-    const target = this.opts.frames.target(frameId);
-    const session = target && this.sessions.get(target.sessionId);
-    if (!target || !session) return;
-    const hits = await detectFrame(session.transport, target.uniqueId);
-    // The frame may have loaded another document meanwhile: that one gets a look of its own.
-    if (!hits || this.opts.frames.target(frameId)?.uniqueId !== target.uniqueId) return;
-    const url = this.opts.frames.list().find((f) => f.id === frameId)?.url ?? '';
-    this.stacks.set(frameId, { frameId, url, hits, scannedAt: Date.now() });
-    this.publish();
+  togglePicking(): Promise<void> {
+    return this.picker.active ? this.picker.stop() : this.picker.start();
   }
 
-  /** Sends every frame's stack; a frame the console no longer lists goes. */
-  private publish(): void {
-    const listed = new Set(this.opts.frames.list().map((frame) => frame.id));
-    for (const frameId of this.stacks.keys()) {
-      if (!listed.has(frameId)) this.stacks.delete(frameId);
+  inspectComponent(pickId: unknown, depth: unknown): Promise<InspectedComponent> {
+    return this.reader.describe(pickId, depth);
+  }
+
+  highlightPick(pickId: unknown): Promise<void> {
+    return this.reader.highlight(pickId);
+  }
+
+  private async picked(id: SessionKey, backendNodeId: number): Promise<void> {
+    try {
+      this.opts.send({ type: 'inspect-picked', component: await this.reader.pick(id, backendNodeId) });
+    } catch (err) {
+      this.opts.send({ type: 'error', message: `Couldn't read the element you picked: ${(err as Error).message}` });
     }
-    this.opts.send({ type: 'stack-changed', stacks: this.list() });
   }
 }

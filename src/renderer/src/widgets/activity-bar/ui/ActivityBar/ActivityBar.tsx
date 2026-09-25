@@ -4,7 +4,7 @@ import { selectEnabledCount, useOverrideStore } from '@/entities/override';
 import { WorkspaceList } from '../WorkspaceList';
 import { RailItem } from './RailItem';
 
-export type SidebarView = 'explorer' | 'actions' | 'settings';
+export type SidebarView = 'explorer' | 'actions' | 'inspect' | 'settings';
 
 export interface ActivityBarProps {
   view: SidebarView | null;
@@ -29,6 +29,7 @@ export function ActivityBar({ view, onViewChange, onOpenPalette, onSwitchWorkspa
         badge={liveCount ? <span className="size-1.5 rounded-full bg-live shadow-[0_0_6px_var(--live)]" /> : undefined}
       />
       <RailItem id="actions" icon={icons.ActionsIcon} label="Actions" active={view === 'actions'} onClick={() => onViewChange('actions')} />
+      <RailItem id="inspect" icon={icons.PickIcon} label="Inspect" active={view === 'inspect'} onClick={() => onViewChange('inspect')} />
       <RailItem id="search" icon={icons.SearchIcon} label="Search files and commands" active={false} onClick={onOpenPalette} shortcut={SHORTCUT.palette} />
       <div role="separator" className="my-1 h-px w-6 shrink-0 bg-line" />
       <WorkspaceList onSwitch={onSwitchWorkspace} onCreate={onNewWorkspace} onDelete={onDeleteWorkspace} />

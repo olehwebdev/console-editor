@@ -25,7 +25,7 @@ async function bundleReact(mode: 'production' | 'development'): Promise<string> 
     configFile: false,
     logLevel: 'silent',
     mode,
-    root: join(__dirname, '../fixtures/stack'),
+    root: join(__dirname, '../fixtures/apps'),
     define: { 'process.env.NODE_ENV': JSON.stringify(mode) },
     build: { write: false, minify: mode === 'production', lib: { entry: 'reactApp.ts', formats: ['iife'], name: 'StackFixture' } },
   })) as Rollup.RollupOutput | Rollup.RollupOutput[];

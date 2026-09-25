@@ -22,6 +22,7 @@ export const useTabStore = create<TabStore>()((set) => ({
       activeId: page.id,
       diff: 'off',
     })),
+  retitlePage: (id, title) => set((s) => (s.pages.some((p) => p.id === id && p.title !== title) ? { pages: s.pages.map((p) => (p.id === id ? { ...p, title } : p)) } : s)),
   activate: (id) => set((s) => (s.activeId === id ? s : { activeId: id, diff: 'off' })),
   remove: (id) =>
     set((s) => {

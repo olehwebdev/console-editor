@@ -4,6 +4,8 @@ export { forgetSourceMaps } from './forgetSourceMaps';
 export { goToBundle } from './goToBundle';
 export { goToOriginal } from './goToOriginal';
 export { jumpToMappedCode } from './jumpToMappedCode';
+export { locateComponent } from './locateComponent';
 export { openOriginalSource, type OpenSourceOptions } from './openOriginalSource';
 export { reloadSourceMap } from './reloadSourceMap';
+export { revealBundleCode } from './revealBundleCode';
 export { revealBundleSources, toggleBundleSources, useSourceTree, type SourceTreeStore } from './tree';

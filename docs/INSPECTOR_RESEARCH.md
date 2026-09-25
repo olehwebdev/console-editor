@@ -80,7 +80,9 @@ Probed in Chromium 141 over CDP, the way the app drives its page view. The apps 
 | In production, a component's host element carries `__ngContext__`, a number (its view's id); plain template elements don't | A starting point without `ng` |
 | `Runtime.queryObjects(Map.prototype)` finds Angular's view registry: the id gives the view that declares the host, the host's slot in it is the component's own view, and that view's context slot (8) is the component instance (`$S`, with `sku`, `price`, the `qty` signal and `handleAdd`). Its constructor → `main.js:5`; `qty.set(7)` updated the page | Components, inputs and signals in production. These are private internals: the adapter checks the shape and is tested for each Angular major before it is trusted |
 
-**Not probed yet** (known from documentation or source, to be pinned when built): picking inside a cross-site iframe needs `Overlay.setInspectMode` on that frame's own session, as DevTools does per target; Svelte 5 (`window.__svelte.v`), Lit (`litElementVersions`), Preact, Solid, and Next.js and Nuxt markers (`__NEXT_DATA__`, `__NUXT__`); a custom element's class through `customElements.get(tag)`; a Redux DevTools stand-in; `Debugger.setSkipAllPauses` against pages that loop on `debugger`.
+**Pinned since** (phase 2, `test/integration/inspect.chromium.test.ts`): picking inside a cross-site iframe needs `Overlay.setInspectMode` on that frame's own session, as DevTools does per target; CDP doesn't say which frame a picked node is in, so its document is matched against each frame owner's content document.
+
+**Not probed yet** (known from documentation or source, to be pinned when built): Svelte 5 (`window.__svelte.v`), Lit (`litElementVersions`), Preact, Solid, and Next.js and Nuxt markers (`__NEXT_DATA__`, `__NUXT__`); a custom element's class through `customElements.get(tag)`; a Redux DevTools stand-in; `Debugger.setSkipAllPauses` against pages that loop on `debugger`.
 
 ## 3. Proposal
 
@@ -192,6 +194,8 @@ Vue's production reactivity leaves no commit trail. There, **Renders** would lis
 | Vue `<script setup>` state | `[[Scopes]]` variables, renamed through the map's `names` at their declarations | `setupState` |
 | No map | the minified name, marked as such | — |
 
+Not every map has `names`: Vite 8's minifier writes none. The component's name is then read off the original's text where the map puts its definition (`function CartItem(`, `class CartStore`, `const handleAdd = (…) =>`, a method or a property), which is what phase 2 does when the map says nothing.
+
 The map is often missing in production: Vite (`build.sourcemap`), Next.js (`productionBrowserSourceMaps`) and the Angular CLI's production configuration all leave it out by default, and teams upload theirs to an error tracker instead. **Load a source map…** takes a local `.map` for a bundle, kept per workspace, through the same worker.
 
 ### 3.7 Safety and cost
@@ -247,8 +251,8 @@ src/renderer/src/
 ## 6. Phases
 
 1. **Stack:** detection per frame with evidence, the Stack page and the status bar chip, and the React hook stand-in with `inject` only: without it, a page doesn't say which React it runs. *Built: SPEC §6.10. Source-map coverage and the Inspect rail view's Stack section move to phase 2, with the view.*
-2. **Pick and component pages, React and Vue:** inspect mode, adapters, `[[FunctionLocation]]` through maps with names, props, state, context and handlers (read-only), the Components tree, `$0`.
-3. **Renders:** commit summaries from the stand-in, the Renders tab, why it rendered, setting state, hook names from originals.
+2. **Pick and component pages, React and Vue:** inspect mode, adapters, `[[FunctionLocation]]` through maps with names, props, state, context and handlers (read-only), the Components tree, `$0`. *Built: SPEC §6.11, React and Vue 3, with names from the map or, when it has none, from the original's text. One Component page per workspace, which each pick replaces, and the Inspect rail view with the stack in short. The Components tree and the stack's source-map coverage move to phase 3.*
+3. **Renders:** the Components tree, source-map coverage in the stack, commit summaries from the stand-in, the Renders tab, why it rendered, setting state, hook names from originals.
 4. **Angular and the rest:** `ng` in development, the registry in production (labelled), custom elements, plain DOM listeners, **Load a source map…**.
 5. **Later:** Redux, Pinia and NgRx timelines; requests by component (`Network.requestWillBeSent`'s initiator stack through the maps); "Save as action" for setting state; a profiler view.
 

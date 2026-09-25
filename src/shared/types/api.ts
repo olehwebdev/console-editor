@@ -1,6 +1,6 @@
 import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
-import type { FrameStack } from './inspector';
+import type { FrameStack, InspectedComponent } from './inspector';
 import type { AppEvent } from './events';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
 import type { PageState, Rect } from './page';
@@ -91,6 +91,13 @@ export interface ConsoleEditorApi {
   listStacks(): Promise<FrameStack[]>;
   /** Looks at every frame again now; the result also arrives as `stack-changed`. */
   scanStacks(): Promise<void>;
+  /** Puts every frame in inspect mode: hovering highlights (`inspect-hover`), a click picks (`inspect-picked`); both follow `inspect-picking`. */
+  startPicking(): Promise<void>;
+  stopPicking(): Promise<void>;
+  /** The component at `depth` of a pick's chain (0: the one that rendered the element). */
+  inspectComponent(pickId: string, depth: number): Promise<InspectedComponent>;
+  /** Highlights a pick's element in the page; null hides the highlight. */
+  highlightPick(pickId: string | null): Promise<void>;
 
   /** The active workspace's actions, oldest first. */
   listActions(): Promise<ConsoleAction[]>;

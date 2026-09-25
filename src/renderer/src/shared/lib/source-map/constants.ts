@@ -30,3 +30,17 @@ export const WHITESPACE_CODES: ReadonlySet<number> = new Set([
   0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20, 0xa0, 0x1680, 0x180e, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009,
   0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff,
 ]);
+
+/**
+ * How a function's name is read off an original's text where its definition starts, when the map has no
+ * names (Vite's minifier writes none): after that place (`function Name`, `class Name`, a method `Name(`),
+ * else before it (an arrow or function expression assigned: `const Name = `, `Name: `).
+ */
+export const NAME_AFTER = [
+  /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/,
+  /^(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/,
+  /^(?:static\s+)?(?:async\s+)?(?:get\s+|set\s+)?\*?\s*([A-Za-z_$][\w$]*)\s*\(/,
+];
+export const NAME_BEFORE = [/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s*)?$/, /([A-Za-z_$][\w$]*)\s*[:=]\s*(?:async\s*)?$/];
+/** Words the method pattern would take for a name. */
+export const NOT_NAMES: ReadonlySet<string> = new Set(['function', 'if', 'for', 'while', 'switch', 'catch', 'return', 'await', 'new', 'typeof', 'async']);
