@@ -9,6 +9,12 @@ export const GALLERY_HASH = 'gallery';
 /** The longest name a workspace can be given. */
 export const MAX_WORKSPACE_NAME = 40;
 
+/** The console rows kept, in the main process and in the panel; older ones drop off. */
+export const MAX_CONSOLE_ENTRIES = 5000;
+
+/** The longest name a frame can be given in the console. */
+export const MAX_FRAME_NAME = 40;
+
 /** Environment variables the main process reads to configure itself. */
 export const ENV = {
   /** Keeps app data in this folder instead of the default one (tests, throwaway profiles). */
@@ -40,6 +46,8 @@ export const SHORTCUT = {
   /** A second key for the palette, as in VS Code. */
   quickOpen: ['mod', 'P'],
   sidebar: ['mod', 'B'],
+  /** As VS Code's panel. */
+  console: ['mod', 'J'],
   focusUrl: ['mod', 'L'],
   reload: ['mod', 'R'],
   reloadF5: ['F5'],

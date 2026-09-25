@@ -6,9 +6,9 @@ import { Switch } from '@/shared/ui/switch';
 import { Tooltip } from '@/shared/ui/tooltip';
 import type { PageTabOf } from '@/entities/editor-tab';
 import { RULE_HIT_TOOLTIPS, ruleLabel, toRuleInput, useRuleStore } from '@/entities/rule';
-import { deleteRule } from '@/features/delete-rule';
-import { applyRulePage, RuleForm, setRuleDraft } from '@/features/edit-rule';
-import { setRuleEnabled } from '@/features/toggle-rule';
+import { deleteRule } from '@/features/rule/delete';
+import { applyRulePage, RuleForm, setRuleDraft } from '@/features/rule/edit';
+import { setRuleEnabled } from '@/features/rule/toggle';
 import { RecentRequests } from './RecentRequests';
 import { RulePageHeader } from './RulePageHeader';
 

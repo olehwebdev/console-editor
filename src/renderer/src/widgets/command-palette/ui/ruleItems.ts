@@ -2,8 +2,8 @@ import type { Rule } from '@common/types';
 import { icons } from '@/shared/config';
 import type { CommandItem } from '@/shared/ui/command-palette';
 import { RULE_ACTION_GLYPHS, RULE_ACTION_LABELS, RULE_ACTION_TITLES, ruleLabel } from '@/entities/rule';
-import { openRuleEditor } from '@/features/edit-rule';
-import { setRuleEnabled } from '@/features/toggle-rule';
+import { openRuleEditor } from '@/features/rule/edit';
+import { setRuleEnabled } from '@/features/rule/toggle';
 import { RULE_ITEM_PREFIX } from './constants';
 
 /** The palette's Rules group: each rule opens, and turns on or off. */

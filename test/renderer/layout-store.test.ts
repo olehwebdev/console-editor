@@ -35,7 +35,7 @@ describe('layout persistence', () => {
     useLayout.getState().showSidebarView('settings');
     expect(setItem).not.toHaveBeenCalled();
     vi.runAllTimers();
-    expect(stored()).toEqual({ sidebar: 'settings', sidebarWidth: 290, previewVisible: false, previewRatio: 0.42 });
+    expect(stored()).toEqual({ sidebar: 'settings', sidebarWidth: 290, previewVisible: false, previewRatio: 0.42, consoleVisible: false, consoleHeight: 240 });
 
     const { useLayout: reloaded } = await loadLayout(1600, stored());
     expect(reloaded.getState()).toMatchObject({ sidebar: 'settings', previewVisible: false, resizing: false });

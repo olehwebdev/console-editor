@@ -38,11 +38,11 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 | `--accent` | primary actions, focus ring, active rail item, CORS rules | ember `oklch(72% 0.19 45)` |
 | `--accent-grad` | primary button fill | `linear-gradient(135deg, oklch(78% 0.18 65), oklch(66% 0.23 30))` |
 | `--live` | override active / served, "live" dot | lime `oklch(88% 0.2 128)` |
-| `--info` | links, iframe markers, header rules | sky `oklch(76% 0.12 235)` |
+| `--info` | links, iframe and worker markers, header rules | sky `oklch(76% 0.12 235)` |
 | `--warning` | upstream changed | amber `oklch(82% 0.15 80)` |
 | `--danger` | destructive, errors; block rules and blocked files | `oklch(67% 0.2 25)` |
 | `--kind-js` / `--kind-css` / `--kind-html` | file-kind glyph tints | yellow / blue / orange |
-| `--workspace-ember` … `--workspace-rose` | the colour picked for a workspace's rail tile (ember, amber, lime, teal, sky, indigo, violet, rose): the tile is the colour at 15 % with a 35 % ring, the letter in full | `oklch(68–86% 0.12–0.19 …)` |
+| `--workspace-ember` … `--workspace-rose` | the colour picked for a workspace's rail tile (ember, amber, lime, teal, sky, indigo, violet, rose): the tile is the colour at 15 % with a 35 % ring, the letter in full. The console gives each frame one of them too (from the frame's key, so a service keeps its colour): its chip is the colour at 15 % with the name in full | `oklch(68–86% 0.12–0.19 …)` |
 
 ### Typography
 
@@ -138,11 +138,12 @@ src/renderer/src/
   pages/      editor/          — composes widgets into the workspace layout; owns the layout store, the session
                                sync and workspace switching (they reopen files through features)
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
-              command-palette
+              command-palette, console-panel
   features/   navigate-page, open-resource, save-override, toggle-override, delete-override, close-tab,
               edit-match-rule, format-document, compare-changes, filter-resources, update-settings,
-              update-app, edit-workspace, quick-rule, edit-rule, toggle-rule, delete-rule
-  entities/   page, resource, override, editor-tab, settings, app-update, workspace, rule
+              update-app, edit-workspace, run-in-frame, filter-console, name-frame, clear-console,
+              expand-console-value, rule/ (a slice group: quick-actions, edit, toggle, delete)
+  entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format worker,
               overlays, native view rect), monaco, config (icons)
 ```
@@ -151,6 +152,7 @@ Rules (checked by `npm run lint:fsd` with [Steiger](https://github.com/feature-s
 - A layer imports only from layers **below** it: `app → pages → widgets → features → entities → shared`.
 - Slices on the same layer never import each other.
 - Every slice exposes a public API (`index.ts`); deep imports into another slice are not allowed.
+- A layer keeps at most 20 slices at its top: related ones go in a slice group, a plain folder with no public API of its own (`features/rule/`, imported as `@/features/rule/edit`).
 - Segments: `ui/` (components), `model/` (stores, actions, effects), `lib/` (pure helpers), `api/` (IPC calls).
 
 Code shared with the main process (`src/shared`: IPC types, URL matching) is imported as `@common/*`; renderer code uses `@/…`.
@@ -160,7 +162,7 @@ Code shared with the main process (`src/shared`: IPC types, URL matching) is imp
 - **Zustand** stores, one per entity (`entities/*/model`), created with `create<State & Actions>()`. State is serializable and normalized (records keyed by id/url); actions are pure state transitions.
 - **UI-only state lives with the slice that owns the UI**, never in entities: the workspace layout in `pages/editor/model`, the palette's open state in `widgets/command-palette/model`, a feature's own transient state in that feature (`compare-changes`' diff source, `filter-resources`' query), and the overlay counter in `shared/lib`.
 - **Side effects live in features** (`features/*/model`): they call `shared/api`, then update entity stores through their actions. Widgets call `shared/api` directly only for stateless view plumbing: the native page view's bounds and snapshot (`PagePreview`) and revealing the overrides folder.
-- **Events are batched:** the bridge queues resource, navigation and iframe events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file.
+- **Events are batched:** the bridge queues resource, navigation, iframe and worker events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file. Console rows already come batched from the main process (every 50 ms at most), so each batch is one store update.
 - **One IPC bridge**: `startBridge()` in `app/model/bridge/` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features) through typed handler tables, one handler per event type and per menu command.
 - **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
 - **Page tabs keep their own edits.** A tab that isn't a file (What's New, a rule page, a new-rule page) is a `PageTab`, a union by `page` kind. Each kind declares whether it belongs to the app or to the workspace (`PAGE_SCOPES`: workspace pages close on a switch), whether it holds edits (`PAGE_DIRTY_CHECKS`), and which view renders it (`PAGE_VIEWS` in `widgets/editor-panel`), so a new kind fails typecheck until it has all three. A rule page's unapplied edits are a draft on its tab (`{ base, value, rowKeys }`), not form state, so they survive switching tabs; the form shows them only while `base` is still the saved rule, and the rule's own Apply landing rebases what was typed meanwhile.

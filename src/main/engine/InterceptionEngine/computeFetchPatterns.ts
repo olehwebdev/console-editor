@@ -1,19 +1,19 @@
-import { CDP_WILDCARD, toCdpUrlPattern } from '../../../shared/matcher';
+import { toCdpUrlPattern } from '../../../shared/matcher';
 import type { Override, Rule, Settings } from '../../../shared/types';
 import { RULE_ACTION_SPECS } from '../rules/constants';
-import { DOCUMENT_KIND } from './constants';
+import { ANY_URL, DOCUMENT_KIND, OTHER_RESOURCE_TYPE, SCRIPT_KIND } from './constants';
 import { stripsIntegrity } from './stripsIntegrity';
 import type { FetchPattern } from './types';
 
-/** A CDP URL pattern matching every request (all `toCdpUrlPattern` can offer a regex). */
-const ANY_URL = CDP_WILDCARD;
 /** Joins a pattern's stage, URL and resource type into the key patterns are deduplicated by. */
 const KEY_SEPARATOR = '|';
 
 /**
  * Pauses only the requests that an override, SRI stripping or a rule could
  * apply to. Exact/glob overrides get a precise URL pattern; regex overrides
- * fall back to "every request of this resource type".
+ * fall back to "every request of this resource type". Workers load scripts
+ * as `Other` too (a worker's first script, static module imports), so script
+ * overrides also pause those.
  *
  * Rules pause at their action's stage (blocks before the request is sent) and
  * never carry a resource type: CDP's type filters differ between Chromium
@@ -25,10 +25,14 @@ const KEY_SEPARATOR = '|';
 export function computeFetchPatterns(overrides: Override[], rules: readonly Rule[], settings: Settings): FetchPattern[] {
   const patterns = new Map<string, FetchPattern>();
   const add = (p: FetchPattern) => patterns.set([p.requestStage, p.urlPattern, p.resourceType ?? ''].join(KEY_SEPARATOR), p);
-  const enabled = overrides.filter((o) => o.enabled);
-  for (const o of enabled) {
+  for (const o of overrides.filter((o) => o.enabled)) {
     const urlPattern = toCdpUrlPattern(o.match);
-    add({ urlPattern, resourceType: urlPattern === ANY_URL ? o.kind : undefined, requestStage: 'Response' });
+    if (urlPattern !== ANY_URL) {
+      add({ urlPattern, requestStage: 'Response' });
+      continue;
+    }
+    add({ urlPattern, resourceType: o.kind, requestStage: 'Response' });
+    if (o.kind === SCRIPT_KIND) add({ urlPattern, resourceType: OTHER_RESOURCE_TYPE, requestStage: 'Response' });
   }
   if (stripsIntegrity(overrides, settings)) {
     add({ urlPattern: ANY_URL, resourceType: DOCUMENT_KIND, requestStage: 'Response' });

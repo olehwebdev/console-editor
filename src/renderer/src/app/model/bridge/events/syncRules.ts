@@ -1,6 +1,6 @@
 import { useTabStore, type PageTabOf } from '@/entities/editor-tab';
 import { toRuleInput, useRuleStore } from '@/entities/rule';
-import { rebaseRuleDraft } from '@/features/edit-rule';
+import { rebaseRuleDraft } from '@/features/rule/edit';
 import type { AppEventOf } from '../types';
 
 /**

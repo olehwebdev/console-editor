@@ -7,9 +7,9 @@ import { ContextMenu } from '@/shared/ui/menu';
 import { Switch } from '@/shared/ui/switch';
 import { Tooltip } from '@/shared/ui/tooltip';
 import { RESOURCE_TYPE_LABELS, RULE_ACTION_TITLES, RULE_HIT_TOOLTIPS, RuleActionIcon, ruleLabel, useRuleStore } from '@/entities/rule';
-import { deleteRule } from '@/features/delete-rule';
-import { openRuleEditor } from '@/features/edit-rule';
-import { setRuleEnabled } from '@/features/toggle-rule';
+import { deleteRule } from '@/features/rule/delete';
+import { openRuleEditor } from '@/features/rule/edit';
+import { setRuleEnabled } from '@/features/rule/toggle';
 import { ROW_ICON_SIZE } from '../constants';
 import { ruleMenu } from './ruleMenu';
 

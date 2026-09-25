@@ -9,8 +9,8 @@ import { usePageStore } from '@/entities/page';
 import { blockingRuleFor, useRuleStore } from '@/entities/rule';
 import { compareWithLive } from '@/features/compare-changes';
 import { applyMatch, buildHashGlob } from '@/features/edit-match-rule';
-import { openRuleEditor } from '@/features/edit-rule';
-import { setRuleEnabled } from '@/features/toggle-rule';
+import { openRuleEditor } from '@/features/rule/edit';
+import { setRuleEnabled } from '@/features/rule/toggle';
 import { isPageDocument } from '../../lib/isPageDocument';
 import { Banner } from './Banner';
 
