@@ -81,6 +81,11 @@ export const LOADED_SCRIPT = /^https?:/;
  * component's own view), its context (the component instance) and its id (the registry's key).
  */
 export const ANGULAR_VIEW = { tView: 1, context: 8, id: 19, componentType: 1 } as const;
+/** The most steps a selector for a picked element takes up from it (to an ancestor with an id, or body). */
+export const MAX_SELECTOR_STEPS = 16;
+/** The most shadow roots a picked element's selectors go in through (the document's is one), and the longest selector taken. */
+export const MAX_SELECTOR_ROOTS = 8;
+export const MAX_SELECTOR_LENGTH = 600;
 /** The most children a DOM-based tree level looks for (Angular's and custom elements'). */
 export const MAX_HOST_KIDS = 500;
 /** The object group a read's listeners are looked up in: the read's, with this after it. */

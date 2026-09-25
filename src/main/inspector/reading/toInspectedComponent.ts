@@ -3,6 +3,7 @@ import { INSPECT_FRAMEWORKS, STATE_KINDS, type CodeLocation, type InspectedCompo
 import { MAX_LIST_ITEMS } from '../constants';
 import { cleanText } from './cleanText';
 import { toPath } from './toPath';
+import { toSelector } from './toSelector';
 import { toInspectedElement } from './toInspectedElement';
 
 type Item = Record<string, unknown>;
@@ -35,5 +36,6 @@ export function toInspectedComponent(
     context: list(data.context, (item) => ({ name: cleanText(item.name), preview: cleanText(item.preview), provider: optional(item.provider), location: at(item.fn) })),
     handlers: list(data.handlers, (item) => ({ name: cleanText(item.name), function: cleanText(item.function), location: at(item.fn) })),
     path: toPath(data.path),
+    selector: toSelector(data.selector),
   };
 }

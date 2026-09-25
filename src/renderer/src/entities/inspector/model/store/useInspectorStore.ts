@@ -9,6 +9,7 @@ export const useInspectorStore = create<InspectorStore>()((set, get) => ({
   component: null,
   origins: {},
   hookNames: {},
+  lastEdit: null,
 
   // Picking over leaves nothing under the pointer.
   setPicking: (picking) => set(picking ? { picking } : { picking, hover: null }),
@@ -16,6 +17,7 @@ export const useInspectorStore = create<InspectorStore>()((set, get) => ({
   setComponent: (component) => set({ component }),
   setOrigin: (key, place) => set((s) => ({ origins: { ...s.origins, [key]: place } })),
   setHookNames: (key, names) => set((s) => ({ hookNames: { ...s.hookNames, [key]: names } })),
+  setLastEdit: (lastEdit) => set({ lastEdit }),
   forgetBundle: (bundleUrl) => {
     const { origins, hookNames } = get();
     const gone = Object.keys(origins).filter((key) => keyLocation(key)?.url === bundleUrl);

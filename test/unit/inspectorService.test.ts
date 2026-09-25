@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
 import { DETECT_DELAY_MS } from '../../src/main/inspector/constants';
 import { DETECT_SOURCE } from '../../src/main/inspector/detectSource';
-import { REACT_HOOK_SOURCE } from '../../src/main/inspector/reactHookSource';
+import { HOOKS_SOURCE } from '../../src/main/inspector/hooksSource';
 import { toStackHits } from '../../src/main/inspector/toStackHits';
 import { FrameServices } from '../../src/main/PageController/FrameServices';
 import { DEFAULT_SETTINGS, type AppEvent, type FrameStack, type Settings } from '../../src/shared/types';
@@ -92,7 +92,7 @@ describe('page stack (InspectorService)', () => {
     for (const sessionId of [undefined, 'child']) {
       const calls = cdp.calls.filter((c) => c.sessionId === sessionId).map((c) => c.method);
       expect(calls.indexOf('Page.enable')).toBeLessThan(calls.indexOf('Page.addScriptToEvaluateOnNewDocument'));
-      expect(cdp.calls.find((c) => c.sessionId === sessionId && c.method === 'Page.addScriptToEvaluateOnNewDocument')?.params).toEqual({ source: REACT_HOOK_SOURCE });
+      expect(cdp.calls.find((c) => c.sessionId === sessionId && c.method === 'Page.addScriptToEvaluateOnNewDocument')?.params).toEqual({ source: HOOKS_SOURCE });
     }
   });
 

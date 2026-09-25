@@ -25,6 +25,10 @@ export interface InspectorApi {
   recordRenders(on: boolean): Promise<void>;
   /** Whether renders are being recorded (for a renderer that starts, or restarts, while they are). */
   isRecordingRenders(): Promise<boolean>;
+  /** Starts or stops recording the actions of the page's stores in every frame (`stores-recorded`); needs **Record the console** and **Framework hooks**. */
+  recordStores(on: boolean): Promise<void>;
+  /** Whether store actions are being recorded. */
+  isRecordingStores(): Promise<boolean>;
   /** Highlights a pick's element in the page; null hides the highlight. */
   highlightPick(pickId: string | null): Promise<void>;
 }

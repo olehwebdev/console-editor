@@ -1,7 +1,7 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
 import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
-import type { FrameStack, InspectedComponent, InspectHover, RenderCommit } from './inspector';
+import type { FrameStack, InspectedComponent, InspectHover, RenderCommit, StoreAction } from './inspector';
 import type { MenuCommand } from './menu';
 import type { NetworkRequest } from './network';
 import type { OverrideMeta, UnpatchedReason } from './overrides';
@@ -68,6 +68,10 @@ export type AppEvent =
   | { type: 'renders-recording'; recording: boolean }
   /** React commits recorded in the page's frames, in order, as they arrive (batched). */
   | { type: 'renders-recorded'; commits: RenderCommit[] }
+  /** Store actions started or stopped being recorded. */
+  | { type: 'stores-recording'; recording: boolean }
+  /** Actions the page's stores handled, in order, as they arrive (batched). */
+  | { type: 'stores-recorded'; actions: StoreAction[] }
   /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
   | { type: 'actions-changed'; actions: ConsoleAction[] }
   /** Requests new to the log, or changed (a response arrived, it finished or failed), oldest first. */

@@ -8,7 +8,7 @@ export { predicateFor } from './match';
 export { isMac, keyLabel } from './platform';
 export { formatCode, looksMinified, responseText } from './format';
 export { formatTime } from './formatTime';
-export { askSourceMapWorker, stopSourceMapWorker } from './source-map';
+export { askSourceMapWorker, isLibrarySource, stopSourceMapWorker } from './source-map';
 export type {
   AlignmentFit,
   Miss,

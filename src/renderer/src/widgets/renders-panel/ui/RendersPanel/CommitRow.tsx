@@ -8,7 +8,7 @@ import { RenderedRow } from './RenderedRow';
 /** One commit: its number, time, frame and what triggered it, then each component that mounted, rendered or was skipped. */
 export function CommitRow({ commit, frame, label }: { commit: RenderCommit; frame: ConsoleFrame | undefined; label: string | undefined }) {
   const count = commit.components.length + commit.more;
-  const trigger = triggerLabel(commit.trigger);
+  const trigger = triggerLabel(commit);
   return (
     <div className="flex flex-col border-b border-line py-1.5" data-testid="render-commit">
       <div className="flex h-6 min-w-0 items-center gap-2 px-3 text-[12px]">

@@ -33,6 +33,7 @@ export {
   CubeIcon as StackIcon,
   CursorRectangleSelection01Icon as PickIcon,
   DashboardSpeed01Icon as ThrottleIcon,
+  Database01Icon as StoresIcon,
   Delete02Icon as DeleteIcon,
   Download04Icon as DownloadIcon,
   EraserIcon as ClearValueIcon,

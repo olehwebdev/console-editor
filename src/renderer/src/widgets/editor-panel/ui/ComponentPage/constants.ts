@@ -39,3 +39,6 @@ export const ORIGIN_NOTE: Record<Exclude<OriginStatus, 'found'>, string> = {
 
 /** The most of a component's renders its page lists (the newest). */
 export const MAX_COMPONENT_RENDERS = 50;
+
+/** Requests a component lists (the newest). */
+export const MAX_COMPONENT_REQUESTS = 50;

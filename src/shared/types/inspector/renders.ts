@@ -1,4 +1,5 @@
 import type { CodeLocation } from './component';
+import type { ActionTrigger } from './stores';
 
 /** How a component took part in a commit: mounted, rendered again, or skipped although its parent rendered (props equal). */
 export const RENDER_KINDS = ['mount', 'render', 'skip'] as const;
@@ -32,6 +33,8 @@ export interface RenderedComponent {
   kind: RenderKind;
   /** It is wrapped in memo (a skip then means its props were equal). */
   memo: boolean;
+  /** How long its own render took (ms), its children's not included, where React measures it (development and profiling builds); else null. */
+  duration: number | null;
   /** For `render`: why, at least one. */
   reasons: RenderReason[];
 }
@@ -53,6 +56,8 @@ export interface RenderCommit {
   /** How long rendering took, where React measures it (development and profiling builds); else null. */
   duration: number | null;
   trigger: RenderTrigger | null;
+  /** The store action React committed right after, while store actions were recorded too. */
+  action: ActionTrigger | null;
   /** Those that mounted, rendered or were skipped, depth first. */
   components: RenderedComponent[];
   /** How many more than listed. */

@@ -37,6 +37,7 @@ export const STACK_LIBRARIES = {
   reactRouter: { name: 'React Router', category: 'meta', signals: { context: 'window.__reactRouterContext (framework mode)' } },
   gatsby: { name: 'Gatsby', category: 'meta', signals: { root: 'the #___gatsby element' } },
   astro: { name: 'Astro', category: 'meta', signals: { island: '<astro-island> elements' } },
+  redux: { name: 'Redux', category: 'state', signals: { standIn: 'a store created with the Redux DevTools stand-in of the framework hooks' } },
   pinia: { name: 'Pinia', category: 'state', signals: { vue: "$pinia in the Vue app's globals" } },
   vuex: { name: 'Vuex', category: 'state', signals: { vue: "$store in the Vue app's globals" } },
   mobx: { name: 'MobX', category: 'state', signals: { global: 'window.__mobxGlobals' } },

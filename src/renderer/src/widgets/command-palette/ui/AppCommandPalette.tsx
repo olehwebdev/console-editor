@@ -1,14 +1,13 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHORTCUT } from '@common/constants';
-import type { ResourceKind } from '@common/types';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
-import { useRenderLog } from '@/entities/inspector';
+import { useRenderLog, useStoreLog } from '@/entities/inspector';
 import { usePageStore } from '@/entities/page';
 import { selectRuleList, useRuleStore } from '@/entities/rule';
 import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
@@ -24,13 +23,11 @@ import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 import { useActionGroup } from '../model/useActionGroup';
 import { sourceActions, useOriginalSources } from '../model/sources';
-import { OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
-import { inspectItems } from './inspectItems';
+import { KIND_ICON, OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
+import { inspectItems, type InspectLog } from './inspectItems';
 import { newRuleItems } from './newRuleItems';
 import { ruleItems } from './ruleItems';
 import { saveItem } from './saveItem';
-
-const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon, Fetch: icons.ResponseIcon };
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
@@ -42,11 +39,12 @@ export interface AppCommandPaletteProps {
   onToggleConsole(): void;
   onNewAction(): void;
   onShowNetwork(): void;
-  onShowRenders(): void;
+  /** Shows the Renders or the Stores log in the bottom pane. */
+  onShowLog(log: InspectLog): void;
 }
 
 /** Ctrl/Cmd+K: jump to any file the page loaded, an original of a loaded map, an override or a rule, run an action, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onNewAction, onShowNetwork, onShowRenders }: AppCommandPaletteProps) {
+export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onNewAction, onShowNetwork, onShowLog }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
@@ -56,7 +54,8 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
   const detached = usePageStore((s) => s.page.detached);
-  const recording = useRenderLog((s) => s.recording);
+  const recordingRenders = useRenderLog((s) => s.recording);
+  const recordingStores = useStoreLog((s) => s.recording);
   const runGroup = useActionGroup(onNewAction);
 
   const resources = usePageFiles(open);
@@ -104,7 +103,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         { id: 'network', label: 'Show network', icon: icons.NetworkIcon, keywords: ['requests', 'fetch', 'xhr', 'api', 'json', 'graphql', 'response'], onSelect: onShowNetwork },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
         { id: 'page-window', label: move.label, icon: move.icon, keywords: ['window', 'screen', 'monitor', 'detach', 'pop out', 'attach'], onSelect: () => void move.run() },
-        ...inspectItems(recording, onShowRenders),
+        ...inspectItems({ renders: recordingRenders, stores: recordingStores }, onShowLog),
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         ...newRuleItems(),
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },
@@ -144,7 +143,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
       ],
     };
     return [files, sources, overrideGroup, ruleGroup, runGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, sources, overrides, rules, runGroup, active, activeSource, workspaces, activeWorkspaceId, detached, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onShowNetwork]);
+  }, [open, files, sources, overrides, rules, runGroup, active, activeSource, workspaces, activeWorkspaceId, detached, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onShowNetwork, recordingRenders, recordingStores, onShowLog]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

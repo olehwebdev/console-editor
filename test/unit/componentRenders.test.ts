@@ -56,8 +56,9 @@ const pageCommit = (over: Record<string, unknown> = {}) => ({
   at: 1000,
   duration: null,
   trigger: { type: 'click', target: 'button#add' },
+  action: { store: 'Redux', type: 'cart/added' },
   components: [
-    { name: 'Sd', key: 'A1', type: 0, kind: 'render', memo: false, reasons: [{ kind: 'state', changes: [{ name: '1', from: '1', to: '2' }] }] },
+    { name: 'Sd', key: 'A1', type: 0, kind: 'render', memo: false, duration: 1.5, reasons: [{ kind: 'state', changes: [{ name: '1', from: '1', to: '2' }] }] },
     { name: 'l2', key: null, type: 1, kind: 'skip', memo: true, reasons: [] },
   ],
   more: 0,
@@ -122,9 +123,10 @@ describe('recording renders, the Components tree and setting state (main)', () =
         at: 1000,
         duration: null,
         trigger: { type: 'click', target: 'button#add' },
+        action: { store: 'Redux', type: 'cart/added' },
         components: [
-          { name: 'Sd', key: 'A1', kind: 'render', memo: false, reasons: [{ kind: 'state', changes: [{ name: '1', from: '1', to: '2' }] }], location: { url: APP_JS, line: 0, column: 120 } },
-          { name: 'l2', key: null, kind: 'skip', memo: true, reasons: [], location: { url: APP_JS, line: 0, column: 40 } },
+          { name: 'Sd', key: 'A1', kind: 'render', memo: false, duration: 1.5, reasons: [{ kind: 'state', changes: [{ name: '1', from: '1', to: '2' }] }], location: { url: APP_JS, line: 0, column: 120 } },
+          { name: 'l2', key: null, kind: 'skip', memo: true, duration: null, reasons: [], location: { url: APP_JS, line: 0, column: 40 } },
         ],
         more: 0,
       });
@@ -151,8 +153,9 @@ describe('recording renders, the Components tree and setting state (main)', () =
             at: -5,
             duration: 'slow',
             trigger: { type: 'click\u0000', target: 7 },
+            action: { store: 7, type: 'cart/added' },
             components: [
-              { name: 'A\u0007pp', key: 5, type: 'x', kind: 'render', memo: 'yes', reasons: [{ kind: 'props', changes: [{ name: 'n', from: 1, to: '2' }] }, { kind: 'magic', changes: [] }] },
+              { name: 'A\u0007pp', key: 5, type: 'x', kind: 'render', memo: 'yes', duration: -1, reasons: [{ kind: 'props', changes: [{ name: 'n', from: 1, to: '2' }] }, { kind: 'magic', changes: [] }] },
               { name: 'Gone', kind: 'exploded' },
               ...Array.from({ length: MAX_RENDERED + 5 }, () => ({ name: 'Row', key: null, type: 2, kind: 'mount', reasons: [] })),
             ],
@@ -160,10 +163,10 @@ describe('recording renders, the Components tree and setting state (main)', () =
           }),
         ]),
       );
-      expect(commit).toMatchObject({ duration: null, trigger: { type: 'click', target: null }, more: 0 });
+      expect(commit).toMatchObject({ duration: null, trigger: { type: 'click', target: null }, action: null, more: 0 });
       expect(commit!.at).toBeGreaterThan(0);
       // A preview that isn't text shows as none.
-      expect(commit!.components[0]).toEqual({ name: 'App', key: null, kind: 'render', memo: false, reasons: [{ kind: 'props', changes: [{ name: 'n', from: '', to: '2' }] }], type: -1 });
+      expect(commit!.components[0]).toEqual({ name: 'App', key: null, kind: 'render', memo: false, duration: null, reasons: [{ kind: 'props', changes: [{ name: 'n', from: '', to: '2' }] }], type: -1 });
       // The unknown kind is dropped after the cap is taken: MAX_RENDERED items, one of them the dropped one.
       expect(commit!.components).toHaveLength(MAX_RENDERED - 1);
       expect(toRenderCommits('{"not": "a list"}')).toEqual([]);

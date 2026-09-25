@@ -1,4 +1,4 @@
-import type { InspectFramework, RenderReasonKind } from '@common/types';
+import type { InspectFramework, RenderKind, RenderReasonKind } from '@common/types';
 
 /**
  * Whether a component's name is its function's or class's (React, Angular), so the original's name beats a
@@ -18,3 +18,9 @@ export const REASON_LABEL: Record<RenderReasonKind, string> = {
   parent: 'its parent rendered',
   update: 'its own update, with nothing changed',
 };
+
+/** Which count of a component's profile each way of taking part in a commit adds to. */
+export const PROFILE_COUNT: Record<RenderKind, 'mounts' | 'renders' | 'skips'> = { mount: 'mounts', render: 'renders', skip: 'skips' };
+
+/** A component the page gave no place for is profiled by its name, keyed with this before it. */
+export const NAMED_PROFILE_PREFIX = 'name:';

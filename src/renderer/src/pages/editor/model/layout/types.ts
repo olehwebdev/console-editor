@@ -1,7 +1,7 @@
 import type { SidebarView } from '@/widgets/activity-bar';
 
 /** The bottom pane's views: they share its height and its toggle. */
-export const BOTTOM_VIEWS = ['console', 'network', 'renders'] as const;
+export const BOTTOM_VIEWS = ['console', 'network', 'renders', 'stores'] as const;
 
 export type BottomView = (typeof BOTTOM_VIEWS)[number];
 

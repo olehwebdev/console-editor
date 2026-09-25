@@ -4,6 +4,7 @@ import { cleanText } from '../../reading/cleanText';
 import { countOf } from './countOf';
 import { itemsOf } from './itemsOf';
 import { timeOf } from './timeOf';
+import { toActionTrigger } from './toActionTrigger';
 import { toReason } from './toReason';
 import type { Item, PageCommit } from './types';
 
@@ -21,10 +22,13 @@ export function toRenderCommits(payload: string): PageCommit[] {
       at: timeOf(commit.at) ?? Date.now(),
       duration: timeOf(commit.duration),
       trigger: trigger && typeof trigger.type === 'string' ? { type: cleanText(trigger.type).slice(0, MAX_TEXT_LENGTH), target: typeof trigger.target === 'string' ? cleanText(trigger.target) : null } : null,
+      action: toActionTrigger(commit.action),
       components: itemsOf(commit.components, MAX_RENDERED).flatMap((c) => {
         const kind = RENDER_KINDS.find((k) => k === c.kind);
         const type = typeof c.type === 'number' && Number.isInteger(c.type) && c.type >= 0 ? c.type : -1;
-        return kind ? [{ name: cleanText(c.name), key: typeof c.key === 'string' ? cleanText(c.key) : null, kind, memo: c.memo === true, reasons: itemsOf(c.reasons, RENDER_REASONS.length).flatMap(toReason), type }] : [];
+        if (!kind) return [];
+        const reasons = itemsOf(c.reasons, RENDER_REASONS.length).flatMap(toReason);
+        return [{ name: cleanText(c.name), key: typeof c.key === 'string' ? cleanText(c.key) : null, kind, memo: c.memo === true, duration: timeOf(c.duration), reasons, type }];
       }),
       more: countOf(commit.more),
     };

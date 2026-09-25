@@ -1,7 +1,8 @@
-import type { RenderTrigger } from '@common/types';
+import type { RenderCommit } from '@common/types';
 
-/** What started a commit, in words: `click on button#add`; null when nothing did (a timer, a request coming back, the first render). */
-export function triggerLabel(trigger: RenderTrigger | null): string | null {
-  if (!trigger) return null;
-  return trigger.target ? `${trigger.type} on ${trigger.target}` : trigger.type;
+/** What started a commit, in words: the event (`click on button#add`) and the store action right before it (`cart/added`). */
+export function triggerLabel({ trigger, action }: Pick<RenderCommit, 'trigger' | 'action'>): string | null {
+  const event = trigger ? (trigger.target ? `${trigger.type} on ${trigger.target}` : trigger.type) : null;
+  const parts = [event, action?.type ?? null].filter((part): part is string => part !== null);
+  return parts.length ? parts.join(' → ') : null;
 }

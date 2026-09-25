@@ -5,8 +5,9 @@
  * does (Electron's sendInputEvent isn't routed into a cross-site frame). The
  * Component page names the component and its file from the source map, and
  * opens either the original or the bundle there; the Inspect view's tree shows
- * the frame's components; a state value is set from the page; and Renders
- * records why the cart rendered when it is clicked.
+ * the frame's components; a state value is set from the page; Renders records
+ * why the cart rendered when it is clicked, and sums it up by component; and
+ * the value set is kept as an action, which sets it again after a reload.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -201,5 +202,30 @@ describe.skipIf(!built)('component inspector', () => {
     await expect.poll(() => commit.textContent(), { timeout: 15_000 }).toContain('click on button#add-A1');
     await expect.poll(() => commit.getByTestId('rendered-component').allInnerTexts()).toEqual([expect.stringMatching(/^CartItem\s*key=A1\s*state qty 5 → 6/)]);
     await expect.poll(() => win.getByTestId('component-render').count()).toBe(1);
+  });
+
+  it('sums the renders up by component: how often each rendered, and why', async () => {
+    await win.getByRole('tab', { name: 'By component' }).click();
+    const row = win.getByTestId('render-profile-row').filter({ hasText: 'CartItem' });
+    await expect.poll(() => row.textContent(), { timeout: 15_000 }).toContain('state 1');
+    expect(await row.getByTestId('code-link').textContent()).toBe(`${CART_FILE}:${lineOf('function CartItem')}`);
+  });
+
+  it('keeps the value set as an action of the cart frame, which sets it again once the page reloads', async () => {
+    await win.getByRole('tab', { name: /CartItem/ }).click();
+    const bar = win.getByTestId('saved-edit');
+    await expect.poll(() => bar.textContent()).toContain('Set qty to 5');
+    await bar.getByTestId('save-state-action').click();
+    await win.getByTestId('actions-panel').waitFor();
+    await expect.poll(() => win.getByTestId('action-name').inputValue()).toBe('Set qty of CartItem to 5');
+    expect(await win.getByTestId('action-code').inputValue()).toContain('const selector = "#add-A1";');
+    await win.getByTestId('action-save').click();
+    const action = win.getByTestId('action-row').filter({ hasText: 'Set qty of CartItem to 5' });
+    await action.waitFor();
+
+    await app.evaluate(({ webContents }) => webContents.getAllWebContents().find((wc) => wc.getURL().endsWith('/shell.html'))!.reload());
+    await expect.poll(() => cartText().catch(() => ''), { timeout: 15_000 }).toContain('10 EUR');
+    await action.getByTestId('action-run').click();
+    await expect.poll(cartText).toContain('50 EUR');
   });
 });

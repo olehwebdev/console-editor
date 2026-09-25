@@ -3,7 +3,7 @@ import { RENDER_SUMMARY_JS } from './renderSummarySource';
 
 /**
  * Put in every new document while **Framework hooks** is on, before the page's
- * own scripts: a minimal stand-in for the React DevTools hook. React, production
+ * own scripts (in `HOOKS_SOURCE`): a minimal stand-in for the React DevTools hook. React, production
  * builds too, hands its renderer (with its version and build) to a hook it finds
  * as it loads, and nothing else says which React a frame runs. Each commit tells
  * it the root committed, which it keeps (`getFiberRoots`, as the extension's
@@ -12,7 +12,7 @@ import { RENDER_SUMMARY_JS } from './renderSummarySource';
  * extension's, React Refresh's) keeps it; the stand-in has the members React and
  * React Refresh use.
  */
-export const REACT_HOOK_SOURCE = `(() => {
+export const REACT_HOOK_JS = `
   if ('__REACT_DEVTOOLS_GLOBAL_HOOK__' in window) return;
   ${RENDER_SUMMARY_JS}
   const renderers = new Map();
@@ -47,4 +47,4 @@ export const REACT_HOOK_SOURCE = `(() => {
   };
   Object.defineProperty(hook, '${RENDERED_TYPES}', { value: renderedTypes });
   Object.defineProperty(window, '__REACT_DEVTOOLS_GLOBAL_HOOK__', { configurable: true, enumerable: false, writable: true, value: hook });
-})();`;
+`;

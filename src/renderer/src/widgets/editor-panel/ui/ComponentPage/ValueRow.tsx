@@ -18,7 +18,7 @@ export function ValueRow({ value, hookNames }: { value: InspectedValue | Inspect
       <span className="w-32 shrink-0 truncate font-mono text-fg-muted">{name}</span>
       {state ? <Badge>{STATE_KIND_LABEL[state.kind]}</Badge> : null}
       {state && editing ? (
-        <StateEditor value={state} onDone={() => setEditing(false)} />
+        <StateEditor value={state} label={name} onDone={() => setEditing(false)} />
       ) : (
         <span className="min-w-0 flex-1 truncate font-mono text-fg">{value.preview}</span>
       )}

@@ -263,7 +263,8 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Component inspector: pick an element to see the React or Vue component that rendered it, its source file, props, state, context and handlers
 - [x] Components tree, setting state, and why each React component rendered (Renders)
 - [x] Angular, Vue 2 and web components, an element's listeners, and loading a source map from a file
-- [ ] Component inspector, next: Vue's renders, a data-flow view, and state libraries' timelines ([research](docs/INSPECTOR_RESEARCH.md))
+- [x] Store actions (Redux, NgRx, Zustand, Pinia, Vuex), who sent a request, state kept as an action, and renders by component
+- [ ] Component inspector, next: Vue's renders and a data-flow view ([research](docs/INSPECTOR_RESEARCH.md))
 
 ## Development
 

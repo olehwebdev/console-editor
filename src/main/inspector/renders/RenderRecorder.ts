@@ -1,80 +1,60 @@
 import type { CodeLocation } from '../../../shared/types';
 import type { SessionKey } from '../../console/ConsoleFrames';
 import type { CdpTransport } from '../../engine/cdp';
-import { CDP } from '../../engine/constants';
 import { MAX_LOCATED_DOCUMENTS, MAX_RENDERS_PAYLOAD, RENDERS_BINDING, RENDERS_GROUP_PREFIX } from '../constants';
-import type { RenderRecorderOptions } from '../types';
+import { BindingRecording } from '../recording/BindingRecording';
+import type { RecorderOptions } from '../types';
 import { locateTypes } from './locateTypes';
 import { toRenderCommits } from './toRenderCommits';
 
 /**
  * Recording React's commits in every frame. While on, each session has the
  * binding (`RENDERS_BINDING`), which the hook stand-in sums its commits up for
- * and hands them to; the binding only takes while the console's Runtime domain
- * is on. Each batch is checked, its component functions located (once per
- * document), its frame told by the context it came from, and it is sent on in
- * order. Stopping takes the binding's function out of documents already loaded.
+ * and hands them to (`BindingRecording`). Each batch is checked, its component
+ * functions located (once per document), its frame told by the context it came
+ * from, and it is sent on in order.
  */
 export class RenderRecorder {
-  private recording = false;
   private nextId = 0;
   private groups = 0;
   /** Per document (session and context): where each component function its commits named is defined. */
   private readonly located = new Map<string, Map<number, CodeLocation | null>>();
-  /** Batches are handled one after another, so commits keep their order. */
-  private queue: Promise<void> = Promise.resolve();
+  private readonly binding: BindingRecording;
 
-  constructor(private readonly opts: RenderRecorderOptions) {}
+  constructor(private readonly opts: RecorderOptions) {
+    this.binding = new BindingRecording({
+      binding: RENDERS_BINDING,
+      maxPayload: MAX_RENDERS_PAYLOAD,
+      sessions: opts.sessions,
+      frames: opts.frames,
+      announce: (recording) => opts.send({ type: 'renders-recording', recording }),
+      received: (id, transport, contextId, payload) => this.received(id, transport, contextId, payload),
+    });
+  }
 
   get active(): boolean {
-    return this.recording;
+    return this.binding.active;
   }
 
   listen(id: SessionKey, transport: CdpTransport): Array<() => void> {
-    return [
-      transport.on(CDP.Runtime.bindingCalled, (p: { name: string; payload: string; executionContextId: number }) => {
-        if (p.name !== RENDERS_BINDING || !this.recording || p.payload.length > MAX_RENDERS_PAYLOAD) return;
-        this.queue = this.queue.then(() => this.received(id, transport, p.executionContextId, p.payload)).catch(() => undefined);
-      }),
-    ];
+    return this.binding.listen(id, transport);
   }
 
-  /** A session that arrives while recording records too. */
-  async joined(transport: CdpTransport): Promise<void> {
-    if (this.recording) await transport.send(CDP.Runtime.addBinding, { name: RENDERS_BINDING }).catch(() => undefined);
+  joined(transport: CdpTransport): Promise<void> {
+    return this.binding.joined(transport);
   }
 
-  async set(on: boolean): Promise<void> {
-    if (on === this.recording) return;
-    this.recording = on;
-    this.opts.send({ type: 'renders-recording', recording: on });
-    await (on ? this.bindAll() : this.unbindAll());
+  set(on: boolean): Promise<void> {
+    return this.binding.set(on);
   }
 
-  /** The console records again: its Runtime domain is on, so the binding can take. */
-  async resume(): Promise<void> {
-    if (this.recording) await this.bindAll();
+  resume(): Promise<void> {
+    return this.binding.resume();
   }
 
   /** A session went away, and its documents with it. */
   forget(sessionId: SessionKey): void {
     for (const key of [...this.located.keys()]) if (key.startsWith(`${String(sessionId)}:`)) this.located.delete(key);
-  }
-
-  private async bindAll(): Promise<void> {
-    await Promise.all(this.opts.sessions.all().map(([, session]) => session.transport.send(CDP.Runtime.addBinding, { name: RENDERS_BINDING }).catch(() => undefined)));
-  }
-
-  private async unbindAll(): Promise<void> {
-    await Promise.all(this.opts.sessions.all().map(([, session]) => session.transport.send(CDP.Runtime.removeBinding, { name: RENDERS_BINDING }).catch(() => undefined)));
-    // Removing a binding leaves its function in the documents it was put in, and the stand-in sums up while it is there.
-    await Promise.all(
-      this.opts.frames.list().map((frame) => {
-        const target = this.opts.frames.target(frame.id);
-        const session = target && this.opts.sessions.get(target.sessionId);
-        return session?.transport.send(CDP.Runtime.evaluate, { expression: `delete window.${RENDERS_BINDING}`, uniqueContextId: target!.uniqueId, silent: true }).catch(() => undefined);
-      }),
-    );
   }
 
   private async received(sessionId: SessionKey, transport: CdpTransport, contextId: number, payload: string): Promise<void> {
@@ -91,7 +71,7 @@ export class RenderRecorder {
     this.located.delete(key);
     this.located.set(key, known);
     while (this.located.size > MAX_LOCATED_DOCUMENTS) this.located.delete(this.located.keys().next().value!);
-    if (!this.recording) return;
+    if (!this.binding.active) return;
     const frameId = this.opts.frames.frameOf(sessionId, contextId);
     this.opts.send({
       type: 'renders-recorded',

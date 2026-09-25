@@ -12,6 +12,7 @@ export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, Console
 export { CONSOLE_LEVELS } from './console';
 export type { AppEvent, EngineEvent } from './events';
 export type {
+  ActionTrigger,
   CodeLocation,
   ComponentLink,
   ComponentNode,
@@ -35,10 +36,14 @@ export type {
   RenderTrigger,
   ScriptCoverage,
   StackHit,
+  StackFrame,
   StateEdit,
   StateKind,
+  StoreAction,
+  StoreChange,
+  StoreLibrary,
 } from './inspector';
-export { INSPECT_FRAMEWORKS, RENDER_KINDS, RENDER_REASONS, STATE_KINDS } from './inspector';
+export { INSPECT_FRAMEWORKS, RENDER_KINDS, RENDER_REASONS, STATE_KINDS, STORE_LIBRARIES } from './inspector';
 export type { MenuCommand } from './menu';
 export type { HarImport, HttpHeader, NetworkBody, NetworkBodyGap, NetworkRequest, NetworkRequestDetail, NetworkRequestState, SocketDirection, SocketMessage, SocketMessages } from './network';
 export { NETWORK_BODY_GAPS, NETWORK_REQUEST_STATES } from './network';

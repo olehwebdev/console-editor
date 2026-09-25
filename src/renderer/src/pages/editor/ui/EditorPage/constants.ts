@@ -7,6 +7,7 @@ import { Explorer } from '@/widgets/explorer';
 import { InspectPanel } from '@/widgets/inspect-panel';
 import { NetworkPanel } from '@/widgets/network-panel';
 import { RendersPanel } from '@/widgets/renders-panel';
+import { StoresPanel } from '@/widgets/stores-panel';
 import { SettingsPanel } from '@/widgets/settings-panel';
 import type { BottomView } from '../../model/layout';
 
@@ -26,6 +27,7 @@ export const BOTTOM_TABS: readonly PaneTab<BottomView>[] = [
   { id: 'console', label: 'Console' },
   { id: 'network', label: 'Network' },
   { id: 'renders', label: 'Renders' },
+  { id: 'stores', label: 'Stores' },
 ];
 
 /** What a bottom panel is given: the pane's tabs as its heading, closing the pane, and (the console's) keeping code as an action. */
@@ -36,4 +38,5 @@ export const BOTTOM_PANELS: Record<BottomView, ComponentType<BottomPanelProps>> 
   console: ConsolePanel,
   network: NetworkPanel,
   renders: RendersPanel,
+  stores: StoresPanel,
 };

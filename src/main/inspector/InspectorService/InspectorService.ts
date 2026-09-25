@@ -10,13 +10,14 @@ import { ScriptUrls } from '../reading/ScriptUrls';
 import { TreeReader } from '../reading/TreeReader';
 import { RenderRecorder } from '../renders/RenderRecorder';
 import { StackTracker } from '../StackTracker';
+import { StoreRecorder } from '../stores/StoreRecorder';
 import type { InspectedSession, InspectedSessions, InspectorServiceOptions } from '../types';
 
 /**
  * The inspector of the page's frames. It rides on the sessions interception has,
  * as the console does, and coordinates: the page stack (what each frame runs),
  * picking an element in any frame, and reading the component that rendered it.
- * While **Framework hooks** is on, it also puts the hooks (`REACT_HOOK_SOURCE`)
+ * While **Framework hooks** is on, it also puts the hooks (`HOOKS_SOURCE`)
  * in every new document, before the page's own scripts.
  */
 export class InspectorService implements SessionObserver {
@@ -26,6 +27,7 @@ export class InspectorService implements SessionObserver {
   private readonly reader: ComponentReader;
   private readonly tree: TreeReader;
   private readonly renders: RenderRecorder;
+  private readonly stores: StoreRecorder;
   private recording: boolean;
 
   constructor(private readonly opts: InspectorServiceOptions) {
@@ -35,14 +37,15 @@ export class InspectorService implements SessionObserver {
     this.reader = new ComponentReader(sessions);
     this.tree = new TreeReader(sessions, opts.frames, this.reader);
     this.renders = new RenderRecorder({ sessions, frames: opts.frames, send: opts.send });
+    this.stores = new StoreRecorder({ sessions, frames: opts.frames, send: opts.send });
     this.recording = opts.getSettings().captureConsole;
   }
 
   async attached(id: SessionKey, transport: CdpTransport): Promise<void> {
     const hook = new HookScript(transport);
-    const dispose = [...listenForLoads(transport, this.stacks.sinks), ...this.picker.listen(id, transport), ...this.renders.listen(id, transport)];
+    const dispose = [...listenForLoads(transport, this.stacks.sinks), ...this.picker.listen(id, transport), ...this.renders.listen(id, transport), ...this.stores.listen(id, transport)];
     this.sessions.set(id, { transport, hook, scripts: new ScriptUrls(transport), dispose });
-    await Promise.all([hook.sync(this.opts.getSettings().frameworkHooks), this.picker.joined(transport), this.renders.joined(transport)]);
+    await Promise.all([hook.sync(this.opts.getSettings().frameworkHooks), this.picker.joined(transport), this.renders.joined(transport), this.stores.joined(transport)]);
   }
 
   detached(id: SessionKey): void {
@@ -63,7 +66,7 @@ export class InspectorService implements SessionObserver {
     const started = captureConsole && !this.recording;
     this.recording = captureConsole;
     await Promise.all([...this.sessions.values()].map(({ hook }) => hook.sync(frameworkHooks).catch(() => undefined)));
-    if (started) await Promise.all([this.stacks.scan(), this.renders.resume()]);
+    if (started) await Promise.all([this.stacks.scan(), this.renders.resume(), this.stores.resume()]);
     else if (!captureConsole) this.stacks.publish();
   }
 
@@ -106,6 +109,14 @@ export class InspectorService implements SessionObserver {
 
   recordRenders(on: boolean): Promise<void> {
     return this.renders.set(on);
+  }
+
+  get recordingStores(): boolean {
+    return this.stores.active;
+  }
+
+  recordStores(on: boolean): Promise<void> {
+    return this.stores.set(on);
   }
 
   componentTree(frameId: unknown, path: unknown): Promise<ComponentTreeLevel | null> {

@@ -57,7 +57,7 @@ export const ADAPTER_SOURCE = `function (mode, arg, edit, registry) {
   const MODES = {
     summary: () => el && Object.assign(base(), { chain: found ? found.names.slice(0, SUMMARY_NAMES) : [] }),
     describe: () =>
-      el && { data: Object.assign(base(), { build: found ? found.build : null, depth: at, path: found ? treePath(found, at) : null }, found ? found.describe(at, fn) : nothing), fns },
+      el && { data: Object.assign(base(), { build: found ? found.build : null, depth: at, path: found ? treePath(found, at) : null, selector: selectorOf(el) }, found ? found.describe(at, fn) : nothing), fns },
     set: () => !!found && found.set(at, edit) && settle(),
     tree: () => ({ data: treeLevel(arg, fn), fns }),
     locate: () => treeLocate(arg),

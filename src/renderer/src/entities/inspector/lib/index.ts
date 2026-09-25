@@ -1,3 +1,4 @@
+export { appFrame } from './appFrame';
 export { codeLabel } from './codeLabel';
 export { componentTitle } from './componentTitle';
 export { elementLabel } from './elementLabel';
@@ -10,6 +11,8 @@ export { keyPath } from './keyPath';
 export { nodeLocations } from './nodeLocations';
 export { lastRendered } from './lastRendered';
 export { pathKey } from './pathKey';
+export { profileComponents, type ComponentProfile } from './profileComponents';
+export { reasonCounts } from './reasonCounts';
 export { renderedWhy } from './renderedWhy';
 export { renderKey } from './renderKey';
 export { triggerLabel } from './triggerLabel';

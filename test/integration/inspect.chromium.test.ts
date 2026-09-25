@@ -269,6 +269,9 @@ describe.skipIf(!chromiumAvailable)('component inspector in Chromium', () => {
     expect(add.trigger).toEqual({ type: 'click', target: 'button#add-A1' });
     expect(add.frameId).toBe(services.console.listFrames()[0].id);
     expect(add.duration).toEqual(expect.any(Number));
+    // Each component's own render time, for the profiler's view (a development build measures it).
+    expect(add.components.map((c) => typeof c.duration)).toEqual(['number', 'number']);
+    expect(add.action).toBeNull();
     expect(describeCommit(add)).toEqual(['CartBadge render store:1 0→1', 'CartItem#A1 render state:1 1→2']);
     expect(add.components[1].location).toMatchObject({ url: `${origin}/renders-dev.js` });
 
@@ -298,6 +301,7 @@ describe.skipIf(!chromiumAvailable)('component inspector in Chromium', () => {
     const mount = await waitFor(() => recorded()[0]);
     expect(mount.trigger).toBeNull();
     expect(mount.duration).toBeNull();
+    expect(mount.components.every((c) => c.duration === null)).toBe(true);
     expect(mount.components.map((c) => c.kind)).toEqual(Array(7).fill('mount'));
     expect(mount.components.map((c) => original(c.location)?.line)).toEqual([
       lineOf('reactRenders.ts', 'function App'),

@@ -99,6 +99,11 @@ export interface InspectedComponent {
   listeners: InspectedListener[];
   /** Where it is in its frame's Components tree (indexes from the top); null if it can't be told. */
   path: number[] | null;
+  /**
+   * CSS selectors that find the element again (in an action): one for its document, then one for each open
+   * shadow root it is in, host after host; null when none can (a closed shadow root).
+   */
+  selector: string[] | null;
 }
 
 /** What is under the pointer while picking. */

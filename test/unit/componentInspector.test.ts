@@ -60,6 +60,7 @@ const DESCRIBED = {
   state: [{ name: '1', kind: 'state', preview: '1', fn: -1 }],
   context: [{ name: 'Context', preview: '{currency: "EUR"}', provider: 'l2', fn: 1 }],
   handlers: [{ name: 'onClick', function: 'e', fn: 2 }],
+  selector: ['#root > div', '#add'],
 };
 const APP_JS = 'https://site.test/app.js';
 
@@ -181,6 +182,7 @@ describe('component inspector (picking and reading)', () => {
       handlers: [{ name: 'onClick', function: 'e', location: null }],
       listeners: [],
       path: null,
+      selector: ['#root > div', '#add'],
     });
     // Script URLs come from turning the debugger on just long enough, pauses skipped.
     expect(cdp.calls.filter((c) => c.method.startsWith('Debugger.')).map((c) => c.method)).toEqual(['Debugger.enable', 'Debugger.setSkipAllPauses', 'Debugger.disable']);
@@ -297,5 +299,16 @@ describe('what the page says of a component (toInspectedComponent)', () => {
     expect(component.chain).toEqual([{ name: 'x'.repeat(160), key: null, location: null }]);
     expect(component.props).toHaveLength(60);
     expect(component.state[0]!.kind).toBe('other');
+    expect(component.selector).toBeNull();
+  });
+
+  it("keeps an element's selectors only when each is text of a sane length, and few enough", () => {
+    const of = (selector: unknown) => toInspectedComponent({ selector }, [], { pickId: '1', frameId: null, listeners: [] }).selector;
+    expect(of(['#root', 'li:nth-of-type(2)\u0000'])).toEqual(['#root', 'li:nth-of-type(2)']);
+    expect(of('#root')).toBeNull();
+    expect(of([])).toBeNull();
+    expect(of(['#root', 7])).toBeNull();
+    expect(of(['x'.repeat(601)])).toBeNull();
+    expect(of(Array(9).fill('div'))).toBeNull();
   });
 });

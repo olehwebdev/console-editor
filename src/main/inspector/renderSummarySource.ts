@@ -1,4 +1,5 @@
 import { MAX_CHANGES, MAX_COMMIT_BATCH, MAX_RENDERED, RENDERS_BINDING, RENDERS_FLUSH_MS } from './constants';
+import { ACTION_TRIGGER_MS } from './stores/constants';
 
 /**
  * Page-side, inside the React hook stand-in (`REACT_HOOK_SOURCE`): what a commit
@@ -9,6 +10,7 @@ import { MAX_CHANGES, MAX_COMMIT_BATCH, MAX_RENDERED, RENDERS_BINDING, RENDERS_F
  * its parent rendered (memo, or the same props). A subtree whose children are
  * the same fibers as before took no part and isn't walked. Summaries are handed
  * over every `RENDERS_FLUSH_MS`; component functions go by id (`RENDERED_TYPES`).
+ * A store action just before (`lastAction`, from the store stand-in) is named once.
  * Probed on React 19, production and development builds.
  */
 export const RENDER_SUMMARY_JS = `
@@ -93,12 +95,21 @@ export const RENDER_SUMMARY_JS = `
   };
   // The event being handled as React commits; the scheduler's own messages (on a MessagePort) don't count.
   const triggerOf = (event) => (event && (event.target === window || (event.target && event.target.nodeType)) ? { type: event.type, target: targetOf(event) } : null);
+  // The store action React committed right after, named by one commit only.
+  const actionOf = () => {
+    if (!lastAction.type || performance.now() - lastAction.at > ${ACTION_TRIGGER_MS}) return null;
+    const action = { store: lastAction.store, type: lastAction.type };
+    lastAction.type = '';
+    return action;
+  };
+  // Its own render's time (selfBaseDuration), where React measures it; a skipped one didn't render.
+  const selfDuration = (f, kind) => (kind !== 'skip' && typeof f.selfBaseDuration === 'number' ? f.selfBaseDuration : null);
   const summarize = (root) => {
     const components = [];
     let more = 0;
     const add = (f, kind, extra) =>
       components.length < ${MAX_RENDERED}
-        ? components.push(Object.assign({ name: nameOf(f.type), key: f.key == null ? null : String(f.key), type: typeId(f.type), kind, memo: false, reasons: [] }, extra))
+        ? components.push(Object.assign({ name: nameOf(f.type), key: f.key == null ? null : String(f.key), type: typeId(f.type), kind, memo: false, reasons: [], duration: selfDuration(f, kind) }, extra))
         : (more += 1);
     const visit = (f, parentWorked) => {
       const prev = f.alternate;
@@ -114,6 +125,7 @@ export const RENDER_SUMMARY_JS = `
       at: performance.timeOrigin + performance.now(),
       duration: typeof root.current.actualDuration === 'number' ? root.current.actualDuration : null,
       trigger: triggerOf(window.event),
+      action: actionOf(),
       components,
       more,
     };

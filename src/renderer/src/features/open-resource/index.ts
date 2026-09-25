@@ -21,4 +21,5 @@ export {
   type OpenSourceOptions,
   type SourceTreeStore,
 } from './model/sources';
+export { CallStack } from './ui/CallStack';
 export { CodeLink } from './ui/CodeLink';

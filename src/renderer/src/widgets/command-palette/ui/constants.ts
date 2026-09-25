@@ -1,4 +1,8 @@
-import type { RuleAction } from '@common/types';
+import type { ResourceKind, RuleAction } from '@common/types';
+import { icons } from '@/shared/config';
+
+/** A page file's icon, by its kind. */
+export const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon, Fetch: icons.ResponseIcon };
 
 /** An override has two items: their ids are one of these prefixes and its id. */
 export const OVERRIDE_ITEM_PREFIX = { open: 'open-', toggle: 'toggle-' } as const;

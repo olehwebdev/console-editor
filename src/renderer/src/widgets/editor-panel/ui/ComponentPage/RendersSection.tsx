@@ -27,7 +27,7 @@ export function RendersSection({ component }: { component: InspectedComponent })
               <span className="shrink-0 font-mono text-fg-subtle">#{commit.id}</span>
               <span className="shrink-0 tabular-nums text-fg-subtle">{formatTime(commit.at)}</span>
               <span className="min-w-0 flex-1 truncate font-mono text-fg">{renderedWhy(rendered, hookNames)}</span>
-              <span className="max-w-[35%] shrink-0 truncate text-fg-subtle">{triggerLabel(commit.trigger)}</span>
+              <span className="max-w-[35%] shrink-0 truncate text-fg-subtle">{triggerLabel(commit)}</span>
             </div>
           ))}
         </div>

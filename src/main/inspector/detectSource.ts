@@ -1,3 +1,5 @@
+import { STORE_HOOK_GLOBAL } from './stores/constants';
+
 /**
  * Run in a frame's main world (by value, silently): what it runs, as
  * `{ id, signal, version, build }` items named after `STACK_LIBRARIES`. Each
@@ -95,6 +97,10 @@ export const DETECT_SOURCE = `(() => {
   });
   attempt(() => {
     if (w.__mobxGlobals || w.__mobxInstanceCount) found('mobx', 'global', null, null);
+  });
+  attempt(() => {
+    const stores = w.${STORE_HOOK_GLOBAL};
+    if (stores && stores.libraries().includes('redux')) found('redux', 'standIn', null, null);
   });
   attempt(() => {
     if (w.__APOLLO_CLIENT__) found('apollo', 'global', w.__APOLLO_CLIENT__.version, null);

@@ -39,3 +39,9 @@ export const HELD_ID_PREFIX = 'held-';
 /** A WebSocket frame's opcode for binary data (its payload comes as base64), and for text. */
 export const BINARY_OPCODE = 2;
 export const TEXT_OPCODE = 1;
+
+/** The most calls of a script's stack a request keeps as what sent it (its initiator). */
+export const MAX_INITIATOR_FRAMES = 20;
+
+/** Calls in files the page loaded: the only ones a request's initiator keeps. */
+export const LOADED_FILE = /^https?:/;

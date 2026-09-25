@@ -46,10 +46,24 @@ export interface StackTrackerOptions {
   send(event: AppEvent): void;
 }
 
-export interface RenderRecorderOptions {
+/** What the recorders of what the framework hooks hear (renders, store actions) work with. */
+export interface RecorderOptions {
   sessions: InspectedSessions;
   frames: FrameTargets;
   send(event: AppEvent): void;
+}
+
+export interface BindingRecordingOptions extends Omit<RecorderOptions, 'send'> {
+  /** The binding's name: a global of each document while recording. */
+  binding: string;
+  /** The largest payload taken from the page. */
+  maxPayload: number;
+  /** Tells the renderer recording started or stopped. */
+  announce(on: boolean): void;
+  /** A batch arrived from a document (a session's context); batches are handled one after another. */
+  received(sessionId: SessionKey, transport: CdpTransport, contextId: number, payload: string): Promise<void>;
+  /** Recording started, or went on after the console recorded again: what the documents already loaded need. */
+  started?(): Promise<void>;
 }
 
 export interface PickerOptions {

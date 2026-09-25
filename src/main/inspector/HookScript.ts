@@ -1,8 +1,8 @@
 import type { CdpTransport } from '../engine/cdp';
 import { CDP } from '../engine/constants';
-import { REACT_HOOK_SOURCE } from './reactHookSource';
+import { HOOKS_SOURCE } from './hooksSource';
 
-/** The framework hooks (`REACT_HOOK_SOURCE`), put in every new document of one session while the setting is on. */
+/** The framework hooks (`HOOKS_SOURCE`), put in every new document of one session while the setting is on. */
 export class HookScript {
   /** The script's identifier, while installed. */
   private id: string | undefined;
@@ -14,7 +14,7 @@ export class HookScript {
     if (on && !this.id) {
       // Scripts for new documents run only while the Page domain is on (interception turns it on too).
       await this.cdp.send(CDP.Page.enable);
-      const r = await this.cdp.send<{ identifier: string }>(CDP.Page.addScriptToEvaluateOnNewDocument, { source: REACT_HOOK_SOURCE });
+      const r = await this.cdp.send<{ identifier: string }>(CDP.Page.addScriptToEvaluateOnNewDocument, { source: HOOKS_SOURCE });
       this.id = r.identifier;
     } else if (!on && this.id) {
       const identifier = this.id;

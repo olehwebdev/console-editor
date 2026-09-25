@@ -64,6 +64,8 @@ export const IPC_CHANNEL = {
   componentTree: 'inspect:tree',
   recordRenders: 'inspect:record-renders',
   isRecordingRenders: 'inspect:recording-renders',
+  recordStores: 'inspect:record-stores',
+  isRecordingStores: 'inspect:recording-stores',
   openTreeNode: 'inspect:tree-open',
   highlightTreeNode: 'inspect:tree-highlight',
 
