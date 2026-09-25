@@ -1,6 +1,6 @@
 import { useTabStore, type PageTabOf } from '@/entities/editor-tab';
 import { toRuleInput, useRuleStore } from '@/entities/rule';
-import { rebaseRuleDraft } from '@/features/rule/edit';
+import { rebaseRuleForm } from '@/features/rule/edit';
 import type { AppEventOf } from '../types';
 
 /**
@@ -14,8 +14,6 @@ export function syncRules(event: AppEventOf<'rules-changed'>): void {
   useTabStore.getState().removePages(rulePages.filter((p) => !rules.has(p.ruleId)).map((p) => p.id));
   for (const page of rulePages) {
     const rule = rules.get(page.ruleId);
-    if (!rule || !page.draft) continue;
-    const draft = rebaseRuleDraft(page.draft, toRuleInput(rule));
-    if (draft !== page.draft) useTabStore.getState().setPageDraft(page.id, draft);
+    if (rule) rebaseRuleForm(page.id, toRuleInput(rule));
   }
 }

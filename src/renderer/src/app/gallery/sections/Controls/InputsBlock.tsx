@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { icons } from '@/shared/config';
 import { Badge } from '@/shared/ui/badge';
+import { FieldError } from '@/shared/ui/field-error';
 import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Input } from '@/shared/ui/input';
@@ -12,8 +13,9 @@ const { CloseIcon, GlobeIcon, SearchIcon, WarningIcon } = icons;
 
 export function InputsBlock() {
   const [query, setQuery] = useState('');
+  const errorId = useId();
   return (
-    <Block title="Input" hint="adornments, sizes, mono, invalid, disabled">
+    <Block title="Input" hint="adornments, sizes, mono, invalid (with its FieldError), disabled">
       <div className="grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
         <Input
           placeholder="Filter resources"
@@ -36,13 +38,17 @@ export function InputsBlock() {
           }
         />
         <Input mono defaultValue="https://example.com/static/js/main.js" leading={<Icon icon={GlobeIcon} size={SLOT_ICON_SIZE.md} />} />
-        <Input
-          mono
-          invalid
-          defaultValue="*.example.[com"
-          leading={<Icon icon={WarningIcon} size={SLOT_ICON_SIZE.md} className="text-danger" />}
-          aria-label="Match rule"
-        />
+        <div className="flex flex-col gap-1">
+          <Input
+            mono
+            invalid
+            defaultValue="*.example.[com"
+            leading={<Icon icon={WarningIcon} size={SLOT_ICON_SIZE.md} className="text-danger" />}
+            aria-label="Match rule"
+            aria-describedby={errorId}
+          />
+          <FieldError id={errorId} message="Invalid regular expression: missing ]" />
+        </div>
         <Input disabled placeholder="Disabled" />
         <Input size="sm" placeholder="Small input" leading={<Icon icon={SearchIcon} size={SLOT_ICON_SIZE.sm} />} />
         <Input size="sm" mono placeholder="/api/*" trailing={<Badge>regex</Badge>} />

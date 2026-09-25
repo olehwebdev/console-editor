@@ -1,9 +1,11 @@
 import { join } from 'node:path';
 import type { ConsoleAction } from '../../../shared/types';
+import { parseInput } from '../parseInput';
 import { WriteQueue } from '../WriteQueue';
-import { actionFields } from './actionFields';
+import { actionPatchSchema } from './actionPatchSchema';
 import { ACTIONS_FILE, MAX_ACTIONS } from './constants';
 import { newAction } from './newAction';
+import { newActionSchema } from './newActionSchema';
 import { readActions } from './readActions';
 import { toAction } from './toAction';
 import type { StoredAction } from './types';
@@ -45,7 +47,7 @@ export class ActionStore {
   }
 
   async create(input: unknown): Promise<ConsoleAction> {
-    const fields = actionFields(input, true);
+    const fields = parseInput(newActionSchema, input, 'action');
     // The workspace active when it was asked for, even if another becomes active before it is written.
     const { workspaceId } = this;
     return this.mutate((actions) => {
@@ -57,7 +59,7 @@ export class ActionStore {
   }
 
   async update(id: unknown, patch: unknown): Promise<ConsoleAction> {
-    const fields = actionFields(patch, false);
+    const fields = parseInput(actionPatchSchema, patch, 'action');
     return this.mutate((actions) => {
       // Found in the latest state, so queued updates don't undo each other.
       const index = actions.findIndex((a) => a.id === id);

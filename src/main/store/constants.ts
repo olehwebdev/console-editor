@@ -17,6 +17,5 @@ export const DEFAULT_WORKSPACE_ICON: WorkspaceIcon = 'favicon';
 export const RULE_ID_BYTES = 4;
 export const RULE_ID = new RegExp(`^[0-9a-f]{${RULE_ID_BYTES * 2}}$`);
 
-/** Frame names a workspace keeps, and the longest frame address one is filed under. */
+/** Frame names a workspace keeps. */
 export const MAX_FRAME_NAMES = 200;
-export const MAX_FRAME_ADDRESS = 2048;

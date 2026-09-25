@@ -1,5 +1,6 @@
-import { compileMatcher, validateMatcher } from '@common/matcher';
+import { compileMatcher, urlMatcherSchema } from '@common/matcher';
 import type { UrlMatcher } from '@common/types';
+import { firstIssue } from '@common/validation';
 import { api, errorMessage } from '@/shared/api';
 import { TOAST_DURATION } from '@/shared/config';
 import { confirm } from '@/shared/ui/dialog';
@@ -9,7 +10,7 @@ import { useSettingsStore } from '@/entities/settings';
 
 /** Changes which URLs an override applies to. Invalid patterns are rejected; ones that miss the source URL need confirmation. */
 export async function applyMatch(id: string, match: UrlMatcher): Promise<boolean> {
-  const error = validateMatcher(match);
+  const error = firstIssue(urlMatcherSchema, match);
   if (error) {
     toast({ title: 'Invalid pattern', description: error, tone: 'danger' });
     return false;

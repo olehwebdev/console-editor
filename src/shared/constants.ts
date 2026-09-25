@@ -47,6 +47,9 @@ export const MAX_ACTION_NAME = 60;
 /** The most code an action keeps, in characters. */
 export const MAX_ACTION_CODE = 65_536;
 
+/** The longest frame address kept: a frame name is filed under one, and an action runs in one. */
+export const MAX_FRAME_ADDRESS = 2048;
+
 /** Environment variables the main process reads to configure itself. */
 export const ENV = {
   /** Keeps app data in this folder instead of the default one (tests, throwaway profiles). */

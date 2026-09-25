@@ -1,5 +1,4 @@
-import type { RuleInputOf } from '../../shared/rules';
-import type { Breakpoint, Override, OverrideMeta, Rule, RuleAction, SessionTab, WorkspaceColor, WorkspaceIcon } from '../../shared/types';
+import type { Breakpoint, Override, OverrideMeta, Rule, SessionTab, WorkspaceColor, WorkspaceIcon } from '../../shared/types';
 
 /** An override as kept here, with the workspace it belongs to. */
 export type StoredOverride = Override & { workspaceId: string };
@@ -12,12 +11,6 @@ export interface RuleState {
   rules: Map<string, StoredRule>;
   foreign: unknown[];
 }
-
-/** A rule input's own fields, beyond the action, matcher and types every rule has. */
-export type RuleFieldsOf<A extends RuleAction> = Omit<RuleInputOf<A>, 'action' | 'match' | 'resourceTypes'>;
-
-/** Per action, reads its own fields from untrusted input as fresh copies, throwing `Invalid rule: <field>`. */
-export type RuleFieldSanitizers = { [A in RuleAction]: (input: Record<string, unknown>) => RuleFieldsOf<A> };
 
 /** An override's entry in the index file: everything but its content. */
 export type IndexEntry = OverrideMeta & { workspaceId: string };

@@ -1,2 +1,2 @@
-export { applyRulePage, createRulePage, openNewRule, openRuleEditor, rebaseRuleDraft, RULE_SEEDS, rulePageId, setRuleDraft, type RuleSeeds } from './model';
+export { applyRulePage, createRulePage, openNewRule, openRuleEditor, rebaseRuleForm, RULE_SEEDS, rulePageId, type RuleSeeds } from './model';
 export { RuleForm, type RuleFormProps } from './ui/RuleForm';

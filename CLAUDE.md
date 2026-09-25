@@ -94,3 +94,12 @@ Other component rules:
 - Subscribe to narrow store slices and select stable references (a selector returning a new object re-renders forever; use `useShallow`).
 - Keys are stable ids; an index is fine only for static lists that never reorder.
 - Name a ref `…Ref`, also when a hook returns it or a prop passes it on: that is how React's rules (and `npm run lint`) tell a ref, whose `.current` may be written in handlers, from a value that must not change.
+
+## Forms and validation
+
+- **One Zod schema per shape, in `src/shared`** (`rules/`, `actions/`, `matcher/`), bound to its type in `src/shared/types` with `z.toZod<T>()` so the two can't drift. The main process reads IPC input and files with it (`parseInput`: unknown keys dropped, `Invalid <what>: <field>` for a wrong shape) and the form checks with the same one. Never write a second check of the same rule.
+- **Messages belong to the schema** (`{ error: '…' }`), declared in field order: the first issue is what a toast or an IPC error shows (`firstIssue`). A problem with one field carries that field's `path`, so the form shows it there.
+- **Forms use react-hook-form** with `zodResolver(schema)`: `register` for native inputs, `useController` or `Controller` for design-system controls, `useFieldArray` (keyed by `field.id`) for lists, `useWatch` (not `watch`) for values shown elsewhere. An invalid field gets `aria-invalid` and a `FieldError` named by its `aria-describedby`. Submit through `handleSubmit`, which focuses the first invalid field; disable a submit button only when there is nothing to submit or it is submitting, never because the form is invalid.
+- **Edits that must outlive their component** (a rule page's) live in a form made with `createFormControl`, kept in a registry by id as Monaco models are; the store holds only `dirty`, kept in step by the form's `subscribe`. Never copy form values into a store.
+- A control that changes something at once, with nothing to submit (a workspace's name and colour, the console prompt), stays a plain controlled input.
+- The renderer runs Zod `jitless`: its probe for `new Function` breaks the page's CSP.

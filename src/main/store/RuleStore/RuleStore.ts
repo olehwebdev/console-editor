@@ -1,10 +1,10 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { compareRuleAge, validateRuleInput } from '../../../shared/rules';
-import type { CreateRuleInput, Rule, RulePatch } from '../../../shared/types';
+import { compareRuleAge, ruleInputSchema } from '../../../shared/rules';
+import type { Rule, RulePatch } from '../../../shared/types';
 import { isRecord } from '../isRecord';
-import { sanitizeRuleInput } from '../sanitizeRuleInput';
-import { sanitizeRulePatch } from '../sanitizeRulePatch';
+import { parseInput } from '../parseInput';
+import { rulePatchSchema } from '../rulePatchSchema';
 import { toRule } from '../toRule';
 import type { RuleState, StoredRule } from '../types';
 import { WriteQueue } from '../WriteQueue';
@@ -80,17 +80,15 @@ export class RuleStore {
   }
 
   /** Adds an enabled rule to the workspace active when this is called, even if another is by the time it is written. */
-  async create(input: CreateRuleInput): Promise<StoredRule> {
-    const clean = sanitizeRuleInput(input);
-    const error = validateRuleInput(clean);
-    if (error) throw new Error(error);
+  async create(input: unknown): Promise<StoredRule> {
+    const clean = parseInput(ruleInputSchema, input, 'rule');
     const { workspaceId } = this;
     return this.mutate((state) => addRule(state, workspaceId, clean));
   }
 
   /** Edits a rule of any workspace, on top of the latest committed state (queued edits don't undo each other). */
   async update(id: string, patch: RulePatch): Promise<StoredRule> {
-    const clean = sanitizeRulePatch(patch);
+    const clean = parseInput(rulePatchSchema, patch, 'rule');
     return this.mutate((state) => patchRule(state, id, clean));
   }
 

@@ -17,7 +17,7 @@ export const useTabStore = create<TabStore>()((set) => ({
     })),
   openPage: (page) =>
     set((s) => ({
-      // Same id, same kind: the merge keeps the open page's place and what the new one leaves out (a draft).
+      // Same id, same kind: the merge keeps the open page's place and what the new one leaves out (whether it holds edits).
       pages: s.pages.some((p) => p.id === page.id) ? s.pages.map((p) => (p.id === page.id ? ({ ...p, ...page } as PageTab) : p)) : [...s.pages, page],
       activeId: page.id,
       diff: 'off',
@@ -54,12 +54,12 @@ export const useTabStore = create<TabStore>()((set) => ({
       return { pages, activeId, diff: 'off' };
     }),
   patch: (id, patch) => set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
-  setPageDraft: (id, draft) =>
+  setPageDirty: (id, dirty) =>
     set((s) => {
       const page = s.pages.find((p) => p.id === id);
-      // What's New has no drafts; an unchanged draft keeps the store (and its subscribers) still.
-      if (!page || page.page === 'whats-new' || page.draft === draft) return s;
-      return { pages: s.pages.map((p) => (p === page ? { ...page, draft } : p)) };
+      // What's New holds no edits; an unchanged flag keeps the store (and its subscribers) still.
+      if (!page || page.page === 'whats-new' || !!page.dirty === dirty) return s;
+      return { pages: s.pages.map((p) => (p === page ? { ...page, dirty } : p)) };
     }),
   setDiff: (diff) => set({ diff }),
 }));
