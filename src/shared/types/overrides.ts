@@ -35,6 +35,11 @@ export interface ResponseSettings {
   delayMs: number;
   /** Changes to the upstream headers, in order, as a header rule's (SPEC §6.3). */
   headers: HeaderEdit[];
+  /**
+   * Whether the request still goes to the server (answered once its response arrives). Off, it is
+   * answered before it is sent: a POST changes nothing.
+   */
+  send: boolean;
 }
 
 export interface OverrideMeta {

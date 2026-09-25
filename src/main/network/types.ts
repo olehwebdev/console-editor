@@ -88,3 +88,12 @@ export interface ExtraInfo {
   headers: Record<string, string>;
   statusCode?: number;
 }
+
+/** What the page's held requests report to. */
+export interface HeldRequestsOptions {
+  /** The page's transport: a held request the page gives up on is let go. */
+  transport: CdpTransport;
+  send(event: AppEvent): void;
+  /** Marks a request's row as held (by this id), or not any more (undefined). */
+  mark(networkId: string, heldId: string | undefined): void;
+}

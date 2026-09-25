@@ -21,6 +21,7 @@ import { phraseFor } from './phraseFor';
 import { reportError } from './reportError';
 import { reportUpstreamChange } from './reportUpstreamChange';
 import { serveDocument } from './serveDocument';
+import { stopAtBreakpoint } from './stopAtBreakpoint';
 import type { PausedRequestContext, RequestPausedParams, RequestStage } from './types';
 
 /**
@@ -66,8 +67,10 @@ export class PausedRequestHandler {
     // With the page bypassing service workers, a service worker's other requests are its own fetches (a
     // precache, say): an edit served there would be stored in its caches and outlive the override.
     if (worker?.isServiceWorker && opts.getSettings().bypassServiceWorker && !workerScript) return continueRequest(cdp, p.requestId);
-    const rules = findResponseRules(opts.getRules(), p.request.url, p.resourceType, this.ruleMatchers);
     const request = pausedRequestOf(p, frames.urlOf(p.frameId));
+    // A breakpoint holds it before anything else answers it; sent on as it was, it goes on from here.
+    if (await stopAtBreakpoint(this.ctx, this.ruleMatchers, p, 'response', request)) return;
+    const rules = findResponseRules(opts.getRules(), p.request.url, p.resourceType, this.ruleMatchers);
     const override = isPreflight(request) ? undefined : matcher.find(p.request.url, p.resourceType, matchedRequestOf(request));
     if (worker?.isServiceWorker && workerScript) worker.paused(p.request.url, p.resourceType, matcher.version(p.request.url, p.resourceType));
     const listed = worker?.pausesScripts && workerScript ? worker : undefined;

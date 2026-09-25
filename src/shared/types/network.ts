@@ -37,6 +37,8 @@ export interface NetworkRequest {
   worker?: { type: WorkerType; url: string };
   /** The override that answered it. */
   overrideId?: string;
+  /** Set while a breakpoint holds it: the held request's id. */
+  heldId?: string;
   /** A service worker answered it, or the HTTP cache: it never reached the network. */
   fromServiceWorker?: boolean;
   fromCache?: boolean;

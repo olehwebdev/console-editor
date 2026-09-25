@@ -32,3 +32,6 @@ export const WORKER_TARGETS: ReadonlyMap<string, WorkerType> = new Map<string, W
 
 /** Where a request's time comes from: CDP gives seconds. */
 export const MS_PER_SECOND = 1000;
+
+/** A held request's id: this prefix and a counter (unique for the app's run). */
+export const HELD_ID_PREFIX = 'held-';

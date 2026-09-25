@@ -2,3 +2,4 @@ export { ANY_METHOD, DEFAULT_REQUEST, DEFAULT_RESPONSE, GET_METHOD, MAX_DELAY_MS
 export { graphqlOperation } from './graphqlOperation';
 export { validateRequestMatch } from './validateRequestMatch';
 export { validateResponseSettings } from './validateResponseSettings';
+export { withSend } from './withSend';

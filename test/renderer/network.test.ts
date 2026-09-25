@@ -84,7 +84,7 @@ function responseOverride(extra: Partial<OverrideMeta> = {}): OverrideMeta {
     enabled: true,
     originalHash: null,
     request: { method: 'POST', operation: 'GetCart' },
-    response: { status: 200, delayMs: 0, headers: [] },
+    response: { status: 200, delayMs: 0, headers: [], send: true },
     createdAt: seq,
     updatedAt: seq,
     ...extra,
@@ -271,7 +271,7 @@ describe('opening and saving a response', () => {
     await openResponse(req);
 
     const [tab] = useTabStore.getState().tabs;
-    expect(tab).toMatchObject({ url: req.url, kind: 'Fetch', originalHash: null, request: { method: 'POST', operation: 'GetCart' }, response: { status: 200, delayMs: 0, headers: [] } });
+    expect(tab).toMatchObject({ url: req.url, kind: 'Fetch', originalHash: null, request: { method: 'POST', operation: 'GetCart' }, response: { status: 200, delayMs: 0, headers: [], send: true } });
     expect(useTabStore.getState().activeId).toBe(tab!.id);
     expect(setModelSchema).toHaveBeenCalledExactlyOnceWith(expect.any(String), { type: 'object', properties: { items: { type: 'array', items: { type: 'number', examples: [1] } } } });
 
@@ -301,9 +301,9 @@ describe('opening and saving a response', () => {
     api.getNetworkResponseBody.mockResolvedValueOnce({ available: true, binary: false, text: '{"ok":true}' });
     await openResponse(request({ url: 'https://api.test/graphql', method: 'POST', operation: 'GetCart' }));
     const tabId = useTabStore.getState().tabs[0]!.id;
-    setPendingRule(tabId, { request: { method: 'POST', operation: 'GetCart' }, response: { status: 503, delayMs: 1500, headers: [{ operation: 'set', name: 'Retry-After', value: '5' }] } });
+    setPendingRule(tabId, { request: { method: 'POST', operation: 'GetCart' }, response: { status: 503, delayMs: 1500, headers: [{ operation: 'set', name: 'Retry-After', value: '5' }], send: true } });
 
-    const created = responseOverride({ id: 'o-new', response: { status: 503, delayMs: 1500, headers: [{ operation: 'set', name: 'Retry-After', value: '5' }] } });
+    const created = responseOverride({ id: 'o-new', response: { status: 503, delayMs: 1500, headers: [{ operation: 'set', name: 'Retry-After', value: '5' }], send: true } });
     api.createOverride.mockResolvedValueOnce(created);
     await saveTab(tabId);
 
@@ -313,7 +313,7 @@ describe('opening and saving a response', () => {
         sourceUrl: 'https://api.test/graphql',
         originalHash: null,
         request: { method: 'POST', operation: 'GetCart' },
-        response: { status: 503, delayMs: 1500, headers: [{ operation: 'set', name: 'Retry-After', value: '5' }] },
+        response: { status: 503, delayMs: 1500, headers: [{ operation: 'set', name: 'Retry-After', value: '5' }], send: true },
       }),
     );
     const [tab] = useTabStore.getState().tabs;
@@ -325,7 +325,7 @@ describe('opening and saving a response', () => {
 
 describe("editing a response override's rule", () => {
   it('shows numbers as typed, and turns an empty one into NaN, which only equals itself', () => {
-    const rule = ruleOf(responseOverride({ response: { status: 404, delayMs: 250, headers: [{ operation: 'remove', name: 'ETag', value: '' }] } }));
+    const rule = ruleOf(responseOverride({ response: { status: 404, delayMs: 250, headers: [{ operation: 'remove', name: 'ETag', value: '' }], send: true } }));
     const form = toForm(rule);
     expect(form).toMatchObject({ method: 'POST', operation: 'GetCart', status: '404', delay: '250', rowKeys: ['saved-0'] });
     expect(sameResponseRule(fromForm(form), rule)).toBe(true);
@@ -339,18 +339,18 @@ describe("editing a response override's rule", () => {
   });
 
   it("gives the defaults to an override that doesn't say", () => {
-    expect(ruleOf({})).toEqual({ request: { method: '*', operation: '' }, response: { status: 200, delayMs: 0, headers: [] } });
+    expect(ruleOf({})).toEqual({ request: { method: '*', operation: '' }, response: { status: 200, delayMs: 0, headers: [], send: true } });
   });
 
   it('marks the fields it can’t be saved with, as they are typed', () => {
     const rule = ruleOf(responseOverride());
     expect(invalidFields(rule)).toEqual({ operation: false, status: false, delay: false });
-    expect(invalidFields({ request: { method: 'POST', operation: '1bad' }, response: { status: 42, delayMs: 60_001, headers: [] } })).toEqual({ operation: true, status: true, delay: true });
+    expect(invalidFields({ request: { method: 'POST', operation: '1bad' }, response: { status: 42, delayMs: 60_001, headers: [], send: true } })).toEqual({ operation: true, status: true, delay: true });
   });
 
   it('applies a valid rule to the override, and reloads the page when saving does', async () => {
     const override = responseOverride({ id: 'o1' });
-    const rule = { request: { method: 'GET', operation: '' }, response: { status: 500, delayMs: 0, headers: [] } };
+    const rule = { request: { method: 'GET', operation: '' }, response: { status: 500, delayMs: 0, headers: [], send: true } };
     api.updateOverride.mockResolvedValueOnce({ ...override, ...rule });
     setSettings({ autoReloadOnSave: true });
 
@@ -361,8 +361,8 @@ describe("editing a response override's rule", () => {
   });
 
   it('turns down an invalid rule without asking the main process', async () => {
-    expect(await applyResponse('o1', { request: { method: 'get', operation: '' }, response: { status: 200, delayMs: 0, headers: [] } })).toBe(false);
-    expect(await applyResponse('o1', { request: { method: 'GET', operation: '' }, response: { status: Number.NaN, delayMs: 0, headers: [] } })).toBe(false);
+    expect(await applyResponse('o1', { request: { method: 'get', operation: '' }, response: { status: 200, delayMs: 0, headers: [], send: true } })).toBe(false);
+    expect(await applyResponse('o1', { request: { method: 'GET', operation: '' }, response: { status: Number.NaN, delayMs: 0, headers: [], send: true } })).toBe(false);
     expect(api.updateOverride).not.toHaveBeenCalled();
     expect(toasts().map((t) => t.tone)).toEqual(['danger', 'danger']);
   });

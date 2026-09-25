@@ -1,7 +1,7 @@
 import { CDP_WILDCARD } from '../../../shared/matcher';
 import { RESPONSE_KIND } from '../../../shared/overrides';
-import type { ResourceKind } from '../../../shared/types';
-import type { FetchPattern } from './types';
+import type { BreakpointStage, ResourceKind } from '../../../shared/types';
+import type { FetchPattern, RequestStage } from './types';
 
 /** The kind, and CDP resource type, of HTML documents: only document overrides answer them, and SRI is stripped from them. */
 export const DOCUMENT_KIND = 'Document' satisfies ResourceKind;
@@ -66,3 +66,9 @@ export const WORKER_SCRIPT_PATTERNS: readonly FetchPattern[] = [
 
 /** The status a blocked request is listed with: the page got no response at all. */
 export const BLOCKED_STATUS = 0;
+
+/** The `Fetch` stage each breakpoint stage pauses at. */
+export const BREAKPOINT_PAUSE_STAGE: Record<BreakpointStage, RequestStage> = { request: 'Request', response: 'Response' };
+
+/** Response types a held response's body is shown as text for (a JSON API's, most often). */
+export const TEXT_BODY = /^text\/|json|xml|javascript|graphql|x-www-form-urlencoded/i;

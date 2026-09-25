@@ -1,4 +1,4 @@
-import { DEFAULT_REQUEST, DEFAULT_RESPONSE, RESPONSE_KIND } from '../../../shared/overrides';
+import { DEFAULT_REQUEST, DEFAULT_RESPONSE, RESPONSE_KIND, withSend } from '../../../shared/overrides';
 import type { OverrideMeta } from '../../../shared/types';
 import { responseFieldsOf, type ResponseFields } from './responseFieldsOf';
 
@@ -11,7 +11,8 @@ export function storedResponseFields(meta: OverrideMeta): ResponseFields {
   if (meta.kind !== RESPONSE_KIND) return {};
   const fallback = { request: { ...DEFAULT_REQUEST }, response: { ...DEFAULT_RESPONSE, headers: [] } };
   try {
-    return responseFieldsOf(meta.kind, meta.request, meta.response);
+    // Saved before `send` existed: those were always sent.
+    return responseFieldsOf(meta.kind, meta.request, meta.response && withSend(meta.response));
   } catch {
     try {
       return responseFieldsOf(meta.kind, meta.request, fallback.response);

@@ -24,6 +24,7 @@ export function responseFieldsOf(kind: ResourceKind, request: RequestMatch | und
       status: nextResponse.status,
       delayMs: nextResponse.delayMs,
       headers: nextResponse.headers.map(({ operation, name, value }) => ({ operation, name, value })),
+      send: nextResponse.send,
     },
   };
 }

@@ -1,5 +1,6 @@
-import type { EngineEvent, Override, Rule, Settings, WorkerType } from '../../../../shared/types';
+import type { Breakpoint, EngineEvent, HeldAction, Override, Rule, Settings, WorkerType } from '../../../../shared/types';
 import type { CdpTransport } from '../../cdp';
+import type { HoldInput } from './holding';
 import type { ServiceWorkerState } from './workers';
 
 export interface EngineOptions {
@@ -9,6 +10,15 @@ export interface EngineOptions {
   /** The active workspace's rules, oldest first. Called on every paused request: a cheap in-memory read. */
   getRules(): readonly Rule[];
   getSettings(): Settings;
+  /** The active workspace's breakpoints. Called on every paused request, and when patterns are computed. */
+  getBreakpoints?(): readonly Breakpoint[];
+  /**
+   * Holds a request a breakpoint stopped until the user decides what to do with it. Resolves undefined
+   * once it can't be answered any more (the page gave up on it, or its session went). `owner` is the
+   * engine that paused it: `releaseHeld(owner)` lets go of everything it holds.
+   */
+  hold?(request: HoldInput, owner: object): Promise<HeldAction | undefined>;
+  releaseHeld?(owner: object): void;
   emit(event: EngineEvent): void;
   /** Fetches a URL outside the page (used when the page no longer holds a body). */
   fallbackFetch?(url: string): Promise<string>;

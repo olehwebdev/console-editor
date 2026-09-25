@@ -1,4 +1,5 @@
 import type { ConsoleAction } from './actions';
+import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { MenuCommand } from './menu';
 import type { NetworkRequest } from './network';
@@ -56,6 +57,8 @@ export type AppEvent =
   /** Requests new to the log, or changed (a response arrived, it finished or failed), oldest first. */
   | { type: 'network-requests'; requests: NetworkRequest[] }
   | { type: 'network-cleared' }
+  /** The requests breakpoints hold now, oldest first: one was stopped, or let go (by you, or the page gave up on it). */
+  | { type: 'held-requests'; held: HeldRequest[] }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };

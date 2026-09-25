@@ -1,5 +1,6 @@
 import type { EngineEvent, NetworkBody, NetworkRequest, NetworkRequestDetail } from '../../shared/types';
 import { NETWORK_EVENT_HANDLERS } from './events';
+import { HeldRequests } from './HeldRequests';
 import { NetworkBatch } from './NetworkBatch';
 import { readRequestBody } from './readRequestBody';
 import { readResponseBody } from './readResponseBody';
@@ -17,10 +18,13 @@ export class NetworkLog {
   private readonly batch: NetworkBatch;
   private readonly ctx: NetworkLogContext;
   private readonly disposers: Array<() => void> = [];
+  /** The requests breakpoints hold now: their rows say so. */
+  readonly held: HeldRequests;
 
   constructor(private readonly opts: NetworkLogOptions) {
     this.batch = new NetworkBatch(opts.send, (id) => this.log.get(id)?.row);
     this.ctx = { log: this.log, batch: this.batch, page: { load: 0 }, workers: new Map() };
+    this.held = new HeldRequests({ transport: opts.transport, send: opts.send, mark: (networkId, heldId) => this.markHeld(networkId, heldId) });
     for (const [event, handler] of NETWORK_EVENT_HANDLERS) {
       this.disposers.push(opts.transport.on(event, (params, sessionId) => handler(this.ctx, params, sessionId)));
     }
@@ -62,7 +66,16 @@ export class NetworkLog {
 
   dispose(): void {
     for (const dispose of this.disposers.splice(0)) dispose();
+    this.held.stop();
     this.batch.stop();
+  }
+
+  private markHeld(networkId: string, heldId: string | undefined): void {
+    const entry = this.log.findAnywhere(networkId);
+    if (!entry) return;
+    if (heldId) entry.row.heldId = heldId;
+    else delete entry.row.heldId;
+    this.batch.changed(entry.row.id);
   }
 
   private entry(id: unknown): TrackedRequest {

@@ -1,4 +1,5 @@
 import type { ActionInput, ActionPatch, ConsoleAction } from './actions';
+import type { HeldAction, HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
 import type { AppEvent } from './events';
 import type { NetworkBody, NetworkRequest, NetworkRequestDetail } from './network';
@@ -100,6 +101,10 @@ export interface ConsoleEditorApi {
   /** A response's body, read through the session that received it; never an open event stream's. */
   getNetworkResponseBody(id: string): Promise<NetworkBody>;
   clearNetworkLog(): Promise<void>;
+  /** The requests breakpoints hold now, oldest first. */
+  listHeldRequests(): Promise<HeldRequest[]>;
+  /** Lets a held request go, as `action` says. Throws for one no longer held (answered, or given up by the page). */
+  resumeHeldRequest(id: string, action: HeldAction): Promise<void>;
 
   /** The active workspace's page and tabs. */
   getSession(): Promise<SessionState>;

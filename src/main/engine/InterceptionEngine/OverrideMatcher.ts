@@ -3,6 +3,7 @@ import type { MatchType, Override } from '../../../shared/types';
 import { answersKind } from './answersKind';
 import { VERSION_SEPARATOR } from './constants';
 import { requestMatches } from './requestMatches';
+import { sendsRequest } from './sendsRequest';
 import { specificity } from './specificity';
 import type { EngineOptions, MatchedRequest } from './types';
 
@@ -36,6 +37,19 @@ export class OverrideMatcher {
       if (!best || this.outranks(o, best)) best = o;
     }
     return best;
+  }
+
+  /**
+   * The enabled response override that answers `url` for `method` without sending it, whatever GraphQL
+   * operation it names: what a CORS preflight asking to send `method` is answered for.
+   */
+  unsentFor(url: string, resourceType: string, method: string): Override | undefined {
+    // A preflight carries no body to name an operation: only the method is asked of the override.
+    const preflight: MatchedRequest = { method, operation: () => undefined };
+    return this.opts.getOverrides().find((o) => {
+      if (!o.enabled || sendsRequest(o) || !answersKind(o.kind, resourceType)) return false;
+      return requestMatches(o.request && { method: o.request.method, operation: '' }, preflight) && this.matcherFor(o)(url);
+    });
   }
 
   /** The version of the override that would serve `url` now (`id@updatedAt`), or '' for the live file. */

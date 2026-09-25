@@ -55,7 +55,7 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       enabled: true,
       originalHash: null,
       request,
-      response: { status: 200, delayMs: 0, headers: [], ...response },
+      response: { status: 200, delayMs: 0, headers: [], send: true, ...response },
       createdAt: 0,
       updatedAt: 0,
       content,

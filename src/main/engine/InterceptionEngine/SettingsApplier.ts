@@ -17,7 +17,7 @@ export class SettingsApplier implements SessionSettings {
 
   constructor(
     private readonly cdp: CdpTransport,
-    private readonly opts: Pick<EngineOptions, 'getOverrides' | 'getRules' | 'getSettings'>,
+    private readonly opts: Pick<EngineOptions, 'getOverrides' | 'getRules' | 'getSettings' | 'getBreakpoints'>,
     private readonly matcher: OverrideMatcher,
   ) {
     this.sriGuard = new SriGuard(cdp);
@@ -50,7 +50,7 @@ export class SettingsApplier implements SessionSettings {
 
   private async updatePatterns(): Promise<void> {
     this.matcher.clear();
-    const patterns = computeFetchPatterns(this.opts.getOverrides(), this.opts.getRules(), this.opts.getSettings());
+    const patterns = computeFetchPatterns(this.opts.getOverrides(), this.opts.getRules(), this.opts.getSettings(), this.opts.getBreakpoints?.());
     if (patterns.length === 0) {
       if (this.fetchEnabled) {
         await this.cdp.send(CDP.Fetch.disable);
