@@ -18,6 +18,12 @@ export const MAX_CONSOLE_ENTRIES = 5000;
 /** The longest name a frame can be given in the console. */
 export const MAX_FRAME_NAME = 40;
 
+/** The longest name an action can be given. */
+export const MAX_ACTION_NAME = 60;
+
+/** The most code an action keeps, in characters. */
+export const MAX_ACTION_CODE = 65_536;
+
 /** Environment variables the main process reads to configure itself. */
 export const ENV = {
   /** Keeps app data in this folder instead of the default one (tests, throwaway profiles). */

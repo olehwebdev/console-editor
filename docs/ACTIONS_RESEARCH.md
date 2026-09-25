@@ -19,7 +19,7 @@
 | Frame names | `Workspace.frameNames`, per workspace, set with the console's "Name this frame" | Actions show the target by the name you gave it |
 | Picking a target | `widgets/console-panel`: `FramePicker`, `resolveTarget` (the picked frame, else the first with its key) | The same picker and rule. `resolveTarget` moves down to `entities/frame` so a feature can use it |
 | Prompt history | `features/run-in-frame`: localStorage, per workspace | A source for "Save as action" |
-| Second windows (PR #12, not merged) | `app/model/views/` (`APP_VIEWS` by hash, each with its own `start` bridge), `loadEditor(win, hash)`, `registerIpc` with `fromEditor`/`fromPageUi` guards, `installMenu/editorCommand` (brings the editor forward), `PageWindowStore` + `placePageWindow` + `trackPlacement` | The Actions window is one more view, guard, store entry and menu item |
+| Second windows (PR #12, merged since) | `app/model/views/` (`APP_VIEWS` by hash, each with its own `start` bridge), `loadEditor(win, hash)`, `registerIpc` with `fromEditor`/`fromPageUi` guards, `installMenu/editorCommand` (brings the editor forward), `PageWindowStore` + `placePageWindow` + `trackPlacement` | The Actions window is one more view, guard, store entry and menu item |
 
 The roadmap already asks for this: SPEC §11 (M4) lists "sending a message to a frame without writing code … snippets and scenarios" under the console.
 
@@ -62,7 +62,7 @@ In the main process, in `<userData>/workspace/actions.json` (`{ version: 1, acti
 
 ### 3.3 Running an action
 
-`features/run-action`: find the frame (§3.1), call `api.evaluateInFrame(frame.id, code)`, and keep the result per action id in a small store of its own.
+`features/action/run`: find the frame (§3.1), call `api.evaluateInFrame(frame.id, code)`, and keep the result per action id in a small store of its own.
 
 - The console shows the action's code and its result like anything else you run, so the panel only has to summarise the outcome: a ✓ or ✕ and the result's preview text, with an expandable value (`getConsoleProperties` works from any window, since the handles live in main).
 - Running an action doesn't add its code to the prompt's history. Runs don't queue: while an action is running, its button shows a spinner and ignores clicks.
@@ -134,8 +134,8 @@ src/main/WorkspaceController.ts        actions-changed on switch; the workspace'
 src/renderer/src/
   entities/action/                     useActionStore (setAll from actions-changed)
   entities/frame/lib/resolveTarget     moved from widgets/console-panel; adds the name fallback
-  features/run-action/                 runAction, useActionResults
-  features/edit-action/                createAction, updateAction, deleteAction, ActionForm
+  features/action/run/                 runAction, useActionRuns
+  features/action/edit/                saveAction, deleteAction, duplicateAction, ActionForm
   features/detach-actions/             detachActions, attachActions
   widgets/actions-panel/               ActionsPanel, ActionRow, ActionResult, the not-recording and empty states
   widgets/console-panel/               "Save as action" on input rows
@@ -156,8 +156,8 @@ src/renderer/src/
 
 ## 6. Phases
 
-1. **Actions, docked:** store, IPC, `actions-changed`, the rail view, the form, running and results, "Save as action", and the palette. This is useful on its own, and it doesn't wait on #12.
-2. **Detach:** on top of #12 once it's merged, generalising its placement store and helpers rather than copying them.
+1. **Actions, docked:** store, IPC, `actions-changed`, the rail view, the form, running and results, "Save as action", and the palette. This is useful on its own, and it doesn't wait on #12. *Built: SPEC §6.8.*
+2. **Detach:** on top of #12 (now merged), generalising its placement store and helpers rather than copying them.
 3. **Parameters and "send a message".**
 4. **Scenarios, and export/import with U13.**
 

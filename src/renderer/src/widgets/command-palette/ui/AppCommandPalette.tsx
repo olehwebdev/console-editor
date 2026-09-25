@@ -6,11 +6,13 @@ import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
+import { useActionStore } from '@/entities/action';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { useFrameStore } from '@/entities/frame';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
-import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
+import { selectActiveWorkspace, useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { attachPage, detachPage } from '@/features/detach-page';
 import { formatTab } from '@/features/format-document';
@@ -19,6 +21,8 @@ import { openOverride, openResource } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
 import { setOverrideEnabled } from '@/features/toggle-override';
 import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
+import { actionGroup } from '../model/actionGroup';
+import { NO_NAMES } from '../model/constants';
 import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 
@@ -35,10 +39,11 @@ export interface AppCommandPaletteProps {
   onSwitchWorkspace(id: string): void;
   onNewWorkspace(): void;
   onToggleConsole(): void;
+  onNewAction(): void;
 }
 
 /** Ctrl/Cmd+K: jump to any file the page loaded, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole }: AppCommandPaletteProps) {
+export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onNewAction }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
@@ -46,6 +51,9 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
   const detached = usePageStore((s) => s.page.detached);
+  const frameNames = useWorkspaceStore((s) => selectActiveWorkspace(s)?.frameNames ?? NO_NAMES);
+  const savedActions = useActionStore((s) => s.actions);
+  const frames = useFrameStore((s) => s.frames);
 
   const resources = usePageFiles(open);
   const files = useMemo<CommandGroup>(
@@ -125,8 +133,9 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
         { id: 'workspace-new', label: 'New workspace', icon: icons.AddIcon, keywords: ['workspace', 'site', 'project'], onSelect: onNewWorkspace },
       ],
     };
-    return [files, overrideGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, overrides, active, workspaces, activeWorkspaceId, detached, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
+    const runGroup = actionGroup(savedActions, frames, frameNames, onNewAction);
+    return [files, overrideGroup, runGroup, workspaceGroup, actions].filter((g) => g.items.length);
+  }, [open, files, overrides, active, workspaces, activeWorkspaceId, detached, frameNames, savedActions, frames, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onNewAction]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

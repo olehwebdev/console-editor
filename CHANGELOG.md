@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - **The website in a window of its own.** Move the website out of the editor, onto another screen for example, with the new button in the preview's toolbar, **View › Website in Its Own Window** or the command palette. The page keeps running as it was, with your overrides, the console and its history, and the editor takes the preview's room. Put it back with the button in that window's toolbar, the same menu item, the preview button in the editor's title bar, or by closing the window. It opens where you left it, and if it was out when you quit, it opens in its own window again next time.
+- **Actions: code you run in a frame, one click away.** Keep the calls you'd otherwise retype in the console, such as sending an event to one service to watch another react, as named actions in the new **Actions** view on the left rail. Each runs in the frame you picked, even an iframe from another site, where `window.top.frames['cart'].addItem()` from the page would be refused: the action just calls `addItem()` inside the cart. Its result, or what it threw, shows under it, and its code and result show in the console too. Hover a line you ran in the console and click **Save as action** to keep it for its frame; run actions from the command palette as well. Each workspace has its own actions. Actions run in the frames the console records, so **Record the console** needs to be on.
 
 ### Fixed
 

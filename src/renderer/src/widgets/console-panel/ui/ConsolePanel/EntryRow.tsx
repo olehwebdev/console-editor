@@ -7,9 +7,10 @@ import { FrameChip } from '@/entities/frame';
 import { LEVEL_ROW, SOURCE_MARK } from './constants';
 import { formatTime } from './formatTime';
 import { NavigationRow } from './NavigationRow';
+import { SaveActionButton } from './SaveActionButton';
 import { SourceLink } from './SourceLink';
 import { StackView } from './StackView';
-import type { FrameInfo } from './types';
+import type { FrameInfo, SaveAsAction } from './types';
 import { ValueView } from './ValueView';
 
 export interface EntryRowProps {
@@ -17,10 +18,11 @@ export interface EntryRowProps {
   frame: FrameInfo | null;
   /** When the last code you ran before this row ran (null if none): the row shows how long after it came. */
   since: number | null;
+  onSaveAsAction: SaveAsAction;
 }
 
 /** One console row: when, which frame, what, and where from; errors and warnings tinted, a stack on request. */
-export function EntryRow({ entry, frame, since }: EntryRowProps) {
+export function EntryRow({ entry, frame, since, onSaveAsAction }: EntryRowProps) {
   const [stackOpen, setStackOpen] = useState(false);
   if (entry.source === 'navigation') return <NavigationRow entry={entry} frame={frame} />;
   const mark = SOURCE_MARK[entry.source];
@@ -31,7 +33,7 @@ export function EntryRow({ entry, frame, since }: EntryRowProps) {
       data-testid="console-row"
       data-source={entry.source}
       data-level={entry.level}
-      className={cn('flex min-w-0 flex-col border-b border-line/60 px-2 py-[3px]', LEVEL_ROW[entry.level])}
+      className={cn('group flex min-w-0 flex-col border-b border-line/60 px-2 py-[3px]', LEVEL_ROW[entry.level])}
     >
       <div className="flex min-w-0 items-start gap-2">
         <span className="shrink-0 tabular-nums text-fg-subtle" title={since === null ? undefined : 'Since the code you last ran'}>
@@ -58,6 +60,7 @@ export function EntryRow({ entry, frame, since }: EntryRowProps) {
           ))}
         </div>
         {location ? <SourceLink location={location} /> : null}
+        {entry.source === 'input' ? <SaveActionButton entry={entry} onSave={onSaveAsAction} /> : null}
       </div>
       {stack && stackOpen ? <StackView stack={stack} /> : null}
     </div>
