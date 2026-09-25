@@ -1,3 +1,4 @@
+import { setModelSchema } from '@/shared/monaco';
 import { entries } from './entries';
 
 export function disposeTabModel(tabId: string): void {
@@ -5,5 +6,7 @@ export function disposeTabModel(tabId: string): void {
   if (!entry) return;
   entries.delete(tabId);
   entry.disposeListener?.dispose();
+  // A response tab's schema goes with it.
+  if (entry.schemaUri) setModelSchema(entry.schemaUri, undefined);
   entry.model.dispose();
 }

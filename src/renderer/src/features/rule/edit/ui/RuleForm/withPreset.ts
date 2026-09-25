@@ -1,6 +1,5 @@
 import type { HeaderEdit } from '@common/types';
-import type { HeaderPreset } from '@/entities/rule';
-import { nextRowKey } from '../../model/nextRowKey';
+import { type HeaderPreset, nextRowKey } from '@/entities/rule';
 
 /** Header rows with a preset's changes added at the end; blank rows (the one a new rule starts with) make way for them. */
 export function withPreset(headers: readonly HeaderEdit[], rowKeys: readonly string[], preset: HeaderPreset): { headers: HeaderEdit[]; rowKeys: string[] } {

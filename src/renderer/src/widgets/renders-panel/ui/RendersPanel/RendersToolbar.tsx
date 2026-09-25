@@ -7,12 +7,13 @@ import { IconButton } from '@/shared/ui/icon-button';
 import { useRenderLog } from '@/entities/inspector';
 import { clearRenders, recordRenders } from '@/features/inspect/renders';
 
-/** The Renders log's header: the panel's tabs, recording on or off, clearing, and closing the panel. */
-export function RendersToolbar({ title, onClose }: { title: ReactNode; onClose(): void }) {
+/** The Renders log's header: the pane's tabs, recording on or off, clearing, and closing the panel. */
+export function RendersToolbar({ heading, onClose }: { heading: ReactNode; onClose(): void }) {
   const recording = useRenderLog((s) => s.recording);
   return (
     <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-line px-2">
-      <div className="min-w-0 flex-1">{title}</div>
+      {/* The heading (the pane's tabs) keeps its width. */}
+      <div className="flex h-full flex-auto items-center">{heading}</div>
       <Button size="sm" variant={recording ? 'secondary' : 'ghost'} onClick={() => void recordRenders(!recording)} aria-pressed={recording} data-testid="renders-record">
         <span className={cn('size-2 rounded-full', recording ? 'animate-pulse bg-danger' : 'bg-fg-subtle')} />
         {recording ? 'Recording' : 'Record'}

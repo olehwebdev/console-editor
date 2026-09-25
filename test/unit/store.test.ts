@@ -194,6 +194,17 @@ describe('SettingsStore', () => {
     expect(b.get()).toEqual({ ...DEFAULT_SETTINGS, bypassCSP: true });
   });
 
+  it('keeps a network speed it knows, and drops one it does not or a switch that is not on or off', async () => {
+    const path = join(dir, 'settings.json');
+    const a = new SettingsStore(path);
+    await a.load();
+    await a.update({ throttling: 'slow-4g', captureConsole: 'yes' as never });
+    await a.update({ throttling: 'dial-up' as never });
+    const b = new SettingsStore(path);
+    await b.load();
+    expect(b.get()).toEqual({ ...DEFAULT_SETTINGS, throttling: 'slow-4g' });
+  });
+
   it('applies overlapping updates one after the other', async () => {
     const path = join(dir, 'settings.json');
     const s = new SettingsStore(path);

@@ -4,5 +4,5 @@ export { fitPanels } from './fitPanels';
 export { selectPreviewWidth } from './selectPreviewWidth';
 export { selectSettledPreviewWidth } from './selectSettledPreviewWidth';
 export { selectSidebarWidth } from './selectSidebarWidth';
-export type { PanelWidths } from './types';
+export { BOTTOM_VIEWS, type BottomView, type PanelWidths } from './types';
 export { useLayout } from './useLayout';

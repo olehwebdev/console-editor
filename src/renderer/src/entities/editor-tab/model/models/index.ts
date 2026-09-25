@@ -1,6 +1,7 @@
 export { createSourceModel } from './createSourceModel';
 export { createTabModel } from './createTabModel';
 export { disposeTabModel } from './disposeTabModel';
+export { editTabText } from './editTabText';
 export { getTabBase } from './getTabBase';
 export { getTabModel } from './getTabModel';
 export { markTabSaved } from './markTabSaved';

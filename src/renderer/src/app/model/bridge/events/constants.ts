@@ -11,3 +11,6 @@ export const RULE_MISSED_TOAST_ID_PREFIX = 'rule-missed:';
 
 /** Like the override's: it explains a cause and offers a reload. */
 export const RULE_MISSED_TOAST_MS = TOAST_DURATION.actionable;
+
+/** One "couldn't patch" toast per override: a repeat replaces it in place. */
+export const OVERRIDE_UNPATCHED_TOAST_ID_PREFIX = 'unpatched:';

@@ -1,10 +1,8 @@
-import { DEFAULT_SETTINGS, type Settings } from '../../shared/types';
+import type { Settings } from '../../shared/types';
+import { SETTING_CHECKS } from './settingChecks';
 
-/** Keeps only known boolean settings, so a corrupt or old file can't inject junk. */
+/** Keeps only known settings holding what they may, so a corrupt or old file can't inject junk. */
 export function pickKnown(input: Partial<Settings>): Partial<Settings> {
-  const out: Partial<Settings> = {};
-  for (const key of Object.keys(DEFAULT_SETTINGS) as Array<keyof Settings>) {
-    if (typeof input[key] === 'boolean') out[key] = input[key];
-  }
-  return out;
+  const values = (input ?? {}) as Record<string, unknown>;
+  return Object.fromEntries(Object.entries(SETTING_CHECKS).flatMap(([key, valid]) => (valid(values[key]) ? [[key, values[key]]] : []))) as Partial<Settings>;
 }

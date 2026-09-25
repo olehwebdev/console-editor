@@ -78,11 +78,20 @@ async function withFrames() {
 const sent = <T extends AppEvent['type']>(type: T) => events.filter((e): e is Extract<AppEvent, { type: T }> => e.type === type);
 const rows = () => sent('console-entries').flatMap((e) => e.entries);
 
+/**
+ * A service that reports into the list of the test that made it. A batch sent after its test ended (the
+ * 50 ms timer of a test on real timers) then never lands in a later test's list.
+ */
+function newService(): ConsoleService {
+  const received = events;
+  return new ConsoleService({ getSettings: () => settings, send: (e) => received.push(e) });
+}
+
 beforeEach(() => {
   cdp = new FakeCdp();
   events = [];
   settings = { ...DEFAULT_SETTINGS };
-  service = new ConsoleService({ getSettings: () => settings, send: (e) => events.push(e) });
+  service = newService();
 });
 
 afterEach(() => {
@@ -335,7 +344,7 @@ describe('console service: running code', () => {
 describe('console service: the setting', () => {
   it('records nothing while off, and turns on for every live session when switched on', async () => {
     settings.captureConsole = false;
-    service = new ConsoleService({ getSettings: () => settings, send: (e) => events.push(e) });
+    service = newService();
     await withFrames();
     expect(cdp.calls).toEqual([]);
     cdp.emit('Runtime.consoleAPICalled', { type: 'log', args: [str('x')], executionContextId: 1, timestamp: 1 }, 'S1');
@@ -356,7 +365,7 @@ describe('console service: the setting', () => {
   it("turns on without waiting for a frame that doesn't answer", async () => {
     vi.useFakeTimers();
     settings.captureConsole = false;
-    service = new ConsoleService({ getSettings: () => settings, send: (e) => events.push(e) });
+    service = newService();
     await withFrames();
     cdp.replies.set('S1|Page.getFrameTree', new Promise(() => undefined));
     settings.captureConsole = true;

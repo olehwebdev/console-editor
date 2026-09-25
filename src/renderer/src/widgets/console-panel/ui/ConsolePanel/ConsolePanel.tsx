@@ -17,11 +17,11 @@ import type { SaveAsAction } from './types';
 import { useFrameDirectory } from './useFrameDirectory';
 
 export interface ConsolePanelProps {
+  /** What names the panel in its toolbar (the bottom pane's tabs); "Console" when not given. */
+  heading?: ReactNode;
   onClose(): void;
   /** A row of code you ran asks to be kept as an action. */
   onSaveAsAction: SaveAsAction;
-  /** In the toolbar's title place (the panel's tabs). */
-  title?: ReactNode;
 }
 
 /**
@@ -29,7 +29,7 @@ export interface ConsolePanelProps {
  * errors and the browser's messages, each row tagged with its frame, and a
  * prompt that runs code in the frame you pick.
  */
-export function ConsolePanel({ onClose, onSaveAsAction, title }: ConsolePanelProps) {
+export function ConsolePanel({ heading, onClose, onSaveAsAction }: ConsolePanelProps) {
   const recording = useSettingsStore((s) => s.settings.captureConsole);
   const entries = useConsoleStore((s) => s.entries);
   const filter = useConsoleFilter(useShallow((s) => ({ frameKeys: s.frameKeys, levels: s.levels, text: s.text })));
@@ -43,7 +43,7 @@ export function ConsolePanel({ onClose, onSaveAsAction, title }: ConsolePanelPro
 
   return (
     <section aria-label="Console" data-testid="console-panel" className="flex h-full min-h-0 flex-col bg-surface-editor">
-      <ConsoleToolbar frames={frames} labels={labels} counts={counts} onCopy={() => void copyRows(shown, resolve)} onClose={onClose} title={title} />
+      <ConsoleToolbar frames={frames} labels={labels} counts={counts} heading={heading} onCopy={() => void copyRows(shown, resolve)} onClose={onClose} />
       {!recording ? (
         <EmptyState
           icon={icons.ConsoleIcon}

@@ -2,6 +2,7 @@ import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
 import type { InspectorApi } from './inspector';
 import type { AppEvent } from './events';
+import type { NetworkApi } from './networkApi';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
 import type { PageState, Rect } from './page';
 import type { ResourceContent, ResourceEntry } from './resources';
@@ -13,7 +14,7 @@ import type { AppInfo, UpdateState } from './updates';
 import type { Workspace, WorkspacePatch, WorkspacesState } from './workspaces';
 
 /** The API exposed to the renderer as `window.consoleEditor`. */
-export interface ConsoleEditorApi extends InspectorApi {
+export interface ConsoleEditorApi extends InspectorApi, NetworkApi {
   navigate(url: string): Promise<void>;
   reload(): Promise<void>;
   goBack(): Promise<void>;
@@ -93,6 +94,7 @@ export interface ConsoleEditorApi extends InspectorApi {
   createAction(input: ActionInput): Promise<ConsoleAction>;
   updateAction(id: string, patch: ActionPatch): Promise<ConsoleAction>;
   deleteAction(id: string): Promise<void>;
+
   /** Where the Actions panel is. */
   getActionsWindow(): Promise<ActionsWindowState>;
   /** Moves the Actions panel into a window of its own, where it was last, or brings that window forward. */

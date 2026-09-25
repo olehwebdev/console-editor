@@ -6,7 +6,7 @@ export { DURATION, EASE_IN_OUT, EASE_OUT, FADE_UP, ICON_PRESS_SCALE, PRESS_SCALE
 export { fileName, hostOf, originOf, pathOf, pathSegments, webAddress } from './url';
 export { predicateFor } from './match';
 export { isMac, keyLabel } from './platform';
-export { formatCode, looksMinified } from './format';
+export { formatCode, looksMinified, responseText } from './format';
 export { formatTime } from './formatTime';
 export { askSourceMapWorker, stopSourceMapWorker } from './source-map';
 export type {
@@ -23,3 +23,4 @@ export type {
 } from './source-map';
 export { useOverlayStore, useRegisterOverlay, selectAnyOverlayOpen } from './overlays';
 export { getNativeViewRect, rectsOverlap, setNativeViewRect, type NativeViewRect } from './nativeView';
+export { appendChild, countChildren, EMPTY_CONTAINER, emptyArrays, flattenJson, inferJsonSchema, lengthenStrings, mergeSchemas, nullAt, removeChild, treeChildId, type InferredSchema, type JsonTreeRow } from './json';
