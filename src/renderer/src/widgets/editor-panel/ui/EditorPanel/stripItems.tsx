@@ -1,8 +1,10 @@
 import { icons } from '@/shared/config';
+import type { OverrideMeta } from '@common/types';
 import { fileName } from '@/shared/lib';
 import type { EditorTabItem } from '@/shared/ui/editor-tabs';
 import { Icon } from '@/shared/ui/icon';
 import { isPageDirty, type PageTab, type SourceTab, type TabMeta } from '@/entities/editor-tab';
+import { overrideLabel } from '@/entities/override';
 import { KindIcon } from '@/entities/resource';
 import { cleanLabel, parseSourceUrl } from '@/entities/source-map';
 import { PAGE_TAB_ICONS } from './pageTabIcons';
@@ -10,12 +12,20 @@ import { PAGE_TAB_ICONS } from './pageTabIcons';
 /** Tab icons: a file's kind and a page's glyph line up. */
 const TAB_ICON_SIZE = 13;
 
-/** The tab strip: files (italic until saved as an override), then read-only originals, then pages. */
-export function stripItems(tabs: readonly TabMeta[], sources: readonly SourceTab[], pages: readonly PageTab[]): EditorTabItem[] {
+/**
+ * The tab strip: files (italic until saved as an override), then read-only originals, then pages. A
+ * GraphQL response is named by its operation: the tab's own until saved, then its override's.
+ */
+export function stripItems(
+  tabs: readonly TabMeta[],
+  sources: readonly SourceTab[],
+  pages: readonly PageTab[],
+  overrides: Readonly<Record<string, OverrideMeta>>,
+): EditorTabItem[] {
   return [
     ...tabs.map((t) => ({
       id: t.id,
-      label: fileName(t.url),
+      label: overrideLabel(t.url, t.request ?? (t.overrideId ? overrides[t.overrideId]?.request : undefined)),
       icon: <KindIcon kind={t.kind} size={TAB_ICON_SIZE} />,
       dirty: t.dirty,
       italic: !t.overrideId,

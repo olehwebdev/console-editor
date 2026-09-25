@@ -13,9 +13,6 @@ export const KEY_SEPARATOR = '\u0000';
 /** The Network type of a page or frame's document: a new one in the main frame starts a new page load. */
 export const DOCUMENT_TYPE = 'Document';
 
-/** The method whose requests carry no body: no GraphQL operation is looked for in them. */
-export const GET_METHOD = 'GET';
-
 /** What a cancelled request's row says instead of Chromium's `net::ERR_ABORTED`. */
 export const CANCELLED = 'Cancelled';
 

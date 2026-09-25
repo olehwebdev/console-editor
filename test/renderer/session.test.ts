@@ -74,6 +74,7 @@ vi.mock('@/shared/monaco', () => ({
   monaco: { editor: { createModel: (text: string) => new FakeModel(text) }, Uri: { from: () => ({}) } },
   languageFor: () => 'javascript',
   READ_ONLY_URI_AUTHORITY: 'source',
+  setModelSchema: () => {},
   editorHasFocus: () => false,
   dismissEditorWidgets: () => {},
   triggerInActiveEditor: () => {},

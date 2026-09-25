@@ -3,6 +3,12 @@ import type { RequestMatch, ResourceKind, ResponseSettings } from '../types';
 /** The kind of a response override: the only one with a request match and response settings. */
 export const RESPONSE_KIND = 'Fetch' satisfies ResourceKind;
 
+/**
+ * GET: it carries no body (no GraphQL operation is looked for in it), and it is the only method sent
+ * again to read a response live (reopening a tab, comparing): sending any other could change data.
+ */
+export const GET_METHOD = 'GET';
+
 /** A request match's method that matches every method (a CORS preflight is still never answered). */
 export const ANY_METHOD = '*';
 

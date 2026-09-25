@@ -28,9 +28,12 @@ export async function doSave(tabId: string): Promise<void> {
         // The base is only sent when it differs; unchanged it would be a second copy of a large file.
         ...(base !== undefined && base !== content ? { base } : {}),
         originalHash: tab.originalHash,
+        // A response tab's method, operation, status… become its override's.
+        ...(tab.request ? { request: tab.request } : {}),
+        ...(tab.response ? { response: tab.response } : {}),
       });
       useOverrideStore.getState().upsert(created);
-      patch(tabId, { overrideId: created.id });
+      patch(tabId, { overrideId: created.id, request: undefined, response: undefined });
     }
     markTabSaved(tabId, version);
     const reload = useSettingsStore.getState().settings.autoReloadOnSave;

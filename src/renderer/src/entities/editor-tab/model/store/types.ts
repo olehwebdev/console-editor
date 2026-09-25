@@ -1,4 +1,4 @@
-import type { CreateRuleInput, ResourceKind, SourceMapKind } from '@common/types';
+import type { CreateRuleInput, RequestMatch, ResourceKind, ResponseSettings, SourceMapKind } from '@common/types';
 
 export type DiffMode = 'off' | 'base' | 'live';
 
@@ -11,6 +11,12 @@ export interface TabMeta {
   overrideId?: string;
   /** Hash of the upstream file this tab was forked from (for new overrides). */
   originalHash: string | null;
+  /**
+   * A response tab not saved yet: what its override will match and answer once created (a saved
+   * one's are the override's, and these go).
+   */
+  request?: RequestMatch;
+  response?: ResponseSettings;
   /** Opened in highlight-only mode because the file is huge. */
   lite: boolean;
   dirty: boolean;

@@ -8,6 +8,7 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
 import { getTabModel, selectActivePage, selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { useOverrideStore } from '@/entities/override';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, useDiffSource } from '@/features/compare-changes';
 import { FileHeader } from '../FileHeader';
@@ -47,6 +48,7 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
   const original = useDiffSource((s) => s.original);
   const originalLabel = useDiffSource((s) => s.label);
   const activate = useTabStore((s) => s.activate);
+  const overrides = useOverrideStore((s) => s.byId);
   const onMount = useEditorActions();
   const model = getTabModel(activeId);
   useFocusOnOpen();
@@ -55,7 +57,7 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
     <section className="flex h-full min-w-0 flex-col bg-surface-editor" aria-label="Editor" data-testid="editor-panel">
       {tabs.length || sources.length || pages.length ? (
         <EditorTabs
-          items={stripItems(tabs, sources, pages)}
+          items={stripItems(tabs, sources, pages, overrides)}
           activeId={activeId}
           onSelect={activate}
           onClose={(id) => void closeTab(id)}

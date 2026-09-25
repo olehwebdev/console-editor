@@ -1,6 +1,6 @@
-import { graphqlOperation } from '../../../shared/overrides';
+import { GET_METHOD, graphqlOperation } from '../../../shared/overrides';
 import { durationMs } from '../durationMs';
-import { GET_METHOD, MS_PER_SECOND } from '../constants';
+import { MS_PER_SECOND } from '../constants';
 import { startsPageLoad } from '../startsPageLoad';
 import { toHeaders } from '../toHeaders';
 import type { NetworkLogContext, RequestWillBeSent } from '../types';
@@ -26,6 +26,7 @@ export function requestSent(ctx: NetworkLogContext, p: RequestWillBeSent, sessio
   if (startsPageLoad(ctx, p, sessionId)) page.load += 1;
   const worker = sessionId === undefined ? undefined : workers.get(sessionId);
   const { request } = p;
+  // A GET carries no body to name an operation in.
   const operation = request.method !== GET_METHOD ? graphqlOperation(request.postData) : undefined;
   const entry = log.add({
     sessionId,

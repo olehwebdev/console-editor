@@ -28,7 +28,7 @@ import { OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
 import { newRuleItems } from './newRuleItems';
 import { ruleItems } from './ruleItems';
 
-const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon };
+const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon, Fetch: icons.ResponseIcon };
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
