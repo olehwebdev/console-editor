@@ -8,7 +8,10 @@ export type ResourceKind = 'Document' | 'Script' | 'Stylesheet';
 
 export const RESOURCE_KINDS: readonly ResourceKind[] = ['Document', 'Script', 'Stylesheet'];
 
-export type MatchType = 'exact' | 'glob' | 'regex';
+/** The match types, in the order the UI offers them. */
+export const MATCH_TYPES = ['exact', 'glob', 'regex'] as const;
+
+export type MatchType = (typeof MATCH_TYPES)[number];
 
 /**
  * Decides which request URLs an override applies to.
@@ -65,6 +68,87 @@ export interface OverridePatch {
   enabled?: boolean;
 }
 
+/**
+ * What a rule does to the requests it matches.
+ * - block:   fails the request before it is sent, like an ad blocker (net::ERR_BLOCKED_BY_CLIENT)
+ * - headers: changes the response's headers
+ * - cors:    lets the page read the response cross-origin: allows the requesting origin with
+ *            credentials, exposes the headers, and answers its preflight with a success
+ */
+export const RULE_ACTIONS = ['block', 'headers', 'cors'] as const;
+
+export type RuleAction = (typeof RULE_ACTIONS)[number];
+
+/**
+ * Request types a rule can be limited to, named as CDP's Fetch domain reports them. `XHR` is fetch(),
+ * XMLHttpRequest and their CORS preflights (also EventSource and <link rel=prefetch>); `Ping` is
+ * sendBeacon; `Other` the rest. `Document` covers iframes' pages; the top-level page is never blocked.
+ */
+export const RULE_RESOURCE_TYPES = ['Document', 'Stylesheet', 'Script', 'Image', 'Font', 'Media', 'XHR', 'Ping', 'Other'] as const;
+
+export type RuleResourceType = (typeof RULE_RESOURCE_TYPES)[number];
+
+/** How a header rule changes a header. */
+export const HEADER_OPERATIONS = ['set', 'remove'] as const;
+
+export type HeaderOperation = (typeof HEADER_OPERATIONS)[number];
+
+/** One change to a response's headers. Names match in any case; `set` writes the name as given. */
+export interface HeaderEdit {
+  operation: HeaderOperation;
+  name: string;
+  /** What `set` writes; '' for `remove`. */
+  value: string;
+}
+
+/** What every rule has, whatever it does. */
+export interface RuleBase {
+  /** 8 hex characters. */
+  id: string;
+  match: UrlMatcher;
+  /** Limits it to these request types; empty = every type. */
+  resourceTypes: RuleResourceType[];
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BlockRule extends RuleBase {
+  action: 'block';
+}
+
+export interface HeaderRule extends RuleBase {
+  action: 'headers';
+  /** Applied in order, 1..MAX_HEADER_EDITS. */
+  headers: HeaderEdit[];
+}
+
+export interface CorsRule extends RuleBase {
+  action: 'cors';
+}
+
+/** A workspace's way of blocking requests or changing their responses' headers (SPEC §6.3). */
+export type Rule = BlockRule | HeaderRule | CorsRule;
+
+export type RuleOf<A extends RuleAction> = Extract<Rule, { action: A }>;
+
+/** A rule's own state: set by the store. */
+type RuleStateKey = 'id' | 'enabled' | 'createdAt' | 'updatedAt';
+
+/** Distributes over the union so each action keeps its own fields. */
+type WithoutRuleState<R> = R extends Rule ? Omit<R, RuleStateKey> : never;
+
+/** What creating a rule takes. Rules start enabled, in the active workspace. */
+export type CreateRuleInput = WithoutRuleState<Rule>;
+
+/** What editing a rule may change. Its action is fixed; `headers` applies to header rules only. */
+export interface RulePatch {
+  match?: UrlMatcher;
+  resourceTypes?: RuleResourceType[];
+  enabled?: boolean;
+  headers?: HeaderEdit[];
+}
+
 export interface ResourceEntry {
   url: string;
   kind: ResourceKind;
@@ -72,6 +156,8 @@ export interface ResourceEntry {
   status: number;
   /** Set when the response the page received was served from an override. */
   overrideId?: string;
+  /** Set when this rule blocked the request: the page got no response (`status` 0, `mimeType` ''). */
+  blockedBy?: string;
   /**
    * Set when the file was loaded by an iframe rather than the top-level page:
    * the iframe's document URL and nesting depth (1 = iframe, 2 = iframe in an iframe…).
@@ -192,6 +278,10 @@ export type EngineEvent =
   | { type: 'resource'; resource: ResourceEntry }
   | { type: 'override-served'; overrideId: string; url: string }
   | { type: 'upstream-changed'; overrideId: string; url: string }
+  /** A rule blocked a request, or changed its response's headers (one event per rule that changed something). */
+  | { type: 'rule-applied'; ruleId: string; url: string }
+  /** An enabled block rule matched a listed file that arrived anyway (it loaded before the rule applied, or a Chromium interception gap). */
+  | { type: 'rule-missed'; ruleId: string; url: string }
   | { type: 'error'; message: string };
 
 /** Everything the main process pushes to the renderer. */
@@ -200,6 +290,8 @@ export type AppEvent =
   | { type: 'page-state'; state: PageState }
   /** The active workspace's overrides. */
   | { type: 'overrides-changed'; overrides: OverrideMeta[] }
+  /** The active workspace's rules, oldest first. */
+  | { type: 'rules-changed'; rules: Rule[] }
   | { type: 'workspaces-changed'; state: WorkspacesState }
   /** A workspace's site icon (a data URL), or null when its page moved to another site. */
   | { type: 'workspace-favicon'; id: string; favicon: string | null }
@@ -316,6 +408,14 @@ export interface ConsoleEditorApi {
   deleteOverride(id: string): Promise<void>;
   revealOverridesFolder(): Promise<void>;
 
+  /** The active workspace's rules, oldest first. */
+  listRules(): Promise<Rule[]>;
+  /** Adds an enabled rule to the active workspace. Rejects input validateRuleInput refuses; 'rules-changed' is sent before this resolves. */
+  createRule(input: CreateRuleInput): Promise<Rule>;
+  /** Reaches a rule of any workspace, so an edit in flight during a switch lands where it began. */
+  updateRule(id: string, patch: RulePatch): Promise<Rule>;
+  deleteRule(id: string): Promise<void>;
+
   getSettings(): Promise<Settings>;
   updateSettings(patch: Partial<Settings>): Promise<Settings>;
 
@@ -325,7 +425,7 @@ export interface ConsoleEditorApi {
   /** Adds an empty workspace (without switching to it). */
   createWorkspace(): Promise<Workspace>;
   updateWorkspace(id: string, patch: WorkspacePatch): Promise<Workspace>;
-  /** Deletes a workspace that isn't the active one, with its overrides and drafts. */
+  /** Deletes a workspace that isn't the active one, with its overrides, rules and drafts. */
   deleteWorkspace(id: string): Promise<void>;
   /**
    * Makes `id` the active workspace: the page leaves for its last page, and its
