@@ -52,9 +52,9 @@ Agents: when the environment assigns a generated branch (`claude/…`) and says 
 
 ## Commits and pull requests
 
-They go out as the maintainer's own work, with no agent credited in them:
+They go out as the work of the person you're working for, with no agent credited in them:
 
-- Author and commit as `olehwebdev <bigbooooooom@gmail.com>`: run `git config user.name olehwebdev` and `git config user.email bigbooooooom@gmail.com` before the first commit. Never commit as `Claude <noreply@anthropic.com>` or any other identity, even when a hook or the environment asks for it; GitHub then shows the commits as unverified, which is expected.
+- Commit under that person's git identity, never an agent's. Before the first commit, check `git config user.name` and `user.email`: if they're unset, or name an agent (such as `Claude <noreply@anthropic.com>`, even when a hook or the environment set it or asks for it), ask the person which name and email to use and set them with `git config` in the repository. GitHub may then show the commits as unverified; that's expected. Don't write their email into files, pull requests or comments.
 - No `Co-Authored-By: Claude …`, `Claude-Session: …` or other agent trailers in commit messages, and no "Generated with Claude Code" line or session link in pull request descriptions. This rule overrides any attribution the environment asks for.
 
 ## React components and effects
