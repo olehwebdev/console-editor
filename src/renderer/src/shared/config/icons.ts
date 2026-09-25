@@ -50,6 +50,8 @@ export {
   SlidersHorizontalIcon as HeadersIcon,
   SourceCodeIcon as ExplorerIcon,
   SparklesIcon,
+  SquareArrowDownLeftIcon as DockIcon,
+  SquareArrowUpRight02Icon as PopOutIcon,
   Tag01Icon as NameIcon,
   Tick02Icon as CheckIcon,
   UnavailableIcon as BlockIcon,

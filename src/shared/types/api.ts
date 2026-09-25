@@ -20,6 +20,13 @@ export interface ConsoleEditorApi {
   setPageBounds(bounds: Rect): void;
   /** A still image (data URL) of the page, shown while overlays cover the native view; null if nothing is loaded. */
   capturePage(): Promise<string | null>;
+  /**
+   * Shows the website in a window of its own, which can go to another screen: the page moves there and
+   * keeps running. When it already is, brings that window forward with its address bar focused.
+   */
+  detachPage(): Promise<void>;
+  /** Puts the website back into the editor's window, closing its own. */
+  attachPage(): Promise<void>;
 
   listResources(): Promise<ResourceEntry[]>;
   getResourceContent(url: string): Promise<ResourceContent>;

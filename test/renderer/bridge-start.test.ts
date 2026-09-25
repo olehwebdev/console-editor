@@ -70,10 +70,10 @@ const rule = (id: string): Rule => ({
   createdAt: 0,
   updatedAt: 0,
 });
-const PAGE: PageState = { url: 'https://site.test/', title: 'Site', loading: false, canGoBack: false, canGoForward: false };
+const PAGE: PageState = { url: 'https://site.test/', title: 'Site', loading: false, canGoBack: false, canGoForward: false, detached: false };
 const urls = () => Object.values(useResourceStore.getState().byKey).map((e) => e.url);
 const emit = (event: AppEvent) => events.listener!(event);
-const COMMANDS = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn() };
+const COMMANDS = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview: vi.fn() };
 const SESSION = { restore: vi.fn(async () => {}), startSync: vi.fn(), flush: vi.fn() };
 const WORKSPACES = { activeId: 'w1', workspaces: [{ id: 'w1', name: '', host: 'site.test', title: 'Site', icon: 'favicon' as const, color: 'ember' as const }] };
 

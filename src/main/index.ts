@@ -4,6 +4,7 @@ import { ENV } from '../shared/constants';
 import { APP_ID } from './appInfo';
 import { LOCAL_NETWORK_ACCESS_FEATURES, withDisabledFeatures } from './chromiumFlags';
 import { HTTP_URL } from './constants';
+import { integrateWithDesktop } from './desktopEntry';
 import { createWindow } from './launch/createWindow';
 import { handOver } from './launch/handOver';
 import { sameFolder } from './launch/sameFolder';
@@ -63,6 +64,9 @@ if (!app.requestSingleInstanceLock()) {
     event.preventDefault();
     handOver(url);
   });
+  // Where no package installed a launcher (the AppImage, a .tar.gz), keep one of the app's own, so docks show its
+  // icon. Started now, so it's in place by the time the window opens.
+  integrateWithDesktop().catch((err) => console.error(err));
   app.whenReady().then(() => createWindow(updateFeed), (err) => {
     console.error(err);
     app.exit(1);

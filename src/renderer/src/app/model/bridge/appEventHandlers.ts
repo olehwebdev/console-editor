@@ -1,12 +1,12 @@
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
-import { usePageStore } from '@/entities/page';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
 import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
 import { answerFlushSession } from './events/answerFlushSession';
+import { applyPageState } from './events/applyPageState';
 import { dropNavigatedResources } from './events/dropNavigatedResources';
 import { showAppError } from './events/showAppError';
 import { syncOverrides } from './events/syncOverrides';
@@ -31,7 +31,7 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'rule-applied': (event) => queueRuleHit(event),
   'rule-missed': warnRuleMissed,
   error: showAppError,
-  'page-state': (event) => usePageStore.getState().setPage(event.state),
+  'page-state': applyPageState,
   'overrides-changed': syncOverrides,
   'rules-changed': syncRules,
   'workspaces-changed': (event) => useWorkspaceStore.getState().setAll(event.state),

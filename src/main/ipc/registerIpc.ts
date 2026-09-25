@@ -10,39 +10,44 @@ import {
   type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
-import { sanitizeRuleInput } from '../store/sanitizeRuleInput';
-import { sanitizeRulePatch } from '../store/sanitizeRulePatch';
-import { toRule } from '../store/toRule';
 import { assertString } from './assertString';
+import { registerRuleIpc } from './registerRuleIpc';
 import type { IpcDeps } from './types';
 
 export function registerIpc({ win, page, store, rules, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
-  const handle = (channel: string, fn: (...args: any[]) => unknown) => {
+  // The website's own window shows the preview alone: it may drive the page, and nothing else.
+  const fromPageUi = (event: IpcMainInvokeEvent | IpcMainEvent) => fromEditor(event) || page.window.owns(event.sender);
+  const guarded = (allowed: typeof fromEditor) => (channel: string, fn: (...args: any[]) => unknown) => {
     ipcMain.handle(channel, (event, ...args) => {
-      if (!fromEditor(event)) throw new Error('Forbidden');
+      if (!allowed(event)) throw new Error('Forbidden');
       return fn(...args);
     });
   };
+  const handle = guarded(fromEditor);
+  const handlePage = guarded(fromPageUi);
 
-  handle(IPC_CHANNEL.navigate, (url: unknown) => {
+  handlePage(IPC_CHANNEL.navigate, (url: unknown) => {
     assertString(url, 'url');
     return page.navigate(url);
   });
-  handle(IPC_CHANNEL.reload, () => page.reload());
-  handle(IPC_CHANNEL.goBack, () => page.goBack());
-  handle(IPC_CHANNEL.goForward, () => page.goForward());
-  handle(IPC_CHANNEL.openPageDevTools, () => page.openDevTools());
-  handle(IPC_CHANNEL.getPageState, () => page.state());
-  handle(IPC_CHANNEL.capturePage, () => page.capture());
-  ipcMain.on(IPC_CHANNEL.setPageBounds, (event, rect: Rect) => {
-    if (!fromEditor(event)) return;
-    // The renderer measures CSS pixels; the view is placed in window pixels (they differ when the editor is zoomed).
-    const zoom = win.webContents.getZoomFactor();
-    page.setBounds({ x: rect.x * zoom, y: rect.y * zoom, width: rect.width * zoom, height: rect.height * zoom });
+  handlePage(IPC_CHANNEL.reload, () => page.reload());
+  handlePage(IPC_CHANNEL.goBack, () => page.goBack());
+  handlePage(IPC_CHANNEL.goForward, () => page.goForward());
+  handlePage(IPC_CHANNEL.openPageDevTools, () => page.openDevTools());
+  ipcMain.handle(IPC_CHANNEL.getPageState, (event) => {
+    if (!fromPageUi(event)) throw new Error('Forbidden');
+    // The website window's UI asks once it listens: a focus asked for while it loaded goes out then.
+    page.window.listening(event.sender);
+    return page.state();
   });
+  handlePage(IPC_CHANNEL.capturePage, () => page.capture());
+  handle(IPC_CHANNEL.detachPage, () => page.window.detach());
+  handlePage(IPC_CHANNEL.attachPage, () => page.window.attach());
+  // Only the window showing the page places it: the other one's reports (a panel going away) are stale.
+  ipcMain.on(IPC_CHANNEL.setPageBounds, (event, rect: Rect) => page.window.place(event.sender, rect));
 
   handle(IPC_CHANNEL.listResources, () => page.listResources());
   handle(IPC_CHANNEL.getResourceContent, (url: unknown) => {
@@ -83,26 +88,7 @@ export function registerIpc({ win, page, store, rules, settings, session, worksp
     await shell.openPath(store.filesDir);
   });
 
-  // 'rules-changed' is sent before each reply resolves.
-  handle(IPC_CHANNEL.listRules, () => rules.forRenderer());
-  handle(IPC_CHANNEL.createRule, async (input: unknown) => {
-    const created = await rules.create(sanitizeRuleInput(input));
-    await page.rulesChanged();
-    return toRule(created);
-  });
-  handle(IPC_CHANNEL.updateRule, async (id: unknown, patch: unknown) => {
-    assertString(id, 'id');
-    const clean = sanitizeRulePatch(patch);
-    const updated = await rules.update(id, clean);
-    // Only the matcher and on/off change Fetch patterns; request types and header edits are read at pause time.
-    await page.rulesChanged(clean.match !== undefined || clean.enabled !== undefined);
-    return toRule(updated);
-  });
-  handle(IPC_CHANNEL.deleteRule, async (id: unknown) => {
-    assertString(id, 'id');
-    await rules.remove(id);
-    await page.rulesChanged();
-  });
+  registerRuleIpc(handle, rules, page);
 
   handle(IPC_CHANNEL.getSettings, () => settings.get());
   handle(IPC_CHANNEL.updateSettings, async (patch: Partial<Settings>) => {

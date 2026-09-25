@@ -176,9 +176,23 @@ describe('app event bridge', () => {
   });
 
   it('mirrors the page state', () => {
-    const state: PageState = { url: 'https://a.com/', title: 'A', loading: true, canGoBack: false, canGoForward: false };
+    const state: PageState = { url: 'https://a.com/', title: 'A', loading: true, canGoBack: false, canGoForward: false, detached: false };
     handleAppEvent({ type: 'page-state', state });
     expect(usePageStore.getState().page).toEqual(state);
+  });
+
+  it('shows the preview when the website comes back from its own window, and only then', () => {
+    const showPreview = vi.fn();
+    pageCommands.current = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview };
+    const state: PageState = { url: 'https://a.com/', title: 'A', loading: false, canGoBack: false, canGoForward: false, detached: false };
+    handleAppEvent({ type: 'page-state', state });
+    handleAppEvent({ type: 'page-state', state: { ...state, detached: true } });
+    handleAppEvent({ type: 'page-state', state: { ...state, detached: true, title: 'B' } });
+    expect(showPreview).not.toHaveBeenCalled();
+    handleAppEvent({ type: 'page-state', state });
+    handleAppEvent({ type: 'page-state', state: { ...state, loading: true } });
+    expect(showPreview).toHaveBeenCalledTimes(1);
+    pageCommands.current = null;
   });
 
   it('takes the new override list, and unlinks the tabs of deleted overrides', () => {
@@ -312,7 +326,7 @@ describe('app event bridge', () => {
 
 describe('menu commands', () => {
   const execCommand = vi.fn();
-  const page = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn() };
+  const page = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview: vi.fn() };
 
   beforeEach(() => {
     vi.stubGlobal('document', { execCommand });

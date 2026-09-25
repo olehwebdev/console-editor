@@ -12,3 +12,9 @@ export const FILE_NOT_FOUND = 'ENOENT';
 
 /** A data URL of an image: a site icon as kept. */
 export const IMAGE_DATA_URL = /^data:image\/[\w.+-]+[;,]/i;
+
+/** Matches the --canvas token, so nothing flashes before a window's UI paints. */
+export const CANVAS_COLOR = '#08080a';
+
+/** Where electron-vite puts the preload script, relative to the main bundle. */
+export const PRELOAD_SCRIPT = '../preload/index.js';
