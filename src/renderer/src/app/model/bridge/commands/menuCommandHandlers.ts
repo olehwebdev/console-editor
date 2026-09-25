@@ -1,5 +1,6 @@
 import { toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
+import { jumpToMappedCode } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
 import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
 import { runEditCommand } from './runEditCommand';
@@ -20,4 +21,5 @@ export const MENU_COMMAND_HANDLERS: MenuCommandHandlers = {
   'select-all': runEditCommand,
   'whats-new': () => openWhatsNew(),
   'check-updates': () => void checkForUpdatesNow(),
+  'jump-to-mapped': () => void jumpToMappedCode(),
 };

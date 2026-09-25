@@ -330,7 +330,8 @@ export type MenuCommand =
   | 'redo'
   | 'select-all'
   | 'whats-new'
-  | 'check-updates';
+  | 'check-updates'
+  | 'jump-to-mapped';
 
 /** The API exposed to the renderer as `window.consoleEditor`. */
 export interface ConsoleEditorApi {

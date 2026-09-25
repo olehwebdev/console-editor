@@ -10,8 +10,10 @@ import { useTabStore, type TabMeta } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore } from '@/entities/resource';
+import { useSourceMapStore } from '@/entities/source-map';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { toggleBaseDiff } from '@/features/compare-changes';
+import { jumpToMappedCode } from '@/features/open-resource';
 import { formatTab } from '@/features/format-document';
 import { saveTab } from '@/features/save-override';
 import { checkForUpdatesNow, handleUpdateState, openWhatsNew } from '@/features/update-app';
@@ -33,6 +35,7 @@ vi.mock('@/shared/monaco', () => ({
 vi.mock('@/features/save-override', () => ({ saveTab: vi.fn(async () => {}) }));
 vi.mock('@/features/format-document', () => ({ formatTab: vi.fn(async () => {}) }));
 vi.mock('@/features/compare-changes', () => ({ toggleBaseDiff: vi.fn() }));
+vi.mock('@/features/open-resource', async (importOriginal) => ({ ...(await importOriginal<object>()), jumpToMappedCode: vi.fn(async () => {}) }));
 vi.mock('@/features/update-app', () => ({ openWhatsNew: vi.fn(), checkForUpdatesNow: vi.fn(async () => {}), handleUpdateState: vi.fn(), startUpdates: vi.fn(async () => {}) }));
 
 const meta = (id: string): OverrideMeta => ({
@@ -153,6 +156,16 @@ describe('app event bridge', () => {
     apply.mockRestore();
   });
 
+  it("has loaded source maps checked again after a top-level navigation, not an iframe's", () => {
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const { generation } = useSourceMapStore.getState();
+    handleAppEvent({ type: 'navigated', url: 'https://site.test/frame', iframeId: 'f1' });
+    expect(useSourceMapStore.getState().generation).toBe(generation);
+    handleAppEvent({ type: 'navigated', url: 'https://site.test/' });
+    expect(useSourceMapStore.getState().generation).toBe(generation + 1);
+  });
+
   it('hands update states to the update feature', () => {
     const state: UpdateState = { status: 'idle' };
     handleAppEvent({ type: 'update', state });
@@ -186,6 +199,11 @@ describe('menu commands', () => {
   it('toggles the base diff', () => {
     command('toggle-diff');
     expect(toggleBaseDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it('jumps between a bundle and its original code', () => {
+    command('jump-to-mapped');
+    expect(jumpToMappedCode).toHaveBeenCalledExactlyOnceWith();
   });
 
   it.each([

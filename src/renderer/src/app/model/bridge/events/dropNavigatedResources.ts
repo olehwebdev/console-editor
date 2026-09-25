@@ -1,9 +1,15 @@
+import { useSourceMapStore } from '@/entities/source-map';
 import { queueIframeDrop } from '../resources/queueIframeDrop';
 import { resetResourceOps } from '../resources/resetResourceOps';
 import type { AppEventOf } from '../types';
 
-/** A root frame committed a new document: drop what it reported (a cross-site iframe's entries, or everything for the page). */
+/**
+ * A root frame committed a new document: drop what it reported (a cross-site iframe's entries, or
+ * everything for the page). Loaded source maps stay, but are checked against their bundles again on
+ * next use: the page may have loaded a new build.
+ */
 export function dropNavigatedResources(event: AppEventOf<'navigated'>): void {
-  if (event.iframeId) queueIframeDrop(event.iframeId);
-  else resetResourceOps();
+  if (event.iframeId) return queueIframeDrop(event.iframeId);
+  resetResourceOps();
+  useSourceMapStore.getState().nextGeneration();
 }

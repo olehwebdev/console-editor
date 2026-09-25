@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OverrideMeta, SessionDraft, SessionState, Workspace, WorkspacesState } from '../../src/shared/types';
 import { closeSessionTabs, flushSession, restoreSession, startSessionSync } from '@/pages/editor/model/session';
 import { createWorkspace, deleteWorkspace, switchWorkspace } from '@/pages/editor/model/workspaces';
-import { createTabModel, disposeTabModel, getTabModel, markTabSaved, newTabId, useTabStore } from '@/entities/editor-tab';
+import { createSourceModel, createTabModel, disposeTabModel, getTabModel, markTabSaved, newTabId, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
+import { useSourceMapStore } from '@/entities/source-map';
 import { useWorkspaceStore } from '@/entities/workspace';
 
 /** Just enough of a Monaco text model: text, an alternative version id, change listeners. */
@@ -69,6 +70,7 @@ vi.mock('@/shared/ui/dialog', () => ({ confirm: async () => true, isConfirmOpen:
 vi.mock('@/shared/monaco', () => ({
   monaco: { editor: { createModel: (text: string) => new FakeModel(text) }, Uri: { from: () => ({}) } },
   languageFor: () => 'javascript',
+  READ_ONLY_URI_AUTHORITY: 'source',
   editorHasFocus: () => false,
   dismissEditorWidgets: () => {},
   triggerInActiveEditor: () => {},
@@ -99,7 +101,7 @@ beforeEach(() => {
   // Forgets the previous test's tabs and drafts (without deleting anything).
   closeSessionTabs();
   for (const t of useTabStore.getState().tabs) disposeTabModel(t.id);
-  useTabStore.setState({ tabs: [], pages: [], activeId: null, diff: 'off' });
+  useTabStore.setState({ tabs: [], sources: [], pages: [], activeId: null, diff: 'off' });
   useOverrideStore.getState().setAll([override]);
   useWorkspaceStore.setState({ workspaces, activeId: 'wsa00000', favicons: {}, switchingTo: null });
 });
@@ -272,6 +274,26 @@ describe('switching workspaces', () => {
     openTab();
     await vi.advanceTimersByTimeAsync(400);
     expect(api.saveSessionTabs).toHaveBeenLastCalledWith('wsb00000', expect.any(Array), expect.any(String));
+  });
+
+  it('closes the originals opened from source maps and forgets the maps, which belong to the site left', async () => {
+    vi.useFakeTimers();
+    const bundleUrl = 'https://site.test/main.js';
+    const id = newTabId();
+    createSourceModel(id, 'lib.ts', 'typescript', 'export const lib = 1;');
+    useTabStore.getState().openSource({ id, url: 'webpack://app/src/lib.ts', bundleUrl, bundleKind: 'Script', languageName: 'TypeScript', lite: false, missing: false });
+    useSourceMapStore.getState().set(bundleUrl, { status: 'none', bundleHash: 'h' });
+    const original = model(id);
+    mainSwitchesTo('wsb00000', { url: '', tabs: [], activeTabId: null });
+
+    await switchWorkspace('wsb00000');
+    await vi.runAllTimersAsync();
+
+    expect(useTabStore.getState().sources).toEqual([]);
+    expect(original.disposed).toBe(true);
+    expect(useSourceMapStore.getState().byBundle).toEqual({});
+    // An original is not a file of the workspace: it isn't kept with its tabs.
+    expect(api.saveSessionTabs).not.toHaveBeenCalledWith('wsa00000', expect.arrayContaining([expect.objectContaining({ id })]), expect.anything());
   });
 
   it('reopens the workspace it was leaving when the switch fails', async () => {
