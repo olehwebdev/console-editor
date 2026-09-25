@@ -32,6 +32,7 @@ vi.mock('@/shared/ui/dialog', () => ({ confirm: async () => true, isConfirmOpen:
 vi.mock('@/shared/monaco', () => ({
   monaco: { editor: { createModel: () => ({}) }, Uri: { from: () => ({}) } },
   languageFor: () => 'javascript',
+  setModelSchema: () => {},
   editorHasFocus: editor.hasFocus,
   dismissEditorWidgets: () => {},
   triggerInActiveEditor: editor.trigger,
@@ -224,7 +225,7 @@ describe('app event bridge', () => {
   });
 
   it('mirrors the workspaces and their site icons', () => {
-    const workspace = { id: 'w1', name: 'Shop', host: 'a.com', title: 'A', icon: 'favicon' as const, color: 'teal' as const, frameNames: {} };
+    const workspace = { id: 'w1', name: 'Shop', host: 'a.com', title: 'A', icon: 'favicon' as const, color: 'teal' as const, frameNames: {}, breakpoints: [] };
     handleAppEvent({ type: 'workspaces-changed', state: { activeId: 'w1', workspaces: [workspace] } });
     handleAppEvent({ type: 'workspace-favicon', id: 'w1', favicon: 'data:image/png;base64,AA==' });
     expect(useWorkspaceStore.getState()).toMatchObject({ activeId: 'w1', workspaces: [workspace], favicons: { w1: 'data:image/png;base64,AA==' } });

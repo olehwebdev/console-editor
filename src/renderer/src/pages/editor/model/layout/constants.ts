@@ -20,4 +20,5 @@ export const DEFAULTS: SavedLayout = {
   previewRatio: 0.42,
   consoleVisible: false,
   consoleHeight: 240,
+  bottomView: 'console',
 };

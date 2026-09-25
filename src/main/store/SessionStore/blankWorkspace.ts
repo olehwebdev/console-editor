@@ -10,5 +10,5 @@ export function blankWorkspace(existing: WorkspaceRecord[]): WorkspaceRecord {
   while (existing.some((w) => w.id === id));
   const used = new Set(existing.map((w) => w.color));
   const color = WORKSPACE_COLORS.find((c) => !used.has(c)) ?? WORKSPACE_COLORS[existing.length % WORKSPACE_COLORS.length];
-  return { id, name: '', icon: DEFAULT_WORKSPACE_ICON, color, url: '', title: '', tabs: [], activeTabId: null, frameNames: {} };
+  return { id, name: '', icon: DEFAULT_WORKSPACE_ICON, color, url: '', title: '', tabs: [], activeTabId: null, frameNames: {}, breakpoints: [] };
 }

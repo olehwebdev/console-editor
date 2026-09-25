@@ -12,6 +12,7 @@ export { httpOriginOf } from './httpOriginOf';
 export { isPreflight } from './isPreflight';
 export { isResponseRule } from './isResponseRule';
 export { pausedRequestOf } from './pausedRequestOf';
+export { preflightMethod } from './preflightMethod';
 export { requestHeader } from './requestHeader';
 export { RESPONSE_RULE_APPLIERS } from './responseRuleAppliers';
 export { ruleMatches } from './ruleMatches';

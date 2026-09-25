@@ -6,10 +6,9 @@ import { BUTTON_ICON_SIZE, Button } from '@/shared/ui/button';
 import { FieldError } from '@/shared/ui/field-error';
 import { Icon } from '@/shared/ui/icon';
 import { Menu } from '@/shared/ui/menu';
-import { HEADER_PRESETS } from '@/entities/rule';
-import { BLANK_HEADER_EDIT, COMMON_HEADER_NAMES } from './constants';
+import { BLANK_HEADER_EDIT, HEADER_PRESETS, HeaderNameList } from '@/entities/rule';
 import { FormSection } from './FormSection';
-import { HeaderEditRow } from './HeaderEditRow';
+import { RuleHeaderRow } from './RuleHeaderRow';
 import type { RuleActionFieldsProps } from './types';
 import { withPreset } from './withPreset';
 
@@ -26,15 +25,11 @@ export function HeaderEditsField({ control }: RuleActionFieldsProps) {
 
   return (
     <FormSection title="Header changes" hint="Applied in order to each matching response; a newer rule's change wins over an older one's.">
-      <datalist id={listId}>
-        {COMMON_HEADER_NAMES.map((name) => (
-          <option key={name} value={name} />
-        ))}
-      </datalist>
+      <HeaderNameList id={listId} />
       {fields.length ? (
         <div className="flex flex-col gap-1.5">
           {fields.map((field, index) => (
-            <HeaderEditRow key={field.id} control={control} index={index} listId={listId} onRemove={() => remove(index)} />
+            <RuleHeaderRow key={field.id} control={control} index={index} listId={listId} onRemove={() => remove(index)} />
           ))}
         </div>
       ) : null}

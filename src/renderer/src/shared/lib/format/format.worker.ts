@@ -15,6 +15,8 @@ const BEAUTIFIERS: Record<ResourceKind, (text: string, opts: typeof BEAUTIFY_OPT
   Script: beautify.js,
   Stylesheet: beautify.css,
   Document: beautify.html,
+  // A response's JSON is formatted as text: parsing it would round big ids and drop duplicate keys.
+  Fetch: beautify.js,
 };
 
 self.onmessage = (event: MessageEvent<FormatRequest>) => {

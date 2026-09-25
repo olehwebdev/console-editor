@@ -33,19 +33,12 @@ export interface ResourceTypePickerProps {
   onChange(next: RuleResourceType[]): void;
 }
 
-export interface HeaderEditRowProps extends RuleActionFieldsProps {
+export interface RuleHeaderRowProps extends RuleActionFieldsProps {
   /** The row's place in the header changes. */
   index: number;
-  /** The id of the datalist of common header names. */
+  /** The id of the datalist of common header names (`HeaderNameList`). */
   listId: string;
   onRemove(): void;
-}
-
-/** What a header operation shows in the editor. */
-export interface HeaderOperationField {
-  label: string;
-  /** Whether it takes a value (the value field is disabled, and emptied, otherwise). */
-  takesValue: boolean;
 }
 
 /** A note shown under the form when it applies to what is being written. */
