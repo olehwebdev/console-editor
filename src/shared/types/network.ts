@@ -11,7 +11,7 @@ export const NETWORK_REQUEST_STATES = ['pending', 'done', 'failed'] as const;
 
 export type NetworkRequestState = (typeof NETWORK_REQUEST_STATES)[number];
 
-/** A request the page, one of its iframes or one of its workers sent, as the Network panel lists it (SPEC §6.8). */
+/** A request the page, one of its iframes or one of its workers sent, as the Network panel lists it (SPEC §6.10). */
 export interface NetworkRequest {
   /** Unique for the app's run. */
   id: string;

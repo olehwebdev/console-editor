@@ -7,7 +7,7 @@ import { RequestLog } from './RequestLog';
 import type { NetworkLogContext, NetworkLogOptions, TrackedRequest } from './types';
 
 /**
- * The page's requests, for the Network panel (SPEC §6.8): what the page, its iframes and its workers
+ * The page's requests, for the Network panel (SPEC §6.10): what the page, its iframes and its workers
  * send, from the `Network` events interception already enables on every session. It sends no command
  * but reads (a body, on demand), so it never holds a waiting worker back. Rows go to the renderer in
  * batches; the most recent `MAX_NETWORK_REQUESTS` are kept for one that (re)starts.
