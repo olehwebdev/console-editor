@@ -2,7 +2,8 @@
  * The website in a window of its own (to put on another screen), in the built
  * app: moving it there and back, from both windows' toolbars, the menu and by
  * closing its window; the page keeps running and its overrides keep applying;
- * where the window was, and that it was open, survive a restart.
+ * where the window was, and that it was open, survive a restart; the site's
+ * pop-ups go along; moves and focus requests made while the window loads.
  */
 import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -153,7 +154,8 @@ describe.skipIf(!built)('The website in a window of its own', () => {
     await expect.poll(async () => (await host())?.view.width).toBeGreaterThan(0);
     expect(await inSite('window.marker')).toBe(43);
     await expect.poll(() => win.getByRole('region', { name: 'Website preview' }).count()).toBe(1);
-    expect((await savedPlacement()).detached).toBe(false);
+    // Written in the background: it lands shortly after.
+    await expect.poll(async () => (await savedPlacement()).detached).toBe(false);
   });
 
   it('goes back when its window is closed, and opens again where that window was', async () => {
@@ -201,6 +203,52 @@ describe.skipIf(!built)('The website in a window of its own', () => {
     await expect.poll(() => menu('checked')).toBe(false);
     await expect.poll(() => win.getByRole('region', { name: 'Website preview' }).count()).toBe(1);
     await expect.poll(async () => (await host())?.view.width).toBeGreaterThan(0);
+  });
+
+  it("keeps the site's pop-ups open, going along with it", async () => {
+    await win.getByRole('region', { name: 'Website preview' }).getByRole('button', { name: 'Open in its own window' }).click();
+    await pageWindow(app);
+    // A sign-in pop-up: a window of its own, over the window showing the site.
+    await inSite(`void window.open('${site.url}/frames.html?popup', 'signin', 'popup,width=400,height=300')`);
+    const popupParent = () =>
+      app.evaluate(({ BrowserWindow }, url) => {
+        const popup = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL() === url);
+        return popup ? (popup.getParentWindow()?.webContents.getURL() ?? null) : undefined;
+      }, `${site.url}/frames.html?popup`);
+    await expect.poll(popupParent).toMatch(PAGE_WINDOW_URL);
+
+    await (await pageWindow(app)).getByRole('button', { name: 'Put back in the editor window' }).click();
+    await expect.poll(openWindows).toBe(0);
+    await expect.poll(popupParent).toMatch(EDITOR_URL);
+    await app.evaluate(({ BrowserWindow }, url) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL() === url)?.close(), `${site.url}/frames.html?popup`);
+    await expect.poll(popupParent).toBeUndefined();
+  });
+
+  it('copes with being put back, or asked for its address bar, while its window still loads', async () => {
+    await app.evaluate(() => {
+      const failures: string[] = [];
+      (globalThis as { failures?: string[] }).failures = failures;
+      process.on('unhandledRejection', (reason) => failures.push(String(reason)));
+    });
+    const clickMenu = (labels: string[]) =>
+      app.evaluate(({ Menu }, wanted) => {
+        const items = Menu.getApplicationMenu()!.items.flatMap((menu) => menu.submenu?.items ?? []);
+        for (const label of wanted) items.find((item) => item.label === label)!.click();
+      }, labels);
+
+    // Out and straight back, before its UI has loaded.
+    await clickMenu(['Website in Its Own Window', 'Website in Its Own Window']);
+    await expect.poll(async () => (await host())?.hash).toBe('');
+    await new Promise((r) => setTimeout(r, 1000));
+    expect(openWindows()).toBe(0);
+    expect(await app.evaluate(() => (globalThis as { failures?: string[] }).failures)).toEqual([]);
+
+    // Out, and Ctrl/Cmd+L at once: the address bar is focused once the window's UI is there.
+    await clickMenu(['Website in Its Own Window', 'Focus Address Bar']);
+    const own = await pageWindow(app);
+    await expect.poll(() => own.getByTestId('address-bar').evaluate((el) => el === el.ownerDocument.activeElement)).toBe(true);
+    await own.getByRole('button', { name: 'Put back in the editor window' }).click();
+    await expect.poll(openWindows).toBe(0);
   });
 
   it('opens in its own window again after a restart, if it was there when the app quit', async () => {
