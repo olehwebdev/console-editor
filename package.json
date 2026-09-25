@@ -45,12 +45,14 @@
     "lint:fsd": "steiger ./src/renderer/src",
     "lint:structure": "node --no-warnings scripts/check-structure.ts",
     "lint:unused": "knip",
-    "lint:duplicates": "jscpd src scripts --format typescript,tsx --baseline .jscpd-baseline.json --fail-on-new-clones --reporters console"
+    "lint:duplicates": "jscpd src scripts --format typescript,tsx --baseline .jscpd-baseline.json --fail-on-new-clones --reporters console",
+    "lint:secrets": "secretlint \"**/*\""
   },
   "devDependencies": {
     "@babel/parser": "^7.29.9",
     "@babel/types": "^7.29.8",
     "@feature-sliced/steiger-plugin": "^0.7.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.6",
     "@tailwindcss/vite": "^4.3.3",
     "@types/js-beautify": "^1.14.3",
     "@types/node": "^24.13.6",
@@ -66,6 +68,7 @@
     "oxlint": "^1.85.0",
     "oxlint-tsgolint": "^7.0.2003",
     "playwright-core": "^1.63.0",
+    "secretlint": "^13.0.6",
     "steiger": "^0.6.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",

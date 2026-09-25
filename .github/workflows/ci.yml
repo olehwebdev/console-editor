@@ -41,6 +41,8 @@ jobs:
 
       - run: npm run lint:duplicates
 
+      - run: npm run lint:secrets
+
       # Ubuntu 24.04 blocks the unprivileged user namespaces Chromium's sandbox uses unless an
       # AppArmor profile allows the binary (the .deb installs one). Playwright's Chromium and
       # Electron from node_modules have none.

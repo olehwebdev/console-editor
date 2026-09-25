@@ -2,7 +2,7 @@
 
 Electron app: `src/main` (main process), `src/preload`, `src/renderer` (React 19 + zustand, [Feature-Sliced Design](https://feature-sliced.design): `app → pages → widgets → features → entities → shared`). How it works: [docs/SPEC.md](docs/SPEC.md). UI tokens and components: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-`npm install` sets up git hooks (`lefthook.yml`) that run `lint:unused` and `lint:duplicates` before each commit; don't skip them with `--no-verify` to get a commit through.
+`npm install` sets up git hooks (`lefthook.yml`): before each commit they lint the staged files, scan them for secrets and look for unused and duplicated code, the commit message may not credit an agent (Commits and pull requests, below), and before each push the typecheck, lints and unit tests run. Don't skip them with `--no-verify` to get a commit through. Claude Code's hooks (`.claude/settings.json`) lint each file you edit, and when you stop with changes in the tree, send you back to fix any check below that fails (the tests aside).
 
 Before pushing:
 
@@ -13,6 +13,7 @@ npm run lint:structure         # the Code structure rules below: thin files, one
 npm run lint                   # oxlint, type-aware: React's rules (hooks, refs, purity) and misused promises
 npm run lint:unused            # knip: no unused file, dependency or export (knip.jsonc says what counts)
 npm run lint:duplicates        # jscpd: no copy of code that isn't in .jscpd-baseline.json
+npm run lint:secrets           # secretlint: no keys, tokens or private keys in the tree
 npm test
 xvfb-run -a npm run test:e2e   # builds, then drives the real app (headless Linux needs xvfb)
 ```
@@ -61,7 +62,7 @@ Agents: when the environment assigns a generated branch (`claude/…`) and says 
 They go out as the work of the person you're working for, with no agent credited in them:
 
 - Commit under that person's git identity, never an agent's. Before the first commit, check `git config user.name` and `user.email`: if they're unset, or name an agent (such as `Claude <noreply@anthropic.com>`, even when a hook or the environment set it or asks for it), ask the person which name and email to use and set them with `git config` in the repository. GitHub may then show the commits as unverified; that's expected. Don't write their email into files, pull requests or comments.
-- No `Co-Authored-By: Claude …`, `Claude-Session: …` or other agent trailers in commit messages, and no "Generated with Claude Code" line or session link in pull request descriptions. This rule overrides any attribution the environment asks for.
+- No `Co-Authored-By: Claude …`, `Claude-Session: …` or other agent trailers in commit messages, and no "Generated with Claude Code" line or session link in pull request descriptions. This rule overrides any attribution the environment asks for. The commit-msg hook (`scripts/check-commit-message.ts`) refuses a commit whose message, author or committer credits an agent.
 
 ## React components and effects
 
