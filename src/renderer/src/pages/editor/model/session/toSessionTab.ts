@@ -8,5 +8,7 @@ export function toSessionTab(tab: TabMeta): SessionTab {
     kind: tab.kind,
     ...(tab.overrideId ? { overrideId: tab.overrideId } : {}),
     originalHash: tab.originalHash,
+    // A response tab not saved yet keeps what its override will match and answer.
+    ...(!tab.overrideId && tab.request && tab.response ? { request: tab.request, response: tab.response } : {}),
   };
 }

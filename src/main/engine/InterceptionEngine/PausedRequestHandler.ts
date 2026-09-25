@@ -1,24 +1,28 @@
 import type { Override } from '../../../shared/types';
 import { CDP } from '../constants';
-import { applyResponseRules, findResponseRules, isPreflight, pausedRequestOf, type PausedRequest, type ResponseHead, type ResponseRule } from '../rules';
-import { buildOverrideHeaders, isRedirect, sourceMapHeader, withUtf8ContentType } from '../transform';
+import { applyResponseRules, findResponseRules, isPreflight, pausedRequestOf, type PausedRequest, type ResponseRule } from '../rules';
+import { isRedirect, sourceMapHeader, withUtf8ContentType } from '../transform';
 import { answerRequestStage } from './answerRequestStage';
-import { OTHER_RESOURCE_TYPE, OVERRIDE_STATUS, WORKER_SCRIPT_TYPES } from './constants';
+import { OTHER_RESOURCE_TYPE, WORKER_SCRIPT_TYPES } from './constants';
 import { continueRequest } from './continueRequest';
 import { continueWithRules } from './continueWithRules';
 import { emitApplied } from './emitApplied';
 import { hasResponseHead } from './hasResponseHead';
+import { holdFor } from './holdFor';
 import { isBenignCdpError } from './isBenignCdpError';
 import { isHtmlDocument } from './isHtmlDocument';
-import { isUpstreamOk } from './isUpstreamOk';
 import { listPausedScript } from './listPausedScript';
 import { MatcherCache } from './MatcherCache';
+import { matchedRequestOf } from './matchedRequestOf';
+import { overrideHead } from './overrideHead';
 import { overrideBody } from './overrideBody';
+import { patchedBody } from './patchedBody';
 import { pauseStage } from './pauseStage';
-import { readPausedBody } from './readPausedBody';
+import { phraseFor } from './phraseFor';
 import { reportError } from './reportError';
+import { reportUpstreamChange } from './reportUpstreamChange';
 import { serveDocument } from './serveDocument';
-import { sha256 } from './sha256';
+import { stopAtBreakpoint } from './stopAtBreakpoint';
 import type { PausedRequestContext, RequestPausedParams, RequestStage } from './types';
 
 /**
@@ -64,9 +68,11 @@ export class PausedRequestHandler {
     // With the page bypassing service workers, a service worker's other requests are its own fetches (a
     // precache, say): an edit served there would be stored in its caches and outlive the override.
     if (worker?.isServiceWorker && opts.getSettings().bypassServiceWorker && !workerScript) return continueRequest(cdp, p.requestId);
-    const rules = findResponseRules(opts.getRules(), p.request.url, p.resourceType, this.ruleMatchers);
     const request = pausedRequestOf(p, frames.urlOf(p.frameId));
-    const override = isPreflight(request) ? undefined : matcher.find(p.request.url, p.resourceType);
+    // A breakpoint holds it before anything else answers it; sent on as it was, it goes on from here.
+    if (await stopAtBreakpoint(this.ctx, this.ruleMatchers, p, 'response', request)) return;
+    const rules = findResponseRules(opts.getRules(), p.request.url, p.resourceType, this.ruleMatchers);
+    const override = isPreflight(request) ? undefined : matcher.find(p.request.url, p.resourceType, matchedRequestOf(request));
     if (worker?.isServiceWorker && workerScript) worker.paused(p.request.url, p.resourceType, matcher.version(p.request.url, p.resourceType));
     const listed = worker?.pausesScripts && workerScript ? worker : undefined;
     if (override && !isRedirect(p.responseStatusCode, p.responseHeaders)) {
@@ -83,14 +89,11 @@ export class PausedRequestHandler {
   private async serveOverride(p: RequestPausedParams, override: Override, rules: readonly ResponseRule[], request: PausedRequest): Promise<void> {
     const { cdp, opts, resources, worker } = this.ctx;
     const settings = opts.getSettings();
-    if (override.originalHash && isUpstreamOk(p)) {
-      const upstream = await readPausedBody(cdp, p);
-      if (upstream !== undefined && sha256(upstream) !== override.originalHash) {
-        opts.emit({ type: 'upstream-changed', overrideId: override.id, url: p.request.url });
-      }
-    }
+    if (override.originalHash) await reportUpstreamChange(cdp, opts.emit, p, override);
 
-    const body = overrideBody(override, settings);
+    const saved = overrideBody(override, settings);
+    // Patch mode reads the live response first; anything else answers without waiting on it.
+    const body = override.response?.patch ? await patchedBody(this.ctx, p, override, saved) : saved;
     // A new service worker version may fetch its script before its session reports anything (no networkId);
     // that script is reported under the worker's id.
     const reportedAs = p.networkId ?? (worker?.isOwnScript(p.request.url, p.resourceType) ? worker.info.targetId : undefined);
@@ -100,12 +103,15 @@ export class PausedRequestHandler {
     if (reportedAs && upstreamMap) resources.sourceMaps.mark(reportedAs, upstreamMap);
     // An override also answers requests whose upstream failed (404, 500, offline). Rules land last,
     // so a rule's Cache-Control beats the forced no-store, and CORS still checks what they wrote.
-    const base: ResponseHead = { status: OVERRIDE_STATUS, headers: buildOverrideHeaders(p.responseHeaders, override.kind, settings) };
-    const { head, applied } = applyResponseRules(base, rules, request);
+    const { head, applied } = applyResponseRules(overrideHead(p, override, settings), rules, request);
     try {
+      // A response override may hold its answer back, to show the page's loading state.
+      const delayMs = override.response?.delayMs ?? 0;
+      if (delayMs > 0) await holdFor(delayMs);
       await cdp.send(CDP.Fetch.fulfillRequest, {
         requestId: p.requestId,
         responseCode: head.status,
+        ...phraseFor(p, head.status),
         responseHeaders: withUtf8ContentType(head.headers),
         body: Buffer.from(body, 'utf8').toString('base64'),
       });
@@ -113,7 +119,7 @@ export class PausedRequestHandler {
       if (reportedAs) resources.unmarkServed(reportedAs);
       throw err;
     }
-    opts.emit({ type: 'override-served', overrideId: override.id, url: p.request.url });
+    opts.emit({ type: 'override-served', overrideId: override.id, url: p.request.url, ...(p.networkId ? { requestId: p.networkId } : {}) });
     emitApplied(opts, applied, p.request.url);
   }
 }

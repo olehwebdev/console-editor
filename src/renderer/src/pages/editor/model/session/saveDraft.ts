@@ -10,7 +10,8 @@ export function saveDraft(tabId: string): void {
   draftTimers.delete(tabId);
   const tab = useTabStore.getState().tabs.find((t) => t.id === tabId);
   const model = getTabModel(tabId);
-  if (!tab?.dirty || !model) return;
+  // A held request's tab lasts as long as the request is held: nothing to reopen.
+  if (!tab?.dirty || tab.held || !model) return;
   const draft: SessionDraft = { content: model.getValue() };
   if (!tab.overrideId && !baseWritten.has(tabId)) {
     const base = getTabBase(tabId);

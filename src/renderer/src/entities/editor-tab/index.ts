@@ -27,5 +27,6 @@ export {
   setTabBase,
   markTabSaved,
   replaceTabText,
+  editTabText,
   disposeTabModel,
 } from './model/models';

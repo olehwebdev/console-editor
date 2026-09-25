@@ -1,7 +1,9 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
+import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { MenuCommand } from './menu';
-import type { OverrideMeta } from './overrides';
+import type { NetworkRequest } from './network';
+import type { OverrideMeta, UnpatchedReason } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
 import type { Rule } from './rules';
@@ -25,8 +27,11 @@ export type EngineEvent =
   /** An enabled override matched a file the page received unmodified (e.g. a Chromium interception gap). */
   | { type: 'override-missed'; overrideId: string; url: string; reason?: MissedReason }
   | { type: 'resource'; resource: ResourceEntry }
-  | { type: 'override-served'; overrideId: string; url: string }
+  /** An override answered a request; `requestId` is its network request id, when Chromium gave one. */
+  | { type: 'override-served'; overrideId: string; url: string; requestId?: string }
   | { type: 'upstream-changed'; overrideId: string; url: string }
+  /** A response override set to patch the live response couldn't, and answered with its saved text instead. */
+  | { type: 'override-unpatched'; overrideId: string; url: string; reason: UnpatchedReason }
   /** A rule blocked a request, or changed its response's headers (one event per rule that changed something). */
   | { type: 'rule-applied'; ruleId: string; url: string }
   /** An enabled block rule matched a listed file that arrived anyway (it loaded before the rule applied, or a Chromium interception gap). */
@@ -52,6 +57,11 @@ export type AppEvent =
   | { type: 'console-cleared' }
   /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
   | { type: 'actions-changed'; actions: ConsoleAction[] }
+  /** Requests new to the log, or changed (a response arrived, it finished or failed), oldest first. */
+  | { type: 'network-requests'; requests: NetworkRequest[] }
+  | { type: 'network-cleared' }
+  /** The requests breakpoints hold now, oldest first: one was stopped, or let go (by you, or the page gave up on it). */
+  | { type: 'held-requests'; held: HeldRequest[] }
   /** The Actions panel moved into its own window or back, or that window's Keep on top changed. */
   | { type: 'actions-window'; state: ActionsWindowState }
   /** A window changed the settings (the others show them as they are now). */

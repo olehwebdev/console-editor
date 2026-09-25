@@ -6,26 +6,26 @@ import { DURATION, EASE_OUT, SLIDE_IN_X } from '@/shared/lib';
 import { isConfirmOpen } from '@/shared/ui/dialog';
 import { ActivityBar } from '@/widgets/activity-bar';
 import { AppCommandPalette, usePalette } from '@/widgets/command-palette';
-import { ConsolePanel } from '@/widgets/console-panel';
 import { EditorPanel } from '@/widgets/editor-panel';
 import { PagePreview } from '@/widgets/page-preview';
 import { StatusBar } from '@/widgets/status-bar';
 import { TitleBar } from '@/widgets/title-bar';
 import { usePageStore } from '@/entities/page';
 import { useLayout } from '../../model/layout';
-import { focusAddressBar } from './focusAddressBar';
+import { BottomPanel } from './BottomPanel';
 import { ConsolePane } from './ConsolePane';
 import { SIDEBAR_VIEWS } from './constants';
+import { focusAddressBar } from './focusAddressBar';
 import { followRowWidth } from './followRowWidth';
 import { newAction } from './newAction';
 import { newWorkspace } from './newWorkspace';
 import { openWorkspace } from './openWorkspace';
 import { PreviewPane } from './PreviewPane';
 import { removeWorkspace } from './removeWorkspace';
-import { saveAsAction } from './saveAsAction';
 import { setAddressBar } from './setAddressBar';
 import { shortcutKey } from './shortcutKey';
 import { showExplorer } from './showExplorer';
+import { showNetwork } from './showNetwork';
 import { showSettings } from './showSettings';
 import { SidebarPane } from './SidebarPane';
 import { toggleWebsitePreview } from './toggleWebsitePreview';
@@ -118,7 +118,7 @@ export function EditorPage() {
           </div>
           {consoleVisible ? (
             <ConsolePane>
-              <ConsolePanel onClose={toggleConsole} onSaveAsAction={saveAsAction} />
+              <BottomPanel />
             </ConsolePane>
           ) : null}
         </main>
@@ -139,6 +139,7 @@ export function EditorPage() {
         onNewWorkspace={newWorkspace}
         onToggleConsole={toggleConsole}
         onNewAction={newAction}
+        onShowNetwork={showNetwork}
       />
     </div>
   );
