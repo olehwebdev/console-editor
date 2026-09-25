@@ -22,4 +22,4 @@ export type {
 } from './source-map';
 export { useOverlayStore, useRegisterOverlay, selectAnyOverlayOpen } from './overlays';
 export { getNativeViewRect, rectsOverlap, setNativeViewRect, type NativeViewRect } from './nativeView';
-export { inferJsonSchema, mergeSchemas, type InferredSchema } from './json';
+export { emptyArrays, inferJsonSchema, lengthenStrings, mergeSchemas, nullAt, type InferredSchema } from './json';

@@ -8,3 +8,4 @@ export { sameResponseRule } from './sameResponseRule';
 export { setPendingRule } from './setPendingRule';
 export { toForm } from './toForm';
 export type { ResponseRuleForm, ResponseRuleValue } from './types';
+export { editJsonText, nullAtCursor, QUICK_ANSWERS } from './quickEdits';

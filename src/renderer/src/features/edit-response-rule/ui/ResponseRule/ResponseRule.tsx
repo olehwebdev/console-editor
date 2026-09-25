@@ -22,6 +22,7 @@ import {
 import { AnswerSwitches } from './AnswerSwitches';
 import { MethodMenu } from './MethodMenu';
 import { NumberField } from './NumberField';
+import { QuickEditsMenu } from './QuickEditsMenu';
 
 /**
  * What a response tab's override asks of a request besides its URL (method, GraphQL operation) and
@@ -95,6 +96,7 @@ export function ResponseRule({ tab, override }: { tab: TabMeta; override?: Overr
             Header
           </Button>
           <AnswerSwitches send={form.send} patch={form.patch} onChange={change} />
+          <QuickEditsMenu tabId={tab.id} onAnswer={change} />
         </div>
         {override ? (
           <Button size="sm" variant={dirty ? 'primary' : 'ghost'} disabled={!dirty} onClick={apply} className={cn('ml-auto', !dirty && 'opacity-60')} data-testid="response-apply">
