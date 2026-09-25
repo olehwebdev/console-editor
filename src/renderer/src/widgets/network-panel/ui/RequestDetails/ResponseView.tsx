@@ -12,7 +12,7 @@ export function ResponseView({ request }: DetailViewProps) {
   if (request.state === 'pending') return note(BODY_GAP_TEXT.pending);
   if (!result) return note('Reading the response…');
   if (result.error) return note(result.error);
-  const body = result.body!;
+  const body = result.value!;
   if (!body.available) return note(BODY_GAP_TEXT[body.gap]);
   if (body.binary) return note('A binary response: it isn’t shown here.');
   if (!body.text) return note('The response was empty.');
