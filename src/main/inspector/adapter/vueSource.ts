@@ -2,7 +2,9 @@
  * Page-side Vue 3 part of the adapter (`ADAPTER_SOURCE`). Development builds put
  * the component on each element (`__vueParentComponent`); production builds
  * don't, so the app's vnode tree is walked from the element it is mounted on
- * (`_vnode`), as probed on Vue 3.5 (docs/INSPECTOR_RESEARCH.md §2).
+ * (`_vnode`), as probed on Vue 3.5 (docs/INSPECTOR_RESEARCH.md §2): only down
+ * the elements that hold the one looked for (an element's vnode holds its
+ * subtree), so a large app costs its depth, not its size.
  */
 export const VUE_JS = `
   const MAX_VNODES = 20000;
@@ -21,21 +23,22 @@ export const VUE_JS = `
     let container = el;
     while (container && !container._vnode) container = container.parentElement;
     if (!container) return null;
-    const byElement = new Map();
+    // The deepest element holding it that a component rendered: the element itself, else its nearest such ancestor.
+    let hit = null;
     let visited = 0;
     const visit = (vnode, owner) => {
       if (!vnode || typeof vnode !== 'object' || visited++ > MAX_VNODES) return;
       if (vnode.component) return visit(vnode.component.subTree, vnode.component);
-      if (vnode.el && vnode.el.nodeType === 1 && !byElement.has(vnode.el)) byElement.set(vnode.el, { instance: owner, vnode });
+      // An element's vnode (a string type) holds its subtree; a fragment's or a teleport's doesn't.
+      if (typeof vnode.type === 'string' && vnode.el && vnode.el.nodeType === 1) {
+        if (!vnode.el.contains(el)) return;
+        if (owner) hit = { instance: owner, vnode };
+      }
       if (Array.isArray(vnode.children)) vnode.children.forEach((child) => visit(child, owner));
       if (vnode.suspense) visit(vnode.suspense.activeBranch, owner);
     };
     visit(container._vnode, null);
-    for (let node = el; node; node = node.parentElement) {
-      const hit = byElement.get(node);
-      if (hit && hit.instance) return { instance: hit.instance, vnode: hit.vnode, build: 'production' };
-    }
-    return null;
+    return hit && { instance: hit.instance, vnode: hit.vnode, build: 'production' };
   };
   const vueFind = (el) => {
     const found = vueOwner(el);

@@ -33,6 +33,10 @@ export const INSPECT_MODE = { pick: 'searchForNode', off: 'none' } as const;
 export const ADAPTER_MODE = { summary: 'summary', describe: 'describe', set: 'set', tree: 'tree', locate: 'locate' } as const;
 /** The internal property V8 gives a function's place under. */
 export const FUNCTION_LOCATION = '[[FunctionLocation]]';
+/** The most functions one read places (each is a call); the rest go unplaced. */
+export const MAX_PLACED_FUNCTIONS = 1000;
+/** The longest script URL kept for placing functions (a longer one, a data: URL, leaves its functions unplaced). */
+export const MAX_SCRIPT_URL = 2048;
 /** What a read says when its element is gone. */
 export const PICK_GONE = 'That element is gone: the page moved on since it was picked.';
 /** The View menu's Pick an Element item. */

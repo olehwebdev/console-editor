@@ -7,7 +7,7 @@ vi.mock('@/shared/api', () => ({ api, onAppEvent: () => () => {}, errorMessage: 
 vi.mock('@/shared/ui/toast', () => ({ toast: Object.assign(toast, { dismiss: vi.fn(), update: vi.fn() }) }));
 vi.mock('@/shared/monaco', () => ({ monaco: {}, languageFor: () => 'javascript', requestReveal: vi.fn() }));
 
-const { forgetMapFile, loadMapFile } = await import('@/features/open-resource');
+const { forgetMapFile, forgetSourceMaps, loadMapFile, locateLocations } = await import('@/features/open-resource');
 const { sourceMapMenu } = await import('@/widgets/explorer/ui/ResourceTree/sourceMapMenu');
 
 const BUNDLE = 'https://site.test/assets/app.js';
@@ -34,6 +34,21 @@ describe('source maps loaded from files (renderer)', () => {
     expect(useInspectorStore.getState().forgetBundle(BUNDLE)).toEqual([at(BUNDLE, 5)]);
     expect(Object.keys(useInspectorStore.getState().origins)).toEqual([locationKey(at('https://site.test/other.js', 5))]);
     expect(useInspectorStore.getState().hookNames).toEqual({});
+  });
+
+  it('forgets every original and hook name with the maps (another workspace), and drops a lookup that finishes after', async () => {
+    let answer!: (state: unknown) => void;
+    api.getSourceMap.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    const late = at('https://site.test/late.js', 9);
+    const lookup = locateLocations([late]);
+    forgetSourceMaps();
+    expect(useInspectorStore.getState()).toMatchObject({ origins: {}, hookNames: {} });
+    answer({ status: 'none', bundleHash: 'h' });
+    await lookup;
+    expect(useInspectorStore.getState().origins).toEqual({});
+    // Looked up again in the new workspace, it is told.
+    await locateLocations([late]);
+    expect(useInspectorStore.getState().origins).toEqual({ [locationKey(late)]: null });
   });
 
   it('loads a map from a file, reading the bundle again and tracing its places again; nothing when none was picked', async () => {
