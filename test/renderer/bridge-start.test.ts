@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
   listRules: vi.fn(),
   listActions: vi.fn(),
   listResources: vi.fn(),
+  listNetworkRequests: vi.fn(),
   getPageState: vi.fn(),
   sessionFlushed: vi.fn(),
 }));
@@ -36,6 +37,7 @@ vi.mock('@/shared/ui/dialog', () => ({ confirm: async () => true, isConfirmOpen:
 vi.mock('@/shared/monaco', () => ({
   monaco: { editor: { createModel: () => ({}) }, Uri: { from: () => ({}) } },
   languageFor: () => 'javascript',
+  setModelSchema: () => {},
   editorHasFocus: () => false,
   dismissEditorWidgets: () => {},
   triggerInActiveEditor: () => {},
@@ -100,6 +102,7 @@ describe('start bridge', () => {
     api.listRules.mockResolvedValue([]);
     api.listActions.mockResolvedValue([]);
     api.listResources.mockResolvedValue([]);
+    api.listNetworkRequests.mockResolvedValue([]);
     api.getPageState.mockResolvedValue(PAGE);
   });
   afterEach(() => {

@@ -2,8 +2,10 @@ import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
+import { useNetworkStore } from '@/entities/network-request';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
+import { receiveRequests } from '@/features/network/filter';
 import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
 import { answerFlushSession } from './events/answerFlushSession';
@@ -41,6 +43,8 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'console-entries': (event) => receiveEntries(event.entries),
   'console-cleared': () => useConsoleStore.getState().clear(),
   'actions-changed': (event) => useActionStore.getState().setAll(event.actions),
+  'network-requests': (event) => receiveRequests(event.requests),
+  'network-cleared': () => useNetworkStore.getState().clear(),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),

@@ -43,6 +43,7 @@ export const useLayout = create<LayoutStore>()((set) => ({
     }),
   setRowWidth: (rowWidth) => set((s) => (s.rowWidth === rowWidth ? s : { rowWidth })),
   toggleConsole: () => set((s) => ({ consoleVisible: !s.consoleVisible })),
+  showBottomView: (bottomView) => set((s) => (s.consoleVisible && s.bottomView === bottomView ? s : { consoleVisible: true, bottomView })),
   resizeConsole: (delta, total) =>
     set((s) => {
       const target = s.consoleDragStart === null ? s.consoleHeight - delta : s.consoleDragStart - total;
