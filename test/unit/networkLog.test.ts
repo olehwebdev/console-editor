@@ -216,10 +216,13 @@ describe('NetworkLog', () => {
       sent('slow', 'https://a.com/slow');
       sent('dead', 'https://a.com/dead');
       transport.emit('Network.loadingFailed', { requestId: 'dead', timestamp: 101, errorText: 'net::ERR_FAILED' });
+      // An EventSource is a stream before its response comes too (it never "finishes arriving").
+      sent('source', 'https://a.com/events', { type: 'EventSource' });
       transport.calls = [];
       expect(await log.responseBody('2')).toEqual({ available: false, gap: 'stream' });
       expect(await log.responseBody('3')).toEqual({ available: false, gap: 'pending' });
       expect(await log.responseBody('4')).toEqual({ available: false, gap: 'failed' });
+      expect(await log.responseBody('5')).toEqual({ available: false, gap: 'stream' });
       expect(transport.calls).toEqual([]);
     });
 

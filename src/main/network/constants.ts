@@ -10,6 +10,9 @@ export const READ_TIMEOUT_MS = 5000;
 /** Joins a session id and a request id into a row's key: a NUL occurs in neither. */
 export const KEY_SEPARATOR = '\u0000';
 
+/** The Network type of an `EventSource`'s request: a stream, whether or not its response has come. */
+export const EVENT_SOURCE_TYPE = 'EventSource';
+
 /** The Network type of a page or frame's document: a new one in the main frame starts a new page load. */
 export const DOCUMENT_TYPE = 'Document';
 
