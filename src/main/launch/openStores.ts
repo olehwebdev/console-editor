@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { OverrideStore } from '../store/OverrideStore';
+import { PageWindowStore } from '../store/PageWindowStore';
 import { SessionStore } from '../store/SessionStore';
 import { SettingsStore } from '../store/SettingsStore';
 import { USER_DATA } from './constants';
@@ -13,6 +14,7 @@ export async function openStores(userData: string): Promise<AppStores> {
   const store = new OverrideStore(join(userData, USER_DATA.workspace));
   const settings = new SettingsStore(join(userData, USER_DATA.settings));
   const session = new SessionStore(join(userData, USER_DATA.session));
-  await Promise.all([store.load(), settings.load(), session.load()]);
-  return { store, settings, session, hadData };
+  const pageWindow = new PageWindowStore(join(userData, USER_DATA.pageWindow));
+  await Promise.all([store.load(), settings.load(), session.load(), pageWindow.load()]);
+  return { store, settings, session, pageWindow, hadData };
 }

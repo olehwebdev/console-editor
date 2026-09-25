@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **The website in a window of its own.** Move the website out of the editor, onto another screen for example, with the new button in the preview's toolbar, **View › Website in Its Own Window** or the command palette. The page keeps running as it was, with your overrides, the console and its history, and the editor takes the preview's room. Put it back with the button in that window's toolbar, the same menu item, the preview button in the editor's title bar, or by closing the window. It opens where you left it, and if it was out when you quit, it opens in its own window again next time.
+
 ## [0.3.0] - 2026-09-24
 
 ### Added
