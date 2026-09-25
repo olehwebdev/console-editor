@@ -25,7 +25,7 @@ export interface ResourceTrackerContext {
   navigation: NavigationTracker;
   /** Finds the overrides a response arrived without (to report them). */
   matcher: OverrideMatcher;
-  opts: Pick<EngineOptions, 'emit' | 'iframe' | 'servedBy'>;
+  opts: Pick<EngineOptions, 'emit' | 'iframe' | 'servedBy' | 'getRules'>;
   /** Set on a worker session: the worker's own scripts. */
   worker?: WorkerScripts;
 }
@@ -33,8 +33,10 @@ export interface ResourceTrackerContext {
 /** What the handler of paused requests works with. */
 export interface PausedRequestContext {
   cdp: CdpTransport;
-  opts: Pick<EngineOptions, 'getSettings' | 'emit' | 'workerSetups'>;
+  opts: Pick<EngineOptions, 'getOverrides' | 'getRules' | 'getSettings' | 'emit' | 'iframe' | 'workerSetups'>;
   matcher: OverrideMatcher;
+  /** The session's frames: which is the page, and the URL of the one that made a request. */
+  frames: FrameTracker;
   /** Told which requests were answered by an override or rewritten. */
   resources: ResourceTracker;
   /** Set on a worker session: the worker's own scripts. */
@@ -45,7 +47,7 @@ export interface PausedRequestContext {
 export interface SessionSettings {
   /** Re-applies the settings and interception patterns. */
   apply(): Promise<void>;
-  /** Recomputes the interception patterns (the overrides changed). */
+  /** Recomputes the interception patterns (the overrides or rules changed). */
   refresh(): Promise<void>;
   /** Stops pausing requests, without waiting for (or minding) the answer. */
   stop(): void;

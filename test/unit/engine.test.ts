@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
 import { computeFetchPatterns, InterceptionEngine, sha256, type EngineOptions } from '../../src/main/engine/InterceptionEngine';
-import { DEFAULT_SETTINGS, type EngineEvent, type Override, type WorkerType } from '../../src/shared/types';
+import { DEFAULT_SETTINGS, type BlockRule, type CorsRule, type EngineEvent, type HeaderRule, type Override, type Rule, type WorkerType } from '../../src/shared/types';
 
 function override(partial: Partial<Override>): Override {
   return {
@@ -59,12 +59,42 @@ async function setup(overrides: Override[] = [], settings = { ...DEFAULT_SETTING
   const engine = new InterceptionEngine({
     transport,
     getOverrides: () => overrides,
+    getRules: () => [],
     getSettings: () => settings,
     emit: (e) => events.push(e),
     ...options,
   });
   await engine.attach();
   return { transport, engine, events, overrides, settings };
+}
+
+/** `setup` with rules (and other options). */
+async function setupRules(overrides: Override[] = [], settings = { ...DEFAULT_SETTINGS }, rules: Rule[] = [], extra: Partial<EngineOptions> = {}) {
+  return { ...(await setup(overrides, settings, { getRules: () => rules, ...extra })), rules };
+}
+
+const matchExact = (pattern: string) => ({ type: 'exact' as const, pattern, ignoreQuery: true });
+
+function blockRule(partial: Partial<BlockRule> = {}): BlockRule {
+  return { id: 'b1', action: 'block', match: matchExact('https://a.com/ads.js'), resourceTypes: [], enabled: true, createdAt: 1, updatedAt: 1, ...partial };
+}
+
+function headerRule(partial: Partial<HeaderRule> = {}): HeaderRule {
+  return {
+    id: 'h1',
+    action: 'headers',
+    match: matchExact('https://a.com/api'),
+    resourceTypes: [],
+    headers: [{ operation: 'set', name: 'X-Added', value: 'yes' }],
+    enabled: true,
+    createdAt: 1,
+    updatedAt: 1,
+    ...partial,
+  };
+}
+
+function corsRule(partial: Partial<CorsRule> = {}): CorsRule {
+  return { id: 'c1', action: 'cors', match: matchExact('https://api.b.com/data'), resourceTypes: [], enabled: true, createdAt: 1, updatedAt: 1, ...partial };
 }
 
 /** A worker's first script (its target id is that request's id). */
@@ -79,6 +109,7 @@ function worker(type: WorkerType, overrides: Override[] = [], options: Partial<E
   const engine = new InterceptionEngine({
     transport,
     getOverrides: () => overrides,
+    getRules: () => [],
     getSettings: () => settings,
     emit: (e) => events.push(e),
     worker: { id: 'W1', type, targetId: 'T-W1', url: W, nested },
@@ -89,11 +120,11 @@ function worker(type: WorkerType, overrides: Override[] = [], options: Partial<E
 
 describe('computeFetchPatterns', () => {
   it('is empty without enabled overrides', () => {
-    expect(computeFetchPatterns([override({ enabled: false })], DEFAULT_SETTINGS)).toEqual([]);
+    expect(computeFetchPatterns([override({ enabled: false })], [], DEFAULT_SETTINGS)).toEqual([]);
   });
 
   it('adds a document pattern for SRI stripping when a script is overridden', () => {
-    expect(computeFetchPatterns([override({})], DEFAULT_SETTINGS)).toEqual([
+    expect(computeFetchPatterns([override({})], [], DEFAULT_SETTINGS)).toEqual([
       { urlPattern: 'https://a.com/app.js*', resourceType: undefined, requestStage: 'Response' },
       { urlPattern: '*', resourceType: 'Document', requestStage: 'Response' },
     ]);
@@ -102,6 +133,7 @@ describe('computeFetchPatterns', () => {
   it('restricts regex overrides to their resource type; script ones also pause Other (worker scripts)', () => {
     const patterns = computeFetchPatterns(
       [override({ match: { type: 'regex', pattern: 'x', ignoreQuery: false } })],
+      [],
       { ...DEFAULT_SETTINGS, stripIntegrity: false },
     );
     expect(patterns).toEqual([
@@ -114,23 +146,62 @@ describe('computeFetchPatterns', () => {
     const regex = { type: 'regex', pattern: 'x', ignoreQuery: false } as const;
     const patterns = computeFetchPatterns(
       [override({ id: 'a', match: regex }), override({ id: 'b', match: regex }), override({ id: 'css', kind: 'Stylesheet', match: regex })],
+      [],
       { ...DEFAULT_SETTINGS, stripIntegrity: false },
     );
     expect(patterns.map((p) => p.resourceType)).toEqual(['Script', 'Other', 'Stylesheet']);
     // Exact and glob overrides pause every type already.
-    expect(computeFetchPatterns([override({})], { ...DEFAULT_SETTINGS, stripIntegrity: false })).toEqual([
+    expect(computeFetchPatterns([override({})], [], { ...DEFAULT_SETTINGS, stripIntegrity: false })).toEqual([
       { urlPattern: 'https://a.com/app.js*', requestStage: 'Response' },
     ]);
   });
 
   it('keeps working with an override of a match type it does not know', () => {
     const unknown = { type: 'prefix', pattern: 'x', ignoreQuery: false } as unknown as Override['match'];
-    const patterns = computeFetchPatterns([override({ match: unknown })], { ...DEFAULT_SETTINGS, stripIntegrity: false });
+    const patterns = computeFetchPatterns([override({ match: unknown })], [], { ...DEFAULT_SETTINGS, stripIntegrity: false });
     // Paused as for a regex: a script override also pauses Other (worker scripts).
     expect(patterns).toEqual([
       { urlPattern: '*', resourceType: 'Script', requestStage: 'Response' },
       { urlPattern: '*', resourceType: 'Other', requestStage: 'Response' },
     ]);
+  });
+
+  const noSri = { ...DEFAULT_SETTINGS, stripIntegrity: false };
+
+  it('pauses block rules at the Request stage, with no resource type', () => {
+    const patterns = computeFetchPatterns([], [blockRule({ resourceTypes: ['Script'] })], DEFAULT_SETTINGS);
+    expect(patterns).toEqual([{ urlPattern: 'https://a.com/ads.js*', requestStage: 'Request' }]);
+    expect(patterns[0]).not.toHaveProperty('resourceType');
+  });
+
+  it('pauses header and CORS rules at the Response stage', () => {
+    expect(computeFetchPatterns([], [headerRule({ resourceTypes: ['XHR'] }), corsRule()], noSri)).toEqual([
+      { urlPattern: 'https://a.com/api*', requestStage: 'Response' },
+      { urlPattern: 'https://api.b.com/data*', requestStage: 'Response' },
+    ]);
+  });
+
+  it('keeps both stages for a block rule and an override of one URL', () => {
+    const patterns = computeFetchPatterns([override({})], [blockRule({ match: matchExact('https://a.com/app.js') })], noSri);
+    expect(patterns).toEqual([
+      { urlPattern: 'https://a.com/app.js*', resourceType: undefined, requestStage: 'Response' },
+      { urlPattern: 'https://a.com/app.js*', requestStage: 'Request' },
+    ]);
+  });
+
+  it('pauses every request at its stage for a regex rule, whatever its types', () => {
+    const regex = blockRule({ match: { type: 'regex', pattern: 'ads', ignoreQuery: false }, resourceTypes: ['Image'] });
+    expect(computeFetchPatterns([], [regex], noSri)).toEqual([{ urlPattern: '*', requestStage: 'Request' }]);
+  });
+
+  it('ignores disabled rules and actions it does not know', () => {
+    const unknown = { ...blockRule(), action: 'redirect' } as unknown as Rule;
+    expect(computeFetchPatterns([], [blockRule({ enabled: false }), unknown], DEFAULT_SETTINGS)).toEqual([]);
+  });
+
+  it('adds no SRI pattern for rules alone', () => {
+    const patterns = computeFetchPatterns([], [headerRule(), blockRule()], DEFAULT_SETTINGS);
+    expect(patterns.some((p) => p.resourceType === 'Document')).toBe(false);
   });
 });
 
@@ -452,6 +523,7 @@ describe('InterceptionEngine', () => {
       const engine = new InterceptionEngine({
         transport,
         getOverrides: () => [],
+        getRules: () => [],
         getSettings: () => DEFAULT_SETTINGS,
         emit: (e) => events.push(e),
         iframe: { id: 'S1', depth: 1 },
@@ -469,6 +541,7 @@ describe('InterceptionEngine', () => {
       const frame = new InterceptionEngine({
         transport,
         getOverrides: () => [],
+        getRules: () => [],
         getSettings: () => DEFAULT_SETTINGS,
         emit: () => undefined,
         iframe: { id: 'S1', depth: 1 },
@@ -559,7 +632,7 @@ describe('InterceptionEngine', () => {
         ];
         expect(transport.calls.filter((c) => c.method.startsWith('Fetch.'))).toEqual([
           { method: 'Fetch.enable', params: { patterns: scripts } },
-          { method: 'Fetch.enable', params: { patterns: [...computeFetchPatterns([override({})], DEFAULT_SETTINGS), ...scripts] } },
+          { method: 'Fetch.enable', params: { patterns: [...computeFetchPatterns([override({})], [], DEFAULT_SETTINGS), ...scripts] } },
           { method: 'Fetch.enable', params: { patterns: scripts } },
           { method: 'Fetch.enable', params: { patterns: scripts } },
         ]);
@@ -596,7 +669,7 @@ describe('InterceptionEngine', () => {
         { urlPattern: '*', resourceType: 'Other', requestStage: 'Response' },
       ];
       expect(transport.calls.filter((c) => c.method === 'Fetch.enable').map((c) => c.params)).toEqual([
-        { patterns: [...computeFetchPatterns([lib], DEFAULT_SETTINGS), ...scripts] },
+        { patterns: [...computeFetchPatterns([lib], [], DEFAULT_SETTINGS), ...scripts] },
         { patterns: scripts },
       ]);
       overrides.push(lib);
@@ -974,5 +1047,467 @@ describe('InterceptionEngine', () => {
     transport.emit('Network.responseReceived', { requestId: '1', type: 'Script', response: { url: 'data:text/javascript,1', status: 200, mimeType: '' } });
     transport.emit('Network.responseReceived', { requestId: '2', type: 'Image', response: { url: 'https://a.com/x.png', status: 200, mimeType: '' } });
     expect(engine.listResources()).toEqual([]);
+  });
+});
+
+type Paused = {
+  requestId?: string;
+  networkId?: string;
+  resourceType?: string;
+  frameId?: string;
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  responseStatusCode?: number;
+  responseStatusText?: string;
+  responseErrorReason?: string;
+  responseHeaders?: Array<{ name: string; value: string }>;
+};
+
+/** Emits a Fetch.requestPaused (a Request-stage pause unless it has a status or an error reason). */
+function pause(t: FakeTransport, { url, method = 'GET', headers, requestId = 'f1', networkId = 'n1', resourceType = 'Script', frameId = 'main', ...rest }: Paused) {
+  t.emit('Fetch.requestPaused', { requestId, networkId, resourceType, frameId, request: { url, method, ...(headers ? { headers } : {}) }, ...rest });
+}
+
+const call = (t: FakeTransport, method: string) => t.calls.find((c) => c.method === method);
+const count = (t: FakeTransport, method: string) => t.methods().filter((m) => m === method).length;
+const applied = (events: EngineEvent[]) => events.filter((e) => e.type === 'rule-applied');
+
+describe('InterceptionEngine: Request stage (block rules)', () => {
+  it('fails a matching request as blocked by the client, lists it and counts a hit', async () => {
+    const { transport, events, engine } = await setupRules([], undefined, [blockRule()]);
+    pause(transport, { url: 'https://a.com/ads.js?v=1' });
+    await flush();
+    expect(call(transport, 'Fetch.failRequest')?.params).toEqual({ requestId: 'f1', errorReason: 'BlockedByClient' });
+    expect(transport.methods()).not.toContain('Fetch.continueRequest');
+    expect(applied(events)).toEqual([{ type: 'rule-applied', ruleId: 'b1', url: 'https://a.com/ads.js?v=1' }]);
+    const resource = { url: 'https://a.com/ads.js?v=1', kind: 'Script', mimeType: '', status: 0, blockedBy: 'b1' };
+    expect(events).toContainEqual({ type: 'resource', resource });
+    expect(engine.listResources()).toEqual([resource]);
+  });
+
+  it('continues requests no enabled rule blocks', async () => {
+    const { transport, events } = await setupRules([], undefined, [blockRule({ enabled: false })]);
+    pause(transport, { url: 'https://a.com/ads.js' });
+    await flush();
+    expect(transport.methods().at(-1)).toBe('Fetch.continueRequest');
+    expect(transport.methods()).not.toContain('Fetch.failRequest');
+    expect(events).toEqual([]);
+  });
+
+  it('never consults overrides before the response exists', async () => {
+    const { transport, events } = await setupRules([override({})]);
+    pause(transport, { url: 'https://a.com/app.js' });
+    await flush();
+    expect(transport.methods().at(-1)).toBe('Fetch.continueRequest');
+    expect(transport.methods()).not.toContain('Fetch.fulfillRequest');
+    expect(transport.methods()).not.toContain('Fetch.getResponseBody');
+    expect(events).toEqual([]);
+  });
+
+  it('blocks a URL that is also overridden: a block beats everything', async () => {
+    const { transport, events } = await setupRules([override({})], undefined, [blockRule({ match: matchExact('https://a.com/app.js') })]);
+    pause(transport, { url: 'https://a.com/app.js' });
+    await flush();
+    expect(transport.methods()).toContain('Fetch.failRequest');
+    expect(transport.methods()).not.toContain('Fetch.fulfillRequest');
+    expect(events.some((e) => e.type === 'override-served')).toBe(false);
+  });
+
+  it("never blocks the page's own document, but blocks an iframe's", async () => {
+    const page = blockRule({ match: { type: 'glob', pattern: 'https://a.com/*', ignoreQuery: true } });
+    const { transport, events } = await setupRules([], undefined, [page]);
+    pause(transport, { url: 'https://a.com/', resourceType: 'Document', frameId: 'main', requestId: 'top' });
+    pause(transport, { url: 'https://a.com/', resourceType: 'Document', frameId: undefined, requestId: 'no-frame' });
+    await flush();
+    expect(transport.calls.filter((c) => c.method === 'Fetch.continueRequest').map((c) => c.params?.requestId)).toEqual(['top', 'no-frame']);
+    expect(transport.methods()).not.toContain('Fetch.failRequest');
+
+    pause(transport, { url: 'https://a.com/frame.html', resourceType: 'Document', frameId: 'child', requestId: 'frame' });
+    await flush();
+    expect(call(transport, 'Fetch.failRequest')?.params).toEqual({ requestId: 'frame', errorReason: 'BlockedByClient' });
+    expect(events).toContainEqual({
+      type: 'resource',
+      resource: { url: 'https://a.com/frame.html', kind: 'Document', mimeType: '', status: 0, blockedBy: 'b1', frame: { url: 'https://a.com/frame.html', depth: 1 } },
+    });
+  });
+
+  it('applies the type filter in the handler: fetch() pauses as XHR, and some builds say Fetch', async () => {
+    const scripts = blockRule({ id: 'scripts', match: matchExact('https://a.com/api'), resourceTypes: ['Script'] });
+    const xhr = blockRule({ id: 'xhr', match: matchExact('https://a.com/data'), resourceTypes: ['XHR'] });
+    const { transport } = await setupRules([], undefined, [scripts, xhr]);
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', requestId: 'api' });
+    pause(transport, { url: 'https://a.com/data', resourceType: 'Fetch', requestId: 'data' });
+    await flush();
+    expect(call(transport, 'Fetch.continueRequest')?.params).toEqual({ requestId: 'api' });
+    expect(call(transport, 'Fetch.failRequest')?.params).toEqual({ requestId: 'data', errorReason: 'BlockedByClient' });
+  });
+
+  it('blocks a CORS preflight by the same URL rule, and lists no XHR', async () => {
+    const { transport, events } = await setupRules([], undefined, [blockRule({ match: matchExact('https://api.b.com/data') })]);
+    pause(transport, {
+      url: 'https://api.b.com/data',
+      method: 'OPTIONS',
+      resourceType: 'XHR',
+      headers: { Origin: 'https://a.com', 'Access-Control-Request-Method': 'PUT' },
+    });
+    await flush();
+    expect(transport.methods()).toContain('Fetch.failRequest');
+    expect(applied(events)).toHaveLength(1);
+    expect(events.some((e) => e.type === 'resource')).toBe(false);
+  });
+
+  it('does not list a file blocked while the page is navigating (it is the old page’s)', async () => {
+    const { transport, events, engine } = await setupRules([], undefined, [blockRule()]);
+    transport.emit('Network.requestWillBeSent', { requestId: 'nav', loaderId: 'nav', frameId: 'main', type: 'Document', documentURL: 'https://a.com/next', request: { url: 'https://a.com/next' } });
+    pause(transport, { url: 'https://a.com/ads.js' });
+    await flush();
+    expect(transport.methods()).toContain('Fetch.failRequest');
+    expect(applied(events)).toHaveLength(1);
+    expect(events.some((e) => e.type === 'resource')).toBe(false);
+    expect(engine.listResources()).toEqual([]);
+  });
+
+  it('opens a blocked file through the out-of-page fetch, not the page', async () => {
+    const fallbackFetch = vi.fn(async () => 'live();');
+    const { transport, engine } = await setupRules([], undefined, [blockRule()], { fallbackFetch });
+    pause(transport, { url: 'https://a.com/ads.js' });
+    await flush();
+    const content = await engine.getResourceContent('https://a.com/ads.js');
+    expect(content).toEqual({ url: 'https://a.com/ads.js', content: 'live();', hash: sha256('live();') });
+    expect(fallbackFetch).toHaveBeenCalledWith('https://a.com/ads.js');
+    expect(transport.methods()).not.toContain('Network.getResponseBody');
+    expect(transport.methods()).not.toContain('Page.getResourceContent');
+  });
+
+  it('stays quiet when the request went away before it could be failed', async () => {
+    const { transport, events } = await setupRules([], undefined, [blockRule()]);
+    const send = transport.send.bind(transport);
+    transport.send = async <T,>(method: string, params?: Record<string, unknown>): Promise<T> => {
+      if (method === 'Fetch.failRequest') {
+        transport.calls.push({ method, params });
+        throw new Error('Invalid InterceptionId.');
+      }
+      return send<T>(method, params);
+    };
+    pause(transport, { url: 'https://a.com/ads.js' });
+    await flush();
+    expect(transport.methods().at(-1)).toBe('Fetch.continueRequest');
+    expect(events).toEqual([]);
+  });
+});
+
+describe('InterceptionEngine: Response stage (header and CORS rules)', () => {
+  const noSri = () => ({ ...DEFAULT_SETTINGS, stripIntegrity: false });
+  const json = [
+    { name: 'Content-Type', value: 'application/json' },
+    { name: 'Cache-Control', value: 'max-age=600' },
+  ];
+
+  it('passes a response on with the edited headers: code and phrase with the whole list, body untouched', async () => {
+    const { transport, events } = await setupRules([], undefined, [headerRule()]);
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 200, responseStatusText: 'OK', responseHeaders: json });
+    await flush();
+    expect(call(transport, 'Fetch.continueResponse')?.params).toEqual({
+      requestId: 'f1',
+      responseCode: 200,
+      responsePhrase: 'OK',
+      responseHeaders: [...json, { name: 'X-Added', value: 'yes' }],
+    });
+    expect(transport.methods()).not.toContain('Fetch.getResponseBody');
+    expect(transport.methods()).not.toContain('Fetch.continueRequest');
+    expect(applied(events)).toEqual([{ type: 'rule-applied', ruleId: 'h1', url: 'https://a.com/api' }]);
+  });
+
+  it('sends no phrase when upstream gave none', async () => {
+    const { transport } = await setupRules([], undefined, [headerRule()]);
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 200, responseHeaders: json });
+    await flush();
+    expect(call(transport, 'Fetch.continueResponse')?.params).not.toHaveProperty('responsePhrase');
+  });
+
+  it('continues untouched, with no hit, when the rule changes nothing', async () => {
+    const remove = headerRule({ headers: [{ operation: 'remove', name: 'X-Missing', value: '' }] });
+    const { transport, events } = await setupRules([], undefined, [remove]);
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 200, responseHeaders: json });
+    await flush();
+    expect(transport.methods().at(-1)).toBe('Fetch.continueRequest');
+    expect(transport.methods()).not.toContain('Fetch.continueResponse');
+    expect(events).toEqual([]);
+  });
+
+  it('continues a pause with no whole response head (a network error, Electron’s extra preflight pause, no headers)', async () => {
+    const { transport, events } = await setupRules([], undefined, [headerRule(), corsRule()]);
+    pause(transport, { url: 'https://api.b.com/data', method: 'OPTIONS', resourceType: 'XHR', responseErrorReason: 'Failed', requestId: 'failed' });
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 200, requestId: 'headless' });
+    await flush();
+    expect(transport.calls.filter((c) => c.method === 'Fetch.continueRequest').map((c) => c.params?.requestId)).toEqual(['failed', 'headless']);
+    expect(transport.methods()).not.toContain('Fetch.continueResponse');
+    expect(events).toEqual([]);
+  });
+
+  it('edits a redirect’s headers and keeps its Location', async () => {
+    const { transport } = await setupRules([], undefined, [headerRule()]);
+    const location = { name: 'Location', value: '/login' };
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 302, responseHeaders: [location] });
+    await flush();
+    expect(call(transport, 'Fetch.continueResponse')?.params).toMatchObject({ responseCode: 302, responseHeaders: [location, { name: 'X-Added', value: 'yes' }] });
+  });
+
+  const gzipPage = [
+    { name: 'Content-Type', value: 'text/html; charset=utf-8' },
+    { name: 'Content-Encoding', value: 'gzip' },
+    { name: 'Content-Length', value: '75' },
+    { name: 'ETag', value: '"v1"' },
+    { name: 'Content-Security-Policy', value: "script-src 'self'" },
+  ];
+  const html = '<!doctype html><script>window.inline = true</script>';
+  const html64 = Buffer.from(html).toString('base64');
+  const removeCsp = headerRule({ match: matchExact('https://a.com/'), headers: [{ operation: 'remove', name: 'Content-Security-Policy', value: '' }] });
+
+  it('re-serves an HTML document whose headers a rule changes: one body read, one fulfil', async () => {
+    const { transport, events } = await setupRules([], undefined, [removeCsp]);
+    transport.responses['Fetch.getResponseBody'] = { body: html64, base64Encoded: true };
+    pause(transport, { url: 'https://a.com/', resourceType: 'Document', responseStatusCode: 200, responseStatusText: 'OK', responseHeaders: gzipPage });
+    await flush();
+    expect(count(transport, 'Fetch.getResponseBody')).toBe(1);
+    expect(count(transport, 'Fetch.fulfillRequest')).toBe(1);
+    expect(call(transport, 'Fetch.fulfillRequest')?.params).toEqual({
+      requestId: 'f1',
+      responseCode: 200,
+      responsePhrase: 'OK',
+      responseHeaders: [
+        { name: 'Content-Type', value: 'text/html; charset=utf-8' },
+        { name: 'ETag', value: '"v1"' },
+      ],
+      body: html64,
+    });
+    expect(applied(events)).toEqual([{ type: 'rule-applied', ruleId: 'h1', url: 'https://a.com/' }]);
+  });
+
+  it('never reads a document whose rules change nothing (SRI stripping only reads while a file is overridden)', async () => {
+    const keep = headerRule({ match: matchExact('https://a.com/'), headers: [{ operation: 'remove', name: 'X-Frame-Options', value: '' }] });
+    const { transport, events } = await setupRules([], undefined, [keep]);
+    pause(transport, { url: 'https://a.com/', resourceType: 'Document', responseStatusCode: 200, responseHeaders: gzipPage });
+    await flush();
+    expect(transport.methods()).not.toContain('Fetch.getResponseBody');
+    expect(transport.methods().at(-1)).toBe('Fetch.continueRequest');
+    expect(events).toEqual([]);
+  });
+
+  it('passes a document that is not HTML (a PDF, a download) on with continueResponse, never buffering it', async () => {
+    const { transport } = await setupRules([], undefined, [headerRule({ match: matchExact('https://a.com/doc.pdf') })]);
+    pause(transport, { url: 'https://a.com/doc.pdf', resourceType: 'Document', responseStatusCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'application/pdf' }] });
+    await flush();
+    expect(transport.methods()).not.toContain('Fetch.getResponseBody');
+    expect(call(transport, 'Fetch.continueResponse')?.params).toMatchObject({ responseCode: 200 });
+  });
+
+  it('reports a document it could not re-serve, and passes the headers on as best it can', async () => {
+    const { transport, events } = await setupRules([], undefined, [removeCsp]);
+    transport.failing.add('Fetch.getResponseBody');
+    pause(transport, { url: 'https://a.com/', resourceType: 'Document', responseStatusCode: 200, responseHeaders: gzipPage });
+    await flush();
+    expect(events.find((e) => e.type === 'error')).toEqual({ type: 'error', message: expect.stringMatching(/Could not re-serve https:\/\/a\.com\//) });
+    expect(transport.methods().at(-1)).toBe('Fetch.continueResponse');
+    expect(transport.methods()).not.toContain('Fetch.fulfillRequest');
+  });
+
+  it('strips SRI and applies the rules in one fulfil', async () => {
+    const { transport, events } = await setupRules([override({})], undefined, [removeCsp]);
+    transport.responses['Fetch.getResponseBody'] = { body: '<script src="/a.js" integrity="sha384-x"></script>', base64Encoded: false };
+    pause(transport, { url: 'https://a.com/', resourceType: 'Document', responseStatusCode: 200, responseHeaders: gzipPage });
+    await flush();
+    expect(count(transport, 'Fetch.getResponseBody')).toBe(1);
+    expect(count(transport, 'Fetch.fulfillRequest')).toBe(1);
+    const fulfil = call(transport, 'Fetch.fulfillRequest')?.params;
+    expect(Buffer.from(String(fulfil?.body), 'base64').toString()).toBe('<script src="/a.js"></script>');
+    expect(fulfil?.responseHeaders).toEqual([{ name: 'Content-Type', value: 'text/html; charset=utf-8' }]);
+    expect(applied(events)).toHaveLength(1);
+  });
+
+  it('with SRI on and nothing to strip, reads the body once and passes it back for the rules', async () => {
+    const { transport } = await setupRules([override({})], undefined, [removeCsp]);
+    transport.responses['Fetch.getResponseBody'] = { body: html64, base64Encoded: true };
+    pause(transport, { url: 'https://a.com/', resourceType: 'Document', responseStatusCode: 200, responseHeaders: gzipPage });
+    await flush();
+    expect(count(transport, 'Fetch.getResponseBody')).toBe(1);
+    expect(call(transport, 'Fetch.fulfillRequest')?.params?.body).toBe(html64);
+  });
+
+  it('applies rules last on an override: a rule beats the forced no-store, and a rule’s Content-Type stays UTF-8', async () => {
+    const rule = headerRule({
+      match: matchExact('https://a.com/app.js'),
+      headers: [
+        { operation: 'set', name: 'Cache-Control', value: 'max-age=60' },
+        { operation: 'set', name: 'Content-Type', value: 'text/javascript' },
+      ],
+    });
+    const { transport, events } = await setupRules([override({})], undefined, [rule]);
+    pause(transport, { url: 'https://a.com/app.js', responseStatusCode: 200, responseHeaders: [{ name: 'X-Upstream', value: '1' }] });
+    await flush();
+    expect(call(transport, 'Fetch.fulfillRequest')?.params?.responseHeaders).toEqual([
+      { name: 'X-Upstream', value: '1' },
+      { name: 'Cache-Control', value: 'max-age=60' },
+      { name: 'Content-Type', value: 'text/javascript; charset=utf-8' },
+    ]);
+    expect(events).toEqual([
+      { type: 'override-served', overrideId: 'o1', url: 'https://a.com/app.js' },
+      { type: 'rule-applied', ruleId: 'h1', url: 'https://a.com/app.js' },
+    ]);
+  });
+
+  it('lets an override answering a missing API be read cross-origin through a CORS rule', async () => {
+    const api = override({ match: matchExact('https://api.b.com/data') });
+    const { transport } = await setupRules([api], undefined, [corsRule()]);
+    pause(transport, { url: 'https://api.b.com/data', resourceType: 'XHR', headers: { Origin: 'https://a.com' }, responseStatusCode: 404, responseHeaders: [] });
+    await flush();
+    const fulfil = call(transport, 'Fetch.fulfillRequest')?.params;
+    expect(fulfil?.responseCode).toBe(200);
+    expect(fulfil?.responseHeaders).toContainEqual({ name: 'Access-Control-Allow-Origin', value: 'https://a.com' });
+    expect(fulfil?.responseHeaders).toContainEqual({ name: 'Access-Control-Allow-Credentials', value: 'true' });
+  });
+
+  it('never answers a CORS preflight from an override', async () => {
+    const api = override({ match: matchExact('https://api.b.com/data') });
+    const { transport, events } = await setupRules([api]);
+    pause(transport, {
+      url: 'https://api.b.com/data',
+      method: 'OPTIONS',
+      resourceType: 'XHR',
+      headers: { Origin: 'https://a.com', 'Access-Control-Request-Method': 'PUT' },
+      responseStatusCode: 405,
+      responseHeaders: [],
+    });
+    await flush();
+    expect(transport.methods()).not.toContain('Fetch.fulfillRequest');
+    expect(transport.methods().at(-1)).toBe('Fetch.continueRequest');
+    expect(events).toEqual([]);
+  });
+
+  it('turns a refused preflight into a success through a CORS rule', async () => {
+    const { transport } = await setupRules([], undefined, [corsRule()]);
+    pause(transport, {
+      url: 'https://api.b.com/data',
+      method: 'OPTIONS',
+      resourceType: 'XHR',
+      headers: { Origin: 'https://a.com', 'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type' },
+      responseStatusCode: 405,
+      responseStatusText: 'Method Not Allowed',
+      responseHeaders: [{ name: 'Allow', value: 'GET' }],
+    });
+    await flush();
+    expect(call(transport, 'Fetch.continueResponse')?.params).toEqual({
+      requestId: 'f1',
+      responseCode: 204,
+      responseHeaders: [
+        { name: 'Allow', value: 'GET' },
+        { name: 'Access-Control-Allow-Origin', value: 'https://a.com' },
+        { name: 'Access-Control-Allow-Credentials', value: 'true' },
+        { name: 'Access-Control-Allow-Methods', value: 'PUT' },
+        { name: 'Access-Control-Allow-Headers', value: 'content-type' },
+        { name: 'Access-Control-Max-Age', value: '0' },
+      ],
+    });
+  });
+
+  it('applies rules oldest first, so a newer rule’s set wins, and counts both', async () => {
+    const older = headerRule({ id: 'old', createdAt: 1, headers: [{ operation: 'set', name: 'X-Mode', value: 'old' }] });
+    const newer = headerRule({ id: 'new', createdAt: 2, headers: [{ operation: 'set', name: 'x-mode', value: 'new' }] });
+    const { transport, events } = await setupRules([], undefined, [older, newer]);
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 200, responseHeaders: [] });
+    await flush();
+    expect(call(transport, 'Fetch.continueResponse')?.params?.responseHeaders).toEqual([{ name: 'x-mode', value: 'new' }]);
+    expect(applied(events).map((e) => e.ruleId)).toEqual(['old', 'new']);
+  });
+
+  it('reads rules at pause time: header edits need no pattern refresh', async () => {
+    const { transport, rules } = await setupRules([], undefined, [headerRule()]);
+    (rules[0] as HeaderRule).headers = [{ operation: 'set', name: 'X-Edited', value: 'later' }];
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 200, responseHeaders: [] });
+    await flush();
+    expect(call(transport, 'Fetch.continueResponse')?.params?.responseHeaders).toEqual([{ name: 'X-Edited', value: 'later' }]);
+  });
+
+  it('never applies a CORS rule to a document', async () => {
+    const { transport, events } = await setupRules([], noSri(), [corsRule({ match: matchExact('https://a.com/') })]);
+    pause(transport, { url: 'https://a.com/', resourceType: 'Document', responseStatusCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'text/html' }] });
+    await flush();
+    expect(transport.methods().at(-1)).toBe('Fetch.continueRequest');
+    expect(transport.methods()).not.toContain('Fetch.getResponseBody');
+    expect(events).toEqual([]);
+  });
+});
+
+describe('InterceptionEngine: rule-missed', () => {
+  const response = (t: FakeTransport, requestId: string, url: string, type = 'Script', frameId = 'main') =>
+    t.emit('Network.responseReceived', { requestId, type, frameId, response: { url, status: 200, mimeType: 'text/javascript' } });
+  const missed = (events: EngineEvent[]) => events.filter((e) => e.type === 'rule-missed');
+
+  it('reports a listed file an enabled block rule matches that arrived anyway, once per URL until the next navigation', async () => {
+    const { transport, events } = await setupRules([], undefined, [blockRule()]);
+    response(transport, 'r1', 'https://a.com/ads.js');
+    response(transport, 'r2', 'https://a.com/ads.js');
+    expect(missed(events)).toEqual([{ type: 'rule-missed', ruleId: 'b1', url: 'https://a.com/ads.js' }]);
+    transport.emit('Page.frameNavigated', { frame: { id: 'main', loaderId: 'next', url: 'https://a.com/' } });
+    response(transport, 'r3', 'https://a.com/ads.js');
+    expect(missed(events)).toHaveLength(2);
+  });
+
+  it("never reports the page's own document, which is never blocked", async () => {
+    const all = blockRule({ match: { type: 'glob', pattern: 'https://a.com/*', ignoreQuery: true } });
+    const { transport, events } = await setupRules([], undefined, [all]);
+    response(transport, 'doc', 'https://a.com/', 'Document');
+    expect(missed(events)).toEqual([]);
+    response(transport, 'frame', 'https://a.com/frame.html', 'Document', 'child');
+    expect(missed(events)).toHaveLength(1);
+  });
+});
+
+describe('InterceptionEngine: failing open', () => {
+  it('continues the request before it reports the error', async () => {
+    let methodsAtError: string[] | undefined;
+    const transport = new FakeTransport();
+    const engine = new InterceptionEngine({
+      transport,
+      getOverrides: () => [],
+      getRules: () => [headerRule()],
+      getSettings: () => DEFAULT_SETTINGS,
+      emit: (e) => {
+        if (e.type === 'error') methodsAtError = transport.methods();
+      },
+    });
+    await engine.attach();
+    transport.failing.add('Fetch.continueResponse');
+    pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 200, responseHeaders: [] });
+    await flush();
+    expect(methodsAtError?.at(-1)).toBe('Fetch.continueRequest');
+  });
+
+  it('still continues the request when reporting throws (the window is gone), and nothing rejects', async () => {
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => rejections.push(reason);
+    process.on('unhandledRejection', onRejection);
+    try {
+      const transport = new FakeTransport();
+      const engine = new InterceptionEngine({
+        transport,
+        getOverrides: () => [],
+        getRules: () => [headerRule()],
+        getSettings: () => DEFAULT_SETTINGS,
+        emit: () => {
+          throw new Error('window destroyed');
+        },
+      });
+      await engine.attach();
+      transport.failing.add('Fetch.continueResponse');
+      pause(transport, { url: 'https://a.com/api', resourceType: 'XHR', responseStatusCode: 200, responseHeaders: [] });
+      await flush();
+      await flush();
+      expect(transport.methods().at(-1)).toBe('Fetch.continueRequest');
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onRejection);
+    }
   });
 });

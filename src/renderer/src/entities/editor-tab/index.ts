@@ -1,4 +1,20 @@
-export { useTabStore, selectActiveTab, selectActivePage, selectTabById, selectHasDirtyTabs, type TabMeta, type PageTab, type DiffMode } from './model/store';
+export {
+  useTabStore,
+  selectActiveTab,
+  selectActivePage,
+  selectTabById,
+  selectHasDirtyTabs,
+  isPageDirty,
+  PAGE_DIRTY_CHECKS,
+  PAGE_SCOPES,
+  type TabMeta,
+  type PageTab,
+  type PageKind,
+  type PageTabOf,
+  type PageScope,
+  type RulePageDraft,
+  type DiffMode,
+} from './model/store';
 export {
   newTabId,
   onTabEdited,

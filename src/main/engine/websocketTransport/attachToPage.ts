@@ -24,7 +24,14 @@ export async function attachToPage(
     if (!sessionId || !parentOf.has(sessionId)) return;
     const p = params as { sessionId?: string };
     if (method === CDP.Target.attachedToTarget && p.sessionId) parentOf.set(p.sessionId, sessionId);
-    for (const h of handlers.get(method) ?? []) h(params, sessionId === root ? undefined : sessionId);
+    for (const h of handlers.get(method) ?? []) {
+      // Each handler on its own: one that throws must not skip the others (or the session bookkeeping below).
+      try {
+        h(params, sessionId === root ? undefined : sessionId);
+      } catch (err) {
+        console.error('CDP event handler failed', method, err);
+      }
+    }
     if (method === CDP.Target.detachedFromTarget && p.sessionId) forget(p.sessionId);
   });
   return {

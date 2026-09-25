@@ -72,7 +72,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
         </Button>
       </div>
       {override ? <MatchRule key={override.id} override={override} /> : null}
-      <Banners override={override} lite={tab.lite} tabId={tab.id} />
+      <Banners override={override} tab={tab} />
     </div>
   );
 }

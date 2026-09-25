@@ -7,11 +7,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Rules: block requests and change response headers.** Right-click a file in the Explorer to block it (an analytics script, a slow third-party iframe) or to remove a page's Content-Security-Policy, in one click with an Undo. Or add a rule from the new **Rules** section: block every request matching a URL pattern, set or remove response headers (with presets for CSP, framing and caching), or let the page call an API on another origin, preflights and cookies included. A blocked request never reaches the server, and the file stays in the tree, struck through. Each rule shows how often it applied and its recent requests, turns on and off with a switch, and belongs to its workspace. Edits on a rule's page stay on its tab until you apply them (**Apply**, Enter or Ctrl/⌘+S).
 - **The website in a window of its own.** Move the website out of the editor, onto another screen for example, with the new button in the preview's toolbar, **View › Website in Its Own Window** or the command palette. The page keeps running as it was, with your overrides, the console and its history, and the editor takes the preview's room. Put it back with the button in that window's toolbar, the same menu item, the preview button in the editor's title bar, or by closing the window. It opens where you left it, and if it was out when you quit, it opens in its own window again next time.
+
+### Changed
+
+- **Reload page after changes** (formerly *Reload page on save*) also reloads after you add, change, turn on or off, or delete a rule. **File › Save** is now just *Save*, as it applies rules too.
 
 ### Fixed
 
 - **The app's icon on Linux with the AppImage or the `.tar.gz`.** The dock, the window switcher and the app grid showed a generic icon, and on Ubuntu's default Wayland session nothing else could fix it. Now the app adds itself to your applications with its icon when it starts (in `~/.local/share`, as the `.deb` does for everyone), so you can also pin it and start it from the app grid. After an update renames the AppImage, the launcher follows it to the new file. With the `.deb` or `.rpm` installed, the package's launcher is used, and one the AppImage added before is removed. The `.rpm` also refreshes the system's icon cache when it installs, as the `.deb` already did.
+- **An override whose pattern also matches an API's CORS preflight** no longer answers the preflight with the file.
 
 ## [0.3.0] - 2026-09-24
 

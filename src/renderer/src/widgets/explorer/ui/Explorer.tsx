@@ -9,15 +9,18 @@ import { Kbd } from '@/shared/ui/kbd';
 import { Section } from '@/shared/ui/section';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
 import { selectResourceCount, useResourceStore } from '@/entities/resource';
+import { useRuleStore } from '@/entities/rule';
 import { useResourceFilter } from '@/features/filter-resources';
 import { OverrideList } from './OverrideList';
 import { ResourceTree } from './ResourceTree';
+import { NewRuleMenu, RuleList } from './RuleList';
 
-/** Sidebar: filter, the user's overrides, and the files the page loaded. */
+/** Sidebar: filter, the user's overrides and rules, and the files the page loaded. */
 export function Explorer() {
   const query = useResourceFilter((s) => s.query);
   const setQuery = useResourceFilter((s) => s.setQuery);
   const overrideCount = useOverrideStore(useShallow((s) => selectOverrideList(s).length));
+  const ruleCount = useRuleStore((s) => Object.keys(s.byId).length);
   const resourceCount = useResourceStore(selectResourceCount);
 
   return (
@@ -46,6 +49,9 @@ export function Explorer() {
       <div className="flex min-h-0 max-h-[42%] shrink-0 flex-col overflow-y-auto">
         <Section title="Overrides" count={overrideCount} defaultOpen>
           <OverrideList />
+        </Section>
+        <Section title="Rules" count={ruleCount} actions={<NewRuleMenu />} actionsVisible="always" defaultOpen>
+          <RuleList />
         </Section>
       </div>
       <Section title="Page resources" count={resourceCount} defaultOpen className="flex min-h-0 flex-1 flex-col" contentClassName="min-h-0 flex-1">

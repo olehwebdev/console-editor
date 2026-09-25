@@ -30,6 +30,9 @@ export const STARTED_SCRIPT_STATUS = 200;
 /** JavaScript MIME types (what `importScripts` in a worker gets). */
 export const JS_MIME = /^(text|application)\/(x-)?(javascript|ecmascript)|^text\/jscript/i;
 
+/** Joins an override or rule id and a URL into the key a miss is reported once by. */
+export const MISSED_KEY_SEPARATOR = '|';
+
 /** Joins an override's id and save time into the version a service worker's script was served. */
 export const VERSION_SEPARATOR = '@';
 
@@ -47,3 +50,6 @@ export const WORKER_SCRIPT_PATTERNS: readonly FetchPattern[] = [
   { urlPattern: ANY_URL, resourceType: SCRIPT_KIND, requestStage: 'Response' },
   { urlPattern: ANY_URL, resourceType: OTHER_RESOURCE_TYPE, requestStage: 'Response' },
 ];
+
+/** The status a blocked request is listed with: the page got no response at all. */
+export const BLOCKED_STATUS = 0;

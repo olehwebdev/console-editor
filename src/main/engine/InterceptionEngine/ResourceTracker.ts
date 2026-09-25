@@ -1,8 +1,10 @@
 import type { MissedReason, ResourceEntry } from '../../../shared/types';
+import { blockedResource } from './blockedResource';
 import { DOCUMENT_KIND, UNLISTED_URL } from './constants';
 import { listedKind } from './listedKind';
 import { MissedOverrides } from './MissedOverrides';
-import type { ResourceTrackerContext, ResponseReceivedParams, TrackedResource } from './types';
+import { MissedRules } from './MissedRules';
+import type { RequestPausedParams, ResourceTrackerContext, ResponseReceivedParams, TrackedResource } from './types';
 
 /**
  * The scripts, stylesheets and documents of the session's current page (or
@@ -20,10 +22,12 @@ export class ResourceTracker {
    */
   private readonly rewritten = new Map<string, string>();
   private readonly missed: MissedOverrides;
+  private readonly missedRules: MissedRules;
 
   constructor(private readonly ctx: ResourceTrackerContext) {
     this.servedBy = ctx.opts.servedBy ?? new Map();
     this.missed = new MissedOverrides(ctx.matcher, ctx.opts);
+    this.missedRules = new MissedRules(ctx);
   }
 
   list(): ResourceEntry[] {
@@ -65,6 +69,12 @@ export class ResourceTracker {
     this.missed.report(url, resourceType, reason);
   }
 
+  /** Lists a file this rule blocked (see {@link blockedResource}). */
+  listBlocked(p: RequestPausedParams, ruleId: string): void {
+    const tracked = blockedResource(this.ctx, p, ruleId, this.resources.get(p.request.url));
+    if (tracked) this.add(tracked);
+  }
+
   /** Forgets everything: the root frame committed a new document. */
   clear(): void {
     this.resources.clear();
@@ -72,6 +82,7 @@ export class ResourceTracker {
     if (!this.ctx.opts.iframe) this.servedBy.clear();
     this.rewritten.clear();
     this.missed.clear();
+    this.missedRules.clear();
   }
 
   /** Lists a resource and reports it. */
@@ -95,6 +106,7 @@ export class ResourceTracker {
     if (navigation.active && !heldForCommit) return;
     // A service worker's answer was served (or not) on its own session, under another request id.
     if (!overrideId && !p.response.fromServiceWorker) this.missed.report(url, kind, worker?.missedReason(url, isMainScript));
+    this.missedRules.report(url, kind, p.frameId);
     // A worker session knows no frames; its entries are labelled with the worker.
     const frame = worker ? undefined : frames.frameOf(p.frameId, kind === DOCUMENT_KIND ? url : undefined);
     const existing = this.resources.get(url);

@@ -58,6 +58,7 @@ describe.skipIf(!chromiumAvailable)('console in Chromium', () => {
     interception = new PageInterception({
       transport: opened.transport,
       getOverrides: () => [],
+      getRules: () => [],
       getSettings: () => DEFAULT_SETTINGS,
       emit: () => undefined,
       sessions: service,

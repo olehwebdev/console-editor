@@ -36,3 +36,18 @@ export const CONTENT_TYPE_HEADER = 'Content-Type';
 
 /** The charset of every body we serve, and of bodies whose charset is unknown or unsupported. */
 export const UTF8 = 'utf-8';
+
+/**
+ * Headers that describe how upstream framed and encoded its bytes. A body we
+ * pass back is already decoded, so they go; ETag and Last-Modified stay, as
+ * the bytes themselves don't change.
+ */
+export const ENCODING_HEADERS = new Set([
+  'content-encoding',
+  'content-length',
+  'transfer-encoding',
+  'content-md5',
+  'digest',
+  'content-digest',
+  'repr-digest',
+]);

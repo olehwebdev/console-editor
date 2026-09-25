@@ -28,6 +28,11 @@ const api: ConsoleEditorApi = {
   deleteOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteOverride, id),
   revealOverridesFolder: () => ipcRenderer.invoke(IPC_CHANNEL.revealOverridesFolder),
 
+  listRules: () => ipcRenderer.invoke(IPC_CHANNEL.listRules),
+  createRule: (input) => ipcRenderer.invoke(IPC_CHANNEL.createRule, input),
+  updateRule: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateRule, id, patch),
+  deleteRule: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteRule, id),
+
   getSettings: () => ipcRenderer.invoke(IPC_CHANNEL.getSettings),
   updateSettings: (patch) => ipcRenderer.invoke(IPC_CHANNEL.updateSettings, patch),
 
