@@ -29,7 +29,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     iconPath: appIcon,
   });
   const userData = app.getPath('userData');
-  const { store, settings, session, hadData } = await openStores(userData);
+  const { store, settings, session, pageWindow, hadData } = await openStores(userData);
 
   const win = createEditorWindow();
 
@@ -37,7 +37,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     if (!win.isDestroyed()) win.webContents.send(IPC_CHANNEL.onEvent, event);
   };
 
-  const page = new PageController(win, store, settings, send);
+  const page = new PageController(win, store, settings, send, pageWindow);
   launchState.running = { win, page };
   // Before the engine attaches: it serves the active workspace's overrides from the start.
   const workspaces = new WorkspaceController(page, session, store, send);
@@ -50,7 +50,11 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
 
   const closing = new CloseGuard(win, send);
   const updates = createUpdater({ updateFeed, userData, hadData, settings, send, closing });
-  win.on('closed', () => updates.dispose());
+  win.on('closed', () => {
+    updates.dispose();
+    // The website's own window goes with the editor (and opens again next time).
+    page.window.dispose();
+  });
   registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
@@ -60,6 +64,8 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   await loadEditor(win);
 
   await attached;
+  // The website had a window of its own when the app last quit: it opens there again.
+  if (pageWindow.get().detached) void page.window.detach();
   const url = launchState.handedUrl ?? initialUrl() ?? session.get().url;
   launchState.started = true;
   if (url) void page.navigate(url);

@@ -1,12 +1,12 @@
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
-import { usePageStore } from '@/entities/page';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
 import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
 import { answerFlushSession } from './events/answerFlushSession';
+import { applyPageState } from './events/applyPageState';
 import { dropNavigatedResources } from './events/dropNavigatedResources';
 import { showAppError } from './events/showAppError';
 import { syncOverrides } from './events/syncOverrides';
@@ -26,7 +26,7 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'upstream-changed': warnUpstreamChanged,
   'override-missed': warnOverrideMissed,
   error: showAppError,
-  'page-state': (event) => usePageStore.getState().setPage(event.state),
+  'page-state': applyPageState,
   'overrides-changed': syncOverrides,
   'workspaces-changed': (event) => useWorkspaceStore.getState().setAll(event.state),
   'workspace-favicon': (event) => useWorkspaceStore.getState().setFavicon(event.id, event.favicon),

@@ -1,5 +1,6 @@
 import type { AppEvent } from '../../shared/types';
 import type { OverrideStore } from '../store/OverrideStore';
+import type { PageWindowStore } from '../store/PageWindowStore';
 import type { SessionStore } from '../store/SessionStore';
 import type { SettingsStore } from '../store/SettingsStore';
 import type { CloseGuard } from './CloseGuard';
@@ -9,6 +10,7 @@ export interface AppStores {
   store: OverrideStore;
   settings: SettingsStore;
   session: SessionStore;
+  pageWindow: PageWindowStore;
   /** The folder held data before the stores looked (an earlier version ran). */
   hadData: boolean;
 }

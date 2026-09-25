@@ -5,6 +5,8 @@ export const USER_DATA = {
   settings: 'settings.json',
   session: 'session',
   workspace: 'workspace',
+  /** Whether the website had a window of its own, and where. */
+  pageWindow: 'page-window.json',
   /** The last version run. */
   updateRecord: 'update.json',
   /** Updates downloaded from a local update server (tests). */

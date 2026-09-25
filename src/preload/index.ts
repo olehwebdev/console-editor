@@ -14,6 +14,8 @@ const api: ConsoleEditorApi = {
   getPageState: () => ipcRenderer.invoke(IPC_CHANNEL.getPageState),
   setPageBounds: (bounds) => ipcRenderer.send(IPC_CHANNEL.setPageBounds, bounds),
   capturePage: () => ipcRenderer.invoke(IPC_CHANNEL.capturePage),
+  detachPage: () => ipcRenderer.invoke(IPC_CHANNEL.detachPage),
+  attachPage: () => ipcRenderer.invoke(IPC_CHANNEL.attachPage),
 
   listResources: () => ipcRenderer.invoke(IPC_CHANNEL.listResources),
   getResourceContent: (url) => ipcRenderer.invoke(IPC_CHANNEL.getResourceContent, url),
