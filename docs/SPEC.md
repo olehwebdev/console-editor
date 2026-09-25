@@ -677,6 +677,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - Export/import a workspace's overrides as a zip or JSON, so a teammate can reproduce your fix.
 - ✅ Response header overrides (CORS, CSP, cache) and request blocking (e.g. disable an analytics script): rules (§6.3).
 - Network panel ([NETWORK_PANEL.md](NETWORK_PANEL.md)): ✅ the page's requests (§6.10), response overrides for fetch/XHR with a JSON editor (§6.3, §7), answering without sending the request and patching the live response (§6.3), breakpoints and Copy as fetch (§6.11), quick edits for UI states (§7), network speed, WebSocket messages (read-only) and HAR export and import (§6.10), and a response's JSON as a tree with in-place edits (§7).
+- HAR workbench ([research](HAR_WORKBENCH.md)): open and search HAR files of any size, clean them before sharing, compare two sessions (or one and the live page), and replay one into the page.
 - Search across all page resources (find which bundle defines a function).
 - Docked/undocked page view, and responsive device presets.
 
