@@ -73,6 +73,8 @@ export const CDP = {
     frameStoppedLoading: 'Page.frameStoppedLoading',
   },
   Runtime: {
+    addBinding: 'Runtime.addBinding',
+    removeBinding: 'Runtime.removeBinding',
     disable: 'Runtime.disable',
     discardConsoleEntries: 'Runtime.discardConsoleEntries',
     enable: 'Runtime.enable',
@@ -82,6 +84,7 @@ export const CDP = {
     releaseObjectGroup: 'Runtime.releaseObjectGroup',
     runIfWaitingForDebugger: 'Runtime.runIfWaitingForDebugger',
     // Events
+    bindingCalled: 'Runtime.bindingCalled',
     consoleAPICalled: 'Runtime.consoleAPICalled',
     exceptionThrown: 'Runtime.exceptionThrown',
     executionContextCreated: 'Runtime.executionContextCreated',

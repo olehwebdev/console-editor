@@ -8,6 +8,8 @@ import type { ScriptUrls } from './reading/ScriptUrls';
 export interface FrameTargets {
   list(): ConsoleFrame[];
   target(frameId: string): { sessionId: SessionKey; uniqueId: string } | undefined;
+  /** The frame a context of a session belongs to (its root frame if the context isn't known). */
+  frameOf(sessionId: SessionKey, contextId?: number): string | null;
 }
 
 export interface InspectorServiceOptions {
@@ -39,6 +41,12 @@ export interface LoadSinks {
 }
 
 export interface StackTrackerOptions {
+  sessions: InspectedSessions;
+  frames: FrameTargets;
+  send(event: AppEvent): void;
+}
+
+export interface RenderRecorderOptions {
   sessions: InspectedSessions;
   frames: FrameTargets;
   send(event: AppEvent): void;

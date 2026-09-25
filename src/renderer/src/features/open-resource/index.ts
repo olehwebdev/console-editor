@@ -7,6 +7,9 @@ export {
   goToOriginal,
   jumpToMappedCode,
   locateComponent,
+  locateLocations,
+  nameHooksAt,
+  openCode,
   openOriginalSource,
   reloadSourceMap,
   revealBundleCode,
@@ -16,3 +19,4 @@ export {
   type OpenSourceOptions,
   type SourceTreeStore,
 } from './model/sources';
+export { CodeLink } from './ui/CodeLink';

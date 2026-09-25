@@ -56,7 +56,13 @@ export const IPC_CHANNEL = {
   startPicking: 'inspect:pick',
   stopPicking: 'inspect:pick-stop',
   inspectComponent: 'inspect:component',
+  setComponentState: 'inspect:set-state',
   highlightPick: 'inspect:highlight',
+  componentTree: 'inspect:tree',
+  recordRenders: 'inspect:record-renders',
+  isRecordingRenders: 'inspect:recording-renders',
+  openTreeNode: 'inspect:tree-open',
+  highlightTreeNode: 'inspect:tree-highlight',
 
   listActions: 'actions:list',
   createAction: 'actions:create',

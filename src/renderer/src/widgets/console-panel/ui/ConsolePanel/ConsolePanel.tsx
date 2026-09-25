@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { icons } from '@/shared/config';
 import { Button } from '@/shared/ui/button';
@@ -20,6 +20,8 @@ export interface ConsolePanelProps {
   onClose(): void;
   /** A row of code you ran asks to be kept as an action. */
   onSaveAsAction: SaveAsAction;
+  /** In the toolbar's title place (the panel's tabs). */
+  title?: ReactNode;
 }
 
 /**
@@ -27,7 +29,7 @@ export interface ConsolePanelProps {
  * errors and the browser's messages, each row tagged with its frame, and a
  * prompt that runs code in the frame you pick.
  */
-export function ConsolePanel({ onClose, onSaveAsAction }: ConsolePanelProps) {
+export function ConsolePanel({ onClose, onSaveAsAction, title }: ConsolePanelProps) {
   const recording = useSettingsStore((s) => s.settings.captureConsole);
   const entries = useConsoleStore((s) => s.entries);
   const filter = useConsoleFilter(useShallow((s) => ({ frameKeys: s.frameKeys, levels: s.levels, text: s.text })));
@@ -41,7 +43,7 @@ export function ConsolePanel({ onClose, onSaveAsAction }: ConsolePanelProps) {
 
   return (
     <section aria-label="Console" data-testid="console-panel" className="flex h-full min-h-0 flex-col bg-surface-editor">
-      <ConsoleToolbar frames={frames} labels={labels} counts={counts} onCopy={() => void copyRows(shown, resolve)} onClose={onClose} />
+      <ConsoleToolbar frames={frames} labels={labels} counts={counts} onCopy={() => void copyRows(shown, resolve)} onClose={onClose} title={title} />
       {!recording ? (
         <EmptyState
           icon={icons.ConsoleIcon}

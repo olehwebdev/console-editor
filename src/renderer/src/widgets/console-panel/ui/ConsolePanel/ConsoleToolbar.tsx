@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { SHORTCUT } from '@common/constants';
 import type { ConsoleFrame } from '@common/types';
 import { icons } from '@/shared/config';
@@ -16,18 +17,20 @@ export interface ConsoleToolbarProps {
   counts: ReadonlyMap<string, ProblemCount>;
   onCopy(): void;
   onClose(): void;
+  /** In the title's place (the panel's tabs); else "Console". */
+  title?: ReactNode;
 }
 
 const { setText, togglePreserveLog } = useConsoleFilter.getState();
 
 /** The console's header: frame filters, levels, text filter, and its actions. */
-export function ConsoleToolbar({ frames, labels, counts, onCopy, onClose }: ConsoleToolbarProps) {
+export function ConsoleToolbar({ frames, labels, counts, onCopy, onClose, title }: ConsoleToolbarProps) {
   const text = useConsoleFilter((s) => s.text);
   const preserveLog = useConsoleFilter((s) => s.preserveLog);
   return (
     <div className="flex shrink-0 flex-col border-b border-line">
       <div className="flex h-9 items-center gap-1.5 px-2">
-        <span className="label-caps min-w-0 flex-1 truncate">Console</span>
+        <div className="min-w-0 flex-1 truncate">{title ?? <span className="label-caps">Console</span>}</div>
         <LevelMenu />
         <Input
           size="sm"

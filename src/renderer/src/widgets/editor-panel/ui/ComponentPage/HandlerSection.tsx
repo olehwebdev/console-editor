@@ -1,6 +1,6 @@
 import type { InspectedComponent } from '@common/types';
 import { locationKey, useInspectorStore } from '@/entities/inspector';
-import { CodeLink } from './CodeLink';
+import { CodeLink } from '@/features/open-resource';
 
 /** The listeners on the picked element: the prop each came from, the function it runs, and where that is defined. */
 export function HandlerSection({ component }: { component: InspectedComponent }) {

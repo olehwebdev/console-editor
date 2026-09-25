@@ -1,26 +1,4 @@
-import type { StackBuild, StackLibraryId } from '../stackLibraries';
-
-/** A library, framework or tool a frame runs. */
-export interface StackHit {
-  id: StackLibraryId;
-  /** How the frame showed it: one of the library's signals in `STACK_LIBRARIES`. */
-  signal: string;
-  /** As the page reports it, checked to look like a version; null when it doesn't say. */
-  version: string | null;
-  /** Null when the page doesn't tell. */
-  build: StackBuild | null;
-}
-
-/** What one frame of the page runs, found in its main world once it loaded. */
-export interface FrameStack {
-  frameId: string;
-  /** The frame's address when it was looked at. */
-  url: string;
-  /** At most one per library, in the order the detector checks them. */
-  hits: StackHit[];
-  /** When it was looked at (ms since the epoch). */
-  scannedAt: number;
-}
+import type { StackBuild } from '../../stackLibraries';
 
 /** The frameworks whose components the inspector reads. */
 export const INSPECT_FRAMEWORKS = ['react', 'vue'] as const;
@@ -47,12 +25,21 @@ export interface InspectedValue {
   location: CodeLocation | null;
 }
 
-/** What kind of state a value is: a hook's (React) or where Vue keeps it. */
-export const STATE_KINDS = ['state', 'store', 'ref', 'memo', 'setup', 'data', 'other'] as const;
+/** What kind of state a value is: a hook's (React: `state` is useState's, `reducer` useReducer's) or where Vue keeps it. */
+export const STATE_KINDS = ['state', 'reducer', 'store', 'ref', 'memo', 'setup', 'data', 'other'] as const;
 export type StateKind = (typeof STATE_KINDS)[number];
 
 export interface InspectedState extends InspectedValue {
   kind: StateKind;
+  /** It can be set from the app (`setComponentState`): a useState hook, a class's state, Vue's data or a writable ref. */
+  editable: boolean;
+}
+
+/** A new value for one of a component's state values: named as `InspectedState` names it, written as JSON. */
+export interface StateEdit {
+  kind: StateKind;
+  name: string;
+  json: string;
 }
 
 /** A context the component reads (React), or a value it provides (Vue). */
@@ -95,6 +82,8 @@ export interface InspectedComponent {
   state: InspectedState[];
   context: InspectedContext[];
   handlers: InspectedHandler[];
+  /** Where it is in its frame's Components tree (indexes from the top); null if it can't be told. */
+  path: number[] | null;
 }
 
 /** What is under the pointer while picking. */

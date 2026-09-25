@@ -1,6 +1,6 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame } from './console';
-import type { FrameStack, InspectedComponent, InspectHover } from './inspector';
+import type { FrameStack, InspectedComponent, InspectHover, RenderCommit } from './inspector';
 import type { MenuCommand } from './menu';
 import type { OverrideMeta } from './overrides';
 import type { PageState } from './page';
@@ -59,6 +59,10 @@ export type AppEvent =
   | { type: 'inspect-hover'; hover: InspectHover | null }
   /** An element was picked: the component that rendered it. */
   | { type: 'inspect-picked'; component: InspectedComponent }
+  /** Renders started or stopped being recorded. */
+  | { type: 'renders-recording'; recording: boolean }
+  /** React commits recorded in the page's frames, in order, as they arrive (batched). */
+  | { type: 'renders-recorded'; commits: RenderCommit[] }
   /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
   | { type: 'actions-changed'; actions: ConsoleAction[] }
   /** The Actions panel moved into its own window or back, or that window's Keep on top changed. */

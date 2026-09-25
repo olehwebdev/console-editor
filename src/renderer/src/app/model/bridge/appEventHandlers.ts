@@ -2,7 +2,7 @@ import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
-import { useInspectorStore } from '@/entities/inspector';
+import { useInspectorStore, useRenderLog } from '@/entities/inspector';
 import { usePageStackStore } from '@/entities/page-stack';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
@@ -11,8 +11,9 @@ import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
 import { answerFlushSession } from './events/answerFlushSession';
 import { applyPageState } from './events/applyPageState';
-import { dropNavigatedResources } from './events/dropNavigatedResources';
+import { followNavigation } from './events/followNavigation';
 import { receivePick } from './events/receivePick';
+import { receiveRenders } from './events/receiveRenders';
 import { showPicking } from './events/showPicking';
 import { showAppError } from './events/showAppError';
 import { syncOverrides } from './events/syncOverrides';
@@ -27,7 +28,7 @@ import type { AppEventHandlers } from './types';
 
 /** What each main-process event does. Annotated rather than `satisfies`: `handleAppEvent`'s generic lookup needs the mapped type. */
 export const APP_EVENT_HANDLERS: AppEventHandlers = {
-  navigated: dropNavigatedResources,
+  navigated: followNavigation,
   'iframe-detached': (event) => queueIframeDrop(event.iframeId),
   'worker-detached': (event) => queueResourceOp({ type: 'drop-worker', workerId: event.workerId }),
   resource: (event) => queueResourceOp({ type: 'add', entry: event.resource }),
@@ -49,6 +50,8 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'inspect-picking': showPicking,
   'inspect-hover': (event) => useInspectorStore.getState().setHover(event.hover),
   'inspect-picked': (event) => receivePick(event.component),
+  'renders-recording': (event) => useRenderLog.getState().setRecording(event.recording),
+  'renders-recorded': (event) => receiveRenders(event.commits),
   'actions-changed': (event) => useActionStore.getState().setAll(event.actions),
   'actions-window': (event) => useActionStore.getState().setWindow(event.state),
   'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),

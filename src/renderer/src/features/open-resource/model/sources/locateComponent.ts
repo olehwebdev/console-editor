@@ -1,15 +1,10 @@
 import type { InspectedComponent } from '@common/types';
-import { locationKey, locationsOf, useInspectorStore } from '@/entities/inspector';
-import { findOriginal } from './findOriginal';
+import { locationsOf } from '@/entities/inspector';
+import { locateLocations } from './locateLocations';
+import { nameHooks } from './nameHooks';
 
-/** Looks up the original of every code location a component names that isn't known yet, keeping each as it comes. */
+/** Looks up the original of every code location a component names that isn't known yet; then a React component's hook names. */
 export async function locateComponent(component: InspectedComponent): Promise<void> {
-  const known = useInspectorStore.getState().origins;
-  const unknown = locationsOf(component).filter((location) => !(locationKey(location) in known));
-  await Promise.all(
-    unknown.map(async (location) => {
-      const place = await findOriginal(location).catch(() => null);
-      useInspectorStore.getState().setOrigin(locationKey(location), place);
-    }),
-  );
+  await locateLocations(locationsOf(component));
+  await nameHooks(component);
 }

@@ -1,7 +1,8 @@
 import type { CodeLocation } from '@common/types';
 import type { OriginalPlace } from '@/entities/inspector';
-import { openOriginalSource, revealBundleCode } from '@/features/open-resource';
 import { SCRIPT_KIND } from './constants';
+import { openOriginalSource } from './openOriginalSource';
+import { revealBundleCode } from './revealBundleCode';
 
 /** Opens where a function is defined: its original, read-only, when the bundle's map has it; else the bundle's code. */
 export function openCode(location: CodeLocation, origin: OriginalPlace | null | undefined): void {

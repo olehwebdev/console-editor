@@ -1,5 +1,7 @@
 import { STACK_LIBRARIES } from '@common/stackLibraries';
+import { icons } from '@/shared/config';
 import { Button } from '@/shared/ui/button';
+import { Icon } from '@/shared/ui/icon';
 import { FrameChip, frameKey, frameLabels, useFrameStore } from '@/entities/frame';
 import { usePageStackStore } from '@/entities/page-stack';
 import { selectActiveWorkspace, useWorkspaceStore } from '@/entities/workspace';
@@ -15,15 +17,21 @@ export function StackSummary() {
   const rows = stacks.flatMap((stack) => {
     const frame = frames.find((f) => f.id === stack.frameId);
     const ui = stack.hits.filter((hit) => STACK_LIBRARIES[hit.id].category === 'ui');
-    return frame && ui.length ? [{ frame, text: ui.map((hit) => [STACK_LIBRARIES[hit.id].name, hit.version].filter(Boolean).join(' ')).join(', ') }] : [];
+    const unmapped = !!stack.coverage?.scripts && !stack.coverage.mapped;
+    return frame && ui.length ? [{ frame, unmapped, text: ui.map((hit) => [STACK_LIBRARIES[hit.id].name, hit.version].filter(Boolean).join(' ')).join(', ') }] : [];
   });
   return (
     <section className="mt-4 flex flex-col gap-1 border-t border-line px-3 pt-3" data-testid="inspect-stack">
       <span className="label-caps px-1 pb-1">Stack</span>
-      {rows.map(({ frame, text }) => (
+      {rows.map(({ frame, text, unmapped }) => (
         <div key={frame.id} className="flex h-7 min-w-0 items-center gap-2 px-1 text-[12.5px]">
           <FrameChip frameKey={frameKey(frame)} label={labels.get(frame.id) ?? frameKey(frame)} title={frame.url} />
           <span className="min-w-0 flex-1 truncate text-fg-muted">{text}</span>
+          {unmapped ? (
+            <span title="No source maps: its components' names and files stay minified" className="shrink-0 text-warning" data-testid="stack-unmapped">
+              <Icon icon={icons.WarningIcon} size={13} />
+            </span>
+          ) : null}
         </div>
       ))}
       {rows.length ? null : <span className="px-1 text-[12px] text-fg-subtle">No UI library found in the page's frames.</span>}

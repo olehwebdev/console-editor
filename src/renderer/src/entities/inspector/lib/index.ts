@@ -1,6 +1,15 @@
 export { codeLabel } from './codeLabel';
 export { componentTitle } from './componentTitle';
 export { elementLabel } from './elementLabel';
+export { hookName } from './hookName';
 export { linkName } from './linkName';
 export { locationKey } from './locationKey';
 export { locationsOf } from './locationsOf';
+export { keyPath } from './keyPath';
+export { nodeLocations } from './nodeLocations';
+export { lastRendered } from './lastRendered';
+export { pathKey } from './pathKey';
+export { renderedWhy } from './renderedWhy';
+export { renderKey } from './renderKey';
+export { triggerLabel } from './triggerLabel';
+export { treeRows, type TreeRow } from './treeRows';

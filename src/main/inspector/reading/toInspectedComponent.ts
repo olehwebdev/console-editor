@@ -2,6 +2,7 @@ import { STACK_BUILDS } from '../../../shared/stackLibraries';
 import { INSPECT_FRAMEWORKS, STATE_KINDS, type CodeLocation, type InspectedComponent, type InspectedValue } from '../../../shared/types';
 import { MAX_LIST_ITEMS } from '../constants';
 import { cleanText } from './cleanText';
+import { toPath } from './toPath';
 import { toInspectedElement } from './toInspectedElement';
 
 type Item = Record<string, unknown>;
@@ -26,8 +27,9 @@ export function toInspectedComponent(raw: unknown, locations: Array<CodeLocation
     chain: list(data.chain, (link) => ({ name: cleanText(link.name), key: optional(link.key), location: at(link.fn) })),
     depth: typeof data.depth === 'number' && Number.isInteger(data.depth) && data.depth >= 0 ? data.depth : 0,
     props: list(data.props, value),
-    state: list(data.state, (item) => ({ ...value(item), kind: STATE_KINDS.find((k) => k === item.kind) ?? 'other' })),
+    state: list(data.state, (item) => ({ ...value(item), kind: STATE_KINDS.find((k) => k === item.kind) ?? 'other', editable: item.editable === true })),
     context: list(data.context, (item) => ({ name: cleanText(item.name), preview: cleanText(item.preview), provider: optional(item.provider), location: at(item.fn) })),
     handlers: list(data.handlers, (item) => ({ name: cleanText(item.name), function: cleanText(item.function), location: at(item.fn) })),
+    path: toPath(data.path),
   };
 }

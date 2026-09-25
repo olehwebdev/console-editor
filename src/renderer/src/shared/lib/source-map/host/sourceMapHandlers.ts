@@ -1,3 +1,4 @@
+import { hookNames } from './hooks';
 import { loadMap } from './loadMap';
 import { readSource } from './readSource';
 import { toBundle } from './toBundle';
@@ -13,5 +14,6 @@ export const SOURCE_MAP_HANDLERS: SourceMapHandlers = {
   toOriginal,
   toOriginalRaw,
   toBundle,
+  hookNames,
   toView,
 };

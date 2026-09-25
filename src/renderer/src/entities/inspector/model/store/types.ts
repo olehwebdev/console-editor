@@ -23,9 +23,12 @@ export interface InspectorStore {
   component: InspectedComponent | null;
   /** Originals of code locations, by `locationKey`: null when there is none; absent until looked up. */
   origins: Record<string, OriginalPlace | null>;
+  /** A React component's hook names read off its original, by its function's `locationKey`: one per hook entry, null where unknown. */
+  hookNames: Record<string, Array<string | null>>;
 
   setPicking(picking: boolean): void;
   setHover(hover: InspectHover | null): void;
   setComponent(component: InspectedComponent | null): void;
   setOrigin(key: string, place: OriginalPlace | null): void;
+  setHookNames(key: string, names: Array<string | null>): void;
 }

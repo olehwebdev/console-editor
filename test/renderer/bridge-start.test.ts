@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
   getWorkspaceFavicons: vi.fn(),
   listFrames: vi.fn(),
   listStacks: vi.fn(),
+  isRecordingRenders: vi.fn(),
   getConsoleEntries: vi.fn(),
   listOverrides: vi.fn(),
   listRules: vi.fn(),
@@ -78,7 +79,7 @@ const rule = (id: string): Rule => ({
 const PAGE: PageState = { url: 'https://site.test/', title: 'Site', loading: false, canGoBack: false, canGoForward: false, detached: false };
 const urls = () => Object.values(useResourceStore.getState().byKey).map((e) => e.url);
 const emit = (event: AppEvent) => events.listener!(event);
-const COMMANDS = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview: vi.fn(), showInspect: vi.fn() };
+const COMMANDS = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview: vi.fn(), showInspect: vi.fn(), showRenders: vi.fn() };
 const SESSION = { restore: vi.fn(async () => {}), startSync: vi.fn(), flush: vi.fn() };
 const WORKSPACES = { activeId: 'w1', workspaces: [{ id: 'w1', name: '', host: 'site.test', title: 'Site', icon: 'favicon' as const, color: 'ember' as const }] };
 
@@ -99,6 +100,7 @@ describe('start bridge', () => {
     api.getWorkspaceFavicons.mockResolvedValue({});
     api.listFrames.mockResolvedValue([]);
     api.listStacks.mockResolvedValue([]);
+    api.isRecordingRenders.mockResolvedValue(false);
     api.getConsoleEntries.mockResolvedValue([]);
     api.listOverrides.mockResolvedValue([]);
     api.listRules.mockResolvedValue([]);
@@ -168,7 +170,7 @@ describe('start bridge', () => {
   it('loads the page stack, and a stack-changed event after the reply wins', async () => {
     const stacks = deferred<FrameStack[]>();
     api.listStacks.mockReturnValue(stacks.promise);
-    const top: FrameStack = { frameId: 'top', url: 'https://site.test/', hits: [{ id: 'react', signal: 'hook', version: '19.3.0', build: 'production' }], scannedAt: 1 };
+    const top: FrameStack = { frameId: 'top', url: 'https://site.test/', hits: [{ id: 'react', signal: 'hook', version: '19.3.0', build: 'production' }], scannedAt: 1, coverage: null };
 
     const started = startBridge(COMMANDS, SESSION);
     stacks.resolve([top]);

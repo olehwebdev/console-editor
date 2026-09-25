@@ -1,6 +1,7 @@
 import { isConfirmOpen } from '@/shared/ui/dialog';
 import { usePalette } from '@/widgets/command-palette';
 import { useLayout } from '../../model/layout';
+import { usePanelTab } from '../../model/panel-tab';
 import { INSPECT_VIEW } from './constants';
 import { focusAddressBar } from './focusAddressBar';
 
@@ -18,6 +19,8 @@ export interface PageCommands {
   showPreview(): void;
   /** Shows the Inspect view, where what is under the pointer shows while picking. */
   showInspect(): void;
+  /** Shows the Renders log under the editor. */
+  showRenders(): void;
 }
 
 export const pageCommands: PageCommands = {
@@ -37,5 +40,9 @@ export const pageCommands: PageCommands = {
   },
   showInspect: () => {
     if (useLayout.getState().sidebar !== INSPECT_VIEW) setSidebar(INSPECT_VIEW);
+  },
+  showRenders: () => {
+    usePanelTab.getState().show('renders');
+    if (!useLayout.getState().consoleVisible) toggleConsole();
   },
 };

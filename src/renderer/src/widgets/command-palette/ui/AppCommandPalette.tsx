@@ -8,6 +8,7 @@ import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
+import { useRenderLog } from '@/entities/inspector';
 import { usePageStore } from '@/entities/page';
 import { selectRuleList, useRuleStore } from '@/entities/rule';
 import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
@@ -15,8 +16,6 @@ import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/w
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { attachPage, detachPage } from '@/features/detach-page';
 import { formatTab } from '@/features/format-document';
-import { togglePicking } from '@/features/inspect/pick';
-import { openPageStack } from '@/features/inspect/stack';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
@@ -27,6 +26,7 @@ import { usePalette } from '../model/palette';
 import { useActionGroup } from '../model/useActionGroup';
 import { sourceActions, useOriginalSources } from '../model/sources';
 import { OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
+import { inspectItems } from './inspectItems';
 import { newRuleItems } from './newRuleItems';
 import { ruleItems } from './ruleItems';
 
@@ -41,10 +41,11 @@ export interface AppCommandPaletteProps {
   onNewWorkspace(): void;
   onToggleConsole(): void;
   onNewAction(): void;
+  onShowRenders(): void;
 }
 
 /** Ctrl/Cmd+K: jump to any file the page loaded, an original of a loaded map, an override or a rule, run an action, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onNewAction }: AppCommandPaletteProps) {
+export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onNewAction, onShowRenders }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
@@ -54,6 +55,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
   const detached = usePageStore((s) => s.page.detached);
+  const recording = useRenderLog((s) => s.recording);
   const runGroup = useActionGroup(onNewAction);
 
   const resources = usePageFiles(open);
@@ -100,8 +102,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
         { id: 'page-window', label: move.label, icon: move.icon, keywords: ['window', 'screen', 'monitor', 'detach', 'pop out', 'attach'], onSelect: () => void move.run() },
-        { id: 'pick', label: 'Pick an element in the page', icon: icons.PickIcon, shortcut: SHORTCUT.pickElement, keywords: ['inspect', 'component', 'react', 'vue', 'element'], onSelect: () => void togglePicking() },
-        { id: 'page-stack', label: 'Show the page stack', icon: icons.StackIcon, keywords: ['framework', 'library', 'react', 'vue', 'angular', 'frames'], onSelect: openPageStack },
+        ...inspectItems(recording, onShowRenders),
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         ...newRuleItems(),
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },

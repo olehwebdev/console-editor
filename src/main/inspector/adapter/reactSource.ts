@@ -22,13 +22,13 @@ export const REACT_JS = `
     const state = hook.memoizedState;
     const queue = hook.queue;
     if (queue && typeof queue.getSnapshot === 'function') return 'store';
-    if (queue && typeof queue.dispatch === 'function') return 'state';
+    if (queue && typeof queue.dispatch === 'function') return isStateQueue(queue) ? 'state' : 'reducer';
     if (state && typeof state === 'object' && typeof state.create === 'function' && 'deps' in state) return 'effect';
     if (state && typeof state === 'object' && !Array.isArray(state) && Object.keys(state).length === 1 && 'current' in state) return 'ref';
     if (Array.isArray(state) && state.length === 2 && (state[1] === null || Array.isArray(state[1]))) return 'memo';
     return 'other';
   };
-  const HOOK_VALUE = { store: (s) => s, state: (s) => s, ref: (s) => s.current, memo: (s) => s[0], other: (s) => s };
+  const HOOK_VALUE = { store: (s) => s, state: (s) => s, reducer: (s) => s, ref: (s) => s.current, memo: (s) => s[0], other: (s) => s };
   const hooks = (fiber, fn) => {
     const out = [];
     let index = 0;
@@ -37,7 +37,7 @@ export const REACT_JS = `
       const kind = hookKind(hook);
       if (kind === 'effect') continue;
       const value = HOOK_VALUE[kind](hook.memoizedState);
-      out.push({ name: String(index), kind, preview: preview(value), fn: fn(value) });
+      out.push({ name: String(index), kind, preview: preview(value), fn: fn(value), editable: kind === 'state' });
     }
     return out;
   };
@@ -45,10 +45,10 @@ export const REACT_JS = `
     const out = [];
     for (let dep = fiber.dependencies && fiber.dependencies.firstContext; dep && out.length < MAX_ITEMS; dep = dep.next) {
       const context = dep.context;
-      let provider = fiber.return;
-      while (provider && provider.type !== context && !(provider.type && provider.type._context === context)) provider = provider.return;
-      let owner = provider && provider.return;
-      while (owner && !isComponent(owner)) owner = owner.return;
+      let provider = up(fiber);
+      while (provider && provider.type !== context && !(provider.type && provider.type._context === context)) provider = up(provider);
+      let owner = provider && up(provider);
+      while (owner && !isComponent(owner)) owner = up(owner);
       out.push({
         name: context.displayName || 'Context',
         // Once rendering is done the context holds its default again: the provider holds the value.
@@ -64,9 +64,10 @@ export const REACT_JS = `
     let key;
     while (node && !(key = reactKey(node, ['__reactFiber$', '__reactInternalInstance$']))) node = node.parentElement;
     if (!key) return null;
-    const fiber = node[key];
+    // The element's key keeps the fiber it was created with: the copy on screen may be the other.
+    const fiber = currentFiber(node[key]);
     const chain = [];
-    for (let f = fiber; f && chain.length < MAX_CHAIN; f = f.return) if (isComponent(f)) chain.push(f);
+    for (let f = fiber; f && chain.length < MAX_CHAIN; f = up(f)) if (isComponent(f)) chain.push(f);
     if (!chain.length) return null;
     const propsKey = reactKey(node, ['__reactProps$', '__reactEventHandlers$']);
     return {
@@ -75,12 +76,14 @@ export const REACT_JS = `
       build: '_debugOwner' in fiber ? 'development' : 'production',
       names: chain.map((f) => componentName(f.type)),
       size: chain.length,
+      refs: chain,
+      set: (depth, edit) => reactSet(chain[depth], edit),
       describe: (depth, fn) => {
         const f = chain[depth];
         return {
           chain: chain.map((c) => ({ name: componentName(c.type), key: c.key == null ? null : String(c.key), fn: fn(renderFunction(c.type)) })),
           props: entries(f.memoizedProps, fn),
-          state: f.tag === CLASS_TAG ? entries(f.memoizedState, fn).map((e) => Object.assign(e, { kind: 'state' })) : hooks(f, fn),
+          state: f.tag === CLASS_TAG ? entries(f.memoizedState, fn).map((e) => Object.assign(e, { kind: 'state', editable: !!f.stateNode })) : hooks(f, fn),
           context: contexts(f, fn),
           handlers: listeners(propsKey ? node[propsKey] : null, fn),
         };

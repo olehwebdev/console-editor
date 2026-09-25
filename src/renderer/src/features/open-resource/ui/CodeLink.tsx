@@ -1,6 +1,6 @@
 import type { CodeLocation } from '@common/types';
 import { codeLabel, locationKey, useInspectorStore } from '@/entities/inspector';
-import { openCode } from './openCode';
+import { openCode } from '../model/sources/openCode';
 
 /** Where a function is defined, as a link: its original's file and line once known, else the bundle's. */
 export function CodeLink({ location }: { location: CodeLocation | null }) {

@@ -1,12 +1,14 @@
 import type { FrameStack } from '../../shared/types';
 import { DETECT_DELAY_MS } from './constants';
 import { detectFrame } from './detectFrame';
+import { scriptCoverage } from './scriptCoverage';
 import type { LoadSinks, StackTrackerOptions } from './types';
 
 /**
  * The page stack: a moment after a frame loads, the detector runs in its main
  * world (where the console's frames and contexts say) and finds its UI library,
- * framework, state library and bundler. A frame's stack goes with its document.
+ * framework, state library and bundler, and how many of its scripts have
+ * source maps. A frame's stack goes with its document.
  */
 export class StackTracker {
   private readonly stacks = new Map<string, FrameStack>();
@@ -54,11 +56,14 @@ export class StackTracker {
     const target = this.opts.frames.target(frameId);
     const session = target && this.opts.sessions.get(target.sessionId);
     if (!target || !session) return;
-    const hits = await detectFrame(session.transport, target.uniqueId);
+    const url = this.opts.frames.list().find((f) => f.id === frameId)?.url ?? '';
+    const [hits, coverage] = await Promise.all([
+      detectFrame(session.transport, target.uniqueId),
+      session.scripts.ofFrame(frameId).then((scripts) => scriptCoverage(scripts, url), () => null),
+    ]);
     // The frame may have loaded another document meanwhile: that one gets a look of its own.
     if (!hits || this.opts.frames.target(frameId)?.uniqueId !== target.uniqueId) return;
-    const url = this.opts.frames.list().find((f) => f.id === frameId)?.url ?? '';
-    this.stacks.set(frameId, { frameId, url, hits, scannedAt: Date.now() });
+    this.stacks.set(frameId, { frameId, url, hits, scannedAt: Date.now(), coverage });
     this.publish();
   }
 }

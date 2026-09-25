@@ -49,6 +49,8 @@ export type SourceMapWorkerRequest =
   | { type: 'toOriginalRaw'; bundleUrl: string; line: number; column: number }
   /** `line`: 1-based line of the original (its editor line). */
   | { type: 'toBundle'; bundleUrl: string; url: string; line: number }
+  /** `line`, `column`: 1-based, where `toOriginalRaw` placed a component's function in an original. */
+  | { type: 'hookNames'; bundleUrl: string; url: string; line: number; column: number }
   /** `rawOffset`: from `toBundle`. */
   | { type: 'toView'; bundleUrl: string; view: ViewRef; rawOffset: number };
 
@@ -64,6 +66,8 @@ export interface SourceMapWorkerReplies {
   toOriginalRaw: { url: string; line: number; column: number; name: string | null; rawOffset: number | null; mismatch: boolean } | Miss;
   /** `rawOffset`: 0-based UTF-16 offset into the raw bundle; `line`: the original line actually used (after probing). */
   toBundle: { rawOffset: number; line: number; mismatch: boolean } | Miss;
+  /** Per entry of the component's hook list, in order: the variable its hook sets, else the hook's name; the rest unknown. */
+  hookNames: { names: Array<string | null> } | Miss;
   /** `offset`: 0-based UTF-16 offset into the view's text; for `edited`, where the edits start. */
   toView: { offset: number; fit: AlignmentFit } | Miss;
 }

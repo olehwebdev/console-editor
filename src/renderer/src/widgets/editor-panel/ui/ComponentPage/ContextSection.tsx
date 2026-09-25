@@ -1,6 +1,6 @@
 import type { InspectedComponent } from '@common/types';
 import { linkName, useInspectorStore } from '@/entities/inspector';
-import { CodeLink } from './CodeLink';
+import { CodeLink } from '@/features/open-resource';
 
 /** The contexts a React component reads, with who provides each; what a Vue component provides. */
 export function ContextSection({ component }: { component: InspectedComponent }) {

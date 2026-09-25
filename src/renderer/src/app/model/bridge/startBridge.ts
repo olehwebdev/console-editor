@@ -3,6 +3,7 @@ import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useFrameStore } from '@/entities/frame';
 import { usePageStore } from '@/entities/page';
+import { useRenderLog } from '@/entities/inspector';
 import { usePageStackStore } from '@/entities/page-stack';
 import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
@@ -37,6 +38,7 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     api.listResources().then(applyResourceSnapshot),
     api.getPageState().then((page) => usePageStore.getState().setPage(page)),
     api.listStacks().then((stacks) => usePageStackStore.getState().setAll(stacks)),
+    api.isRecordingRenders().then((recording) => useRenderLog.getState().setRecording(recording)),
     // Frames first: the rows name them.
     api.listFrames().then(async (frames) => {
       useFrameStore.getState().setAll(frames);

@@ -9,7 +9,7 @@ vi.mock('@/shared/monaco', () => ({ monaco: {}, languageFor: () => 'javascript' 
 vi.mock('@/shared/api', () => ({ api: {}, onAppEvent: () => () => {} }));
 
 const hit = (id: StackHit['id'], signal: string, version: string | null = null): StackHit => ({ id, signal, version, build: null });
-const stack = (frameId: string, hits: StackHit[]): FrameStack => ({ frameId, url: `https://${frameId}.test/`, hits, scannedAt: 1 });
+const stack = (frameId: string, hits: StackHit[]): FrameStack => ({ frameId, url: `https://${frameId}.test/`, hits, scannedAt: 1, coverage: null });
 
 describe('page stack', () => {
   beforeEach(() => {

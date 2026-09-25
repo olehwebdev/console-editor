@@ -64,12 +64,16 @@ describe.skipIf(!chromiumAvailable)('page stack in Chromium', () => {
       '/react.html': ['text/html', reactPage('/react.js')],
       '/react-dev.html': ['text/html', reactPage('/react-dev.js')],
       [STACK_PATH]: ['text/html', STACK_HTML],
+      // Three scripts: one names its map in a comment, one in a header, one names none.
+      '/maps.html': ['text/html', `${reactPage('/react.js')}<script src="/commented.js"></script><script src="/headed.js"></script><script>var inline = 1;</script>`],
+      '/commented.js': ['text/javascript', 'var commented = 1;\n//# sourceMappingURL=commented.js.map'],
+      '/headed.js': ['text/javascript', 'var headed = 1;'],
     };
     server = createServer((req, res) => {
       const path = new URL(req.url ?? '/', 'http://x').pathname;
       const route = path === '/shell.html' ? ['text/html', `<!doctype html><title>shell</title><app-root ng-version="22.2.0"></app-root><iframe src="http://widget.localhost:${port}/react.html"></iframe>`] : routes[path];
       if (!route) return void res.writeHead(404).end();
-      res.writeHead(200, { 'content-type': route[0] }).end(route[1]);
+      res.writeHead(200, { 'content-type': route[0], ...(path === '/headed.js' ? { SourceMap: 'headed.js.map' } : {}) }).end(route[1]);
     });
     await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
     port = (server.address() as AddressInfo).port;
@@ -106,6 +110,13 @@ describe.skipIf(!chromiumAvailable)('page stack in Chromium', () => {
     await open(`${origin}/react.html`);
     const stack = await stackAt(`${origin}/react.html`);
     expect(hitOf(stack, 'react')).toEqual({ id: 'react', signal: 'hook', version: REACT_VERSION, build: 'production' });
+  });
+
+  it("counts the frame's scripts that name a source map, by comment or by header, and names those that don't", async () => {
+    await open(`${origin}/maps.html`);
+    const stack = await stackAt(`${origin}/maps.html`);
+    // The document's inline script isn't a file of its own.
+    expect(stack.coverage).toEqual({ scripts: 3, mapped: 2, unmapped: [`${origin}/react.js`] });
   });
 
   it('tells a development build', async () => {

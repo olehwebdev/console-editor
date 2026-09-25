@@ -13,9 +13,9 @@ import { originalPositionFor, TraceMap } from '@jridgewell/trace-mapping';
 import type { Locator, Page } from 'playwright-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { PageInterception } from '../../src/main/engine/PageInterception';
-import { PICK_GONE } from '../../src/main/inspector/constants';
+import { NO_ELEMENT, NOT_JSON, NOT_SETTABLE, PICK_GONE } from '../../src/main/inspector/constants';
 import { FrameServices } from '../../src/main/PageController/FrameServices';
-import { DEFAULT_SETTINGS, type AppEvent, type CodeLocation, type InspectedComponent, type InspectHover } from '../../src/shared/types';
+import { DEFAULT_SETTINGS, type AppEvent, type CodeLocation, type ComponentTreeLevel, type InspectedComponent, type InspectHover, type RenderCommit, type Settings } from '../../src/shared/types';
 import { bundleApp } from '../helpers/bundleApp';
 import { chromiumAvailable, launchChromium, type ChromiumHarness } from '../helpers/chromium';
 
@@ -52,6 +52,8 @@ describe.skipIf(!chromiumAvailable)('component inspector in Chromium', () => {
       ['react-dev', 'reactCart.ts', 'development'],
       ['vue', 'vueCart.ts', 'production'],
       ['vue-dev', 'vueCart.ts', 'development'],
+      ['renders', 'reactRenders.ts', 'production'],
+      ['renders-dev', 'reactRenders.ts', 'development'],
     ] as const;
     for (const [name, entry, mode] of builds) {
       const app = await bundleApp(entry, name, mode);
@@ -85,13 +87,13 @@ describe.skipIf(!chromiumAvailable)('component inspector in Chromium', () => {
     await page.close();
   });
 
-  async function open(url: string): Promise<void> {
+  async function open(url: string, settings: Settings = DEFAULT_SETTINGS): Promise<void> {
     events = [];
     const opened = await chrome.newPage();
     page = opened.page;
     transport = opened.transport;
-    services = new FrameServices(() => DEFAULT_SETTINGS, (e) => events.push(e));
-    interception = new PageInterception({ transport, getOverrides: () => [], getRules: () => [], getSettings: () => DEFAULT_SETTINGS, emit: () => undefined, sessions: services });
+    services = new FrameServices(() => settings, (e) => events.push(e));
+    interception = new PageInterception({ transport, getOverrides: () => [], getRules: () => [], getSettings: () => settings, emit: () => undefined, sessions: services });
     await interception.attach();
     await page.goto(url);
   }
@@ -173,6 +175,139 @@ describe.skipIf(!chromiumAvailable)('component inspector in Chromium', () => {
     expect(component.handlers.map((h) => [h.name, original(h.location)?.line])).toEqual([['onClick', lineOf('vueCart.ts', 'function handleAdd')]]);
     const app = await services.inspector.inspectComponent(component.pickId, 2);
     expect(app.context).toMatchObject([{ name: 'currency', preview: '"EUR"', provider: 'App' }]);
+  });
+
+  it("sets a useState hook's value, and reads the component as it rendered with it; refuses what isn't JSON or can't be set", async () => {
+    await open(`${origin}/react.html`);
+    const { component } = await pick(page.locator('#add-A1'));
+    expect(component.state).toMatchObject([{ name: '1', kind: 'state', editable: true }]);
+    const set = await services.inspector.setComponentState(component.pickId, 0, { kind: 'state', name: '1', json: '5' });
+    expect(set.state).toMatchObject([{ name: '1', preview: '5' }]);
+    expect(await page.locator('.cart-item').first().textContent()).toContain('50 EUR');
+    await expect(services.inspector.setComponentState(component.pickId, 0, { kind: 'state', name: '1', json: 'five' })).rejects.toThrow(NOT_JSON);
+    // CartList holds no state: there is no hook 1 to set.
+    await expect(services.inspector.setComponentState(component.pickId, 1, { kind: 'state', name: '1', json: '5' })).rejects.toThrow(NOT_SETTABLE);
+  });
+
+  it("sets a Vue component's data and a ref in its setupState, not a computed one", async () => {
+    await open(`${origin}/vue.html`);
+    const { component } = await pick(page.locator('#add-A1'));
+    const list = await services.inspector.inspectComponent(component.pickId, 1);
+    expect(list.state.map((s) => [s.kind, s.name, s.preview, s.editable])).toEqual([
+      ['setup', 'open', 'true', true],
+      ['setup', 'count', '2', false],
+      ['data', 'title', '"Cart"', true],
+    ]);
+    await services.inspector.setComponentState(component.pickId, 1, { kind: 'data', name: 'title', json: '"Basket"' });
+    const set = await services.inspector.setComponentState(component.pickId, 1, { kind: 'setup', name: 'open', json: 'false' });
+    expect(set.state.map((s) => s.preview)).toEqual(['false', '2', '"Basket"']);
+    expect(await page.locator('#list').evaluate((el) => [el.dataset.title, el.dataset.open])).toEqual(['Basket', 'false']);
+    await expect(services.inspector.setComponentState(component.pickId, 1, { kind: 'setup', name: 'count', json: '3' })).rejects.toThrow(NOT_SETTABLE);
+  });
+
+  /** The top frame's Components tree at `path`, once the console knows the frame. */
+  const treeAt = async (path: number[]) => {
+    const frame = await waitFor(() => services.console.listFrames()[0]);
+    return (await services.inspector.componentTree(frame.id, path)) as ComponentTreeLevel;
+  };
+  const shape = (level: ComponentTreeLevel) => level.nodes.map((n) => [n.name, n.key, n.children]);
+
+  it("lists a React app's components a level at a time, from the roots the hook stand-in kept, and opens one as a pick", async () => {
+    await open(`${origin}/react-dev.html`);
+    await page.locator('#add-A1').waitFor();
+    expect(shape(await treeAt([]))).toEqual([['App', null, 1]]);
+    expect(shape(await treeAt([0]))).toEqual([['CartList', null, 2]]);
+    const items = await treeAt([0, 0]);
+    expect(shape(items)).toEqual([['CartItem', 'A1', 0], ['CartItem', 'B2', 0]]);
+    expect(items.nodes[1].location?.url).toBe(`${origin}/react-dev.js`);
+    expect(await services.inspector.componentTree(items.frameId, [0, 0, 5])).toBeNull();
+
+    // A component opens as a pick of its first element: CartList's is the <ul>, which it rendered itself.
+    const list = await services.inspector.openTreeNode(items.frameId, [0, 0]);
+    expect(list).toMatchObject({ depth: 0, element: { tag: 'ul' }, chain: [{ name: 'CartList' }, { name: 'App' }], path: [0, 0] });
+    // App renders no element of its own: its first is CartList's, where App is one up the chain.
+    expect(await services.inspector.openTreeNode(items.frameId, [0])).toMatchObject({ depth: 1, element: { tag: 'ul' }, chain: [{ name: 'CartList' }, { name: 'App' }], path: [0] });
+    await expect(services.inspector.openTreeNode(items.frameId, [3])).rejects.toThrow(NO_ELEMENT);
+  });
+
+  it("finds React's roots by their containers without the hook, and tells a pick's path in the tree", async () => {
+    await open(`${origin}/react.html`, { ...DEFAULT_SETTINGS, frameworkHooks: false });
+    const { component } = await pick(page.locator('#add-B2'));
+    expect(component.path).toEqual([0, 0, 1]);
+    expect((await treeAt([0, 0])).nodes.map((n) => n.key)).toEqual(['A1', 'B2']);
+  });
+
+  it("lists a Vue app's components, and tells a pick's path", async () => {
+    await open(`${origin}/vue.html`);
+    const { component } = await pick(page.locator('#add-B2'));
+    expect(component.path).toEqual([0, 0, 1]);
+    expect(shape(await treeAt([]))).toEqual([['App', null, 1]]);
+    expect(shape(await treeAt([0, 0]))).toEqual([['CartItem', 'A1', 0], ['CartItem', 'B2', 0]]);
+    const item = await services.inspector.openTreeNode(component.frameId!, [0, 0, 0]);
+    expect(item).toMatchObject({ framework: 'vue', element: { tag: 'li' }, chain: [{ name: 'CartItem', key: 'A1' }, { name: 'CartList' }, { name: 'App' }] });
+  });
+
+  /** The commits recorded so far, as `name#key kind reasons` lines per commit. */
+  const recorded = () =>
+    events.flatMap((e) => (e.type === 'renders-recorded' ? e.commits : []));
+  const describeCommit = (commit: RenderCommit) =>
+    commit.components.map((c) => [`${c.name}${c.key ? `#${c.key}` : ''}`, c.kind + (c.memo ? '(memo)' : ''), c.reasons.map((r) => `${r.kind}:${r.changes.map((ch) => `${ch.name} ${ch.from}→${ch.to}`).join(',')}`).join(' ')].join(' ').trim());
+  /** Clicks a button of the page and waits for the commit it makes. */
+  async function commitOf(selector: string): Promise<RenderCommit> {
+    const before = recorded().length;
+    await page.click(selector);
+    return waitFor(() => recorded()[before]);
+  }
+
+  it('records why each component rendered, commit by commit, with what triggered it and where each is defined', async () => {
+    await open(`${origin}/renders-dev.html`);
+    await page.locator('#add-A1').waitFor();
+    await services.inspector.recordRenders(true);
+    expect(events).toContainEqual({ type: 'renders-recording', recording: true });
+
+    const add = await commitOf('#add-A1');
+    expect(add.trigger).toEqual({ type: 'click', target: 'button#add-A1' });
+    expect(add.frameId).toBe(services.console.listFrames()[0].id);
+    expect(add.duration).toEqual(expect.any(Number));
+    expect(describeCommit(add)).toEqual(['CartBadge render store:1 0→1', 'CartItem#A1 render state:1 1→2']);
+    expect(add.components[1].location).toMatchObject({ url: `${origin}/renders-dev.js` });
+
+    expect(describeCommit(await commitOf('#currency'))).toEqual([
+      'App render state:1 "EUR"→"USD"',
+      'CartBadge render parent:',
+      'CartList skip(memo)',
+      'CartItem#A1 render context:Context "EUR"→"USD"',
+      'CartItem#B2 render context:Context "EUR"→"USD"',
+      'Clock render parent:',
+      'Footer render parent:',
+    ]);
+    expect(describeCommit(await commitOf('#theme'))).toEqual(['App render state:2 "dark"→"light"', 'CartBadge render parent:', 'CartList skip(memo)', 'Clock render parent:', 'Footer render props:note "dark"→"light"']);
+    expect(describeCommit(await commitOf('#tick'))).toEqual(['Clock render state:ticks 0→1']);
+    expect(recorded().map((c) => c.id)).toEqual([1, 2, 3, 4]);
+
+    await services.inspector.recordRenders(false);
+    await page.click('#tick');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(recorded()).toHaveLength(4);
+  });
+
+  it("records a production build's mount from the start of a document loaded while recording, its functions placed through the source map", async () => {
+    await open(`${origin}/renders.html`);
+    await services.inspector.recordRenders(true);
+    await page.reload();
+    const mount = await waitFor(() => recorded()[0]);
+    expect(mount.trigger).toBeNull();
+    expect(mount.duration).toBeNull();
+    expect(mount.components.map((c) => c.kind)).toEqual(Array(7).fill('mount'));
+    expect(mount.components.map((c) => original(c.location)?.line)).toEqual([
+      lineOf('reactRenders.ts', 'function App'),
+      lineOf('reactRenders.ts', 'function CartBadge'),
+      lineOf('reactRenders.ts', 'const CartList = memo'),
+      lineOf('reactRenders.ts', 'function CartItem'),
+      lineOf('reactRenders.ts', 'function CartItem'),
+      lineOf('reactRenders.ts', 'class Clock'),
+      lineOf('reactRenders.ts', 'function Footer'),
+    ]);
   });
 
   it('reads a development Vue build from the element itself', async () => {

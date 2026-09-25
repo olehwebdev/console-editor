@@ -1,6 +1,6 @@
 import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
-import type { FrameStack, InspectedComponent } from './inspector';
+import type { InspectorApi } from './inspector';
 import type { AppEvent } from './events';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
 import type { PageState, Rect } from './page';
@@ -13,7 +13,7 @@ import type { AppInfo, UpdateState } from './updates';
 import type { Workspace, WorkspacePatch, WorkspacesState } from './workspaces';
 
 /** The API exposed to the renderer as `window.consoleEditor`. */
-export interface ConsoleEditorApi {
+export interface ConsoleEditorApi extends InspectorApi {
   navigate(url: string): Promise<void>;
   reload(): Promise<void>;
   goBack(): Promise<void>;
@@ -86,18 +86,6 @@ export interface ConsoleEditorApi {
   /** One level of an expandable value's properties. */
   getConsoleProperties(handle: number): Promise<ConsoleProperty[]>;
   clearConsole(): Promise<void>;
-
-  /** What each frame of the page runs (UI library, framework, state, bundler), the top page first; empty while the console isn't recording. */
-  listStacks(): Promise<FrameStack[]>;
-  /** Looks at every frame again now; the result also arrives as `stack-changed`. */
-  scanStacks(): Promise<void>;
-  /** Puts every frame in inspect mode: hovering highlights (`inspect-hover`), a click picks (`inspect-picked`); both follow `inspect-picking`. */
-  startPicking(): Promise<void>;
-  stopPicking(): Promise<void>;
-  /** The component at `depth` of a pick's chain (0: the one that rendered the element). */
-  inspectComponent(pickId: string, depth: number): Promise<InspectedComponent>;
-  /** Highlights a pick's element in the page; null hides the highlight. */
-  highlightPick(pickId: string | null): Promise<void>;
 
   /** The active workspace's actions, oldest first. */
   listActions(): Promise<ConsoleAction[]>;

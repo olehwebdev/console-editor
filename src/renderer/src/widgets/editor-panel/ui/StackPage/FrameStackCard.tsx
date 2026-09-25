@@ -1,5 +1,6 @@
 import type { ConsoleFrame, FrameStack } from '@common/types';
 import { FrameChip, frameKey } from '@/entities/frame';
+import { CoverageLine } from './CoverageLine';
 import { FrameStackBody } from './FrameStackBody';
 
 export interface FrameStackCardProps {
@@ -8,7 +9,7 @@ export interface FrameStackCardProps {
   stack: FrameStack | undefined;
 }
 
-/** One frame of the page: its chip and address, and what it runs. */
+/** One frame of the page: its chip and address, what it runs, and how many of its scripts have source maps. */
 export function FrameStackCard({ frame, label, stack }: FrameStackCardProps) {
   const key = frameKey(frame);
   return (
@@ -18,6 +19,7 @@ export function FrameStackCard({ frame, label, stack }: FrameStackCardProps) {
         <span className="truncate font-mono text-[12px] text-fg-muted">{frame.url || 'No document yet'}</span>
       </header>
       <FrameStackBody stack={stack} />
+      <CoverageLine coverage={stack?.coverage} />
     </section>
   );
 }

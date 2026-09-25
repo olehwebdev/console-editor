@@ -3,6 +3,7 @@
  * one vocabulary. Import icons from here, not from the package directly.
  */
 export {
+  Activity01Icon as RendersIcon,
   Alert02Icon as WarningIcon,
   AlertCircleIcon as ErrorIcon,
   AppWindowIcon as PreviewIcon,

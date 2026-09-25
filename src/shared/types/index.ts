@@ -12,6 +12,8 @@ export type { AppEvent, EngineEvent } from './events';
 export type {
   CodeLocation,
   ComponentLink,
+  ComponentNode,
+  ComponentTreeLevel,
   FrameStack,
   InspectedComponent,
   InspectedContext,
@@ -21,10 +23,19 @@ export type {
   InspectedValue,
   InspectFramework,
   InspectHover,
+  RenderChange,
+  RenderCommit,
+  RenderedComponent,
+  RenderKind,
+  RenderReason,
+  RenderReasonKind,
+  RenderTrigger,
+  ScriptCoverage,
   StackHit,
+  StateEdit,
   StateKind,
 } from './inspector';
-export { INSPECT_FRAMEWORKS, STATE_KINDS } from './inspector';
+export { INSPECT_FRAMEWORKS, RENDER_KINDS, RENDER_REASONS, STATE_KINDS } from './inspector';
 export type { MenuCommand } from './menu';
 export type { CreateOverrideInput, MatchType, Override, OverrideMeta, OverridePatch, OverrideWithContent, UrlMatcher } from './overrides';
 export { MATCH_TYPES } from './overrides';

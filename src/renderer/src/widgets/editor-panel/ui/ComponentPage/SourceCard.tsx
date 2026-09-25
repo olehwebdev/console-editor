@@ -5,9 +5,8 @@ import { Button } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icon';
 import { locationKey, useInspectorStore } from '@/entities/inspector';
 import { parseSourceUrl } from '@/entities/source-map';
-import { revealBundleCode } from '@/features/open-resource';
+import { openCode, revealBundleCode } from '@/features/open-resource';
 import { ORIGIN_NOTE } from './constants';
-import { openCode } from './openCode';
 import { originStatus } from './originStatus';
 
 /** Where the component is defined: its original through the bundle's map, else the bundle's code, with the ways to go there. */

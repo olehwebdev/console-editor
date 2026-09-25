@@ -1,4 +1,4 @@
-import type { FrameStack, InspectedComponent } from '../../../shared/types';
+import type { ComponentTreeLevel, FrameStack, InspectedComponent } from '../../../shared/types';
 import type { SessionKey } from '../../console/ConsoleFrames';
 import type { CdpTransport } from '../../engine/cdp';
 import type { SessionObserver } from '../../engine/PageInterception';
@@ -7,6 +7,8 @@ import { listenForLoads } from '../listenForLoads';
 import { Picker } from '../picking/Picker';
 import { ComponentReader } from '../reading/ComponentReader';
 import { ScriptUrls } from '../reading/ScriptUrls';
+import { TreeReader } from '../reading/TreeReader';
+import { RenderRecorder } from '../renders/RenderRecorder';
 import { StackTracker } from '../StackTracker';
 import type { InspectedSession, InspectedSessions, InspectorServiceOptions } from '../types';
 
@@ -22,6 +24,8 @@ export class InspectorService implements SessionObserver {
   private readonly stacks: StackTracker;
   private readonly picker: Picker;
   private readonly reader: ComponentReader;
+  private readonly tree: TreeReader;
+  private readonly renders: RenderRecorder;
   private recording: boolean;
 
   constructor(private readonly opts: InspectorServiceOptions) {
@@ -29,14 +33,16 @@ export class InspectorService implements SessionObserver {
     this.stacks = new StackTracker({ sessions, frames: opts.frames, send: opts.send });
     this.picker = new Picker({ sessions, send: opts.send, picked: (id, node) => void this.picked(id, node) });
     this.reader = new ComponentReader(sessions);
+    this.tree = new TreeReader(sessions, opts.frames, this.reader);
+    this.renders = new RenderRecorder({ sessions, frames: opts.frames, send: opts.send });
     this.recording = opts.getSettings().captureConsole;
   }
 
   async attached(id: SessionKey, transport: CdpTransport): Promise<void> {
     const hook = new HookScript(transport);
-    const dispose = [...listenForLoads(transport, this.stacks.sinks), ...this.picker.listen(id, transport)];
+    const dispose = [...listenForLoads(transport, this.stacks.sinks), ...this.picker.listen(id, transport), ...this.renders.listen(id, transport)];
     this.sessions.set(id, { transport, hook, scripts: new ScriptUrls(transport), dispose });
-    await Promise.all([hook.sync(this.opts.getSettings().frameworkHooks), this.picker.joined(transport)]);
+    await Promise.all([hook.sync(this.opts.getSettings().frameworkHooks), this.picker.joined(transport), this.renders.joined(transport)]);
   }
 
   detached(id: SessionKey): void {
@@ -46,6 +52,7 @@ export class InspectorService implements SessionObserver {
       for (const dispose of this.sessions.get(key)?.dispose.splice(0) ?? []) dispose();
       this.sessions.delete(key);
       this.reader.dropSession(key);
+      this.renders.forget(key);
     }
     this.stacks.publish();
   }
@@ -56,7 +63,7 @@ export class InspectorService implements SessionObserver {
     const started = captureConsole && !this.recording;
     this.recording = captureConsole;
     await Promise.all([...this.sessions.values()].map(({ hook }) => hook.sync(frameworkHooks).catch(() => undefined)));
-    if (started) await this.stacks.scan();
+    if (started) await Promise.all([this.stacks.scan(), this.renders.resume()]);
     else if (!captureConsole) this.stacks.publish();
   }
 
@@ -85,8 +92,32 @@ export class InspectorService implements SessionObserver {
     return this.reader.describe(pickId, depth);
   }
 
+  setComponentState(pickId: unknown, depth: unknown, edit: unknown): Promise<InspectedComponent> {
+    return this.reader.setState(pickId, depth, edit);
+  }
+
   highlightPick(pickId: unknown): Promise<void> {
     return this.reader.highlight(pickId);
+  }
+
+  get recordingRenders(): boolean {
+    return this.renders.active;
+  }
+
+  recordRenders(on: boolean): Promise<void> {
+    return this.renders.set(on);
+  }
+
+  componentTree(frameId: unknown, path: unknown): Promise<ComponentTreeLevel | null> {
+    return this.tree.level(frameId, path);
+  }
+
+  openTreeNode(frameId: unknown, path: unknown): Promise<InspectedComponent> {
+    return this.tree.open(frameId, path);
+  }
+
+  highlightTreeNode(frameId: unknown, path: unknown): Promise<void> {
+    return this.tree.highlight(frameId, path);
   }
 
   private async picked(id: SessionKey, backendNodeId: number): Promise<void> {

@@ -140,14 +140,14 @@ src/renderer/src/
               page-window/     — the website's own window: the page-preview widget alone
               actions-window/  — the Actions panel's own window: the actions-panel widget alone
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
-              command-palette, console-panel, actions-panel, inspect-panel
+              command-palette, console-panel, actions-panel, inspect-panel, renders-panel
   features/   navigate-page, open-resource (also original sources, the jumps between them and bundles,
               and which of a bundle's originals the Explorer shows open), save-override, toggle-override,
               delete-override, close-tab, edit-match-rule, format-document, compare-changes,
               filter-resources, update-settings, update-app, edit-workspace, run-in-frame, filter-console,
               name-frame, clear-console, expand-console-value, detach-page, rule/ (a slice group:
               quick-actions, edit, toggle, delete), action/ (a slice group: run, edit, detach),
-              inspect/ (a slice group: stack, pick)
+              inspect/ (a slice group: stack, pick, tree, renders)
   entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule,
               source-map, action, page-stack, inspector
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format and source-map

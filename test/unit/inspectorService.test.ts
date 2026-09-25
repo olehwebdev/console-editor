@@ -113,6 +113,21 @@ describe('page stack (InspectorService)', () => {
   });
 
   it('looks at a frame a moment after it loads, silently and by value in its main world, and sends what it found', async () => {
+    // What V8 lists when the debugger is turned on: the frame's scripts, one naming a source map.
+    const script = (scriptId: string, url: string, sourceMapURL: string, frameId = 'top', isDefault = true) => ({ scriptId, url, sourceMapURL, executionContextAuxData: { frameId, isDefault } });
+    cdp.replies.set('Debugger.enable', () => {
+      for (const parsed of [
+        script('1', 'https://site.test/app.js', 'app.js.map'),
+        script('2', 'https://cdn.test/analytics.js', ''),
+        // Not the frame's own files: its document's inline script, an isolated world's copy, evaluated code, another frame's.
+        script('3', 'https://site.test/', ''),
+        script('4', 'https://cdn.test/extension.js', '', 'top', false),
+        script('5', '', ''),
+        script('6', 'https://widget.test/w.js', '', 'child'),
+      ])
+        cdp.emit('Debugger.scriptParsed', parsed);
+      return {};
+    });
     await attachPage();
     cdp.emit('Page.frameStoppedLoading', { frameId: 'top' });
     await vi.advanceTimersByTimeAsync(DETECT_DELAY_MS - 1);
@@ -121,7 +136,9 @@ describe('page stack (InspectorService)', () => {
 
     expect(cdp.detections()).toEqual(['u-top-1']);
     expect(cdp.calls.find((c) => c.params?.expression === DETECT_SOURCE)?.params).toMatchObject({ returnByValue: true, silent: true });
-    expect(lastStacks()).toEqual([{ frameId: 'top', url: 'https://site.test/', hits: [REACT], scannedAt: expect.any(Number) }]);
+    expect(lastStacks()).toEqual([
+      { frameId: 'top', url: 'https://site.test/', hits: [REACT], scannedAt: expect.any(Number), coverage: { scripts: 2, mapped: 1, unmapped: ['https://cdn.test/analytics.js'] } },
+    ]);
     expect(services.inspector.list()).toEqual(lastStacks());
     // Nothing of it reaches the console.
     expect(services.console.listEntries()).toEqual([]);

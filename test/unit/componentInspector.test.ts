@@ -172,10 +172,11 @@ describe('component inspector (picking and reading)', () => {
       ],
       depth: 0,
       props: [{ name: 'sku', preview: '"A1"', location: null }],
-      state: [{ name: '1', kind: 'state', preview: '1', location: null }],
+      state: [{ name: '1', kind: 'state', preview: '1', location: null, editable: false }],
       context: [{ name: 'Context', preview: '{currency: "EUR"}', provider: 'l2', location: location(40) }],
       // A function V8 gives no place (native, bound) has none.
       handlers: [{ name: 'onClick', function: 'e', location: null }],
+      path: null,
     });
     // Script URLs come from turning the debugger on just long enough, pauses skipped.
     expect(cdp.calls.filter((c) => c.method.startsWith('Debugger.')).map((c) => c.method)).toEqual(['Debugger.enable', 'Debugger.setSkipAllPauses', 'Debugger.disable']);

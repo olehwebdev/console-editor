@@ -42,14 +42,16 @@ export const VUE_JS = `
     if (!found) return null;
     const chain = [];
     for (let instance = found.instance; instance && chain.length < MAX_CHAIN; instance = instance.parent) chain.push(instance);
-    const tagged = (kind) => (e) => Object.assign(e, { kind });
     return {
       framework: 'vue',
       build: found.build,
       names: chain.map(vueName),
       size: chain.length,
+      refs: chain,
+      set: (depth, edit) => vueSet(chain[depth], edit),
       describe: (depth, fn) => {
         const instance = chain[depth];
+        const tagged = (kind) => (e) => Object.assign(e, { kind, editable: vueEditable(instance, kind, e.name) });
         // A component that provides gets provides of its own; the others share their parent's.
         const provides = instance.provides && (!instance.parent || instance.provides !== instance.parent.provides) ? instance.provides : null;
         return {

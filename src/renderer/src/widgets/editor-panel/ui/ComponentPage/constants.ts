@@ -3,10 +3,7 @@ import type { InspectFramework, SourceMapKind, StateKind } from '@common/types';
 export const FRAMEWORK_NAME: Record<InspectFramework, string> = { react: 'React', vue: 'Vue' };
 
 /** What each kind of state is called; a React hook's is its kind, Vue's where it is kept. */
-export const STATE_KIND_LABEL: Record<StateKind, string> = { state: 'state', store: 'store', ref: 'ref', memo: 'memo', setup: 'setup', data: 'data', other: 'hook' };
-
-/** A React hook is named by its place among the component's hooks. */
-export const HOOK_PLACE = /^\d+$/;
+export const STATE_KIND_LABEL: Record<StateKind, string> = { state: 'state', reducer: 'reducer', store: 'store', ref: 'ref', memo: 'memo', setup: 'setup', data: 'data', other: 'hook' };
 
 /** Where V8 places functions: in scripts. */
 export const SCRIPT_KIND: SourceMapKind = 'Script';
@@ -25,3 +22,6 @@ export const ORIGIN_NOTE: Record<Exclude<OriginStatus, 'found'>, string> = {
   looking: 'Looking for its source map…',
   none: 'Its bundle has no source map: this is the place in the file as served.',
 };
+
+/** The most of a component's renders its page lists (the newest). */
+export const MAX_COMPONENT_RENDERS = 50;

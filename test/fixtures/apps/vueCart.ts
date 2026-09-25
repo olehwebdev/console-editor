@@ -1,9 +1,9 @@
 /**
  * The same cart in Vue 3, for the inspector's integration test: an item injects
- * the currency, keeps state and handles a click, inside a list inside the app
- * that provides the currency.
+ * the currency, keeps state and handles a click, inside a list (with state the
+ * inspector can set) inside the app that provides the currency.
  */
-import { createApp, defineComponent, h, inject, provide, ref, type PropType } from 'vue';
+import { computed, createApp, defineComponent, h, inject, provide, ref, type PropType } from 'vue';
 
 const CartItem = defineComponent({
   name: 'CartItem',
@@ -18,11 +18,18 @@ const CartItem = defineComponent({
   },
 });
 
+// Its state is where the inspector can set it: a key of data, and a ref in setupState (a render option, not a render function from setup).
 const CartList = defineComponent({
   name: 'CartList',
   props: { items: { type: Array as PropType<Array<{ sku: string; price: number }>>, required: true } },
-  setup(props) {
-    return () => h('ul', props.items.map((item) => h(CartItem, { key: item.sku, sku: item.sku, price: item.price })));
+  data: () => ({ title: 'Cart' }),
+  setup() {
+    const open = ref(true);
+    const count = computed(() => 2);
+    return { open, count };
+  },
+  render() {
+    return h('ul', { id: 'list', 'data-title': this.title, 'data-open': String(this.open) }, this.items.map((item) => h(CartItem, { key: item.sku, sku: item.sku, price: item.price })));
   },
 });
 

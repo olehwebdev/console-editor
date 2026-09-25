@@ -4,7 +4,9 @@
  * pointer and the click go through the page's own debugger, as Chromium's input
  * does (Electron's sendInputEvent isn't routed into a cross-site frame). The
  * Component page names the component and its file from the source map, and
- * opens either the original or the bundle there.
+ * opens either the original or the bundle there; the Inspect view's tree shows
+ * the frame's components; a state value is set from the page; and Renders
+ * records why the cart rendered when it is clicked.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -69,6 +71,12 @@ describe.skipIf(!built)('component inspector', () => {
   /** The View menu's Pick an Element item, as its shortcut runs it. */
   const menuPick = () => app.evaluate(({ Menu }, id) => Menu.getApplicationMenu()!.getMenuItemById(id)!.click(), PICK_MENU_ID);
   const picking = () => win.getByTestId('pick-element').getAttribute('aria-pressed');
+  /** The cart's text, from inside its frame. */
+  const cartText = () =>
+    app.evaluate(({ webContents }) => {
+      const page = webContents.getAllWebContents().find((wc) => wc.getURL().endsWith('/shell.html'))!;
+      return page.mainFrame.frames.find((f) => f.url.endsWith('/react.html'))!.executeJavaScript('document.querySelector(".cart-item").textContent') as Promise<string>;
+    });
 
   beforeAll(async () => {
     const cart = await bundleApp(CART_FILE, 'react', 'production');
@@ -159,5 +167,39 @@ describe.skipIf(!built)('component inspector', () => {
     await expect.poll(picking).toBe('true');
     await win.keyboard.press('Escape');
     await expect.poll(picking).toBe('false');
+  });
+
+  it("lists the cart frame's components in the Inspect view, down to the one picked, named by the source map", async () => {
+    const rows = win.getByTestId('tree-row');
+    await expect.poll(async () => (await rows.allInnerTexts()).map((text) => text.replace(/\s+/g, ' ')), { timeout: 15_000 }).toEqual(['App', 'CartList', 'CartItem key=A1', 'CartItem key=B2']);
+    expect(await rows.filter({ hasText: 'key=A1' }).getAttribute('aria-selected')).toBe('true');
+    await rows.filter({ hasText: 'CartList' }).getByTestId('tree-toggle').click();
+    await expect.poll(() => rows.count()).toBe(2);
+  });
+
+  it("sets a state value from the Component page, named after its variable, and the page renders it", async () => {
+    await win.getByRole('tab', { name: /CartItem/ }).click();
+    const qty = win.getByTestId('component-state').locator('[data-testid="component-value"][data-name="qty"]');
+    await qty.waitFor({ timeout: 15_000 });
+    await qty.hover();
+    await qty.getByTestId('edit-state').click();
+    await win.getByTestId('state-editor').fill('5');
+    await win.getByTestId('state-editor').press('Enter');
+    await expect.poll(() => qty.textContent()).toContain('5');
+    await expect.poll(cartText).toContain('50 EUR');
+  });
+
+  it('records renders from the palette: a click in the page, and why each component rendered, also on the Component page', async () => {
+    await win.keyboard.press('Control+K');
+    await win.keyboard.type('Record renders');
+    await win.getByRole('option', { name: /Record renders/ }).click();
+    await win.getByTestId('renders-panel').waitFor();
+    await expect.poll(() => win.getByTestId('renders-record').getAttribute('aria-pressed')).toBe('true');
+
+    await click();
+    const commit = win.getByTestId('render-commit').first();
+    await expect.poll(() => commit.textContent(), { timeout: 15_000 }).toContain('click on button#add-A1');
+    await expect.poll(() => commit.getByTestId('rendered-component').allInnerTexts()).toEqual([expect.stringMatching(/^CartItem\s*key=A1\s*state qty 5 → 6/)]);
+    await expect.poll(() => win.getByTestId('component-render').count()).toBe(1);
   });
 });

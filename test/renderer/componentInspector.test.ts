@@ -34,6 +34,7 @@ const component = (over: Partial<InspectedComponent> = {}): InspectedComponent =
   state: [],
   context: [],
   handlers: [{ name: 'onClick', function: 'e', location: at(30) }],
+  path: null,
   ...over,
 });
 const place = (name: string | null) => ({ bundleUrl: BUNDLE_URL, url: 'https://site.test/src/CartItem.tsx', line: 11, column: 1, name, rawOffset: 5 });
@@ -145,7 +146,7 @@ describe('picked components (entities/inspector)', () => {
 
   it('follows picking from the main process, showing the Inspect view once it starts, and shows what was picked', async () => {
     const showInspect = vi.fn();
-    pageCommands.current = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview: vi.fn(), showInspect };
+    pageCommands.current = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn(), showPreview: vi.fn(), showInspect, showRenders: vi.fn() };
     const emit = (event: AppEvent) => handleAppEvent(event);
     emit({ type: 'inspect-picking', picking: true });
     emit({ type: 'inspect-hover', hover: { element: { tag: 'li', id: '', classes: [] }, framework: 'react', chain: ['Sd'] } });
