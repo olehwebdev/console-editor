@@ -29,6 +29,8 @@ export function defineThemes(): void {
       { token: 'comment', foreground: '5e6373', fontStyle: 'italic' },
       { token: 'keyword', foreground: 'c4a1ff' },
       { token: 'string', foreground: 'b5e38a' },
+      // A JSON key reads apart from its value, as keys in the console do.
+      { token: 'string.key.json', foreground: '7dcfff' },
       { token: 'string.escape', foreground: 'f2c76b' },
       { token: 'number', foreground: 'ff9e64' },
       { token: 'regexp', foreground: 'f7768e' },

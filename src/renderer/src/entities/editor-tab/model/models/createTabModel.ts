@@ -1,9 +1,11 @@
+import { RESPONSE_KIND } from '@common/overrides';
 import type { ResourceKind } from '@common/types';
 import { fileName } from '@/shared/lib';
 import { languageFor, monaco } from '@/shared/monaco';
 import { useTabStore } from '../store';
 import { editListeners } from './editListeners';
 import { entries } from './entries';
+import { registerResponseSchema } from './registerResponseSchema';
 
 /** Monaco's scheme for models that aren't files on disk; the authority keeps tab models apart from any others. */
 const TAB_URI_SCHEME = 'inmemory';
@@ -22,6 +24,9 @@ export function createTabModel(tabId: string, url: string, kind: ResourceKind, t
     if (tab && tab.dirty !== dirty) useTabStore.getState().patch(tabId, { dirty });
     for (const listener of editListeners) listener(tabId);
   });
-  entries.set(tabId, { model, savedVersionId: model.getAlternativeVersionId(), base, disposeListener });
-  return { lite: language !== languageFor(kind, 0) };
+  const lite = language !== languageFor(kind, 0);
+  // A response's keys and types come from the live one it was made from (or, reopened, from itself).
+  const schemaUri = kind === RESPONSE_KIND && !lite ? registerResponseSchema(model, base ?? text) : undefined;
+  entries.set(tabId, { model, savedVersionId: model.getAlternativeVersionId(), base, disposeListener, schemaUri });
+  return { lite };
 }

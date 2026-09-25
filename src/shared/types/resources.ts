@@ -1,13 +1,22 @@
 import type { WorkerType } from './workers';
 
-/** The resource kinds we can override. Values match CDP `Network.ResourceType`. */
-export type ResourceKind = 'Document' | 'Script' | 'Stylesheet';
+/**
+ * The resource kinds we can override. Values match CDP `Network.ResourceType`. `Fetch` is a response to
+ * fetch() or XMLHttpRequest (a JSON API, say): never listed as a file, it is overridden from the Network
+ * panel, and its override can also match the request's method and GraphQL operation (SPEC §6.3).
+ */
+export type ResourceKind = 'Document' | 'Script' | 'Stylesheet' | 'Fetch';
 
-export const RESOURCE_KINDS: readonly ResourceKind[] = ['Document', 'Script', 'Stylesheet'];
+export const RESOURCE_KINDS: readonly ResourceKind[] = ['Document', 'Script', 'Stylesheet', 'Fetch'];
+
+/** The kinds that are files: listed in the Explorer's tree, and opened from it. */
+export type FileKind = Exclude<ResourceKind, 'Fetch'>;
+
+export const FILE_KINDS: readonly FileKind[] = ['Document', 'Script', 'Stylesheet'];
 
 export interface ResourceEntry {
   url: string;
-  kind: ResourceKind;
+  kind: FileKind;
   mimeType: string;
   status: number;
   /** Set when the response the page received was served from an override. */

@@ -1,4 +1,4 @@
-import type { ResourceKind } from '../../../shared/types';
+import type { FileKind } from '../../../shared/types';
 import { JS_MIME, OTHER_RESOURCE_TYPE, SCRIPT_KIND } from './constants';
 import { isKind } from './isKind';
 
@@ -7,7 +7,7 @@ import { isKind } from './isKind';
  * type `Other`, so on a worker's session a JavaScript response of that type is
  * a script; workers load no documents or stylesheets.
  */
-export function listedKind(type: string | undefined, mimeType: string, onWorker: boolean): ResourceKind | undefined {
+export function listedKind(type: string | undefined, mimeType: string, onWorker: boolean): FileKind | undefined {
   if (!onWorker) return isKind(type) ? type : undefined;
   return type === SCRIPT_KIND || (type === OTHER_RESOURCE_TYPE && JS_MIME.test(mimeType)) ? SCRIPT_KIND : undefined;
 }

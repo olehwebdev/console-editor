@@ -1,23 +1,26 @@
+import { RESPONSE_KIND } from '@common/overrides';
 import type { OverrideMeta } from '@common/types';
 import { icons } from '@/shared/config';
-import { cn, fileName, hostOf } from '@/shared/lib';
+import { cn, hostOf } from '@/shared/lib';
 import { Counter } from '@/shared/ui/counter';
 import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { ContextMenu, type MenuItem } from '@/shared/ui/menu';
 import { Switch } from '@/shared/ui/switch';
 import { Tooltip } from '@/shared/ui/tooltip';
-import { useOverrideStore } from '@/entities/override';
+import { overrideLabel, useOverrideStore } from '@/entities/override';
 import { KindIcon } from '@/entities/resource';
 import { deleteOverride } from '@/features/delete-override';
 import { openOverride } from '@/features/open-resource';
 import { setOverrideEnabled } from '@/features/toggle-override';
 import { ROW_ICON_SIZE } from '../constants';
+import { ResponseBadges } from './ResponseBadges';
 
 /** One override: its switch, file, badges and actions (also in its context menu). */
 export function OverrideRow({ override, active }: { override: OverrideMeta; active: boolean }) {
   const hits = useOverrideStore((s) => s.hits[override.id] ?? 0);
   const changed = useOverrideStore((s) => !!s.upstreamChanged[override.id]);
+  const label = overrideLabel(override.sourceUrl, override.request);
 
   const items: MenuItem[] = [
     { label: 'Open', icon: icons.FileIcon, onSelect: () => void openOverride(override.id) },
@@ -28,7 +31,7 @@ export function OverrideRow({ override, active }: { override: OverrideMeta; acti
   ];
 
   return (
-    <ContextMenu items={items} label={`${fileName(override.sourceUrl)} actions`}>
+    <ContextMenu items={items} label={`${label} actions`}>
       <div
         role="listitem"
         data-hover-row
@@ -51,9 +54,10 @@ export function OverrideRow({ override, active }: { override: OverrideMeta; acti
         </span>
         <KindIcon kind={override.kind} size={ROW_ICON_SIZE} />
         <span className={cn('min-w-0 flex-1 truncate', override.enabled ? 'text-fg' : 'text-fg-subtle line-through decoration-fg-subtle/60')}>
-          {fileName(override.sourceUrl)}
+          {label}
           <span className="ml-1.5 text-[11px] text-fg-subtle no-underline">{hostOf(override.sourceUrl)}</span>
         </span>
+        {override.kind === RESPONSE_KIND ? <ResponseBadges override={override} /> : null}
         {override.match.type !== 'exact' ? (
           <span className="rounded-full bg-hover px-1.5 font-mono text-[10px] text-fg-muted">{override.match.type}</span>
         ) : null}

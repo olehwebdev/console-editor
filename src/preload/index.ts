@@ -53,10 +53,22 @@ const api: ConsoleEditorApi = {
   createAction: (input) => ipcRenderer.invoke(IPC_CHANNEL.createAction, input),
   updateAction: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateAction, id, patch),
   deleteAction: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteAction, id),
+
+  listNetworkRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listNetworkRequests),
+  getNetworkRequest: (id) => ipcRenderer.invoke(IPC_CHANNEL.getNetworkRequest, id),
+  getNetworkResponseBody: (id) => ipcRenderer.invoke(IPC_CHANNEL.getNetworkResponseBody, id),
+  getNetworkMessages: (id, from) => ipcRenderer.invoke(IPC_CHANNEL.getNetworkMessages, id, from),
+  exportHar: (ids) => ipcRenderer.invoke(IPC_CHANNEL.exportHar, ids),
+  importHar: () => ipcRenderer.invoke(IPC_CHANNEL.importHar),
+  clearNetworkLog: () => ipcRenderer.invoke(IPC_CHANNEL.clearNetworkLog),
+  listHeldRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listHeldRequests),
+  resumeHeldRequest: (id, action) => ipcRenderer.invoke(IPC_CHANNEL.resumeHeldRequest, id, action),
+
   getActionsWindow: () => ipcRenderer.invoke(IPC_CHANNEL.getActionsWindow),
   detachActions: () => ipcRenderer.invoke(IPC_CHANNEL.detachActions),
   attachActions: () => ipcRenderer.invoke(IPC_CHANNEL.attachActions),
   setActionsOnTop: (onTop) => ipcRenderer.invoke(IPC_CHANNEL.setActionsOnTop, onTop),
+
   getSession: () => ipcRenderer.invoke(IPC_CHANNEL.getSession),
   saveSessionTabs: (workspaceId, tabs, activeTabId) => ipcRenderer.invoke(IPC_CHANNEL.saveSessionTabs, workspaceId, tabs, activeTabId),
   getDraft: (tabId) => ipcRenderer.invoke(IPC_CHANNEL.getDraft, tabId),

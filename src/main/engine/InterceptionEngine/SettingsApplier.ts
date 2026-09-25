@@ -1,3 +1,4 @@
+import { NETWORK_CONDITIONS } from '../../../shared/throttling';
 import type { CdpTransport } from '../cdp';
 import { CDP } from '../constants';
 import { computeFetchPatterns } from './computeFetchPatterns';
@@ -7,7 +8,7 @@ import { SriGuard } from './SriGuard';
 import type { EngineOptions, SessionSettings } from './types';
 
 /**
- * Applies the settings (cache, service workers, CSP, SRI guard) to one CDP
+ * Applies the settings (cache, service workers, network speed, CSP, SRI guard) to one CDP
  * session and keeps its `Fetch` interception patterns current, one change at a time.
  */
 export class SettingsApplier implements SessionSettings {
@@ -17,7 +18,7 @@ export class SettingsApplier implements SessionSettings {
 
   constructor(
     private readonly cdp: CdpTransport,
-    private readonly opts: Pick<EngineOptions, 'getOverrides' | 'getRules' | 'getSettings'>,
+    private readonly opts: Pick<EngineOptions, 'getOverrides' | 'getRules' | 'getSettings' | 'getBreakpoints'>,
     private readonly matcher: OverrideMatcher,
   ) {
     this.sriGuard = new SriGuard(cdp);
@@ -29,6 +30,7 @@ export class SettingsApplier implements SessionSettings {
       const s = this.opts.getSettings();
       await this.cdp.send(CDP.Network.setCacheDisabled, { cacheDisabled: s.disableCache });
       await this.cdp.send(CDP.Network.setBypassServiceWorker, { bypass: s.bypassServiceWorker });
+      await this.cdp.send(CDP.Network.emulateNetworkConditions, { ...NETWORK_CONDITIONS[s.throttling] });
       await this.cdp.send(CDP.Page.setBypassCSP, { enabled: s.bypassCSP });
       await this.sriGuard.sync(s.stripIntegrity);
       await this.updatePatterns();
@@ -50,7 +52,7 @@ export class SettingsApplier implements SessionSettings {
 
   private async updatePatterns(): Promise<void> {
     this.matcher.clear();
-    const patterns = computeFetchPatterns(this.opts.getOverrides(), this.opts.getRules(), this.opts.getSettings());
+    const patterns = computeFetchPatterns(this.opts.getOverrides(), this.opts.getRules(), this.opts.getSettings(), this.opts.getBreakpoints?.());
     if (patterns.length === 0) {
       if (this.fetchEnabled) {
         await this.cdp.send(CDP.Fetch.disable);
