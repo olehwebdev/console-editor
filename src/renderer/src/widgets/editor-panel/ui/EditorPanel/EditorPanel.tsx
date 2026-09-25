@@ -8,12 +8,15 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
-import { getTabModel, selectActivePage, selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { getTabModel, selectActivePage, selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { KindIcon } from '@/entities/resource';
+import { cleanLabel, parseSourceUrl } from '@/entities/source-map';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, useDiffSource } from '@/features/compare-changes';
 import { WhatsNewPage } from '@/features/update-app';
 import { FileHeader } from '../FileHeader';
+import { SourceHeader } from '../SourceHeader';
+import { SourceMissing } from '../SourceMissing';
 import { useEditorActions } from './useEditorActions';
 import { useFocusOnOpen } from './useFocusOnOpen';
 
@@ -30,13 +33,20 @@ const TAB_ICON_SIZE = 13;
 /** The empty state fading in or out, in seconds. */
 const EMPTY_FADE_DURATION = DURATION.medium3;
 
-/** Tabs, file header and the Monaco editor (or diff) for the active file. */
-export function EditorPanel() {
+export interface EditorPanelProps {
+  /** Shows the Explorer sidebar, filter cleared (an original's "Show in the Explorer"). */
+  onShowExplorer(): void;
+}
+
+/** Tabs, file header and the Monaco editor (or diff) for the active file or original. */
+export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
   // Select the store's own array (a stable reference); new objects from a selector would re-render forever.
   const tabs = useTabStore((s) => s.tabs);
+  const sources = useTabStore((s) => s.sources);
   const pages = useTabStore((s) => s.pages);
   const activeId = useTabStore((s) => s.activeId);
   const active = useTabStore(selectActiveTab);
+  const activeSource = useTabStore(selectActiveSource);
   const activePage = useTabStore(selectActivePage);
   const diff = useTabStore((s) => s.diff);
   const original = useDiffSource((s) => s.original);
@@ -48,7 +58,7 @@ export function EditorPanel() {
 
   return (
     <section className="flex h-full min-w-0 flex-col bg-surface-editor" aria-label="Editor" data-testid="editor-panel">
-      {tabs.length || pages.length ? (
+      {tabs.length || sources.length || pages.length ? (
         <EditorTabs
           items={[
             ...tabs.map((t) => ({
@@ -59,6 +69,12 @@ export function EditorPanel() {
               italic: !t.overrideId,
               title: `${t.url}${t.overrideId ? '' : '\nNot saved as an override yet'}`,
             })),
+            ...sources.map((t) => ({
+              id: t.id,
+              label: parseSourceUrl(t.url).file,
+              icon: <Icon icon={icons.SourceFileIcon} size={TAB_ICON_SIZE} className="text-info" />,
+              title: `${cleanLabel(t.url)}\nOriginal source, read-only · from ${fileName(t.bundleUrl)}`,
+            })),
             ...pages.map((p) => ({ id: p.id, label: p.title, icon: <Icon icon={icons.WhatsNewIcon} size={TAB_ICON_SIZE} className="text-accent" />, title: p.title })),
           ]}
           activeId={activeId}
@@ -66,7 +82,7 @@ export function EditorPanel() {
           onClose={(id) => void closeTab(id)}
         />
       ) : null}
-      {active ? <FileHeader tab={active} /> : null}
+      {active ? <FileHeader tab={active} /> : activeSource ? <SourceHeader tab={activeSource} onShowExplorer={onShowExplorer} /> : null}
 
       <div className="relative min-h-0 flex-1">
         {active && diff !== 'off' && original && model ? (
@@ -89,6 +105,8 @@ export function EditorPanel() {
           <CodeEditor model={model} onMount={onMount} />
         </div>
 
+        {activeSource?.missing ? <SourceMissing tab={activeSource} /> : null}
+
         {activePage ? (
           <div className="absolute inset-0">
             <WhatsNewPage />
@@ -96,7 +114,7 @@ export function EditorPanel() {
         ) : null}
 
         <AnimatePresence>
-          {!active && !activePage ? (
+          {!active && !activeSource && !activePage ? (
             <motion.div
               key="empty"
               className="absolute inset-0 flex items-center justify-center bg-surface-editor"

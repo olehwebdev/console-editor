@@ -48,6 +48,13 @@ describe('which tab changes ask the editor for focus', () => {
     expect(openedTabId({ ...state(['a'], 'a'), pages: [] }, { ...state(['a'], 'page:whats-new'), pages: page })).toBeNull();
   });
 
+  it('focuses a source tab when it opens or is switched to, and the next editor after it, not when it closes', () => {
+    const sources = [{ id: 's' }];
+    expect(openedTabId({ ...state(['a'], 's'), sources }, { ...state(['a'], 'a'), sources: [] })).toBe('s');
+    expect(openedTabId({ ...state(['a'], 'a'), sources }, { ...state(['a'], 's'), sources })).toBe('a');
+    expect(openedTabId({ ...state(['a'], 'a'), sources: [] }, { ...state(['a'], 's'), sources })).toBeNull();
+  });
+
   it('switching from a page tab to a file does', () => {
     const page = [{ id: 'page:whats-new' }];
     expect(openedTabId({ ...state(['a'], 'a'), pages: page }, { ...state(['a'], 'page:whats-new'), pages: page })).toBe('a');
