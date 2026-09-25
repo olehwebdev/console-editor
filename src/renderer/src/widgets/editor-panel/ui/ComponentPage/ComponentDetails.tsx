@@ -4,6 +4,7 @@ import { ChainSection } from './ChainSection';
 import { ContextSection } from './ContextSection';
 import { NO_STATE } from './constants';
 import { HandlerSection } from './HandlerSection';
+import { ListenerSection } from './ListenerSection';
 import { RendersSection } from './RendersSection';
 import { SourceCard } from './SourceCard';
 import { ValueSection } from './ValueSection';
@@ -19,6 +20,7 @@ export function ComponentDetails({ component }: { component: InspectedComponent 
       <ValueSection title="State" values={component.state} empty={NO_STATE[component.framework]} testId="component-state" hookNames={hookNames} />
       <ContextSection component={component} />
       <HandlerSection component={component} />
+      <ListenerSection listeners={component.listeners} title="Listeners on the element (DOM)" />
       <ChainSection component={component} />
       <RendersSection component={component} />
     </>

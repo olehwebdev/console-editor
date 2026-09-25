@@ -1,4 +1,4 @@
-import type { InspectedComponent, InspectHover } from '@common/types';
+import type { CodeLocation, InspectedComponent, InspectHover } from '@common/types';
 
 /** Where a function of a picked component comes from: its original, through its bundle's source map. */
 export interface OriginalPlace {
@@ -31,4 +31,6 @@ export interface InspectorStore {
   setComponent(component: InspectedComponent | null): void;
   setOrigin(key: string, place: OriginalPlace | null): void;
   setHookNames(key: string, names: Array<string | null>): void;
+  /** Forgets the originals and hook names of every place in a bundle (its map changed). Returns the places forgotten. */
+  forgetBundle(bundleUrl: string): CodeLocation[];
 }

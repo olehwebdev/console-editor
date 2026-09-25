@@ -7,6 +7,7 @@ import { locationKey, useInspectorStore } from '@/entities/inspector';
 import { parseSourceUrl } from '@/entities/source-map';
 import { openCode, revealBundleCode } from '@/features/open-resource';
 import { ORIGIN_NOTE } from './constants';
+import { MapFileButton } from './MapFileButton';
 import { originStatus } from './originStatus';
 
 /** Where the component is defined: its original through the bundle's map, else the bundle's code, with the ways to go there. */
@@ -24,6 +25,7 @@ export function SourceCard({ component }: { component: InspectedComponent }) {
         </span>
       </div>
       <p className="text-[12px] text-fg-muted">{origin ? `From the source map of ${fileName(origin.bundleUrl)}.` : ORIGIN_NOTE[originStatus(origin) as keyof typeof ORIGIN_NOTE]}</p>
+
       <div className="flex flex-wrap gap-2">
         {origin ? (
           <Button size="sm" variant="secondary" onClick={() => openCode(location, origin)} data-testid="open-original">
@@ -33,6 +35,7 @@ export function SourceCard({ component }: { component: InspectedComponent }) {
         <Button size="sm" variant="secondary" onClick={() => void revealBundleCode(location, origin?.rawOffset ?? null)} data-testid="go-to-bundle">
           Go to bundle code
         </Button>
+        {origin !== undefined ? <MapFileButton bundleUrl={location.url} mapped={!!origin} /> : null}
       </div>
     </section>
   );

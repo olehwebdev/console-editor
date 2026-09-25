@@ -7,7 +7,7 @@ import type { PageState, Rect } from './page';
 import type { ResourceContent, ResourceEntry } from './resources';
 import type { CreateRuleInput, Rule, RulePatch } from './rules';
 import type { SessionDraft, SessionState, SessionTab } from './session';
-import type { SourceMapFile, SourceMapRequest } from './sourceMaps';
+import type { SourceMapFile, SourceMapRequest, SourceMapFileInfo } from './sourceMaps';
 import type { Settings } from './settings';
 import type { AppInfo, UpdateState } from './updates';
 import type { Workspace, WorkspacePatch, WorkspacesState } from './workspaces';
@@ -38,6 +38,12 @@ export interface ConsoleEditorApi extends InspectorApi {
    * data: handed over undecoded, other schemes refused.
    */
   getSourceMap(request: SourceMapRequest): Promise<SourceMapFile>;
+  /** The active workspace's source maps loaded from files. */
+  listSourceMapFiles(): Promise<SourceMapFileInfo[]>;
+  /** Asks for a source map file for a bundle with the system's dialog and keeps it with the workspace, in place of the bundle's own; null when none was picked. */
+  loadSourceMapFile(bundleUrl: string): Promise<SourceMapFileInfo | null>;
+  /** Forgets the map loaded from a file for a bundle: its own map (if any) is used again. */
+  forgetSourceMapFile(bundleUrl: string): Promise<void>;
 
   /** The active workspace's overrides. */
   listOverrides(): Promise<OverrideMeta[]>;

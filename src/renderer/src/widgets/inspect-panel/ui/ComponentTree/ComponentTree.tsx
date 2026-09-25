@@ -26,7 +26,7 @@ export function ComponentTree() {
           ),
         )}
       </div>
-      {frameId ? null : <span className="px-1 text-[12px] text-fg-subtle">No React or Vue 3 in the page's frames.</span>}
+      {frameId ? null : <span className="px-1 text-[12px] text-fg-subtle">No React, Vue, Angular or Lit in the page's frames.</span>}
       {frameId && top === null ? <span className="px-1 text-[12px] text-fg-subtle">Couldn't read this frame's components: read them again.</span> : null}
     </section>
   );

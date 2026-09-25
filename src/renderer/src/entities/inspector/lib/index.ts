@@ -5,6 +5,7 @@ export { hookName } from './hookName';
 export { linkName } from './linkName';
 export { locationKey } from './locationKey';
 export { locationsOf } from './locationsOf';
+export { keyLocation } from './keyLocation';
 export { keyPath } from './keyPath';
 export { nodeLocations } from './nodeLocations';
 export { lastRendered } from './lastRendered';

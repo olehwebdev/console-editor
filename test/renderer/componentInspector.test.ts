@@ -35,6 +35,7 @@ const component = (over: Partial<InspectedComponent> = {}): InspectedComponent =
   context: [],
   handlers: [{ name: 'onClick', function: 'e', location: at(30) }],
   path: null,
+  listeners: [],
   ...over,
 });
 const place = (name: string | null) => ({ bundleUrl: BUNDLE_URL, url: 'https://site.test/src/CartItem.tsx', line: 11, column: 1, name, rawOffset: 5 });

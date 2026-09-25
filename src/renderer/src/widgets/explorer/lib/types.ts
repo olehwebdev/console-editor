@@ -10,6 +10,8 @@ export interface BundleNest {
   /** Why the map couldn't be read, in words. */
   failure: string | null;
   mapUrl: string | null;
+  /** The file's name, when the map was loaded from a file. */
+  file: string | null;
 }
 
 /** A file row; scripts and stylesheets that may have a map open onto their originals. */

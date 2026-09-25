@@ -10,7 +10,8 @@ import type { ScriptUrls } from './ScriptUrls';
 /**
  * Runs the adapter on an element for the component at `depth` of its chain: what
  * it said (unchecked), and where each function it named is defined. The handles
- * it made are released after, in `objectGroup`. Null if the element can't answer.
+ * it made are released after, in `objectGroup` (Angular's `registry` too, when
+ * given). Null if the element can't answer.
  */
 export async function readComponent(
   transport: CdpTransport,
@@ -18,12 +19,13 @@ export async function readComponent(
   depth: number,
   scripts: ScriptUrls,
   objectGroup: string,
+  registry: string | null,
 ): Promise<{ data: unknown; locations: Array<CodeLocation | null> } | null> {
   try {
     const answer = await transport.send<EvaluateReply>(CDP.Runtime.callFunctionOn, {
       objectId,
       functionDeclaration: ADAPTER_SOURCE,
-      arguments: [{ value: ADAPTER_MODE.describe }, { value: depth }],
+      arguments: [{ value: ADAPTER_MODE.describe }, { value: depth }, { value: null }, registry ? { objectId: registry } : { value: null }],
       objectGroup,
       silent: true,
     });

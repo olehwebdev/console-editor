@@ -75,3 +75,13 @@ export const MAX_LOCATED_DOCUMENTS = 50;
 export const MAX_UNMAPPED = 5;
 /** Scripts V8 lists that come from files the page loaded, not code it evaluated. */
 export const LOADED_SCRIPT = /^https?:/;
+/**
+ * Where an Angular view (an `LView`, an array) keeps what the adapter reads, as Angular 17 to 22 lay it out
+ * (private: checked by the integration tests for each major): its `TView` (whose `type` 1 marks a
+ * component's own view), its context (the component instance) and its id (the registry's key).
+ */
+export const ANGULAR_VIEW = { tView: 1, context: 8, id: 19, componentType: 1 } as const;
+/** The most children a DOM-based tree level looks for (Angular's and custom elements'). */
+export const MAX_HOST_KIDS = 500;
+/** The object group a read's listeners are looked up in: the read's, with this after it. */
+export const LISTENERS_GROUP_SUFFIX = '-listeners';

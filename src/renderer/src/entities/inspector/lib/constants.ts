@@ -1,10 +1,10 @@
 import type { InspectFramework, RenderReasonKind } from '@common/types';
 
 /**
- * Whether a component's name is its function's (React), so the original's name beats a minified one; Vue's is
- * its `name` option, and its function is `setup`.
+ * Whether a component's name is its function's or class's (React, Angular), so the original's name beats a
+ * minified one; Vue's is its `name` option (its function is `setup` or `render`), a web component's its tag.
  */
-export const NAMED_BY_FUNCTION: Record<InspectFramework, boolean> = { react: true, vue: false };
+export const NAMED_BY_FUNCTION: Record<InspectFramework, boolean> = { react: true, vue: false, vue2: false, angular: true, element: false };
 
 /** A React hook is named by its place among the component's hooks (1-based). */
 export const HOOK_PLACE = /^\d+$/;

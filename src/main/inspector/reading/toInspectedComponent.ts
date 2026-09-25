@@ -1,5 +1,5 @@
 import { STACK_BUILDS } from '../../../shared/stackLibraries';
-import { INSPECT_FRAMEWORKS, STATE_KINDS, type CodeLocation, type InspectedComponent, type InspectedValue } from '../../../shared/types';
+import { INSPECT_FRAMEWORKS, STATE_KINDS, type CodeLocation, type InspectedComponent, type InspectedListener, type InspectedValue } from '../../../shared/types';
 import { MAX_LIST_ITEMS } from '../constants';
 import { cleanText } from './cleanText';
 import { toPath } from './toPath';
@@ -12,7 +12,11 @@ type Item = Record<string, unknown>;
  * the page: known frameworks, builds and state kinds only, text as labels, lists
  * capped. Functions are named by index; `locations` says where each is defined.
  */
-export function toInspectedComponent(raw: unknown, locations: Array<CodeLocation | null>, pick: { pickId: string; frameId: string | null }): InspectedComponent {
+export function toInspectedComponent(
+  raw: unknown,
+  locations: Array<CodeLocation | null>,
+  pick: { pickId: string; frameId: string | null; listeners: InspectedListener[] },
+): InspectedComponent {
   const data = (raw && typeof raw === 'object' ? raw : {}) as Item;
   const at = (index: unknown) => (typeof index === 'number' && Number.isInteger(index) && index >= 0 ? (locations[index] ?? null) : null);
   const list = <T>(value: unknown, map: (item: Item) => T): T[] =>

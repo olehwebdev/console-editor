@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
 import { ADAPTER_SOURCE, DATA_OF_SOURCE, FNS_OF_SOURCE, OWNER_DOCUMENT_SOURCE } from '../../src/main/inspector/adapter/adapterSource';
+import { LISTENERS_SOURCE } from '../../src/main/inspector/adapter/listenersSource';
+import { FIND_REGISTRY_SOURCE, MAP_PROTOTYPE_SOURCE, NEEDS_REGISTRY_SOURCE } from '../../src/main/inspector/adapter/registrySource';
 import { HOVER_INTERVAL_MS, MAX_PICKS, PICK_GONE } from '../../src/main/inspector/constants';
 import { toInspectedComponent } from '../../src/main/inspector/reading/toInspectedComponent';
 import { FrameServices } from '../../src/main/PageController/FrameServices';
@@ -157,7 +159,8 @@ describe('component inspector (picking and reading)', () => {
     expect(cdp.sent('DOM.resolveNode', undefined)[0]!.params).toEqual({ backendNodeId: 5, objectGroup: 'inspector-pick-1' });
     expect(cdp.sent('DOM.setInspectedNode', undefined)[0]!.params).toEqual({ nodeId: 1005 });
     const adapter = cdp.sent('Runtime.callFunctionOn', undefined).find((c) => c.params?.functionDeclaration === ADAPTER_SOURCE)!;
-    expect(adapter.params).toMatchObject({ objectId: 'el-5', arguments: [{ value: 'describe' }, { value: 0 }], silent: true });
+    // No Angular registry: the page isn't a production Angular one.
+    expect(adapter.params).toMatchObject({ objectId: 'el-5', arguments: [{ value: 'describe' }, { value: 0 }, { value: null }, { value: null }], silent: true });
     const location = (column: number) => ({ url: APP_JS, line: 0, column });
     expect(picked()).toEqual({
       pickId: '1',
@@ -176,11 +179,37 @@ describe('component inspector (picking and reading)', () => {
       context: [{ name: 'Context', preview: '{currency: "EUR"}', provider: 'l2', location: location(40) }],
       // A function V8 gives no place (native, bound) has none.
       handlers: [{ name: 'onClick', function: 'e', location: null }],
+      listeners: [],
       path: null,
     });
     // Script URLs come from turning the debugger on just long enough, pauses skipped.
     expect(cdp.calls.filter((c) => c.method.startsWith('Debugger.')).map((c) => c.method)).toEqual(['Debugger.enable', 'Debugger.setSkipAllPauses', 'Debugger.disable']);
     expect(cdp.sent('Runtime.releaseObjectGroup', undefined).map((c) => c.params?.objectGroup)).toContain('inspector-read-2');
+  });
+
+  it("finds a production Angular page's view registry for the read, and reads the element's own listeners", async () => {
+    const answer = cdp.replies.get('Runtime.callFunctionOn') as (p: { functionDeclaration: string; objectId: string }) => unknown;
+    cdp.replies.set('Runtime.callFunctionOn', (p: { functionDeclaration: string; objectId: string }) => {
+      if (p.functionDeclaration === NEEDS_REGISTRY_SOURCE) return { result: { type: 'boolean', value: true } };
+      if (p.functionDeclaration === MAP_PROTOTYPE_SOURCE) return { result: { type: 'object', objectId: 'map-prototype' } };
+      if (p.functionDeclaration === FIND_REGISTRY_SOURCE) return { result: { type: 'object', objectId: 'registry' } };
+      if (p.functionDeclaration === LISTENERS_SOURCE) return { result: { type: 'object', objectId: 'listeners' } };
+      if (p.functionDeclaration === DATA_OF_SOURCE && p.objectId === 'listeners') return { result: { type: 'object', value: [{ name: 'onBuy', fn: 0 }] } };
+      return answer(p);
+    });
+    cdp.replies.set('Runtime.queryObjects', { objects: { type: 'object', objectId: 'maps' } });
+    cdp.replies.set('DOMDebugger.getEventListeners', { listeners: [{ type: 'click', useCapture: true, passive: false, once: true, handler: { type: 'function', objectId: 'h1' } }] });
+    await attach();
+    await services.inspector.startPicking();
+    cdp.emit('Overlay.inspectNodeRequested', { backendNodeId: 5 });
+    await vi.waitFor(() => expect(picked()).toBeDefined());
+
+    expect(cdp.sent('Runtime.queryObjects', undefined)[0]!.params).toMatchObject({ prototypeObjectId: 'map-prototype' });
+    const adapter = cdp.sent('Runtime.callFunctionOn', undefined).find((c) => c.params?.functionDeclaration === ADAPTER_SOURCE)!;
+    expect(adapter.params?.arguments[3]).toEqual({ objectId: 'registry' });
+    // The DOM hands the handlers over, and the page says which function each runs.
+    expect(cdp.sent('Runtime.callFunctionOn', undefined).find((c) => c.params?.functionDeclaration === LISTENERS_SOURCE)!.params).toMatchObject({ objectId: 'el-5', arguments: [{ objectId: 'h1' }] });
+    expect(picked()!.listeners).toEqual([{ type: 'click', name: 'onBuy', location: { url: APP_JS, line: 0, column: 120 }, capture: true, once: true, passive: false }]);
   });
 
   it("tells a node's frame by the frame owner whose content document holds it", async () => {
@@ -262,7 +291,7 @@ describe('what the page says of a component (toInspectedComponent)', () => {
         handlers: null,
       },
       [],
-      { pickId: '3', frameId: null },
+      { pickId: '3', frameId: null, listeners: [] },
     );
     expect(component).toMatchObject({ framework: null, build: null, depth: 0, element: { tag: 'div', id: '', classes: ['a', 'b', 'c', 'd'] }, handlers: [], context: [] });
     expect(component.chain).toEqual([{ name: 'x'.repeat(160), key: null, location: null }]);

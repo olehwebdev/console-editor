@@ -5,6 +5,8 @@ export { goToBundle } from './goToBundle';
 export { goToOriginal } from './goToOriginal';
 export { jumpToMappedCode } from './jumpToMappedCode';
 export { locateComponent } from './locateComponent';
+export { forgetMapFile } from './forgetMapFile';
+export { loadMapFile } from './loadMapFile';
 export { locateLocations } from './locateLocations';
 export { nameHooksAt } from './nameHooksAt';
 export { openCode } from './openCode';

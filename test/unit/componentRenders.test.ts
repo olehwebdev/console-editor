@@ -186,16 +186,19 @@ describe('recording renders, the Components tree and setting state (main)', () =
 
     it("reads a level in the frame's main world, a node's children counted and its function placed, what the page says checked", async () => {
       const level = await services.inspector.componentTree('top', [0]);
-      expect(cdp.sent('Runtime.evaluate')[0]!.params).toMatchObject({ expression: `(${ADAPTER_SOURCE}).call(document, "tree", [0])`, uniqueContextId: 'u-top-1', silent: true });
+      // The frame's document, in its main world, is what the adapter runs on.
+      expect(cdp.sent('Runtime.evaluate')[0]!.params).toMatchObject({ expression: 'document', uniqueContextId: 'u-top-1', silent: true });
+      const adapter = cdp.sent('Runtime.callFunctionOn').find((c) => c.params?.functionDeclaration === ADAPTER_SOURCE)!;
+      expect(adapter.params).toMatchObject({ objectId: 'answer', arguments: [{ value: 'tree' }, { value: [0] }, { value: null }, { value: null }], silent: true });
       expect(level).toEqual({ frameId: 'top', path: [0], nodes: [{ framework: 'react', name: 'App', key: null, location: { url: APP_JS, line: 0, column: 120 }, children: 2 }], more: 3 });
       expect(cdp.sent('Runtime.releaseObjectGroup').at(-1)?.params?.objectGroup).toMatch(/^inspector-tree-/);
     });
 
     it("opens a node as a pick of its first element, at its component's depth, and highlights it", async () => {
       const component = await services.inspector.openTreeNode('top', [0, 1]);
-      expect(cdp.sent('Runtime.evaluate')[0]!.params?.expression).toBe(`(${ADAPTER_SOURCE}).call(document, "locate", [0,1])`);
+      expect(cdp.sent('Runtime.callFunctionOn').find((c) => c.params?.functionDeclaration === ADAPTER_SOURCE)?.params?.arguments).toEqual([{ value: 'locate' }, { value: [0, 1] }, { value: null }, { value: null }]);
       expect(cdp.sent('DOM.setInspectedNode')[0]!.params).toEqual({ nodeId: 1009 });
-      expect(cdp.sent('Runtime.callFunctionOn').find((c) => c.params?.functionDeclaration === ADAPTER_SOURCE)?.params).toMatchObject({ objectId: 'el-9', arguments: [{ value: 'describe' }, { value: 1 }] });
+      expect(cdp.sent('Runtime.callFunctionOn').filter((c) => c.params?.functionDeclaration === ADAPTER_SOURCE).at(-1)?.params).toMatchObject({ objectId: 'el-9', arguments: [{ value: 'describe' }, { value: 1 }, { value: null }, { value: null }] });
       expect(component.frameId).toBe('top');
 
       await services.inspector.highlightTreeNode('top', [0, 1]);

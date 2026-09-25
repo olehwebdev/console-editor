@@ -6,6 +6,7 @@ import { WindowStore } from '../store/WindowStore';
 import { RuleStore } from '../store/RuleStore';
 import { SessionStore } from '../store/SessionStore';
 import { SettingsStore } from '../store/SettingsStore';
+import { SourceMapFileStore } from '../store/SourceMapFileStore';
 import { USER_DATA } from './constants';
 import type { AppStores } from './types';
 
@@ -20,6 +21,7 @@ export async function openStores(userData: string): Promise<AppStores> {
   const pageWindow = new WindowStore(join(userData, USER_DATA.pageWindow));
   const actionsWindow = new WindowStore(join(userData, USER_DATA.actionsWindow));
   const actions = new ActionStore(join(userData, USER_DATA.workspace));
-  await Promise.all([store.load(), rules.load(), settings.load(), session.load(), pageWindow.load(), actionsWindow.load(), actions.load()]);
-  return { store, rules, settings, session, pageWindow, actionsWindow, actions, hadData };
+  const sourceMaps = new SourceMapFileStore(join(userData, USER_DATA.workspace));
+  await Promise.all([store.load(), rules.load(), settings.load(), session.load(), pageWindow.load(), actionsWindow.load(), actions.load(), sourceMaps.load()]);
+  return { store, rules, settings, session, pageWindow, actionsWindow, actions, sourceMaps, hadData };
 }

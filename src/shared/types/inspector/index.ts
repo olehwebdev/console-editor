@@ -6,6 +6,7 @@ export type {
   InspectedContext,
   InspectedElement,
   InspectedHandler,
+  InspectedListener,
   InspectedState,
   InspectedValue,
   InspectFramework,

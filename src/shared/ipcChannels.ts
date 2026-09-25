@@ -20,6 +20,9 @@ export const IPC_CHANNEL = {
 
   listResources: 'resources:list',
   getResourceContent: 'resources:content',
+  listSourceMapFiles: 'source-map:files',
+  loadSourceMapFile: 'source-map:load-file',
+  forgetSourceMapFile: 'source-map:forget-file',
   getSourceMap: 'resources:source-map',
 
   listOverrides: 'overrides:list',

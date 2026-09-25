@@ -12,6 +12,8 @@ export type SourceMapState =
       status: 'ready';
       bundleHash: string;
       mapUrl: string | null;
+      /** The file's name, when the map is one loaded from a file rather than the bundle's own. */
+      file?: string;
       sources: OriginalSource[];
       /** The bundle was too large to send for lining up: its originals can be browsed, not jumped to. */
       browseOnly: boolean;

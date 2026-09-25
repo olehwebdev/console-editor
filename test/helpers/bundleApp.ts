@@ -21,6 +21,8 @@ export async function bundleApp(entry: string, name: string, mode: 'production' 
     root: join(__dirname, '../fixtures/apps'),
     define: {
       'process.env.NODE_ENV': JSON.stringify(mode),
+      // Angular leaves out its development checks and its `ng` global when this is false (a development build sets it itself).
+      ...(production ? { ngDevMode: 'false' } : {}),
       __VUE_OPTIONS_API__: 'true',
       __VUE_PROD_DEVTOOLS__: 'false',
       __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',

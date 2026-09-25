@@ -7,6 +7,8 @@ export {
   goToOriginal,
   jumpToMappedCode,
   locateComponent,
+  forgetMapFile,
+  loadMapFile,
   locateLocations,
   nameHooksAt,
   openCode,

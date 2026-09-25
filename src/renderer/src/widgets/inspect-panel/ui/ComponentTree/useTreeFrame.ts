@@ -5,7 +5,7 @@ import { chooseFrame } from '@/features/inspect/tree';
 import { nameLevels } from './nameLevels';
 import { treeFrames } from './treeFrames';
 
-/** The frames the tree can show and the one it shows: the one chosen, else the first with React or Vue. */
+/** The frames the tree can show and the one it shows: the one chosen, else the first with one the tree reads. */
 export function useTreeFrame(): { frames: string[]; frameId: string | null } {
   const stacks = usePageStackStore((s) => s.stacks);
   const chosen = useTreeStore((s) => s.frameId);

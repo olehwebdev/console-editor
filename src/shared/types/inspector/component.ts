@@ -1,7 +1,7 @@
 import type { StackBuild } from '../../stackLibraries';
 
-/** The frameworks whose components the inspector reads. */
-export const INSPECT_FRAMEWORKS = ['react', 'vue'] as const;
+/** The frameworks whose components the inspector reads; `element`: web components (custom elements). */
+export const INSPECT_FRAMEWORKS = ['react', 'vue', 'vue2', 'angular', 'element'] as const;
 export type InspectFramework = (typeof INSPECT_FRAMEWORKS)[number];
 
 /** Where a function is defined in a script as the page runs it: its URL, and 0-based line and column in the file as served. */
@@ -25,8 +25,11 @@ export interface InspectedValue {
   location: CodeLocation | null;
 }
 
-/** What kind of state a value is: a hook's (React: `state` is useState's, `reducer` useReducer's) or where Vue keeps it. */
-export const STATE_KINDS = ['state', 'reducer', 'store', 'ref', 'memo', 'setup', 'data', 'other'] as const;
+/**
+ * What kind of state a value is: a hook's (React: `state` is useState's, `reducer` useReducer's), where Vue keeps
+ * it, an Angular signal or plain field, or a web component's state property (`state`).
+ */
+export const STATE_KINDS = ['state', 'reducer', 'store', 'ref', 'memo', 'setup', 'data', 'signal', 'field', 'other'] as const;
 export type StateKind = (typeof STATE_KINDS)[number];
 
 export interface InspectedState extends InspectedValue {
@@ -59,6 +62,16 @@ export interface InspectedHandler {
   location: CodeLocation | null;
 }
 
+/** A listener on the picked element, as the DOM has it (`DOMDebugger.getEventListeners`): the event, the function it runs and where. */
+export interface InspectedListener {
+  type: string;
+  name: string;
+  location: CodeLocation | null;
+  capture: boolean;
+  once: boolean;
+  passive: boolean;
+}
+
 /** One component of a pick's chain: its name, its key, and where it is defined. */
 export interface ComponentLink {
   name: string;
@@ -82,6 +95,8 @@ export interface InspectedComponent {
   state: InspectedState[];
   context: InspectedContext[];
   handlers: InspectedHandler[];
+  /** Every listener on the element itself, a framework's own among them (plain JavaScript's are all there is). */
+  listeners: InspectedListener[];
   /** Where it is in its frame's Components tree (indexes from the top); null if it can't be told. */
   path: number[] | null;
 }

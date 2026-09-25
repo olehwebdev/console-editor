@@ -7,7 +7,7 @@ import { chooseFrame, refreshTree } from '@/features/inspect/tree';
 import { NO_NAMES } from '../InspectPanel/constants';
 import { nameLevels } from './nameLevels';
 
-/** The tree's title, which frame it shows (a chip per frame with React or Vue, to switch), and reading it again. */
+/** The tree's title, which frame it shows (a chip per frame with components, to switch), and reading it again. */
 export function TreeHeader({ frames: ids, frameId }: { frames: string[]; frameId: string | null }) {
   const frames = useFrameStore((s) => s.frames);
   const names = useWorkspaceStore((s) => selectActiveWorkspace(s)?.frameNames ?? NO_NAMES);

@@ -2,11 +2,13 @@ import type { InspectedComponent } from '../../../shared/types';
 import type { SessionKey } from '../../console/ConsoleFrames';
 import type { RemoteObject } from '../../console/types';
 import { CDP } from '../../engine/constants';
-import { HIGHLIGHT_CONFIG, MAX_PICKS, NOT_SETTABLE, PICK_GONE, PICK_GROUP_PREFIX, READ_GROUP_PREFIX } from '../constants';
+import { HIGHLIGHT_CONFIG, LISTENERS_GROUP_SUFFIX, MAX_PICKS, NOT_SETTABLE, PICK_GONE, PICK_GROUP_PREFIX, READ_GROUP_PREFIX } from '../constants';
 import type { InspectedSessions, Pick } from '../types';
+import { angularRegistry } from './angularRegistry';
 import { frameOfNode } from './frameOfNode';
 import { inspectNode } from './inspectNode';
 import { readComponent } from './readComponent';
+import { readListeners } from './readListeners';
 import { toInspectedComponent } from './toInspectedComponent';
 import { toStateEdit } from './toStateEdit';
 import { writeState } from './writeState';
@@ -50,16 +52,24 @@ export class ComponentReader {
   /** The component at `depth` of a pick's chain (0: the one that rendered the element). */
   async describe(pickId: unknown, depth: unknown): Promise<InspectedComponent> {
     const { pick, session, at } = this.find(pickId, depth);
-    const read = await readComponent(session.transport, pick.objectId, at, session.scripts, `${READ_GROUP_PREFIX}${++this.count}`);
+    const group = `${READ_GROUP_PREFIX}${++this.count}`;
+    const registry = await angularRegistry(session.transport, pick.objectId, group);
+    const [read, listeners] = await Promise.all([
+      readComponent(session.transport, pick.objectId, at, session.scripts, group, registry),
+      readListeners(session.transport, pick.objectId, session.scripts, `${group}${LISTENERS_GROUP_SUFFIX}`),
+    ]);
     if (!read) throw new Error(PICK_GONE);
-    return toInspectedComponent(read.data, read.locations, { pickId: pick.id, frameId: pick.frameId });
+    return toInspectedComponent(read.data, read.locations, { pickId: pick.id, frameId: pick.frameId, listeners });
   }
 
   /** Sets a state value of the component at `depth` of a pick's chain, then describes it again. */
   async setState(pickId: unknown, depth: unknown, raw: unknown): Promise<InspectedComponent> {
     const edit = toStateEdit(raw);
     const { pick, session, at } = this.find(pickId, depth);
-    if (!(await writeState(session.transport, pick.objectId, at, edit))) throw new Error(NOT_SETTABLE);
+    const group = `${READ_GROUP_PREFIX}${++this.count}`;
+    const registry = await angularRegistry(session.transport, pick.objectId, group);
+    const written = await writeState(session.transport, pick.objectId, at, edit, registry).finally(() => session.transport.send(CDP.Runtime.releaseObjectGroup, { objectGroup: group }).catch(() => undefined));
+    if (!written) throw new Error(NOT_SETTABLE);
     return this.describe(pick.id, at);
   }
 

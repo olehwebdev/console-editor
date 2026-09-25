@@ -1,8 +1,12 @@
+import { ANGULAR_JS } from './angularSource';
+import { DOM_JS } from './domSource';
 import { EDIT_JS } from './editSource';
+import { ELEMENT_JS } from './elementSource';
 import { PREVIEW_JS } from './previewSource';
 import { REACT_CURRENT_JS } from './reactCurrentSource';
 import { REACT_JS } from './reactSource';
 import { TREE_JS } from './treeSource';
+import { VUE2_JS } from './vue2Source';
 import { VUE_JS } from './vueSource';
 
 /**
@@ -19,16 +23,22 @@ import { VUE_JS } from './vueSource';
  *   `arg` (the top ones for an empty path), and how many children each has;
  * - 'locate' answers `{ element, depth }` for the node at path `arg`: its first
  *   element, and where the component is in that element's chain.
- * React is tried first, then Vue.
+ * React is tried first, then Vue 3, Vue 2, Angular and custom elements.
+ * `registry`: Angular's view registry, for a production build (main finds it).
  */
-export const ADAPTER_SOURCE = `function (mode, arg, edit) {
+export const ADAPTER_SOURCE = `function (mode, arg, edit, registry) {
   const MAX_CHAIN = 40;
   const SUMMARY_NAMES = 8;
+  const ngRegistry = registry || null;
   ${PREVIEW_JS}
+  ${DOM_JS}
   ${EDIT_JS}
   ${REACT_CURRENT_JS}
   ${REACT_JS}
   ${VUE_JS}
+  ${VUE2_JS}
+  ${ANGULAR_JS}
+  ${ELEMENT_JS}
   ${TREE_JS}
   const fns = [];
   const fn = (value) => (typeof value === 'function' ? fns.push(value) - 1 : -1);
@@ -40,7 +50,7 @@ export const ADAPTER_SOURCE = `function (mode, arg, edit) {
     }
   };
   const el = this.nodeType === 1 ? this : this.parentElement;
-  const found = el && (attempt(reactFind, el) || attempt(vueFind, el));
+  const found = el && findAt(el);
   const at = found ? Math.max(0, Math.min(arg, found.size - 1)) : 0;
   const base = () => ({ element: label(el), framework: found ? found.framework : null });
   const nothing = { chain: [], props: [], state: [], context: [], handlers: [] };

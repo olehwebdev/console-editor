@@ -33,6 +33,11 @@ export function ComponentHeader({ component }: { component: InspectedComponent }
           {elementLabel(component.element)}
           {link && name !== link.name ? <span className="text-fg-subtle"> · minified as {link.name}</span> : null}
         </p>
+        {component.framework === 'angular' && component.build === 'production' ? (
+          <span className="shrink-0" title="A production build publishes no API for its components: they were read from Angular's private view registry, which can change with any release.">
+            <Badge tone="warning">read from Angular's internals</Badge>
+          </span>
+        ) : null}
       </div>
     </header>
   );

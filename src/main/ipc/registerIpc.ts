@@ -9,18 +9,17 @@ import {
   type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
-import { loadSiteSourceMap } from '../PageController';
-import { assertSourceMapRequest } from './assertSourceMapRequest';
 import { assertString } from './assertString';
 import { registerActionIpc } from './registerActionIpc';
 import { registerActionsWindowIpc } from './registerActionsWindowIpc';
 import { registerConsoleIpc } from './registerConsoleIpc';
 import { registerInspectorIpc } from './registerInspectorIpc';
+import { registerSourceMapIpc } from './registerSourceMapIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import { registerSettingsIpc } from './registerSettingsIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, rules, settings, session, actions, actionsWindow, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -62,10 +61,6 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   handle(IPC_CHANNEL.getResourceContent, (url: unknown) => {
     assertString(url, 'url');
     return page.getResourceContent(url);
-  });
-  handle(IPC_CHANNEL.getSourceMap, (request: unknown) => {
-    assertSourceMapRequest(request);
-    return loadSiteSourceMap(request, page.siteSession, (url) => page.getResourceContent(url), page.view.webContents.getURL());
   });
 
   handle(IPC_CHANNEL.listOverrides, () => store.metas());
@@ -114,6 +109,7 @@ export function registerIpc({ win, page, store, rules, settings, session, action
 
   registerConsoleIpc(handle, handleActions, page);
   registerInspectorIpc(handle, page);
+  registerSourceMapIpc(handle, { win, page, sourceMaps });
   registerActionIpc(handleActions, actions, send);
   registerActionsWindowIpc(handle, handleActions, actionsWindow);
 

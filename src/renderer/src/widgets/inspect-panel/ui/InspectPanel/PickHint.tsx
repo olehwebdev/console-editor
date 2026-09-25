@@ -5,7 +5,7 @@ import { Kbd } from '@/shared/ui/kbd';
 export function PickHint() {
   return (
     <p className="mx-4 text-[12.5px] leading-relaxed text-fg-muted">
-      Pick an element (<Kbd keys={SHORTCUT.pickElement} />) to see the React or Vue component that rendered it, where it is defined, and what it holds.
+      Pick an element (<Kbd keys={SHORTCUT.pickElement} />) to see the component that rendered it (React, Vue, Angular or a web component), where it is defined, and what it holds.
     </p>
   );
 }

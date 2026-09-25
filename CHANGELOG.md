@@ -19,6 +19,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Set a component's state.** On the Component page, the pencil next to a `useState` value, a class's state, or a Vue component's `data` or ref sets it to a new value (as JSON) and shows the page with it.
 - **Hook names from the original.** A production React component's hooks were listed as #1, #2…; when its source map carries the original, they're now named after their variables (`qty`, `total`).
 - **Which scripts have source maps.** The Page stack says how many of each frame's scripts name a source map and which don't, and the Inspect view warns about a frame with none: without one, component names and files stay minified.
+- **Angular, Vue 2 and web components.** Picking an element now also shows the Angular component that rendered it (its inputs, signals and fields; a signal can be set), a Vue 2 component (props, data, what it provides), or a web component such as Lit's (its properties and state), each with its source file, the components above it and a Components tree. Production Angular builds publish no API for this: the app reads them from Angular's internals and says so.
+- **Listeners on an element.** The Component page lists every listener on the picked element, with the function it runs and where it's defined. On a page with no framework, that's what runs when you click it.
+- **Load a source map from a file.** When a site doesn't publish its source maps (many upload them to an error tracker instead), give a bundle its map from a file: **Load a source map…** on the Component page, or **Load a source map from a file…** on the bundle in the Explorer. The workspace keeps it until you forget it, and components are named and placed through it.
 
 ### Changed
 

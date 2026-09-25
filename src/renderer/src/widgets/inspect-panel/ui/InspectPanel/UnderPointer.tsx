@@ -18,7 +18,7 @@ export function UnderPointer() {
               ))}
             </ol>
           ) : (
-            <span className="px-1 text-[12px] text-fg-subtle">No React or Vue component rendered it.</span>
+            <span className="px-1 text-[12px] text-fg-subtle">No component the inspector reads rendered it.</span>
           )}
         </>
       ) : (
