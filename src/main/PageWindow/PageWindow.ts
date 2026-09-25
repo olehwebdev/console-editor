@@ -4,13 +4,9 @@ import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent, PageState, Rect } from '../../shared/types';
 import { loadEditor } from '../launch/loadEditor';
 import { AddressBarFocus } from './AddressBarFocus';
-import { UNTITLED } from './constants';
-import { createPageWindow } from './createPageWindow';
-import { placePageWindow } from './placePageWindow';
-import { setUpPageWindow } from './setUpPageWindow';
-import { syncMenuCheck } from './syncMenuCheck';
+import { createAppWindow, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
+import { DEFAULT_WINDOW_SIZE, MIN_WINDOW_SIZE, PAGE_WINDOW_MENU_ID, UNTITLED } from './constants';
 import { toViewBounds } from './toViewBounds';
-import { trackPlacement } from './trackPlacement';
 import type { PageWindowDeps } from './types';
 
 /** Bounds that show nothing, until the UI of the window the view moved to has measured where it goes. */
@@ -63,11 +59,12 @@ export class PageWindow {
     const { store, editor } = this.deps;
     if (editor.isDestroyed()) return;
     const saved = store.get();
-    const win = createPageWindow(placePageWindow(saved.bounds, screen.getAllDisplays().map((d) => d.workArea), editor.getBounds()));
+    const bounds = placeWindow(saved.bounds, screen.getAllDisplays().map((d) => d.workArea), editor.getBounds(), DEFAULT_WINDOW_SIZE);
+    const win = createAppWindow(bounds, { title: UNTITLED, minSize: MIN_WINDOW_SIZE });
     this.win = win;
     this.focus = new AddressBarFocus(win);
     this.savePlacement = trackPlacement(win, store);
-    setUpPageWindow(win, { closing: () => this.closing(), maximized: !!saved.maximized });
+    setUpWindow(win, { closing: () => this.closing(), maximized: !!saved.maximized });
     this.moveView(editor, win);
     void store.update({ detached: true });
     this.announce();
@@ -143,7 +140,7 @@ export class PageWindow {
   }
 
   private announce(): void {
-    syncMenuCheck(this.detached);
+    syncMenuCheck(PAGE_WINDOW_MENU_ID, this.detached);
     this.deps.moved();
   }
 }

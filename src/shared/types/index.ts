@@ -4,7 +4,7 @@
  * other) so every bundle can include them.
  */
 
-export type { ActionInput, ActionPatch, ConsoleAction } from './actions';
+export type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 export type { ConsoleEditorApi } from './api';
 export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, ConsoleProperty, ConsoleSource, ConsoleValue, ConsoleValueKind } from './console';
 export { CONSOLE_LEVELS } from './console';

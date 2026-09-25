@@ -1,4 +1,4 @@
-import type { ActionInput, ActionPatch, ConsoleAction } from './actions';
+import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
 import type { AppEvent } from './events';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
@@ -92,6 +92,14 @@ export interface ConsoleEditorApi {
   createAction(input: ActionInput): Promise<ConsoleAction>;
   updateAction(id: string, patch: ActionPatch): Promise<ConsoleAction>;
   deleteAction(id: string): Promise<void>;
+  /** Where the Actions panel is. */
+  getActionsWindow(): Promise<ActionsWindowState>;
+  /** Moves the Actions panel into a window of its own, where it was last, or brings that window forward. */
+  detachActions(): Promise<void>;
+  /** Puts the Actions panel back in the editor's sidebar, closing its window. */
+  attachActions(): Promise<void>;
+  /** Keeps the Actions window above the others, or not. */
+  setActionsOnTop(onTop: boolean): Promise<void>;
 
   /** The active workspace's page and tabs. */
   getSession(): Promise<SessionState>;

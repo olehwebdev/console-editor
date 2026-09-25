@@ -55,6 +55,10 @@ export const IPC_CHANNEL = {
   createAction: 'actions:create',
   updateAction: 'actions:update',
   deleteAction: 'actions:delete',
+  getActionsWindow: 'actions-window:state',
+  detachActions: 'actions-window:detach',
+  attachActions: 'actions-window:attach',
+  setActionsOnTop: 'actions-window:on-top',
 
   getSession: 'session:get',
   saveSessionTabs: 'session:tabs',

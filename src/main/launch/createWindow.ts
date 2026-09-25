@@ -3,6 +3,7 @@ import appIcon from '../../../build/icons/512x512.png?asset&asarUnpack';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent } from '../../shared/types';
 import { REPO_URL } from '../appInfo';
+import { ActionsWindow } from '../ActionsWindow';
 import { installMenu } from '../installMenu';
 import { registerIpc } from '../ipc';
 import { PageController } from '../PageController';
@@ -29,13 +30,16 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     iconPath: appIcon,
   });
   const userData = app.getPath('userData');
-  const { store, rules, settings, session, pageWindow, actions, hadData } = await openStores(userData);
+  const { store, rules, settings, session, pageWindow, actionsWindow: actionsWindowStore, actions, hadData } = await openStores(userData);
 
   const win = createEditorWindow();
 
   const send = (event: AppEvent) => {
     if (!win.isDestroyed()) win.webContents.send(IPC_CHANNEL.onEvent, event);
+    // The Actions panel's own window, if it has one, shows what its panel needs.
+    actionsWindow.forward(event);
   };
+  const actionsWindow = new ActionsWindow({ editor: win, store: actionsWindowStore, announce: (state) => send({ type: 'actions-window', state }) });
 
   // Told once the editor UI can show it.
   const { setAside, locked } = rules;
@@ -48,7 +52,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const workspaces = new WorkspaceController(page, session, store, rules, actions, send);
   await workspaces.start();
   const attached = page.attach();
-  installMenu(win, page, store, send);
+  installMenu(win, page, store, actionsWindow, send);
 
   // Remember the page shown and its icon, so the next start (or switching back) reopens it.
   workspaces.watch(page.view.webContents);
@@ -57,10 +61,11 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const updates = createUpdater({ updateFeed, userData, hadData, settings, send, closing });
   win.on('closed', () => {
     updates.dispose();
-    // The website's own window goes with the editor (and opens again next time).
+    // The website's and the Actions panel's own windows go with the editor (and open again next time).
     page.window.dispose();
+    actionsWindow.dispose();
   });
-  registerIpc({ win, page, store, rules, settings, session, actions, workspaces, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
+  registerIpc({ win, page, store, rules, settings, session, actions, actionsWindow, workspaces, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
 
@@ -71,6 +76,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   await attached;
   // The website had a window of its own when the app last quit: it opens there again.
   if (pageWindow.get().detached) void page.window.detach();
+  if (actionsWindowStore.get().detached) void actionsWindow.detach();
   const url = launchState.handedUrl ?? initialUrl() ?? session.get().url;
   launchState.started = true;
   if (url) void page.navigate(url);

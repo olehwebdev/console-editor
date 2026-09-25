@@ -159,11 +159,12 @@ describe('editing actions', () => {
 describe('the palette', () => {
   it('lists each action with its frame, runs the one picked, and offers a new one', () => {
     const onNew = vi.fn();
-    const group = actionGroup([action(), action({ id: 'a2', name: 'Pay', target: 'top', targetName: '' })], [TOP, CART], {}, onNew);
+    const group = actionGroup([action(), action({ id: 'a2', name: 'Pay', target: 'top', targetName: '' })], [TOP, CART], { names: {}, detached: false, onNewAction: onNew });
     expect(group.items.map((i) => [i.label, i.hint])).toEqual([
       ['Add A1', 'in cart'],
       ['Pay', 'in 127.0.0.1:5174'],
       ['New action…', undefined],
+      ['Open the actions in their own window', undefined],
     ]);
     group.items[0]!.onSelect();
     expect(api.evaluateInFrame).toHaveBeenCalledWith('C', "addItem('A1')");

@@ -2,6 +2,7 @@ import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
+import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
 import { handleUpdateState } from '@/features/update-app';
@@ -41,6 +42,8 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'console-entries': (event) => receiveEntries(event.entries),
   'console-cleared': () => useConsoleStore.getState().clear(),
   'actions-changed': (event) => useActionStore.getState().setAll(event.actions),
+  'actions-window': (event) => useActionStore.getState().setWindow(event.state),
+  'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),

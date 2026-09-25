@@ -1,10 +1,11 @@
-import type { ConsoleAction } from './actions';
+import type { ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { MenuCommand } from './menu';
 import type { OverrideMeta } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
 import type { Rule } from './rules';
+import type { Settings } from './settings';
 import type { UpdateState } from './updates';
 import type { MissedReason } from './workers';
 import type { WorkspacesState } from './workspaces';
@@ -51,6 +52,10 @@ export type AppEvent =
   | { type: 'console-cleared' }
   /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
   | { type: 'actions-changed'; actions: ConsoleAction[] }
+  /** The Actions panel moved into its own window or back, or that window's Keep on top changed. */
+  | { type: 'actions-window'; state: ActionsWindowState }
+  /** A window changed the settings (the others show them as they are now). */
+  | { type: 'settings-changed'; settings: Settings }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };
