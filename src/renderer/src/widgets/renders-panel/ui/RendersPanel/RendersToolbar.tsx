@@ -12,8 +12,8 @@ export function RendersToolbar({ heading, onClose }: { heading: ReactNode; onClo
   const recording = useRenderLog((s) => s.recording);
   return (
     <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-line px-2">
-      {/* The heading (the pane's tabs) keeps its width. */}
-      <div className="flex h-full flex-auto items-center">{heading}</div>
+      {/* The heading (the pane's tabs) scrolls sideways when the pane is narrow. */}
+      <div className="flex h-full min-w-0 flex-auto items-center">{heading}</div>
       <Button size="sm" variant={recording ? 'secondary' : 'ghost'} onClick={() => void recordRenders(!recording)} aria-pressed={recording} data-testid="renders-record">
         <span className={cn('size-2 rounded-full', recording ? 'animate-pulse bg-danger' : 'bg-fg-subtle')} />
         {recording ? 'Recording' : 'Record'}
