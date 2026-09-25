@@ -1,6 +1,8 @@
 export interface PaneTab<T extends string> {
   id: T;
   label: string;
+  /** Something waiting in the view (requests paused at a breakpoint): a warning-toned count beside the label while above zero. */
+  count?: number;
 }
 
 export interface PaneTabsProps<T extends string> {

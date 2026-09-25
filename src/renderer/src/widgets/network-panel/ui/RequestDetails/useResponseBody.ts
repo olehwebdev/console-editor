@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { NetworkBody, NetworkRequest } from '@common/types';
 import { api, errorMessage } from '@/shared/api';
-import { responseText } from '@/features/open-resource';
+import { responseText } from '@/shared/lib';
 
 /** A response's body as read (JSON pretty-printed), or why it couldn't be; tagged with its request. */
 type BodyResult = { id: string; body?: NetworkBody; error?: string };

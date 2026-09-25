@@ -11,9 +11,9 @@ import { getTabModel, selectActivePage, selectActiveSource, selectActiveTab, use
 import { useOverrideStore } from '@/entities/override';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, useDiffSource } from '@/features/compare-changes';
-import { FileHeader } from '../FileHeader';
 import { SourceHeader } from '../SourceHeader';
 import { SourceMissing } from '../SourceMissing';
+import { TabHeader } from '../TabHeader';
 import { PageView } from './PageView';
 import { stripItems } from './stripItems';
 import { useEditorActions } from './useEditorActions';
@@ -63,7 +63,7 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
           onClose={(id) => void closeTab(id)}
         />
       ) : null}
-      {active ? <FileHeader tab={active} /> : activeSource ? <SourceHeader tab={activeSource} onShowExplorer={onShowExplorer} /> : null}
+      {active ? <TabHeader tab={active} /> : activeSource ? <SourceHeader tab={activeSource} onShowExplorer={onShowExplorer} /> : null}
 
       <div className="relative min-h-0 flex-1">
         {active && diff !== 'off' && original && model ? (

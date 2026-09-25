@@ -7,6 +7,7 @@ export {
   RULE_ACTION_TITLES,
   RULE_HIT_TOOLTIPS,
 } from './constants';
+export { HeaderEditList } from './HeaderEditList';
 export { HeaderEditRow } from './HeaderEditRow';
 export { HeaderNameList } from './HeaderNameList';
 export { RuleActionIcon } from './RuleActionIcon';

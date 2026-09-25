@@ -6,8 +6,9 @@ import { cn } from '@/shared/lib';
 import { BUTTON_ICON_SIZE, Button } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icon';
 import { Input } from '@/shared/ui/input';
+import { Switch } from '@/shared/ui/switch';
 import type { TabMeta } from '@/entities/editor-tab';
-import { BLANK_HEADER_EDIT, nextRowKey } from '@/entities/rule';
+import { BLANK_HEADER_EDIT, HeaderEditList, nextRowKey } from '@/entities/rule';
 import {
   applyResponse,
   fromForm,
@@ -19,7 +20,6 @@ import {
   type ResponseRuleForm,
   type ResponseRuleValue,
 } from '../../model';
-import { HeaderChanges } from './HeaderChanges';
 import { MethodMenu } from './MethodMenu';
 import { NumberField } from './NumberField';
 
@@ -94,6 +94,13 @@ export function ResponseRule({ tab, override }: { tab: TabMeta; override?: Overr
           >
             Header
           </Button>
+          <Switch
+            size="sm"
+            checked={form.send}
+            onCheckedChange={(send) => change({ send })}
+            label="Send request"
+            title={form.send ? 'The request reaches the server, and its response is replaced' : 'Answered before it is sent: the server never sees it (a POST changes nothing)'}
+          />
         </div>
         {override ? (
           <Button size="sm" variant={dirty ? 'primary' : 'ghost'} disabled={!dirty} onClick={apply} className={cn('ml-auto', !dirty && 'opacity-60')} data-testid="response-apply">
@@ -101,7 +108,7 @@ export function ResponseRule({ tab, override }: { tab: TabMeta; override?: Overr
           </Button>
         ) : null}
       </div>
-      {form.headers.length ? <HeaderChanges headers={form.headers} rowKeys={form.rowKeys} onChange={setHeaders} /> : null}
+      {form.headers.length ? <HeaderEditList headers={form.headers} rowKeys={form.rowKeys} onChange={setHeaders} testId="response-headers" /> : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { NetworkRequest, NetworkRequestDetail } from '@common/types';
 import { api, errorMessage } from '@/shared/api';
-import { responseText } from '@/features/open-resource';
+import { responseText } from '@/shared/lib';
 
 /** A request's details as read, or why they couldn't be; tagged with the request they are for. */
 type DetailResult = { id: string; detail?: NetworkRequestDetail; error?: string };

@@ -49,6 +49,8 @@ export {
   MagicWand01Icon as PrettifyIcon,
   NewReleasesIcon as WhatsNewIcon,
   PackageIcon as LibraryIcon,
+  PauseCircleIcon as BreakpointIcon,
+  PauseIcon,
   PencilEdit02Icon as EditIcon,
   PinIcon,
   PlayListIcon as ActionsIcon,
@@ -58,6 +60,7 @@ export {
   ReactIcon as JsxIcon,
   RefreshIcon as ReloadIcon,
   Search01Icon as SearchIcon,
+  SentIcon as SendIcon,
   Settings02Icon as SettingsIcon,
   SidebarLeftIcon,
   SlidersHorizontalIcon as HeadersIcon,
@@ -69,4 +72,5 @@ export {
   Tick02Icon as CheckIcon,
   TypescriptIcon as TsIcon,
   UnavailableIcon as BlockIcon,
+  WifiDisconnected01Icon as FailIcon,
 } from '@hugeicons/core-free-icons';

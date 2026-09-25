@@ -7,13 +7,14 @@ import { isPageDirty, type PageTab, type SourceTab, type TabMeta } from '@/entit
 import { overrideLabel } from '@/entities/override';
 import { KindIcon } from '@/entities/resource';
 import { cleanLabel, parseSourceUrl } from '@/entities/source-map';
+import { fileTabTitle } from './fileTabTitle';
 import { PAGE_TAB_ICONS } from './pageTabIcons';
 
 /** Tab icons: a file's kind and a page's glyph line up. */
 const TAB_ICON_SIZE = 13;
 
 /**
- * The tab strip: files (italic until saved as an override), then read-only originals, then pages. A
+ * The tab strip: files (italic until saved as an override; a held request's marked), then read-only originals, then pages. A
  * GraphQL response is named by its operation: the tab's own until saved, then its override's.
  */
 export function stripItems(
@@ -26,10 +27,10 @@ export function stripItems(
     ...tabs.map((t) => ({
       id: t.id,
       label: overrideLabel(t.url, t.request ?? (t.overrideId ? overrides[t.overrideId]?.request : undefined)),
-      icon: <KindIcon kind={t.kind} size={TAB_ICON_SIZE} />,
+      icon: t.held ? <Icon icon={icons.PauseIcon} size={TAB_ICON_SIZE} className="text-warning" /> : <KindIcon kind={t.kind} size={TAB_ICON_SIZE} />,
       dirty: t.dirty,
       italic: !t.overrideId,
-      title: `${t.url}${t.overrideId ? '' : '\nNot saved as an override yet'}`,
+      title: fileTabTitle(t),
     })),
     ...sources.map((t) => ({
       id: t.id,

@@ -1,9 +1,9 @@
 import { DEFAULT_REQUEST, DEFAULT_RESPONSE, GET_METHOD, RESPONSE_KIND } from '@common/overrides';
 import type { SessionTab } from '@common/types';
 import { api } from '@/shared/api';
+import { responseText } from '@/shared/lib';
 import { createTabModel, useTabStore } from '@/entities/editor-tab';
 import { useSettingsStore } from '@/entities/settings';
-import { responseText } from './responseText';
 
 /**
  * Reopens a response tab that was never saved and has no draft (it was opened, not edited): a GET is

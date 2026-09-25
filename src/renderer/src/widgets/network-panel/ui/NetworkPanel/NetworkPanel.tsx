@@ -4,6 +4,7 @@ import { useNetworkStore } from '@/entities/network-request';
 import { matchesNetworkFilter, useNetworkFilter } from '@/features/network/filter';
 import { useNetworkSelection } from '../../model';
 import { RequestDetails } from '../RequestDetails';
+import { HeldStrip } from './HeldStrip';
 import { NetworkToolbar } from './NetworkToolbar';
 import { RequestList } from './RequestList';
 import { useFrameResolver } from './useFrameResolver';
@@ -32,6 +33,7 @@ export function NetworkPanel({ heading, onClose }: NetworkPanelProps) {
   return (
     <section aria-label="Network" data-testid="network-panel" className="flex h-full min-h-0 flex-col bg-surface-editor">
       <NetworkToolbar heading={heading} onClose={onClose} />
+      <HeldStrip />
       {/* Narrower than 44rem, a request's details take the whole panel; closing them brings the list back. */}
       <div className="@container flex min-h-0 flex-1">
         {shown.length ? (

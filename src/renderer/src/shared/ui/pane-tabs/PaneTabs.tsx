@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from 'react';
 import { KEY } from '@/shared/config';
 import { cn } from '@/shared/lib';
+import { Counter } from '@/shared/ui/counter';
 import type { PaneTabsProps } from './types';
 
 /** How far each key moves along the tabs (they wrap around). */
@@ -11,7 +12,7 @@ const TAB = 'relative inline-flex h-full items-center px-1.5 outline-none transi
 /**
  * The views of a pane as a strip of words: the one shown in the foreground with an ember underline.
  * One tab stop; arrows move between the tabs and show each (WAI-ARIA tabs, automatic activation).
- * `caps` sets them as the pane's heading (the `label-caps` style).
+ * `caps` sets them as the pane's heading (the `label-caps` style). A tab's count shows what waits in it.
  */
 export function PaneTabs<T extends string>({ tabs, value, onChange, label, caps = false, className }: PaneTabsProps<T>) {
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -39,6 +40,7 @@ export function PaneTabs<T extends string>({ tabs, value, onChange, label, caps 
             className={cn(TAB, caps ? 'label-caps' : 'text-[12px] font-medium', selected ? 'text-fg' : 'text-fg-subtle hover:text-fg-muted')}
           >
             {tab.label}
+            {tab.count ? <Counter value={tab.count} className="ml-1 rounded-full bg-warning/15 px-1 font-sans text-[10.5px] normal-case tracking-normal text-warning" /> : null}
             {selected ? <span aria-hidden className="absolute inset-x-1.5 bottom-0 h-0.5 rounded-full bg-accent" /> : null}
           </button>
         );

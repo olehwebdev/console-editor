@@ -9,7 +9,8 @@ import { useSettingsStore } from '@/entities/settings';
 export async function doSave(tabId: string): Promise<void> {
   const tab = useTabStore.getState().tabs.find((t) => t.id === tabId);
   const model = getTabModel(tabId);
-  if (!tab || !model) return;
+  // A held request's tab is sent, never saved (Save as override makes its override).
+  if (!tab || !model || tab.held) return;
   if (tab.overrideId && !tab.dirty) return;
 
   const content = model.getValue();

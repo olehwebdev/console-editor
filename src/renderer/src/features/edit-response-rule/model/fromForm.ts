@@ -5,6 +5,6 @@ export function fromForm(form: ResponseRuleForm): ResponseRuleValue {
   const number = (text: string) => (text === '' ? Number.NaN : Number(text));
   return {
     request: { method: form.method, operation: form.operation.trim() },
-    response: { status: number(form.status), delayMs: number(form.delay), headers: form.headers },
+    response: { status: number(form.status), delayMs: number(form.delay), headers: form.headers, send: form.send },
   };
 }

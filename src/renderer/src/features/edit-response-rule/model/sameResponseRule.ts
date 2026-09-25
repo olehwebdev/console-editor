@@ -9,6 +9,7 @@ export function sameResponseRule(a: ResponseRuleValue, b: ResponseRuleValue): bo
     a.request.operation === b.request.operation &&
     Object.is(a.response.status, b.response.status) &&
     Object.is(a.response.delayMs, b.response.delayMs) &&
+    a.response.send === b.response.send &&
     headers.length === other.length &&
     headers.every((edit, i) => edit.operation === other[i].operation && edit.name === other[i].name && edit.value === other[i].value)
   );

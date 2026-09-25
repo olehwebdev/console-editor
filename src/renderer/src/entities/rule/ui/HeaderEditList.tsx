@@ -1,18 +1,21 @@
 import { useId } from 'react';
 import type { HeaderEdit } from '@common/types';
-import { HeaderEditRow, HeaderNameList, isNewRowKey } from '@/entities/rule';
+import { isNewRowKey } from '../lib/isNewRowKey';
+import { HeaderEditRow } from './HeaderEditRow';
+import { HeaderNameList } from './HeaderNameList';
 
-interface HeaderChangesProps {
+interface HeaderEditListProps {
   headers: HeaderEdit[];
   rowKeys: string[];
   onChange(headers: HeaderEdit[], rowKeys: string[]): void;
+  testId?: string;
 }
 
-/** A response override's changes to the upstream headers, in order, one row each (as a header rule's). */
-export function HeaderChanges({ headers, rowKeys, onChange }: HeaderChangesProps) {
+/** Header changes in order, one row each (as a header rule's), with the common header names offered. */
+export function HeaderEditList({ headers, rowKeys, onChange, testId }: HeaderEditListProps) {
   const listId = useId();
   return (
-    <div className="flex flex-col gap-1.5" data-testid="response-headers">
+    <div className="flex flex-col gap-1.5" data-testid={testId}>
       <HeaderNameList id={listId} />
       {headers.map((edit, i) => (
         <HeaderEditRow

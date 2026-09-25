@@ -1,3 +1,4 @@
+import type { BreakpointStage } from '@common/types';
 import type { GroupChoice } from '@/features/network/filter';
 
 /** A row's height: rows are one line, so the list never measures them. */
@@ -38,3 +39,9 @@ export const KILO = 1024;
 
 /** ms in a second: a longer request's time shows in seconds. */
 export const SECOND_MS = 1000;
+
+/** Where each held request waits, as the paused strip says it. */
+export const HELD_STAGE_NOTES: Record<BreakpointStage, string> = {
+  request: 'before sending',
+  response: 'at the response',
+};

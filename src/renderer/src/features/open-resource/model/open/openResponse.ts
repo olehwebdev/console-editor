@@ -1,7 +1,8 @@
-import { DEFAULT_RESPONSE, RESPONSE_KIND } from '@common/overrides';
+import { DEFAULT_RESPONSE, GET_METHOD, RESPONSE_KIND } from '@common/overrides';
 import type { NetworkRequest } from '@common/types';
 import { api, errorMessage } from '@/shared/api';
 import { TOAST_DURATION } from '@/shared/config';
+import { responseText } from '@/shared/lib';
 import { toast } from '@/shared/ui/toast';
 import { createTabModel, newTabId, useTabStore } from '@/entities/editor-tab';
 import { findResponseOverride, useOverrideStore } from '@/entities/override';
@@ -9,7 +10,6 @@ import { useSettingsStore } from '@/entities/settings';
 import { BODY_GAP_TEXT } from './constants';
 import { opening } from './opening';
 import { openOverride } from './openOverride';
-import { responseText } from './responseText';
 
 /**
  * Opens a request's response for editing (Override response). The override that answers it opens
@@ -49,7 +49,8 @@ export async function openResponse(request: NetworkRequest): Promise<void> {
       dirty: false,
       saving: false,
       request: { method: request.method, operation },
-      response: { ...DEFAULT_RESPONSE, headers: [] },
+      // Sending anything but a GET again could change data: answered before it is sent until told otherwise.
+      response: { ...DEFAULT_RESPONSE, headers: [], send: request.method === GET_METHOD },
     });
   } catch (err) {
     toast({ title: "Can't open this response", description: errorMessage(err), tone: 'danger' });

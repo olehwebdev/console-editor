@@ -19,7 +19,7 @@ export interface RequestRowProps {
   onSelect(): void;
 }
 
-/** One request: status, method, path, the GraphQL operation, who sent it, type, size and time; marked when an override answered it. */
+/** One request: status, method, path, the GraphQL operation, who sent it, type, size and time; marked when an override answered it, or a breakpoint holds it. */
 export function RequestRow({ request, frame, selected, compact, onSelect }: RequestRowProps) {
   const status = statusCell(request);
   return (
@@ -30,7 +30,7 @@ export function RequestRow({ request, frame, selected, compact, onSelect }: Requ
       data-testid="network-row"
       data-state={request.state}
       onClick={onSelect}
-      className={cn('flex h-[22px] min-w-0 items-center gap-2 border-b border-line/60 px-2', selected ? 'bg-accent/12' : 'hover:bg-hover', request.state === 'failed' && 'bg-danger/6')}
+      className={cn('flex h-[22px] min-w-0 items-center gap-2 border-b border-line/60 px-2', selected ? 'bg-accent/12' : 'hover:bg-hover', request.state === 'failed' && 'bg-danger/6', request.heldId && !selected && 'bg-warning/8')}
     >
       <span className={cn('w-10 shrink-0 tabular-nums', status.className)} title={request.error}>
         {status.text}
@@ -44,6 +44,11 @@ export function RequestRow({ request, frame, selected, compact, onSelect }: Requ
       {request.overrideId ? (
         <span className="shrink-0 text-accent" title="An override answered it" data-testid="network-row-override">
           <Icon icon={icons.OverridesIcon} size={12} />
+        </span>
+      ) : null}
+      {request.heldId ? (
+        <span className="shrink-0 text-warning" title="Paused at a breakpoint" data-testid="network-row-held">
+          <Icon icon={icons.PauseIcon} size={12} />
         </span>
       ) : null}
       {frame ? <FrameChip frameKey={frame.key} label={frame.label} title={frame.url} gone={frame.gone} /> : null}

@@ -271,7 +271,7 @@ describe('opening and saving a response', () => {
     await openResponse(req);
 
     const [tab] = useTabStore.getState().tabs;
-    expect(tab).toMatchObject({ url: req.url, kind: 'Fetch', originalHash: null, request: { method: 'POST', operation: 'GetCart' }, response: { status: 200, delayMs: 0, headers: [], send: true } });
+    expect(tab).toMatchObject({ url: req.url, kind: 'Fetch', originalHash: null, request: { method: 'POST', operation: 'GetCart' }, response: { status: 200, delayMs: 0, headers: [], send: false } });
     expect(useTabStore.getState().activeId).toBe(tab!.id);
     expect(setModelSchema).toHaveBeenCalledExactlyOnceWith(expect.any(String), { type: 'object', properties: { items: { type: 'array', items: { type: 'number', examples: [1] } } } });
 

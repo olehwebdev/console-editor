@@ -17,6 +17,11 @@ export interface TabMeta {
    */
   request?: RequestMatch;
   response?: ResponseSettings;
+  /**
+   * Set on a tab showing a request a breakpoint holds (its held id): its text is the body to send or
+   * answer with. Never saved as an override, nor kept between runs.
+   */
+  held?: string;
   /** Opened in highlight-only mode because the file is huge. */
   lite: boolean;
   dirty: boolean;

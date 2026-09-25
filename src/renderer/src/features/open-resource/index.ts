@@ -1,4 +1,4 @@
-export { BODY_GAP_TEXT, openResource, openOverride, openResponse, reopenLiveResponse, responseText, type OpenOptions } from './model/open';
+export { BODY_GAP_TEXT, openResource, openOverride, openResponse, reopenLiveResponse, type OpenOptions } from './model/open';
 export {
   bundleUrlOf,
   ensureSourceMap,

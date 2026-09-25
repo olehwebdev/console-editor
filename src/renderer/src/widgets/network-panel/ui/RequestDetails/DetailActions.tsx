@@ -1,17 +1,35 @@
-import type { NetworkRequest } from '@common/types';
+import type { NetworkRequest, NetworkRequestDetail } from '@common/types';
 import { icons } from '@/shared/config';
 import { BUTTON_ICON_SIZE, Button } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
+import { pauseLike } from '@/features/network/breakpoints';
+import { showHeld } from '@/features/network/held';
 import { openResource, openResponse } from '@/features/open-resource';
-import { opensAsFile, overridable } from '../../lib';
+import { opensAsFile, overridable, pausable } from '../../lib';
+import { CopyMenu } from './CopyMenu';
 
-/** What can be done with the selected request: override its response (or open the override that answers it), open its file, copy its URL. */
-export function DetailActions({ request }: { request: NetworkRequest }) {
+export interface DetailActionsProps {
+  request: NetworkRequest;
+  /** Its headers and body, once read: Copy as fetch needs them. */
+  detail?: NetworkRequestDetail;
+}
+
+/**
+ * What can be done with the selected request: open it where a breakpoint holds it, override its
+ * response (or open the override that answers it), open its file, pause requests like it, copy it.
+ */
+export function DetailActions({ request, detail }: DetailActionsProps) {
   const file = opensAsFile(request);
+  const heldId = request.heldId;
   return (
     <div className="flex shrink-0 items-center gap-1">
-      {overridable(request) && !file ? (
+      {heldId ? (
+        <Button size="sm" variant="primary" leading={<Icon icon={icons.PauseIcon} size={BUTTON_ICON_SIZE.sm} />} onClick={() => showHeld(heldId)} data-testid="network-show-held">
+          Show paused
+        </Button>
+      ) : null}
+      {overridable(request) && !file && !heldId ? (
         <Button
           size="sm"
           variant="primary"
@@ -27,7 +45,10 @@ export function DetailActions({ request }: { request: NetworkRequest }) {
           Open file
         </Button>
       ) : null}
-      <IconButton icon={icons.CopyIcon} label="Copy URL" size="sm" onClick={() => void navigator.clipboard.writeText(request.url)} />
+      {pausable(request) ? (
+        <IconButton icon={icons.BreakpointIcon} label="Pause requests like this (at their response)" size="sm" data-testid="network-pause-like" onClick={() => pauseLike(request)} />
+      ) : null}
+      <CopyMenu request={request} detail={detail} />
     </div>
   );
 }

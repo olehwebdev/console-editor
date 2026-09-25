@@ -1,5 +1,6 @@
 import { RESPONSE_KIND } from '@common/overrides';
-import { formatCode, looksMinified } from '@/shared/lib';
+import { formatCode } from './formatCode';
+import { looksMinified } from '@common/minified';
 
 /**
  * A response's text as its tab starts: JSON that arrived on one line (or minified) is formatted when

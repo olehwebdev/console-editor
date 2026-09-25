@@ -11,5 +11,6 @@ export function toForm({ request, response }: ResponseRuleValue): ResponseRuleFo
     delay: text(response.delayMs),
     headers: response.headers,
     rowKeys: savedRowKeys(response.headers),
+    send: response.send,
   };
 }

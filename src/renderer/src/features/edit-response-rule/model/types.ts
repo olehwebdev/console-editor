@@ -15,4 +15,6 @@ export interface ResponseRuleForm {
   headers: HeaderEdit[];
   /** Parallel to `headers`: stable keys for the header rows. */
   rowKeys: string[];
+  /** Off: answered before it is sent (the server never sees it). */
+  send: boolean;
 }

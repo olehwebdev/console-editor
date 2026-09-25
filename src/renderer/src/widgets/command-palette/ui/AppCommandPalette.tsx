@@ -17,7 +17,6 @@ import { attachPage, detachPage } from '@/features/detach-page';
 import { formatTab } from '@/features/format-document';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
-import { saveTab } from '@/features/save-override';
 import { setOverrideEnabled } from '@/features/toggle-override';
 import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
 import { usePageFiles } from '../model/files';
@@ -27,6 +26,7 @@ import { sourceActions, useOriginalSources } from '../model/sources';
 import { OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
 import { newRuleItems } from './newRuleItems';
 import { ruleItems } from './ruleItems';
+import { saveItem } from './saveItem';
 
 const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon, Fetch: icons.ResponseIcon };
 
@@ -88,7 +88,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
       items: [
         ...(active
           ? [
-              { id: 'save', label: active.overrideId ? 'Save override' : 'Create override from this file', icon: icons.SaveIcon, shortcut: SHORTCUT.save, onSelect: () => void saveTab() },
+              saveItem(active),
               { id: 'format', label: 'Pretty-print this file', icon: icons.PrettifyIcon, shortcut: SHORTCUT.format, onSelect: () => void formatTab() },
               { id: 'diff', label: 'Diff with where you started', icon: icons.DiffIcon, shortcut: SHORTCUT.diff, onSelect: toggleBaseDiff },
               ...(active.overrideId ? [{ id: 'live', label: 'Compare with the live file', icon: icons.GlobeIcon, onSelect: () => void compareWithLive() }] : []),
