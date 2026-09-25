@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { ActionStore } from '../store/ActionStore';
 import { OverrideStore } from '../store/OverrideStore';
 import { PageWindowStore } from '../store/PageWindowStore';
 import { RuleStore } from '../store/RuleStore';
@@ -17,6 +18,7 @@ export async function openStores(userData: string): Promise<AppStores> {
   const settings = new SettingsStore(join(userData, USER_DATA.settings));
   const session = new SessionStore(join(userData, USER_DATA.session));
   const pageWindow = new PageWindowStore(join(userData, USER_DATA.pageWindow));
-  await Promise.all([store.load(), rules.load(), settings.load(), session.load(), pageWindow.load()]);
-  return { store, rules, settings, session, pageWindow, hadData };
+  const actions = new ActionStore(join(userData, USER_DATA.workspace));
+  await Promise.all([store.load(), rules.load(), settings.load(), session.load(), pageWindow.load(), actions.load()]);
+  return { store, rules, settings, session, pageWindow, actions, hadData };
 }

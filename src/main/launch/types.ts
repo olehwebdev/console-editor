@@ -1,4 +1,5 @@
 import type { AppEvent } from '../../shared/types';
+import type { ActionStore } from '../store/ActionStore';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { PageWindowStore } from '../store/PageWindowStore';
 import type { RuleStore } from '../store/RuleStore';
@@ -13,6 +14,7 @@ export interface AppStores {
   settings: SettingsStore;
   session: SessionStore;
   pageWindow: PageWindowStore;
+  actions: ActionStore;
   /** The folder held data before the stores looked (an earlier version ran). */
   hadData: boolean;
 }

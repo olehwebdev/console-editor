@@ -13,10 +13,13 @@ import { EntryList } from './EntryList';
 import { problemCounts } from './problemCounts';
 import { PromptBar } from './PromptBar';
 import { sinceInput } from './sinceInput';
+import type { SaveAsAction } from './types';
 import { useFrameDirectory } from './useFrameDirectory';
 
 export interface ConsolePanelProps {
   onClose(): void;
+  /** A row of code you ran asks to be kept as an action. */
+  onSaveAsAction: SaveAsAction;
 }
 
 /**
@@ -24,7 +27,7 @@ export interface ConsolePanelProps {
  * errors and the browser's messages, each row tagged with its frame, and a
  * prompt that runs code in the frame you pick.
  */
-export function ConsolePanel({ onClose }: ConsolePanelProps) {
+export function ConsolePanel({ onClose, onSaveAsAction }: ConsolePanelProps) {
   const recording = useSettingsStore((s) => s.settings.captureConsole);
   const entries = useConsoleStore((s) => s.entries);
   const filter = useConsoleFilter(useShallow((s) => ({ frameKeys: s.frameKeys, levels: s.levels, text: s.text })));
@@ -54,7 +57,7 @@ export function ConsolePanel({ onClose }: ConsolePanelProps) {
           Turn it on to see the logs of the page and all its frames, and to run code in them.
         </EmptyState>
       ) : shown.length ? (
-        <EntryList entries={shown} resolve={resolve} since={since} />
+        <EntryList entries={shown} resolve={resolve} since={since} onSaveAsAction={onSaveAsAction} />
       ) : (
         <p className="flex-1 px-3 py-2 text-[12px] text-fg-subtle">
           {entries.length ? 'No rows match the filters.' : 'Nothing logged yet. Logs and errors from the page and all its frames show up here.'}

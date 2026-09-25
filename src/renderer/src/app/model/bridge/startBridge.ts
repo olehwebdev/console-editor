@@ -1,4 +1,5 @@
 import { api, onAppEvent } from '@/shared/api';
+import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useFrameStore } from '@/entities/frame';
 import { usePageStore } from '@/entities/page';
@@ -30,6 +31,7 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     api.getWorkspaceFavicons().then((favicons) => useWorkspaceStore.getState().setFavicons(favicons)),
     api.listOverrides().then((overrides) => useOverrideStore.getState().setAll(overrides)),
     api.listRules().then((rules) => useRuleStore.getState().setAll(rules)),
+    api.listActions().then((actions) => useActionStore.getState().setAll(actions)),
     api.listResources().then(applyResourceSnapshot),
     api.getPageState().then((page) => usePageStore.getState().setPage(page)),
     // Frames first: the rows name them.

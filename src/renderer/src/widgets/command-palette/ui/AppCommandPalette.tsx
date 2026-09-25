@@ -22,6 +22,7 @@ import { setOverrideEnabled } from '@/features/toggle-override';
 import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
 import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
+import { useActionGroup } from '../model/useActionGroup';
 import { sourceActions, useOriginalSources } from '../model/sources';
 import { OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
 import { newRuleItems } from './newRuleItems';
@@ -37,10 +38,11 @@ export interface AppCommandPaletteProps {
   onSwitchWorkspace(id: string): void;
   onNewWorkspace(): void;
   onToggleConsole(): void;
+  onNewAction(): void;
 }
 
-/** Ctrl/Cmd+K: jump to any file the page loaded, an original of a loaded map, an override or a rule, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole }: AppCommandPaletteProps) {
+/** Ctrl/Cmd+K: jump to any file the page loaded, an original of a loaded map, an override or a rule, run an action, switch workspaces or run a command. */
+export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onNewAction }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
@@ -50,6 +52,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
   const detached = usePageStore((s) => s.page.detached);
+  const runGroup = useActionGroup(onNewAction);
 
   const resources = usePageFiles(open);
   const files = useMemo<CommandGroup>(
@@ -133,8 +136,8 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         { id: 'workspace-new', label: 'New workspace', icon: icons.AddIcon, keywords: ['workspace', 'site', 'project'], onSelect: onNewWorkspace },
       ],
     };
-    return [files, sources, overrideGroup, ruleGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, sources, overrides, rules, active, activeSource, workspaces, activeWorkspaceId, detached, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
+    return [files, sources, overrideGroup, ruleGroup, runGroup, workspaceGroup, actions].filter((g) => g.items.length);
+  }, [open, files, sources, overrides, rules, runGroup, active, activeSource, workspaces, activeWorkspaceId, detached, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

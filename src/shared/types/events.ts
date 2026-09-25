@@ -1,3 +1,4 @@
+import type { ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { MenuCommand } from './menu';
 import type { OverrideMeta } from './overrides';
@@ -48,6 +49,8 @@ export type AppEvent =
   /** New console rows, oldest first. */
   | { type: 'console-entries'; entries: ConsoleEntry[] }
   | { type: 'console-cleared' }
+  /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
+  | { type: 'actions-changed'; actions: ConsoleAction[] }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };

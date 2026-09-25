@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { WebContents } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PageController } from '../../src/main/PageController';
+import { ActionStore } from '../../src/main/store/ActionStore';
 import { OverrideStore } from '../../src/main/store/OverrideStore';
 import { RuleStore } from '../../src/main/store/RuleStore';
 import { SessionStore } from '../../src/main/store/SessionStore';
@@ -16,6 +17,7 @@ let dir: string;
 let session: SessionStore;
 let store: OverrideStore;
 let rules: RuleStore;
+let actions: ActionStore;
 let events: AppEvent[];
 let calls: string[];
 let favicon: string | null;
@@ -47,13 +49,14 @@ beforeEach(async () => {
   session = new SessionStore(join(dir, 'session'));
   store = new OverrideStore(join(dir, 'workspace'));
   rules = new RuleStore(join(dir, 'workspace'));
-  await Promise.all([session.load(), store.load(), rules.load()]);
+  actions = new ActionStore(join(dir, 'workspace'));
+  await Promise.all([session.load(), store.load(), rules.load(), actions.load()]);
   events = [];
   calls = [];
   favicon = null;
   wc.removeAllListeners();
   vi.clearAllMocks();
-  workspaces = new WorkspaceController(page as unknown as PageController, session, store, rules, (e) => events.push(e));
+  workspaces = new WorkspaceController(page as unknown as PageController, session, store, rules, actions, (e) => events.push(e));
   await workspaces.start();
   workspaces.watch(wc as unknown as WebContents);
 });
@@ -120,6 +123,39 @@ describe('WorkspaceController', () => {
     await expect(workspaces.remove(first)).rejects.toThrow(/in use/);
   });
 
+  it("lists the active workspace's actions, and announces the other's on a switch", async () => {
+    const first = session.activeId;
+    const addItem = await actions.create({ name: 'Add item', target: 'name:cart', targetName: 'cart', code: "addItem('A1')" });
+    expect(actions.list()).toEqual([addItem]);
+    const second = await workspaces.create();
+
+    await workspaces.switchTo(second.id);
+    expect(actions.list()).toEqual([]);
+    const announced = events.findIndex((e) => e.type === 'actions-changed');
+    expect(events[announced]).toEqual({ type: 'actions-changed', actions: [] });
+    // Before the workspaces themselves: the renderer has the new actions when it sees the switch.
+    expect(events.findIndex((e) => e.type === 'workspaces-changed' && e.state.activeId === second.id)).toBeGreaterThan(announced);
+
+    await workspaces.switchTo(first);
+    expect(events.at(-2)).toEqual({ type: 'actions-changed', actions: [addItem] });
+  });
+
+  it("deletes a workspace's actions with it, before the workspace", async () => {
+    const first = session.activeId;
+    const second = await workspaces.create();
+    await workspaces.switchTo(second.id);
+    await actions.create({ name: 'Ping', target: 'top', targetName: '', code: 'ping()' });
+    await workspaces.switchTo(first);
+
+    vi.spyOn(actions, 'removeWorkspace').mockRejectedValueOnce(new Error('EACCES'));
+    await expect(workspaces.remove(second.id)).rejects.toThrow('EACCES');
+    expect(session.has(second.id)).toBe(true);
+
+    await workspaces.remove(second.id);
+    actions.setWorkspace(second.id);
+    expect(actions.list()).toEqual([]);
+  });
+
   it("switches the rules applied with the overrides, in the same step, before the pattern refresh", async () => {
     const first = session.activeId;
     await rule('https://a.com/ads.js');
@@ -142,7 +178,7 @@ describe('WorkspaceController', () => {
 
     const reloaded = new RuleStore(join(dir, 'workspace'));
     await reloaded.load();
-    const restarted = new WorkspaceController(page as unknown as PageController, session, store, reloaded, (e) => events.push(e));
+    const restarted = new WorkspaceController(page as unknown as PageController, session, store, reloaded, actions, (e) => events.push(e));
     await restarted.start();
     expect(reloaded.list().map((r) => r.id)).toEqual([orphan.id]);
     expect(reloaded.get(orphan.id).workspaceId).toBe(session.activeId);

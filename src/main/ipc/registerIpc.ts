@@ -13,10 +13,11 @@ import { HTTP_URL } from '../constants';
 import { loadSiteSourceMap } from '../PageController';
 import { assertSourceMapRequest } from './assertSourceMapRequest';
 import { assertString } from './assertString';
+import { registerActionIpc } from './registerActionIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, rules, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, actions, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -117,6 +118,7 @@ export function registerIpc({ win, page, store, rules, settings, session, worksp
   handle(IPC_CHANNEL.evaluateInFrame, (frameId: unknown, code: unknown) => page.console.evaluate(frameId, code));
   handle(IPC_CHANNEL.getConsoleProperties, (handle: unknown) => page.console.properties(handle));
   handle(IPC_CHANNEL.clearConsole, () => page.console.clear());
+  registerActionIpc(handle, actions, send);
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

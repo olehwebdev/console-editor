@@ -1,37 +1,38 @@
 import type { WebContents } from 'electron';
 import type { AppEvent, Workspace, WorkspacePatch } from '../../shared/types';
-import { HTTP_SCHEME } from '../constants';
-import { parseUrl } from '../parseUrl';
 import type { PageController } from '../PageController';
+import type { ActionStore } from '../store/ActionStore';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
-import { TitleRecorder } from './TitleRecorder';
+import { PageFollower } from './PageFollower';
 
 /**
  * Workspaces: each has its own page, tabs (kept by the renderer through the
- * session store), overrides and rules. Switching leaves the page, makes the
- * other workspace's overrides and rules the ones applied, and loads its last page.
+ * session store), overrides, rules and actions. Switching leaves the page,
+ * makes the other workspace's overrides and rules the ones applied and its
+ * actions the ones listed, and loads its last page.
  */
 export class WorkspaceController {
   /** Switches and deletions run one at a time. */
   private queue: Promise<unknown> = Promise.resolve();
-  private readonly titles: TitleRecorder;
+  private readonly follower: PageFollower;
 
   constructor(
     private readonly page: PageController,
     private readonly session: SessionStore,
     private readonly store: OverrideStore,
     private readonly rules: RuleStore,
+    private readonly actions: ActionStore,
     private readonly send: (event: AppEvent) => void,
   ) {
-    this.titles = new TitleRecorder(session, () => this.pushState());
+    this.follower = new PageFollower(page, session, send);
   }
 
   /**
-   * Serves the active workspace's overrides and applies its rules, handing it
-   * any that belong to no workspace (overrides saved before workspaces existed,
-   * or those of a workspace that was lost).
+   * Serves the active workspace's overrides, applies its rules and lists its
+   * actions, handing it any overrides and rules that belong to no workspace
+   * (overrides saved before workspaces existed, or those of a workspace that was lost).
    */
   async start(): Promise<void> {
     const known = new Set(this.session.workspaces().workspaces.map((w) => w.id));
@@ -40,35 +41,12 @@ export class WorkspaceController {
     await this.rules.adopt(known, activeId);
     this.store.setWorkspace(activeId);
     this.rules.setWorkspace(activeId);
+    this.actions.setWorkspace(activeId);
   }
 
   /** Follows the page: remembers where the active workspace is, and its site's icon. */
   watch(wc: WebContents): void {
-    wc.on('did-navigate', (_event, url) => this.pageShown(url));
-    wc.on('did-navigate-in-page', (_event, url, isMainFrame) => isMainFrame && this.pageShown(url));
-    wc.on('page-title-updated', (_event, title) => this.titles.shown(wc.getURL(), title));
-    wc.on('page-favicon-updated', (_event, favicons) => void this.faviconsFound(wc.getURL(), favicons));
-  }
-
-  private pageShown(url: string): void {
-    const id = this.session.activeId;
-    const host = parseUrl(this.session.urlOf(id))?.host;
-    const hadIcon = !!this.session.favicon(id);
-    void this.session.setUrl(url).catch(() => undefined);
-    // The tile is labelled with the host, and loses the icon of a site it left.
-    if (parseUrl(this.session.urlOf(id))?.host !== host) this.pushState();
-    if (hadIcon && !this.session.favicon(id)) this.send({ type: 'workspace-favicon', id, favicon: null });
-  }
-
-  private async faviconsFound(pageUrl: string, candidates: string[]): Promise<void> {
-    if (!HTTP_SCHEME.test(pageUrl)) return;
-    // The workspace shown when the page reported it, whatever is shown by the time it has loaded.
-    const id = this.session.activeId;
-    const icon = await this.page.fetchFavicon(candidates).catch(() => null);
-    // Nothing loaded (keep what there is), or the workspace moved on to another site meanwhile.
-    if (!icon || parseUrl(this.session.urlOf(id))?.origin !== parseUrl(pageUrl)?.origin || this.session.favicon(id) === icon) return;
-    await this.session.setFavicon(id, icon).catch(() => undefined);
-    if (this.session.favicon(id) === icon) this.send({ type: 'workspace-favicon', id, favicon: icon });
+    this.follower.watch(wc);
   }
 
   private pushState(): void {
@@ -95,13 +73,14 @@ export class WorkspaceController {
     return updated;
   }
 
-  /** Deletes a workspace other than the active one, with its overrides and rules. */
+  /** Deletes a workspace other than the active one, with its actions, overrides and rules. */
   remove(id: unknown): Promise<void> {
     return this.serialize(async () => {
       if (!this.session.has(id)) throw new Error('Unknown workspace');
       if (id === this.session.activeId) throw new Error('The workspace in use cannot be deleted');
-      // Its overrides and rules go first: were the workspace to go first and a deletion fail, the next
-      // start would hand them to another workspace.
+      // What it owns goes first: were the workspace to go first and a deletion fail, the next
+      // start would hand its overrides and rules to another workspace.
+      await this.actions.removeWorkspace(id as string);
       await this.store.removeWorkspace(id as string);
       await this.rules.removeWorkspace(id as string);
       await this.session.remove(id);
@@ -118,12 +97,14 @@ export class WorkspaceController {
       await this.page.leave();
       // In memory at once, written after: a failed write is reported, but the switch is whole.
       const saved = this.session.setActive(id);
-      // Both together, before anything awaits: no request is ever served one workspace's overrides and another's rules.
+      // All together, before anything awaits: no request is ever served one workspace's overrides and another's rules.
       this.store.setWorkspace(this.session.activeId);
       this.rules.setWorkspace(this.session.activeId);
+      this.actions.setWorkspace(this.session.activeId);
       // One pattern refresh reads both stores; the rules then only need their event.
       await this.page.overridesChanged();
       await this.page.rulesChanged(false);
+      this.send({ type: 'actions-changed', actions: this.actions.list() });
       this.pushState();
       const { url } = this.session.get();
       if (url) void this.page.navigate(url, { fresh: true });

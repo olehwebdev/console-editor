@@ -121,6 +121,24 @@ describe.skipIf(!chromiumAvailable)('console in Chromium', () => {
     expect(input.id).toBeLessThan(reaction.id);
   });
 
+  it("refuses a cross-site frame's functions from the top page, which is why actions run in their own frame", async () => {
+    const cart = await frameAt(`http://cart.localhost:${port()}/services/cart.html`);
+    await waitFor(() => service.listFrames().every((f) => f.canRun));
+    const top = service.listFrames().find((f) => !f.parentId)!;
+
+    // What you'd type in DevTools on the shell: the browser blocks it.
+    const refused = await service.evaluate(top.id, "window.top.frames['cart'].addItem('A1')");
+    expect(refused).toMatchObject({ level: 'error', source: 'result' });
+    expect(text(refused)).toMatch(/SecurityError|Blocked a frame .* from accessing a cross-origin frame/);
+    // A same-site frame is reachable, and a message reaches a cross-site one.
+    expect(text(await service.evaluate(top.id, "typeof window.top.frames['nav'].document"))).toBe('object');
+    expect(text(await service.evaluate(top.id, "window.top.frames['cart'].postMessage({ type: 'ping' }, '*'); 'sent'"))).toBe('sent');
+
+    // What an action does: run the call inside the cart's own frame.
+    await service.evaluate(cart.id, "addItem('A1')");
+    expect(text(await logged('billing got'))).toBe('billing got {"type":"add","sku":"A1"}');
+  });
+
   it('awaits at the top level and expands what comes back', async () => {
     const cart = await frameAt(`http://cart.localhost:${port()}/services/cart.html`);
     await waitFor(() => service.listFrames().find((f) => f.id === cart.id)?.canRun);

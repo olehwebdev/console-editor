@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect } from 'react';
+import { createElement, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHORTCUT } from '@common/constants';
 import { DURATION, EASE_OUT, SLIDE_IN_X } from '@/shared/lib';
@@ -8,20 +8,21 @@ import { ActivityBar } from '@/widgets/activity-bar';
 import { AppCommandPalette, usePalette } from '@/widgets/command-palette';
 import { ConsolePanel } from '@/widgets/console-panel';
 import { EditorPanel } from '@/widgets/editor-panel';
-import { Explorer } from '@/widgets/explorer';
 import { PagePreview } from '@/widgets/page-preview';
-import { SettingsPanel } from '@/widgets/settings-panel';
 import { StatusBar } from '@/widgets/status-bar';
 import { TitleBar } from '@/widgets/title-bar';
 import { usePageStore } from '@/entities/page';
 import { useLayout } from '../../model/layout';
 import { focusAddressBar } from './focusAddressBar';
 import { ConsolePane } from './ConsolePane';
+import { SIDEBAR_VIEWS } from './constants';
 import { followRowWidth } from './followRowWidth';
+import { newAction } from './newAction';
 import { newWorkspace } from './newWorkspace';
 import { openWorkspace } from './openWorkspace';
 import { PreviewPane } from './PreviewPane';
 import { removeWorkspace } from './removeWorkspace';
+import { saveAsAction } from './saveAsAction';
 import { setAddressBar } from './setAddressBar';
 import { shortcutKey } from './shortcutKey';
 import { showExplorer } from './showExplorer';
@@ -104,7 +105,7 @@ export function EditorPage() {
                   exit={{ opacity: 0, x: SLIDE_IN_X }}
                   transition={{ duration: VIEW_SWAP_DURATION, ease: EASE_OUT }}
                 >
-                  {sidebar === 'settings' ? <SettingsPanel /> : <Explorer />}
+                  {createElement(SIDEBAR_VIEWS[sidebar])}
                 </motion.div>
               </AnimatePresence>
             </SidebarPane>
@@ -117,7 +118,7 @@ export function EditorPage() {
           </div>
           {consoleVisible ? (
             <ConsolePane>
-              <ConsolePanel onClose={toggleConsole} />
+              <ConsolePanel onClose={toggleConsole} onSaveAsAction={saveAsAction} />
             </ConsolePane>
           ) : null}
         </main>
@@ -137,6 +138,7 @@ export function EditorPage() {
         onSwitchWorkspace={openWorkspace}
         onNewWorkspace={newWorkspace}
         onToggleConsole={toggleConsole}
+        onNewAction={newAction}
       />
     </div>
   );

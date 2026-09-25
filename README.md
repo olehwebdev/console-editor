@@ -59,7 +59,7 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 </td>
 <td width="50%" valign="top">
 
-**Iframes and workers too.** Same-site, cross-site (out-of-process) and nested iframes, each set up before it is allowed to load anything. What Web Workers, shared workers, service workers and worklets load gets your overrides too, a service worker's own script included. The console (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>J</kbd>) shows every frame's logs in one list, each row tagged with its frame, and runs code in the frame you pick.
+**Iframes and workers too.** Same-site, cross-site (out-of-process) and nested iframes, each set up before it is allowed to load anything. What Web Workers, shared workers, service workers and worklets load gets your overrides too, a service worker's own script included. The console (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>J</kbd>) shows every frame's logs in one list, each row tagged with its frame, and runs code in the frame you pick. **Actions** keep that code, such as an event sent to one service, to run again in its frame with one click.
 
 <img src="docs/screenshots/iframes.png" alt="Explorer grouping files by iframe origin, with a cross-site iframe running the edited script">
 
@@ -131,7 +131,7 @@ Type a URL in the preview's address bar (`https://…` or `localhost:3000`), pic
 | `http://127.0.0.1:5174/store/` | The shop from the GIF: a checkout with a bug to fix |
 | `http://127.0.0.1:5174/` | Files built to be awkward: gzip, SRI, a hashed bundle, source maps |
 | `http://127.0.0.1:5174/frames.html` | Cross-site and nested iframes |
-| `http://127.0.0.1:5174/services.html` | Services in iframes that log and message each other (try the console) |
+| `http://127.0.0.1:5174/services.html` | Services in iframes that log and message each other (try the console, and an action running `addItem('A1')` in `cart`) |
 | `http://127.0.0.1:5174/workers/` | Dedicated, shared and service workers, and a worklet |
 | `http://127.0.0.1:5174/maps.html` | Source maps named every way: a header, `X-SourceMap`, an inline map, a stylesheet's, a missing one, an HTML page instead |
 
@@ -230,6 +230,8 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Overrides for scripts, stylesheets and HTML; SRI, gzip, hashed names, redeploy detection
 - [x] Cross-site and nested iframes
 - [x] A console for the page and every iframe: each frame's logs in one list, and code run in the frame you pick
+- [x] Actions: code kept to run in a frame with one click
+- [ ] Actions in a window of their own, with parameters and scenarios
 - [x] Session restore with unsaved drafts
 - [x] Workspaces: a page, tabs and overrides per site or task, switched from the rail
 - [x] Rules: request blocking, response header changes, and CORS for APIs
