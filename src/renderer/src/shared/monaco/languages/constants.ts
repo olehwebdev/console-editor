@@ -14,6 +14,7 @@ export const LANGUAGES: Record<ResourceKind, { full: string; lite: string }> = {
   Script: { full: 'javascript', lite: 'javascript-lite' },
   Stylesheet: { full: 'css', lite: 'css-lite' },
   Document: { full: 'html', lite: 'html-lite' },
+  Fetch: { full: 'json', lite: 'json-lite' },
 };
 
 /** A language an original source can be shown in, and its name for the status bar. */

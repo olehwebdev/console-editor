@@ -74,6 +74,7 @@ vi.mock('@/shared/monaco', () => ({
   monaco: { editor: { createModel: (text: string) => new FakeModel(text) }, Uri: { from: () => ({}) } },
   languageFor: () => 'javascript',
   READ_ONLY_URI_AUTHORITY: 'source',
+  setModelSchema: () => {},
   editorHasFocus: () => false,
   dismissEditorWidgets: () => {},
   triggerInActiveEditor: () => {},
@@ -94,7 +95,7 @@ const override: OverrideMeta = {
   updatedAt: 0,
 };
 
-const workspace = (id: string, host: string): Workspace => ({ id, name: '', host, title: '', icon: 'favicon', color: 'ember', frameNames: {} });
+const workspace = (id: string, host: string): Workspace => ({ id, name: '', host, title: '', icon: 'favicon', color: 'ember', frameNames: {}, breakpoints: [] });
 const workspaces = [workspace('wsa00000', 'site.test'), workspace('wsb00000', 'other.test')];
 
 let stopSync: (() => void) | undefined;

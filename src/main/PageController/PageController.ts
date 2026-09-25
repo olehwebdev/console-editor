@@ -1,22 +1,20 @@
 import type { BrowserWindow, Session, WebContentsView } from 'electron';
-import type { AppEvent, PageState } from '../../shared/types';
-import { ConsoleService } from '../console';
+import type { PageState } from '../../shared/types';
+import type { ConsoleService } from '../console';
 import type { PageInterception } from '../engine/PageInterception';
+import type { NetworkLog } from '../network';
 import { PageWindow } from '../PageWindow';
-import type { OverrideStore } from '../store/OverrideStore';
-import type { WindowStore } from '../store/WindowStore';
-import type { RuleStore } from '../store/RuleStore';
-import type { SettingsStore } from '../store/SettingsStore';
 import { attachDebugger } from './attachDebugger';
 import { createPageView } from './createPageView';
 import { fetchSiteFavicon } from './fetchSiteFavicon';
-import { interceptPage } from './interceptPage';
 import { openSiteSession } from './openSiteSession';
 import { PageLoader } from './PageLoader';
 import { pageState } from './pageState';
 import { snapshotPage } from './snapshotPage';
+import type { PageDeps } from './types';
 import { watchLoading } from './watchLoading';
 import { windowOpenHandler } from './windowOpenHandler';
+import { wirePage } from './wirePage';
 
 /**
  * Owns the embedded browser view that shows the website, and the interception
@@ -26,21 +24,16 @@ export class PageController {
   readonly view: WebContentsView;
   /** Where the page is shown: in the editor's window or in one of its own. */
   readonly window: PageWindow;
-  /** The console of the page and its frames. */
+  /** The console of the page and its frames, and the requests they (and their workers) send. */
   readonly console: ConsoleService;
+  readonly network: NetworkLog;
   private readonly engine: PageInterception;
   /** The site's session (cookies, logins): reads out of the page go through it, like its favicon and source maps. */
   readonly siteSession: Session;
   private readonly loader: PageLoader;
 
-  constructor(
-    win: BrowserWindow,
-    private readonly store: OverrideStore,
-    private readonly rules: RuleStore,
-    private readonly settings: SettingsStore,
-    private readonly send: (event: AppEvent) => void,
-    windowStore: WindowStore,
-  ) {
+  constructor(win: BrowserWindow, private readonly deps: PageDeps) {
+    const { store, rules, settings, send, windowStore, breakpoints } = deps;
     // Permission prompts and pop-ups go to the window showing the site.
     this.siteSession = openSiteSession(() => this.window.host);
     this.view = createPageView(win, this.siteSession);
@@ -50,18 +43,17 @@ export class PageController {
     const transport = attachDebugger(wc, (reason) => {
       // Settle everything the engine is waiting on; nothing can be sent any more.
       this.engine.detach();
-      this.send({ type: 'error', message: `Interception stopped: debugger detached (${reason})` });
+      this.deps.send({ type: 'error', message: `Interception stopped: debugger detached (${reason})` });
     });
 
-    this.console = new ConsoleService({ getSettings: () => this.settings.get(), send: (event) => this.send(event) });
-    this.engine = interceptPage(transport, this.console, { store, rules, settings, send, siteSession: this.siteSession });
+    ({ console: this.console, network: this.network, engine: this.engine } = wirePage(transport, { store, rules, settings, send, siteSession: this.siteSession, breakpoints }));
     this.loader = new PageLoader(wc, this.engine, () => this.pushState());
 
     // A page's "Leave site?" guard would silently cancel reloads after a save,
     // Back/Forward and typed URLs (Electron shows no dialog): the editor wins.
     wc.on('will-prevent-unload', (event) => event.preventDefault());
     wc.setWindowOpenHandler(windowOpenHandler(() => this.window.host, (url) => void this.navigate(url)));
-    watchLoading(wc, () => this.pushState(), (event) => this.send(event));
+    watchLoading(wc, () => this.pushState(), send);
   }
 
   attach(): Promise<void> {
@@ -70,7 +62,7 @@ export class PageController {
 
   private pushState(): void {
     const state = this.state();
-    this.send({ type: 'page-state', state });
+    this.deps.send({ type: 'page-state', state });
     // The website's own window, if it has one, shows it too.
     this.window.showState(state);
   }
@@ -133,13 +125,18 @@ export class PageController {
   /** Call after overrides change. Pass `patterns: false` when only content changed. */
   async overridesChanged(patterns = true): Promise<void> {
     if (patterns) await this.engine.refreshInterception();
-    this.send({ type: 'overrides-changed', overrides: this.store.metas() });
+    this.deps.send({ type: 'overrides-changed', overrides: this.deps.store.metas() });
   }
 
   /** Call after rules change. Pass `patterns: false` when only header edits or request types changed (read at pause time). */
   async rulesChanged(patterns = true): Promise<void> {
     if (patterns) await this.engine.refreshInterception();
-    this.send({ type: 'rules-changed', rules: this.rules.forRenderer() });
+    this.deps.send({ type: 'rules-changed', rules: this.deps.rules.forRenderer() });
+  }
+
+  /** Call after the active workspace's breakpoints change: they stop requests from the next one. */
+  breakpointsChanged(): Promise<void> {
+    return this.engine.refreshInterception();
   }
 
   async settingsChanged(): Promise<void> {

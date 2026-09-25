@@ -2,6 +2,7 @@ import { onTabEdited, useTabStore, type TabMeta } from '@/entities/editor-tab';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { activeFileId } from './activeFileId';
 import { dropDraft } from './dropDraft';
+import { keptTabs } from './keptTabs';
 import { saveDraft } from './saveDraft';
 import { saveTabs } from './saveTabs';
 import { sessionSync } from './sessionSync';
@@ -22,7 +23,7 @@ export function startSessionSync(): () => void {
   if (!workspaceId) return stopSessionSync;
   sessionSync.syncing = workspaceId;
   const key = (tabs: TabMeta[], activeId: string | null) =>
-    JSON.stringify([tabs.map((t) => [t.id, t.url, t.kind, t.overrideId, t.originalHash]), activeId]);
+    JSON.stringify([keptTabs(tabs).map((t) => [t.id, t.url, t.kind, t.overrideId, t.originalHash]), activeId]);
   let last = key(useTabStore.getState().tabs, activeFileId(useTabStore.getState()));
 
   const offTabs = useTabStore.subscribe((s) => {

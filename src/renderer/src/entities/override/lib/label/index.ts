@@ -1,0 +1,1 @@
+export { overrideLabel } from './overrideLabel';

@@ -12,5 +12,6 @@ export function toWorkspace(w: WorkspaceRecord): Workspace {
     icon: w.icon,
     color: w.color,
     frameNames: w.frameNames,
+    breakpoints: w.breakpoints,
   };
 }
