@@ -22,7 +22,7 @@ npm run dev            # the app, with hot reload
 npm run demo-site      # in another terminal: pages to try it on (port 5174)
 ```
 
-Node.js 22.18 or newer is required. Runs from source keep their data in a `Console Editor (dev)` folder, apart from an installed copy's, so both can run at once. On Linux as root (containers), start Electron without its sandbox: `npm run dev -- --noSandbox`.
+`npm install` also sets up git hooks (`lefthook.yml`): before each commit, `lint:unused` and `lint:duplicates` check the project. Node.js 22.18 or newer is required. Runs from source keep their data in a `Console Editor (dev)` folder, apart from an installed copy's, so both can run at once. On Linux as root (containers), start Electron without its sandbox: `npm run dev -- --noSandbox`.
 
 ## Before opening a pull request
 
@@ -31,6 +31,7 @@ npm run typecheck
 npm run lint:fsd
 npm run lint:structure # files of at most 150 lines, one function each, no switch (CLAUDE.md › Code structure)
 npm run lint:unused    # no unused files, dependencies or exports (knip; types in a slice's index.ts are its public API)
+npm run lint:duplicates # no new copies of code (jscpd; .jscpd-baseline.json lists the older ones, and only shrinks)
 npm test               # unit, renderer, and engine tests in real Chromium (npx playwright install chromium)
 npm run test:e2e       # the built app end to end (headless Linux: xvfb-run npm run test:e2e)
 ```

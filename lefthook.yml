@@ -1,0 +1,14 @@
+# Git hooks (https://lefthook.dev). `npm install` installs them (lefthook's own postinstall; not when CI is set).
+# Each check covers the whole project, as its answer depends on every file, and runs only when a staged file could
+# change it. Skip them for one commit with `git commit --no-verify` (CI runs them anyway).
+pre-commit:
+  parallel: true
+  jobs:
+    - name: unused code
+      glob: "*.{ts,tsx,mts,mjs,json,jsonc}"
+      run: npm run lint:unused
+      fail_text: "Unused code: remove it (or, if it is public API, see knip.jsonc)."
+    - name: duplicated code
+      glob: "*.{ts,tsx}"
+      run: npm run lint:duplicates
+      fail_text: "Duplicated code: share it instead of copying it (CLAUDE.md › Code structure)."

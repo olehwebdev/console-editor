@@ -2,6 +2,8 @@
 
 Electron app: `src/main` (main process), `src/preload`, `src/renderer` (React 19 + zustand, [Feature-Sliced Design](https://feature-sliced.design): `app → pages → widgets → features → entities → shared`). How it works: [docs/SPEC.md](docs/SPEC.md). UI tokens and components: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+`npm install` sets up git hooks (`lefthook.yml`) that run `lint:unused` and `lint:duplicates` before each commit; don't skip them with `--no-verify` to get a commit through.
+
 Before pushing:
 
 ```bash
@@ -9,6 +11,7 @@ npm run typecheck
 npm run lint:fsd
 npm run lint:structure         # the Code structure rules below: thin files, one function each, no switch
 npm run lint:unused            # knip: no unused file, dependency or export (knip.jsonc says what counts)
+npm run lint:duplicates        # jscpd: no copy of code that isn't in .jscpd-baseline.json
 npm test
 xvfb-run -a npm run test:e2e   # builds, then drives the real app (headless Linux needs xvfb)
 ```
@@ -49,6 +52,7 @@ Agents: when the environment assigns a generated branch (`claude/…`) and says 
 - **Thin files: 150 lines at most** (tests are exempt). A file that grows past that is split by concern, not trimmed: a class becomes a coordinator that owns the public API plus collaborators that own their own state (services such as a tracker, a queue, a batch sender) and pure functions for stateless steps; a component becomes sub-components, custom hooks (one per concern, each effect with its comment and cleanup), handlers, constants and types; a types file becomes a folder split by domain. The folder keeps the file's name and an `index.ts`, so imports don't change.
 - **One function or component per file**, named after it (`startBridge.ts`, `SaveDemo.tsx`, `useLayout.ts`). A file may instead hold data only: constants (`constants.ts`), types (`types.ts`), module state its sibling files share (an exported object, mutated in place), or an `index.ts` that only re-exports. A store (`create(...)`) or a class counts as one. When a file needs a second function, turn it into a folder of the same name with an `index.ts`, so its imports don't change. The entry points the build names (`src/main/index.ts`, `src/preload/index.ts`, `src/renderer/src/app/index.tsx`) hold startup statements instead. Tests are exempt.
 - **No magic values.** Name every literal that drives logic: ids, keys and prefixes, the app's own channel and event names (IPC channels, `AppEvent` types), durations (a step of `DURATION` in `shared/lib/motion.ts`), sizes used in more than one place, and any value that has to match another system (Monaco command ids, `execCommand` names, `KeyboardEvent.key`, env vars). The platform's own event names (`'keydown'`, `'did-navigate'`), which its typed listeners check, stay inline. A constant goes at the top of the file that uses it, or in the folder's `constants.ts` when several files do; app-wide ones go in `shared/config` (renderer) or `src/shared/constants.ts` (both processes). Display copy, Tailwind classes and identity values (`0`, `1`, `''`, `true`) stay inline.
+- **No copies.** `npm run lint:duplicates` refuses code copied from elsewhere in `src` or `scripts` (jscpd, 50 tokens or more): move it to a function both use. `.jscpd-baseline.json` lists the copies there were when the check came in; it only shrinks. After removing one, run `npm run lint:duplicates -- --update-baseline` and commit the smaller file; never add a copy to it to get a commit through.
 - **No `switch`.** Dispatch through a typed table (`Record<Union, Handler>`, or a mapped type when each handler takes its own member), so a new union member fails typecheck until it's handled (see `app/model/bridge/`). An if/else chain or nested ternary over one value counts as a switch.
 
 ## Commits and pull requests
