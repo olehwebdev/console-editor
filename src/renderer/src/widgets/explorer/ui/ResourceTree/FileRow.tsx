@@ -1,5 +1,5 @@
 import { icons } from '@/shared/config';
-import { fileName } from '@/shared/lib';
+import { cn, fileName } from '@/shared/lib';
 import { Badge } from '@/shared/ui/badge';
 import { ContextMenu } from '@/shared/ui/menu';
 import { Tooltip } from '@/shared/ui/tooltip';
@@ -10,10 +10,12 @@ import { ROW_ICON_SIZE } from '../constants';
 import { fileMenu } from './fileMenu';
 import type { RowNav } from './types';
 
-/** A file in the tree: opens on click, with its actions on right-click and badges for iframes and overrides. */
+/** A file in the tree: opens on click, with its actions on right-click and badges for iframes, overrides and blocked requests. */
 export function FileRow({ row, selected, query, ...nav }: { row: Extract<ResourceRow, { type: 'file' }>; selected: boolean; query: string } & RowNav) {
   const { entry } = row;
   const frameLabel = describeFrame(entry);
+  const blocked = !!entry.blockedBy;
+  const received = blocked ? 'Blocked by a rule: the page never received it' : `${entry.mimeType} · ${entry.status}${entry.overrideId ? ' · served from your override' : ''}`;
   return (
     <ContextMenu items={fileMenu(entry)} label={`${fileName(entry.url)} actions`}>
       <TreeRow
@@ -22,11 +24,15 @@ export function FileRow({ row, selected, query, ...nav }: { row: Extract<Resourc
         selected={selected}
         icon={<KindIcon kind={entry.kind} size={ROW_ICON_SIZE} />}
         label={<TreeLabel text={row.label} highlight={query} />}
-        title={`${entry.url}\n${entry.mimeType} · ${entry.status}${entry.overrideId ? ' · served from your override' : ''}${frameLabel ? `\n${frameLabel}` : ''}`}
+        title={`${entry.url}\n${received}${frameLabel ? `\n${frameLabel}` : ''}`}
         data-url={entry.url}
         data-testid="resource-row"
         data-iframe={entry.frame ? '' : undefined}
-        className={entry.overrideId ? '[&_[data-tree-label]]:text-live' : undefined}
+        data-blocked={blocked ? '' : undefined}
+        className={cn(
+          entry.overrideId && '[&_[data-tree-label]]:text-live',
+          blocked && '[&_[data-tree-label]]:text-fg-subtle [&_[data-tree-label]]:line-through [&_[data-tree-label]]:decoration-fg-subtle/60',
+        )}
         onClick={() => void openResource(entry.url)}
         trailing={
           <span className="flex items-center gap-1.5">
@@ -36,6 +42,11 @@ export function FileRow({ row, selected, query, ...nav }: { row: Extract<Resourc
                   iframe
                 </Badge>
               </Tooltip>
+            ) : null}
+            {blocked ? (
+              <Badge tone="danger" icon={icons.BlockIcon}>
+                blocked
+              </Badge>
             ) : null}
             {entry.overrideId ? (
               <Tooltip content="Served from your override">

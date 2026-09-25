@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS, type AppEvent, type OverrideMeta, type PageState, type ResourceEntry, type Settings } from '../../src/shared/types';
+import { DEFAULT_SETTINGS, type AppEvent, type OverrideMeta, type PageState, type ResourceEntry, type Rule, type Settings } from '../../src/shared/types';
 import { handleAppEvent, startBridge } from '@/app/model/bridge';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore } from '@/entities/resource';
+import { useRuleStore } from '@/entities/rule';
 import { startUpdates } from '@/features/update-app';
 
 const api = vi.hoisted(() => ({
@@ -11,6 +12,7 @@ const api = vi.hoisted(() => ({
   getWorkspaces: vi.fn(),
   getWorkspaceFavicons: vi.fn(),
   listOverrides: vi.fn(),
+  listRules: vi.fn(),
   listResources: vi.fn(),
   getPageState: vi.fn(),
   sessionFlushed: vi.fn(),
@@ -57,6 +59,15 @@ const meta = (id: string): OverrideMeta => ({
   updatedAt: 0,
 });
 const res = (url: string): ResourceEntry => ({ url, kind: 'Script', mimeType: 'text/javascript', status: 200 });
+const rule = (id: string): Rule => ({
+  id,
+  action: 'block',
+  match: { type: 'exact', pattern: `https://site.test/${id}.js`, ignoreQuery: true },
+  resourceTypes: [],
+  enabled: true,
+  createdAt: 0,
+  updatedAt: 0,
+});
 const PAGE: PageState = { url: 'https://site.test/', title: 'Site', loading: false, canGoBack: false, canGoForward: false };
 const urls = () => Object.values(useResourceStore.getState().byKey).map((e) => e.url);
 const emit = (event: AppEvent) => events.listener!(event);
@@ -75,10 +86,12 @@ describe('start bridge', () => {
     vi.stubGlobal('cancelAnimationFrame', () => {});
     useResourceStore.getState().reset();
     useOverrideStore.setState({ byId: {}, hits: {}, upstreamChanged: {} });
+    useRuleStore.setState({ byId: {}, hits: {}, recent: {} });
     api.getSettings.mockResolvedValue(DEFAULT_SETTINGS);
     api.getWorkspaces.mockResolvedValue(WORKSPACES);
     api.getWorkspaceFavicons.mockResolvedValue({});
     api.listOverrides.mockResolvedValue([]);
+    api.listRules.mockResolvedValue([]);
     api.listResources.mockResolvedValue([]);
     api.getPageState.mockResolvedValue(PAGE);
   });
@@ -112,6 +125,21 @@ describe('start bridge', () => {
     expect(urls()).toEqual(['https://site.test/b.js']);
     expect(useOverrideStore.getState().byId).toEqual({});
     expect(usePageStore.getState().page).toEqual(PAGE);
+    stop();
+  });
+
+  it("loads the workspace's rules, and a rules-changed event after the reply wins", async () => {
+    const rules = deferred<Rule[]>();
+    api.listRules.mockReturnValue(rules.promise);
+
+    const started = startBridge(COMMANDS, SESSION);
+    rules.resolve([rule('r1'), rule('r2')]);
+    await tick();
+    expect(Object.keys(useRuleStore.getState().byId)).toEqual(['r1', 'r2']);
+    emit({ type: 'rules-changed', rules: [rule('r2')] });
+    const stop = await started;
+
+    expect(Object.keys(useRuleStore.getState().byId)).toEqual(['r2']);
     stop();
   });
 

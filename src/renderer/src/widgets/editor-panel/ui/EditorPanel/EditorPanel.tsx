@@ -8,12 +8,13 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
-import { getTabModel, selectActivePage, selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { getTabModel, isPageDirty, selectActivePage, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { KindIcon } from '@/entities/resource';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, useDiffSource } from '@/features/compare-changes';
-import { WhatsNewPage } from '@/features/update-app';
 import { FileHeader } from '../FileHeader';
+import { PAGE_TAB_ICONS } from './pageTabIcons';
+import { PageView } from './PageView';
 import { useEditorActions } from './useEditorActions';
 import { useFocusOnOpen } from './useFocusOnOpen';
 
@@ -59,7 +60,13 @@ export function EditorPanel() {
               italic: !t.overrideId,
               title: `${t.url}${t.overrideId ? '' : '\nNot saved as an override yet'}`,
             })),
-            ...pages.map((p) => ({ id: p.id, label: p.title, icon: <Icon icon={icons.WhatsNewIcon} size={TAB_ICON_SIZE} className="text-accent" />, title: p.title })),
+            ...pages.map((p) => ({
+              id: p.id,
+              label: p.title,
+              icon: <Icon icon={PAGE_TAB_ICONS[p.page].icon} size={TAB_ICON_SIZE} className={PAGE_TAB_ICONS[p.page].className} />,
+              dirty: isPageDirty(p),
+              title: p.title,
+            })),
           ]}
           activeId={activeId}
           onSelect={activate}
@@ -91,7 +98,7 @@ export function EditorPanel() {
 
         {activePage ? (
           <div className="absolute inset-0">
-            <WhatsNewPage />
+            <PageView key={activePage.id} page={activePage} />
           </div>
         ) : null}
 

@@ -5,6 +5,7 @@
 export {
   Alert02Icon as WarningIcon,
   AppWindowIcon as PreviewIcon,
+  ArrowDataTransferHorizontalIcon as CorsIcon,
   ArrowDown01Icon as ChevronDownIcon,
   ArrowLeft01Icon as BackIcon,
   ArrowRight01Icon as ChevronRightIcon,
@@ -19,6 +20,7 @@ export {
   Delete02Icon as DeleteIcon,
   Download04Icon as DownloadIcon,
   File01Icon as FileIcon,
+  FilterIcon as RulesIcon,
   FlashIcon as LiveIcon,
   FloppyDiskIcon as SaveIcon,
   Folder01Icon as FolderIcon,
@@ -39,7 +41,9 @@ export {
   Search01Icon as SearchIcon,
   Settings02Icon as SettingsIcon,
   SidebarLeftIcon,
+  SlidersHorizontalIcon as HeadersIcon,
   SourceCodeIcon as ExplorerIcon,
   SparklesIcon,
   Tick02Icon as CheckIcon,
+  UnavailableIcon as BlockIcon,
 } from '@hugeicons/core-free-icons';
