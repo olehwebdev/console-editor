@@ -1,4 +1,5 @@
 import type { WorkerType } from '../../../shared/types';
+import { NETWORK_CONDITIONS } from '../../../shared/throttling';
 import { CDP } from '../constants';
 import type { WorkerSession } from './types';
 
@@ -10,6 +11,7 @@ export const WORKER_SESSIONS: Record<WorkerType, WorkerSession> = {
     settings: (s) => [
       [CDP.Network.setCacheDisabled, { cacheDisabled: s.disableCache }],
       [CDP.Network.setBypassServiceWorker, { bypass: s.bypassServiceWorker }],
+      [CDP.Network.emulateNetworkConditions, { ...NETWORK_CONDITIONS[s.throttling] }],
     ],
   },
   shared_worker: {
@@ -18,12 +20,16 @@ export const WORKER_SESSIONS: Record<WorkerType, WorkerSession> = {
     settings: (s) => [
       [CDP.Network.setCacheDisabled, { cacheDisabled: s.disableCache }],
       [CDP.Network.setBypassServiceWorker, { bypass: s.bypassServiceWorker }],
+      [CDP.Network.emulateNetworkConditions, { ...NETWORK_CONDITIONS[s.throttling] }],
     ],
   },
   service_worker: {
     fetch: true,
     pausesScripts: true,
-    settings: (s) => [[CDP.Network.setCacheDisabled, { cacheDisabled: s.disableCache }]],
+    settings: (s) => [
+      [CDP.Network.setCacheDisabled, { cacheDisabled: s.disableCache }],
+      [CDP.Network.emulateNetworkConditions, { ...NETWORK_CONDITIONS[s.throttling] }],
+    ],
   },
   worklet: {
     fetch: false,

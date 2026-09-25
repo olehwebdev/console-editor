@@ -214,6 +214,7 @@ describe('InterceptionEngine', () => {
       'Network.enable',
       'Network.setCacheDisabled',
       'Network.setBypassServiceWorker',
+      'Network.emulateNetworkConditions',
       'Page.setBypassCSP',
       'Page.addScriptToEvaluateOnNewDocument',
     ]);
@@ -578,9 +579,9 @@ describe('InterceptionEngine', () => {
     });
 
     it.each([
-      ['worker', ['Network.enable', 'Network.setCacheDisabled', 'Network.setBypassServiceWorker']],
-      ['shared_worker', ['Fetch.enable', 'Network.enable', 'Network.setCacheDisabled', 'Network.setBypassServiceWorker']],
-      ['service_worker', ['Fetch.enable', 'Network.enable', 'Network.setCacheDisabled']],
+      ['worker', ['Network.enable', 'Network.setCacheDisabled', 'Network.setBypassServiceWorker', 'Network.emulateNetworkConditions']],
+      ['shared_worker', ['Fetch.enable', 'Network.enable', 'Network.setCacheDisabled', 'Network.setBypassServiceWorker', 'Network.emulateNetworkConditions']],
+      ['service_worker', ['Fetch.enable', 'Network.enable', 'Network.setCacheDisabled', 'Network.emulateNetworkConditions']],
       ['worklet', ['Network.enable']],
     ] as const)('sends a %s session its whole setup before attach() awaits anything', (type, methods) => {
       const { transport, engine } = worker(type);
@@ -598,21 +599,25 @@ describe('InterceptionEngine', () => {
       expect(transport.methods().filter((m) => /^(Page|Fetch)\./.test(m))).toEqual([]);
     });
 
-    it("copies the page's cache and service worker settings to a worker session (the page's don't reach what it loads)", async () => {
+    it("copies the page's cache, service worker and network speed settings to a worker session (the page's don't reach what it loads)", async () => {
       const { transport, engine, settings } = worker('worker');
       settings.disableCache = false;
       settings.bypassServiceWorker = false;
       await engine.attach();
+      const unthrottled = { method: 'Network.emulateNetworkConditions', params: { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 } };
       expect(transport.calls.slice(1)).toEqual([
         { method: 'Network.setCacheDisabled', params: { cacheDisabled: false } },
         { method: 'Network.setBypassServiceWorker', params: { bypass: false } },
+        unthrottled,
       ]);
       settings.disableCache = true;
+      settings.throttling = 'offline';
       transport.calls = [];
       await engine.applySettings();
       expect(transport.calls).toEqual([
         { method: 'Network.setCacheDisabled', params: { cacheDisabled: true } },
         { method: 'Network.setBypassServiceWorker', params: { bypass: false } },
+        { method: 'Network.emulateNetworkConditions', params: { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 } },
       ]);
     });
 
@@ -695,7 +700,7 @@ describe('InterceptionEngine', () => {
       void engine.attach();
       transport.calls = [];
       await engine.applySettings();
-      expect(transport.methods()).toEqual(['Network.setCacheDisabled', 'Fetch.enable']);
+      expect(transport.methods()).toEqual(['Network.setCacheDisabled', 'Network.emulateNetworkConditions', 'Fetch.enable']);
     });
 
     it('lists the scripts a worker loads, stamped with the worker', async () => {

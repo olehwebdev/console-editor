@@ -24,6 +24,7 @@ export const CDP = {
     workerScriptLoaded: 'Inspector.workerScriptLoaded',
   },
   Network: {
+    emulateNetworkConditions: 'Network.emulateNetworkConditions',
     enable: 'Network.enable',
     getRequestPostData: 'Network.getRequestPostData',
     getResponseBody: 'Network.getResponseBody',

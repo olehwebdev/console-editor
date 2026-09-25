@@ -7,6 +7,7 @@ import { Input } from '@/shared/ui/input';
 import { BreakpointsButton } from '@/features/network/breakpoints';
 import { clearNetworkLog } from '@/features/network/clear';
 import { useNetworkFilter } from '@/features/network/filter';
+import { ThrottlingMenu } from '@/features/network/throttle';
 import { GroupChips } from './GroupChips';
 
 export interface NetworkToolbarProps {
@@ -37,6 +38,7 @@ export function NetworkToolbar({ heading, onClose }: NetworkToolbarProps) {
           leading={<Icon icon={icons.FilterIcon} size={12} className="text-fg-subtle" />}
           className="w-40 min-w-20 shrink"
         />
+        <ThrottlingMenu />
         <BreakpointsButton />
         <IconButton icon={icons.PinIcon} label="Keep rows when the page loads another page" size="sm" active={keepRows} aria-pressed={keepRows} onClick={toggleKeepRows} />
         <IconButton icon={icons.DeleteIcon} label="Clear the list" size="sm" data-testid="network-clear" onClick={clearNetworkLog} />

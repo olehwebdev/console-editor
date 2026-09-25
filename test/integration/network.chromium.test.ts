@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { PageInterception } from '../../src/main/engine/PageInterception';
 import { NetworkLog } from '../../src/main/network';
 import { defaultMatcherFor } from '../../src/shared/matcher';
-import { DEFAULT_SETTINGS, type AppEvent, type EngineEvent, type NetworkRequest, type Override, type RequestMatch, type ResponseSettings } from '../../src/shared/types';
+import { DEFAULT_SETTINGS, type AppEvent, type EngineEvent, type NetworkRequest, type Override, type RequestMatch, type ResponseSettings, type Settings } from '../../src/shared/types';
 import { BROKEN_PATH, CART_JSON, CART_PATH, EVENTS_PATH, GRAPHQL_JSON, GRAPHQL_PATH, NETWORK_PATH, WORKER_DATA_PATH } from '../fixtures/networkPages';
 import { startFixtureSite, type FixtureSite } from '../fixtures/site';
 import { chromiumAvailable, launchChromium, type ChromiumHarness } from '../helpers/chromium';
@@ -37,6 +37,7 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
   let overrides: Override[];
   /** The text each response override was made from, for patch mode. */
   let bases: Map<string, string>;
+  let settings: Settings;
   let events: EngineEvent[];
   let sent: AppEvent[];
 
@@ -82,6 +83,7 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
   beforeEach(async () => {
     overrides = [];
     bases = new Map();
+    settings = { ...DEFAULT_SETTINGS };
     events = [];
     sent = [];
     const opened = await chrome.newPage();
@@ -92,7 +94,7 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       transport: opened.transport,
       getOverrides: () => overrides,
       getRules: () => [],
-      getSettings: () => ({ ...DEFAULT_SETTINGS }),
+      getSettings: () => settings,
       getOverrideBase: async (id) => bases.get(id) ?? overrides.find((o) => o.id === id)!.content,
       emit: (e) => {
         events.push(e);
@@ -253,6 +255,29 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       await page.reload();
       await waitFor(() => state(`window.lastEvent === 'replaced'`));
       expect(events.some((e) => e.type === 'override-served' && e.overrideId === replaced.id)).toBe(true);
+    });
+  });
+
+  describe('network speed', () => {
+    it('takes the page and its worker offline, slows them down, and gives them back their speed', async () => {
+      await page.goto(url(NETWORK_PATH));
+      await waitFor(() => state('window.workerData && window.cart'));
+
+      settings = { ...settings, throttling: 'offline' };
+      await interception.applySettings();
+      expect(await state(`fetch('${CART_PATH}').then(() => 'ok', (e) => e.name)`)).toBe('TypeError');
+      const before = rows().filter((r) => r.url === url(WORKER_DATA_PATH)).length;
+      await state('askWorker()');
+      expect(await waitFor(() => rows().filter((r) => r.url === url(WORKER_DATA_PATH)).at(before))).toMatchObject({ state: 'failed' });
+
+      settings = { ...settings, throttling: 'slow-4g' };
+      await interception.applySettings();
+      const timed = `(async () => { const t = performance.now(); await (await fetch('${CART_PATH}')).text(); return performance.now() - t; })()`;
+      expect(await state(timed)).toBeGreaterThanOrEqual(500);
+
+      settings = { ...settings, throttling: 'off' };
+      await interception.applySettings();
+      expect(await state(timed)).toBeLessThan(500);
     });
   });
 });
