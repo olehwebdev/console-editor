@@ -50,8 +50,8 @@ describe.skipIf(!built)('Network rules in the app', () => {
     await expect.poll(() => inSite('window.analyticsBlocked === true && window.analyticsRan === undefined && window.trackAppRan === true'), RELOAD_TIMEOUT).toBe(true);
     expect(site.hits(ANALYTICS_JS_PATH)).toBe(hitsBefore);
     // Still listed, marked blocked, and counted.
-    await expect.poll(() => fileRow(win, `${site.url}${ANALYTICS_JS_PATH}`).getAttribute('data-blocked')).toBe('');
-    await expect.poll(async () => Number(await ruleRows().first().getByTestId('rule-hits').textContent())).toBeGreaterThanOrEqual(1);
+    await expect.poll(() => fileRow(win, `${site.url}${ANALYTICS_JS_PATH}`).getAttribute('data-blocked'), RELOAD_TIMEOUT).toBe('');
+    await expect.poll(async () => Number(await ruleRows().first().getByTestId('rule-hits').textContent()), RELOAD_TIMEOUT).toBeGreaterThanOrEqual(1);
   });
 
   it('turning the rule off lets the script run again, and on blocks it', async () => {
