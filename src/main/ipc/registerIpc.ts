@@ -14,6 +14,7 @@ import { loadSiteSourceMap } from '../PageController';
 import { assertSourceMapRequest } from './assertSourceMapRequest';
 import { assertString } from './assertString';
 import { registerActionIpc } from './registerActionIpc';
+import { registerNetworkIpc } from './registerNetworkIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import type { IpcDeps } from './types';
 
@@ -119,6 +120,7 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   handle(IPC_CHANNEL.getConsoleProperties, (handle: unknown) => page.console.properties(handle));
   handle(IPC_CHANNEL.clearConsole, () => page.console.clear());
   registerActionIpc(handle, actions, send);
+  registerNetworkIpc(handle, page.network);
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

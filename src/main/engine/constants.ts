@@ -25,13 +25,18 @@ export const CDP = {
   },
   Network: {
     enable: 'Network.enable',
+    getRequestPostData: 'Network.getRequestPostData',
     getResponseBody: 'Network.getResponseBody',
     setBypassServiceWorker: 'Network.setBypassServiceWorker',
     setCacheDisabled: 'Network.setCacheDisabled',
     // Events
+    loadingFailed: 'Network.loadingFailed',
     loadingFinished: 'Network.loadingFinished',
+    requestServedFromCache: 'Network.requestServedFromCache',
     requestWillBeSent: 'Network.requestWillBeSent',
+    requestWillBeSentExtraInfo: 'Network.requestWillBeSentExtraInfo',
     responseReceived: 'Network.responseReceived',
+    responseReceivedExtraInfo: 'Network.responseReceivedExtraInfo',
   },
   Page: {
     addScriptToEvaluateOnNewDocument: 'Page.addScriptToEvaluateOnNewDocument',

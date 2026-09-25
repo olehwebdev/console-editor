@@ -53,6 +53,12 @@ const api: ConsoleEditorApi = {
   createAction: (input) => ipcRenderer.invoke(IPC_CHANNEL.createAction, input),
   updateAction: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateAction, id, patch),
   deleteAction: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteAction, id),
+
+  listNetworkRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listNetworkRequests),
+  getNetworkRequest: (id) => ipcRenderer.invoke(IPC_CHANNEL.getNetworkRequest, id),
+  getNetworkResponseBody: (id) => ipcRenderer.invoke(IPC_CHANNEL.getNetworkResponseBody, id),
+  clearNetworkLog: () => ipcRenderer.invoke(IPC_CHANNEL.clearNetworkLog),
+
   getSession: () => ipcRenderer.invoke(IPC_CHANNEL.getSession),
   saveSessionTabs: (workspaceId, tabs, activeTabId) => ipcRenderer.invoke(IPC_CHANNEL.saveSessionTabs, workspaceId, tabs, activeTabId),
   getDraft: (tabId) => ipcRenderer.invoke(IPC_CHANNEL.getDraft, tabId),

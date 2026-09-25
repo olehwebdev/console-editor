@@ -2,6 +2,7 @@ import type { Session } from 'electron';
 import type { AppEvent } from '../../shared/types';
 import type { CdpTransport } from '../engine/cdp';
 import { PageInterception, type SessionObserver } from '../engine/PageInterception';
+import type { NetworkLog } from '../network';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SettingsStore } from '../store/SettingsStore';
@@ -15,17 +16,22 @@ export interface PageSources {
   send(event: AppEvent): void;
   /** Fetches live files (for the editor) through the site's session. */
   siteSession: Session;
+  /** Told what the engine did, to mark the requests an override answered. */
+  network: Pick<NetworkLog, 'engineEvent'>;
 }
 
 /** The page's interception: the active workspace's overrides and rules, and the settings, as they are when each request pauses. */
-export function interceptPage(transport: CdpTransport, sessions: SessionObserver, { store, rules, settings, send, siteSession }: PageSources): PageInterception {
+export function interceptPage(transport: CdpTransport, sessions: SessionObserver, { store, rules, settings, send, siteSession, network }: PageSources): PageInterception {
   return new PageInterception({
     transport,
     sessions,
     getOverrides: () => store.list(),
     getRules: () => rules.list(),
     getSettings: () => settings.get(),
-    emit: (event) => send(event),
+    emit: (event) => {
+      network.engineEvent(event);
+      send(event);
+    },
     fallbackFetch: (url) => fetchUncached(siteSession, url),
   });
 }

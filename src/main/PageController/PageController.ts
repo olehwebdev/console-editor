@@ -1,7 +1,8 @@
 import type { BrowserWindow, Session, WebContentsView } from 'electron';
 import type { AppEvent, PageState } from '../../shared/types';
-import { ConsoleService } from '../console';
+import type { ConsoleService } from '../console';
 import type { PageInterception } from '../engine/PageInterception';
+import type { NetworkLog } from '../network';
 import { PageWindow } from '../PageWindow';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { PageWindowStore } from '../store/PageWindowStore';
@@ -10,13 +11,13 @@ import type { SettingsStore } from '../store/SettingsStore';
 import { attachDebugger } from './attachDebugger';
 import { createPageView } from './createPageView';
 import { fetchSiteFavicon } from './fetchSiteFavicon';
-import { interceptPage } from './interceptPage';
 import { openSiteSession } from './openSiteSession';
 import { PageLoader } from './PageLoader';
 import { pageState } from './pageState';
 import { snapshotPage } from './snapshotPage';
 import { watchLoading } from './watchLoading';
 import { windowOpenHandler } from './windowOpenHandler';
+import { wirePage } from './wirePage';
 
 /**
  * Owns the embedded browser view that shows the website, and the interception
@@ -26,8 +27,9 @@ export class PageController {
   readonly view: WebContentsView;
   /** Where the page is shown: in the editor's window or in one of its own. */
   readonly window: PageWindow;
-  /** The console of the page and its frames. */
+  /** The console of the page and its frames, and the requests they (and their workers) send. */
   readonly console: ConsoleService;
+  readonly network: NetworkLog;
   private readonly engine: PageInterception;
   /** The site's session (cookies, logins): reads out of the page go through it, like its favicon and source maps. */
   readonly siteSession: Session;
@@ -37,7 +39,7 @@ export class PageController {
     win: BrowserWindow,
     private readonly store: OverrideStore,
     private readonly rules: RuleStore,
-    private readonly settings: SettingsStore,
+    settings: SettingsStore,
     private readonly send: (event: AppEvent) => void,
     windowStore: PageWindowStore,
   ) {
@@ -53,8 +55,7 @@ export class PageController {
       this.send({ type: 'error', message: `Interception stopped: debugger detached (${reason})` });
     });
 
-    this.console = new ConsoleService({ getSettings: () => this.settings.get(), send: (event) => this.send(event) });
-    this.engine = interceptPage(transport, this.console, { store, rules, settings, send, siteSession: this.siteSession });
+    ({ console: this.console, network: this.network, engine: this.engine } = wirePage(transport, { store, rules, settings, send, siteSession: this.siteSession }));
     this.loader = new PageLoader(wc, this.engine, () => this.pushState());
 
     // A page's "Leave site?" guard would silently cancel reloads after a save,
