@@ -2,11 +2,13 @@ import { motion, useIsPresent, useReducedMotion } from 'motion/react';
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import { KEY } from '@/shared/config';
 import { cn, DURATION, EASE_OUT, SPRING_PANEL, useRegisterOverlay } from '@/shared/lib';
+import { inMenu } from './inMenu';
 import { place } from './place';
 import type { Placement, PopoverProps } from './types';
 
 /** A popover scales in from its anchor, and a little way back as it closes. */
 const SCALE = { enterFrom: 0.94, exitTo: 0.97 } as const;
+
 
 /** The open panel: placed beside its anchor, and closed by what happens outside it. */
 export function PopoverPanel({ onOpenChange, anchor, side = 'right', label, children, className }: PopoverProps) {
@@ -30,9 +32,12 @@ export function PopoverPanel({ onOpenChange, anchor, side = 'right', label, chil
   // Leaving it closes it: listened for on the window while it is on screen (not while it plays its exit).
   useEffect(() => {
     if (!isPresent) return;
-    const inside = (target: EventTarget | null) => target instanceof Node && (!!panelRef.current?.contains(target) || !!anchor?.contains(target));
+    // Its menus count as inside it: choosing from one must not close it.
+    const inside = (target: EventTarget | null) =>
+      target instanceof Node && (!!panelRef.current?.contains(target) || !!anchor?.contains(target) || inMenu(target));
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== KEY.escape || event.isComposing) return;
+      // Esc in one of its menus closes the menu only.
+      if (event.key !== KEY.escape || event.isComposing || inMenu(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
       close(true);

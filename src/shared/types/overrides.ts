@@ -1,4 +1,5 @@
 import type { ResourceKind } from './resources';
+import type { HeaderEdit } from './rules';
 
 /** The match types, in the order the UI offers them. */
 export const MATCH_TYPES = ['exact', 'glob', 'regex'] as const;
@@ -18,6 +19,35 @@ export interface UrlMatcher {
   ignoreQuery: boolean;
 }
 
+/** What a response override (kind `Fetch`) asks of a request besides its URL. */
+export interface RequestMatch {
+  /** An HTTP method in upper case, or `*` for any. A CORS preflight is never answered either way. */
+  method: string;
+  /** The GraphQL operation the request body must name ('' for any body): one `/graphql` URL serves many. */
+  operation: string;
+}
+
+/** How a response override answers, besides its body. */
+export interface ResponseSettings {
+  /** The status the page gets, whatever upstream answered (100–599). */
+  status: number;
+  /** How long the answer is held back, to show the page's loading state (ms). */
+  delayMs: number;
+  /** Changes to the upstream headers, in order, as a header rule's (SPEC §6.3). */
+  headers: HeaderEdit[];
+  /**
+   * Whether the request still goes to the server (answered once its response arrives). Off, it is
+   * answered before it is sent: a POST changes nothing.
+   */
+  send: boolean;
+  /**
+   * Patch live: the page gets the live response with your edits applied (what changed from the text the
+   * override was made from), rather than the saved text as it is; the saved text still answers when
+   * upstream fails. Only for a request that is sent.
+   */
+  patch: boolean;
+}
+
 export interface OverrideMeta {
   id: string;
   kind: ResourceKind;
@@ -25,8 +55,15 @@ export interface OverrideMeta {
   sourceUrl: string;
   match: UrlMatcher;
   enabled: boolean;
-  /** sha256 of the upstream body when the override was created; used to detect upstream changes. */
+  /**
+   * sha256 of the upstream body when the override was created; used to detect upstream changes.
+   * Null for response overrides: API responses change on every call (ids, times).
+   */
   originalHash: string | null;
+  /** Response overrides only; the others match on the URL alone. */
+  request?: RequestMatch;
+  /** Response overrides only; the others answer 200 with the upstream headers. */
+  response?: ResponseSettings;
   createdAt: number;
   updatedAt: number;
 }
@@ -52,10 +89,28 @@ export interface CreateOverrideInput {
   base?: string;
   originalHash: string | null;
   match?: UrlMatcher;
+  /** Response overrides (kind `Fetch`) only: defaults to the source's method, any body. */
+  request?: RequestMatch;
+  /** Response overrides only: defaults to 200, no delay, the upstream headers. */
+  response?: ResponseSettings;
 }
 
 export interface OverridePatch {
   content?: string;
   match?: UrlMatcher;
   enabled?: boolean;
+  /** Response overrides only. */
+  request?: RequestMatch;
+  /** Response overrides only. */
+  response?: ResponseSettings;
 }
+
+/**
+ * Why patch mode answered with the saved text:
+ * - saved: the text it was made from, or the edited one, isn't JSON (nothing to apply)
+ * - live:  the live response isn't JSON, or couldn't be read
+ * - shape: the live response no longer has what was edited (a member gone, a list now an object)
+ */
+export const UNPATCHED_REASONS = ['saved', 'live', 'shape'] as const;
+
+export type UnpatchedReason = (typeof UNPATCHED_REASONS)[number];

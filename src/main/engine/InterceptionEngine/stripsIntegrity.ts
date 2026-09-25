@@ -1,5 +1,7 @@
-import type { Override, Settings } from '../../../shared/types';
-import { DOCUMENT_KIND } from './constants';
+import type { Override, ResourceKind, Settings } from '../../../shared/types';
+
+/** The kinds an SRI hash can refuse once edited: a page's `integrity` attributes cover scripts and stylesheets only. */
+const HASH_CHECKED: Record<ResourceKind, boolean> = { Script: true, Stylesheet: true, Document: false, Fetch: false };
 
 /**
  * Whether documents get their SRI attributes stripped: only while an edited
@@ -8,5 +10,5 @@ import { DOCUMENT_KIND } from './constants';
  * no body read.
  */
 export function stripsIntegrity(overrides: readonly Override[], settings: Settings): boolean {
-  return settings.stripIntegrity && overrides.some((o) => o.enabled && o.kind !== DOCUMENT_KIND);
+  return settings.stripIntegrity && overrides.some((o) => o.enabled && HASH_CHECKED[o.kind]);
 }

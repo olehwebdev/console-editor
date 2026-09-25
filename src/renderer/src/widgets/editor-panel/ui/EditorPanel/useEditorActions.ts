@@ -4,8 +4,8 @@ import { isReadOnlyModel, keybindingOf, type monaco } from '@/shared/monaco';
 import { toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { goToBundle, goToOriginal } from '@/features/open-resource';
-import { saveTab } from '@/features/save-override';
 import { isBundleModel } from '../../lib/isBundleModel';
+import { saveFileTab } from '../../lib/saveFileTab';
 
 /** Monaco action ids, one per action (namespaced so they can't clash with Monaco's own). */
 const ACTION_ID = {
@@ -38,7 +38,7 @@ export function useEditorActions() {
     syncContextKeys();
     const disposables = [
       editor.onDidChangeModel(syncContextKeys),
-      editor.addAction({ id: ACTION_ID.save, label: 'Save Override', keybindings: [keybindingOf(SHORTCUT.save)], run: () => void saveTab() }),
+      editor.addAction({ id: ACTION_ID.save, label: 'Save Override', keybindings: [keybindingOf(SHORTCUT.save)], run: () => saveFileTab() }),
       editor.addAction({
         id: ACTION_ID.format,
         label: 'Pretty-print Document',

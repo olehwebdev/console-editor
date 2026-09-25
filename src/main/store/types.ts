@@ -1,5 +1,5 @@
 import type { RuleInputOf } from '../../shared/rules';
-import type { Override, OverrideMeta, Rule, RuleAction, SessionTab, WorkspaceColor, WorkspaceIcon } from '../../shared/types';
+import type { Breakpoint, Override, OverrideMeta, Rule, RuleAction, SessionTab, WorkspaceColor, WorkspaceIcon } from '../../shared/types';
 
 /** An override as kept here, with the workspace it belongs to. */
 export type StoredOverride = Override & { workspaceId: string };
@@ -35,6 +35,8 @@ export interface WorkspaceRecord {
   activeTabId: string | null;
   /** Names given to the page's frames in the console, by frame address. */
   frameNames: Record<string, string>;
+  /** Where the page's fetch() and XHR requests stop. */
+  breakpoints: Breakpoint[];
 }
 
 /** The session file's contents: every workspace, and the one in use. */

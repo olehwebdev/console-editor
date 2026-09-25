@@ -12,8 +12,8 @@ export interface FetchPattern {
 /** Subset of `Fetch.requestPaused` params that we use. At the Response stage iff it has a status or an error reason. */
 export interface RequestPausedParams {
   requestId: string;
-  /** `headers`: Network.Headers as sent (names in any case). */
-  request: { url: string; method: string; headers?: Record<string, string> };
+  /** `headers`: Network.Headers as sent (names in any case); `postData`: its body, when it is text (probed: in full at 200 KB). */
+  request: { url: string; method: string; headers?: Record<string, string>; postData?: string };
   resourceType: string;
   /** The frame that made the request; for a navigation, the frame navigating. */
   frameId?: string;

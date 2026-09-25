@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { _electron as electron, type ElectronApplication, type Locator, type Page } from 'playwright-core';
+import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startFixtureSite, type FixtureSite } from '../fixtures/site';
 
@@ -56,13 +56,17 @@ async function pageWindow(app: ElectronApplication): Promise<Page> {
 }
 
 /**
- * Clicks `button`, which closes the window it is in. Playwright waits on the page after a click (and on an
- * evaluate's answer, which can lose the race with the message the click sends), so either fails when the window
- * closes first. This clicks once its call has returned; the caller then waits for the window to go.
+ * Clicks the website window's button that puts the website back, which closes that window. Main destroys it
+ * as the click lands, and Playwright's click, still waiting on the page, can then reject though it did its job:
+ * the rejection counts only if the window is still open. The callers check where the website went.
  */
-async function clickClosing(button: Locator): Promise<void> {
-  await button.waitFor();
-  await button.evaluate((el) => void setTimeout(() => el.click()));
+async function putBack(own: Page): Promise<void> {
+  await own
+    .getByRole('button', { name: 'Put back in the editor window' })
+    .click()
+    .catch((err: unknown) => {
+      if (!own.isClosed()) throw err;
+    });
 }
 
 /** Which window shows the site's view (by its UI's location hash, '' for the editor), with the view's and the window's bounds. */
@@ -161,7 +165,7 @@ describe.skipIf(!built)('The website in a window of its own', () => {
   it("goes back into the editor from its toolbar's button", async () => {
     const own = await pageWindow(app);
     await inSite('window.marker = 43');
-    await clickClosing(own.getByRole('button', { name: 'Put back in the editor window' }));
+    await putBack(own);
     await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
     await expect.poll(async () => (await host())?.hash).toBe('');
     await expect.poll(async () => (await host())?.view.width).toBeGreaterThan(0);
@@ -230,7 +234,7 @@ describe.skipIf(!built)('The website in a window of its own', () => {
       }, `${site.url}/frames.html?popup`);
     await expect.poll(popupParent, WINDOW_TIMEOUT).toMatch(PAGE_WINDOW_URL);
 
-    await clickClosing((await pageWindow(app)).getByRole('button', { name: 'Put back in the editor window' }));
+    await putBack(await pageWindow(app));
     await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
     await expect.poll(popupParent).toMatch(EDITOR_URL);
     await app.evaluate(({ BrowserWindow }, url) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL() === url)?.close(), `${site.url}/frames.html?popup`);
@@ -260,7 +264,7 @@ describe.skipIf(!built)('The website in a window of its own', () => {
     await clickMenu(['Website in Its Own Window', 'Focus Address Bar']);
     const own = await pageWindow(app);
     await expect.poll(() => own.getByTestId('address-bar').evaluate((el) => el === el.ownerDocument.activeElement)).toBe(true);
-    await clickClosing(own.getByRole('button', { name: 'Put back in the editor window' }));
+    await putBack(own);
     await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
   });
 
