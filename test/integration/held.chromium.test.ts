@@ -184,7 +184,9 @@ describe.skipIf(!chromiumAvailable)('held and unsent requests in Chromium', () =
 
     it('lets go of everything it holds when interception stops', async () => {
       await setBreakpoints(CART_PATH, 'response');
-      void call('tryCart()');
+      // Letting go sends the fetch on, but the page may close after the test before it settles: its
+      // answer doesn't matter here.
+      void call('tryCart()').catch(() => undefined);
       await heldNow();
       interception.detach();
       expect(log.held.list()).toEqual([]);
