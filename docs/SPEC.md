@@ -573,6 +573,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - ✅ Workspaces: a page, tabs and overrides per site or task (§5.1).
 - Export/import a workspace's overrides as a zip or JSON, so a teammate can reproduce your fix.
 - ✅ Response header overrides (CORS, CSP, cache) and request blocking (e.g. disable an analytics script): rules (§6.3).
+- Network panel: the page's requests, with response overrides and breakpoints for fetch/XHR and a JSON editor (research: [NETWORK_PANEL.md](NETWORK_PANEL.md)).
 - Search across all page resources (find which bundle defines a function).
 - Docked/undocked page view, and responsive device presets.
 
