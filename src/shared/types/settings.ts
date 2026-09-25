@@ -1,3 +1,8 @@
+/** How fast the page's network is made to be: as it is, like a mobile connection, or offline. */
+export const THROTTLING_PRESETS = ['off', 'fast-4g', 'slow-4g', '3g', 'offline'] as const;
+
+export type Throttling = (typeof THROTTLING_PRESETS)[number];
+
 export interface Settings {
   /** Reload the page after an override is saved. */
   autoReloadOnSave: boolean;
@@ -19,7 +24,12 @@ export interface Settings {
   captureConsole: boolean;
   /** Put a stand-in for the React DevTools hook in every new document, so the page stack can tell which React a frame runs. */
   frameworkHooks: boolean;
+  /** The network speed the page, its iframes and its workers get (the app's own requests aren't slowed). */
+  throttling: Throttling;
 }
+
+/** The settings that are on or off (a switch each). */
+export type SwitchSetting = { [K in keyof Settings]: Settings[K] extends boolean ? K : never }[keyof Settings];
 
 export const DEFAULT_SETTINGS: Settings = {
   autoReloadOnSave: true,
@@ -32,4 +42,5 @@ export const DEFAULT_SETTINGS: Settings = {
   checkForUpdates: true,
   captureConsole: true,
   frameworkHooks: true,
+  throttling: 'off',
 };

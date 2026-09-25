@@ -72,6 +72,8 @@ export class WorkspaceController {
 
   async update(id: unknown, patch: WorkspacePatch): Promise<Workspace> {
     const updated = await this.session.update(id, patch);
+    // Breakpoints stop requests from the next one: the page pauses what they name.
+    if (patch?.breakpoints !== undefined) await this.page.breakpointsChanged();
     this.pushState();
     return updated;
   }

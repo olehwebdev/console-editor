@@ -14,6 +14,7 @@ export * from './input';
 export * from './kbd';
 export * from './markdown';
 export * from './menu';
+export * from './pane-tabs';
 export * from './panel-resizer';
 export * from './popover';
 export * from './section';

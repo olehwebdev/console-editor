@@ -32,7 +32,7 @@ const entry = (partial: Partial<ConsoleEntry> = {}): ConsoleEntry => ({
   values: [{ kind: 'string', text: 'hello' }],
   ...partial,
 });
-const workspace = (frameNames: Record<string, string> = {}): Workspace => ({ id: 'w1', name: '', host: '', title: '', icon: 'favicon', color: 'ember', frameNames });
+const workspace = (frameNames: Record<string, string> = {}): Workspace => ({ id: 'w1', name: '', host: '', title: '', icon: 'favicon', color: 'ember', frameNames, breakpoints: [] });
 
 beforeEach(() => {
   vi.clearAllMocks();

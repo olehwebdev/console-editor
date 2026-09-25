@@ -6,6 +6,7 @@ const DEFAULT_CONTENT_TYPES: Record<ResourceKind, string> = {
   Script: 'text/javascript',
   Stylesheet: 'text/css',
   Document: HTML_MIME_TYPE,
+  Fetch: 'application/json',
 };
 
 /** The type an override of `kind` is served as when upstream sent none. */

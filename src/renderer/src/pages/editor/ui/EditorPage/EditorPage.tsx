@@ -12,10 +12,10 @@ import { StatusBar } from '@/widgets/status-bar';
 import { TitleBar } from '@/widgets/title-bar';
 import { usePageStore } from '@/entities/page';
 import { useLayout } from '../../model/layout';
-import { focusAddressBar } from './focusAddressBar';
 import { BottomPanel } from './BottomPanel';
 import { ConsolePane } from './ConsolePane';
 import { SIDEBAR_VIEWS } from './constants';
+import { focusAddressBar } from './focusAddressBar';
 import { followRowWidth } from './followRowWidth';
 import { newAction } from './newAction';
 import { pageCommands } from './pageCommands';
@@ -26,6 +26,7 @@ import { removeWorkspace } from './removeWorkspace';
 import { setAddressBar } from './setAddressBar';
 import { shortcutKey } from './shortcutKey';
 import { showExplorer } from './showExplorer';
+import { showNetwork } from './showNetwork';
 import { showSettings } from './showSettings';
 import { SidebarPane } from './SidebarPane';
 import { toggleWebsitePreview } from './toggleWebsitePreview';
@@ -118,7 +119,7 @@ export function EditorPage() {
           </div>
           {consoleVisible ? (
             <ConsolePane>
-              <BottomPanel onClose={toggleConsole} />
+              <BottomPanel />
             </ConsolePane>
           ) : null}
         </main>
@@ -139,6 +140,7 @@ export function EditorPage() {
         onNewWorkspace={newWorkspace}
         onToggleConsole={toggleConsole}
         onNewAction={newAction}
+        onShowNetwork={showNetwork}
         onShowRenders={pageCommands.showRenders}
       />
     </div>

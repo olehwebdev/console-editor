@@ -8,8 +8,8 @@ import { RendersNotice } from './RendersNotice';
 import { RendersToolbar } from './RendersToolbar';
 
 export interface RendersPanelProps {
-  /** The panel's tabs, in the toolbar's title place. */
-  title: ReactNode;
+  /** The pane's tabs, in the toolbar's heading place. */
+  heading: ReactNode;
   onClose(): void;
 }
 
@@ -18,7 +18,7 @@ export interface RendersPanelProps {
  * was triggered by, and each component that mounted, rendered (and why: its
  * props, state, a store, a context, its parent) or was skipped.
  */
-export function RendersPanel({ title, onClose }: RendersPanelProps) {
+export function RendersPanel({ heading, onClose }: RendersPanelProps) {
   const commits = useRenderLog((s) => s.commits);
   const recording = useRenderLog((s) => s.recording);
   const frames = useFrameStore((s) => s.frames);
@@ -27,7 +27,7 @@ export function RendersPanel({ title, onClose }: RendersPanelProps) {
   const shown = commits.slice(-MAX_SHOWN).reverse();
   return (
     <section aria-label="Renders" data-testid="renders-panel" className="flex h-full min-h-0 flex-col bg-surface-editor">
-      <RendersToolbar title={title} onClose={onClose} />
+      <RendersToolbar heading={heading} onClose={onClose} />
       <RendersNotice />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {shown.map((commit) => (

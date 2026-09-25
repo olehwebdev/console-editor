@@ -3,10 +3,13 @@ import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
 import { useInspectorStore, useRenderLog } from '@/entities/inspector';
+import { useNetworkStore } from '@/entities/network-request';
 import { usePageStackStore } from '@/entities/page-stack';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
+import { receiveRequests } from '@/features/network/filter';
+import { receiveHeld } from '@/features/network/held';
 import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
 import { answerFlushSession } from './events/answerFlushSession';
@@ -19,6 +22,7 @@ import { showAppError } from './events/showAppError';
 import { syncOverrides } from './events/syncOverrides';
 import { syncRules } from './events/syncRules';
 import { warnOverrideMissed } from './events/warnOverrideMissed';
+import { warnOverrideUnpatched } from './events/warnOverrideUnpatched';
 import { warnRuleMissed } from './events/warnRuleMissed';
 import { warnUpstreamChanged } from './events/warnUpstreamChanged';
 import { queueIframeDrop } from './resources/queueIframeDrop';
@@ -35,6 +39,7 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'override-served': (event) => useOverrideStore.getState().hit(event.overrideId),
   'upstream-changed': warnUpstreamChanged,
   'override-missed': warnOverrideMissed,
+  'override-unpatched': warnOverrideUnpatched,
   'rule-applied': (event) => queueRuleHit(event),
   'rule-missed': warnRuleMissed,
   error: showAppError,
@@ -53,6 +58,9 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'renders-recording': (event) => useRenderLog.getState().setRecording(event.recording),
   'renders-recorded': (event) => receiveRenders(event.commits),
   'actions-changed': (event) => useActionStore.getState().setAll(event.actions),
+  'network-requests': (event) => receiveRequests(event.requests),
+  'network-cleared': () => useNetworkStore.getState().clear(),
+  'held-requests': (event) => receiveHeld(event.held),
   'actions-window': (event) => useActionStore.getState().setWindow(event.state),
   'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),
   command: (event) => runCommand(event.command),
