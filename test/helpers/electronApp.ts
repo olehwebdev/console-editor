@@ -74,3 +74,17 @@ export async function goTo(win: Page, url: string): Promise<void> {
 }
 
 export const fileRow = (win: Page, url: string) => win.locator(`[data-testid="resource-row"][data-url="${url}"]`);
+
+/**
+ * Clicks the app menu item labelled `label` (at any depth), as its accelerator would. Key presses
+ * Playwright sends go through DevTools input, which Chromium never hands to the browser's own
+ * shortcuts when the page leaves them unhandled, so a menu accelerator can't be pressed from a test.
+ */
+export function clickMenuItem(app: ElectronApplication, label: string): Promise<boolean> {
+  return app.evaluate(({ BrowserWindow, Menu }, label) => {
+    const all = (items: Electron.MenuItem[]): Electron.MenuItem[] => items.flatMap((item) => [item, ...(item.submenu ? all(item.submenu.items) : [])]);
+    const item = all(Menu.getApplicationMenu()?.items ?? []).find((i) => i.label === label);
+    item?.click(undefined, BrowserWindow.getAllWindows()[0], undefined as never);
+    return !!item;
+  }, label);
+}
