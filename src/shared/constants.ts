@@ -15,6 +15,9 @@ export const MAX_WORKSPACE_NAME = 40;
 /** The console rows kept, in the main process and in the panel; older ones drop off. */
 export const MAX_CONSOLE_ENTRIES = 5000;
 
+/** The network requests kept, in the main process and in the panel; older ones drop off. */
+export const MAX_NETWORK_REQUESTS = 2000;
+
 /** The longest name a frame can be given in the console. */
 export const MAX_FRAME_NAME = 40;
 

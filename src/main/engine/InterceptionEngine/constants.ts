@@ -1,4 +1,5 @@
 import { CDP_WILDCARD } from '../../../shared/matcher';
+import { RESPONSE_KIND } from '../../../shared/overrides';
 import type { ResourceKind } from '../../../shared/types';
 import type { FetchPattern } from './types';
 
@@ -7,6 +8,18 @@ export const DOCUMENT_KIND = 'Document' satisfies ResourceKind;
 
 /** The kind, and CDP resource type, of scripts. */
 export const SCRIPT_KIND = 'Script' satisfies ResourceKind;
+
+/** The kind of a response override: what fetch() and XMLHttpRequest get. */
+export const FETCH_KIND = RESPONSE_KIND;
+
+/**
+ * The CDP resource type Fetch pauses fetch() and XHR requests as (probed in Chromium 141 and 152: both
+ * are `XHR`, and a pattern for `Fetch` pauses nothing in 141).
+ */
+export const XHR_RESOURCE_TYPE = 'XHR';
+
+/** The resource types a response override answers: `Fetch` too, for a Chromium that reports it. */
+export const FETCH_RESOURCE_TYPES: ReadonlySet<string> = new Set([XHR_RESOURCE_TYPE, FETCH_KIND]);
 
 /**
  * The CDP resource type of requests that fit no other. Workers load scripts

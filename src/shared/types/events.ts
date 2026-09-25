@@ -1,6 +1,7 @@
 import type { ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { MenuCommand } from './menu';
+import type { NetworkRequest } from './network';
 import type { OverrideMeta } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
@@ -24,7 +25,8 @@ export type EngineEvent =
   /** An enabled override matched a file the page received unmodified (e.g. a Chromium interception gap). */
   | { type: 'override-missed'; overrideId: string; url: string; reason?: MissedReason }
   | { type: 'resource'; resource: ResourceEntry }
-  | { type: 'override-served'; overrideId: string; url: string }
+  /** An override answered a request; `requestId` is its network request id, when Chromium gave one. */
+  | { type: 'override-served'; overrideId: string; url: string; requestId?: string }
   | { type: 'upstream-changed'; overrideId: string; url: string }
   /** A rule blocked a request, or changed its response's headers (one event per rule that changed something). */
   | { type: 'rule-applied'; ruleId: string; url: string }
@@ -51,6 +53,9 @@ export type AppEvent =
   | { type: 'console-cleared' }
   /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
   | { type: 'actions-changed'; actions: ConsoleAction[] }
+  /** Requests new to the log, or changed (a response arrived, it finished or failed), oldest first. */
+  | { type: 'network-requests'; requests: NetworkRequest[] }
+  | { type: 'network-cleared' }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };

@@ -55,6 +55,10 @@ export const IPC_CHANNEL = {
   createAction: 'actions:create',
   updateAction: 'actions:update',
   deleteAction: 'actions:delete',
+  listNetworkRequests: 'network:list',
+  getNetworkRequest: 'network:request',
+  getNetworkResponseBody: 'network:body',
+  clearNetworkLog: 'network:clear',
 
   getSession: 'session:get',
   saveSessionTabs: 'session:tabs',

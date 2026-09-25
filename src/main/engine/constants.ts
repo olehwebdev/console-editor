@@ -113,5 +113,8 @@ export const CONTENT_TYPE = 'content-type';
 /** HTML's media type: what a document is taken to be when upstream sends no Content-Type. */
 export const HTML_MIME_TYPE = 'text/html';
 
+/** An event stream's media type: its body is never read while it is open (reading one ends it for the page). */
+export const EVENT_STREAM_MIME_TYPE = 'text/event-stream';
+
 /** Fetch.failRequest's reason for a request a rule blocked (shows as net::ERR_BLOCKED_BY_CLIENT). */
 export const BLOCKED_BY_CLIENT = 'BlockedByClient';

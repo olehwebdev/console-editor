@@ -10,11 +10,13 @@ export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, Console
 export { CONSOLE_LEVELS } from './console';
 export type { AppEvent, EngineEvent } from './events';
 export type { MenuCommand } from './menu';
-export type { CreateOverrideInput, MatchType, Override, OverrideMeta, OverridePatch, OverrideWithContent, UrlMatcher } from './overrides';
+export type { HttpHeader, NetworkBody, NetworkBodyGap, NetworkRequest, NetworkRequestDetail, NetworkRequestState } from './network';
+export { NETWORK_BODY_GAPS, NETWORK_REQUEST_STATES } from './network';
+export type { CreateOverrideInput, MatchType, Override, OverrideMeta, OverridePatch, OverrideWithContent, RequestMatch, ResponseSettings, UrlMatcher } from './overrides';
 export { MATCH_TYPES } from './overrides';
 export type { PageState, Rect } from './page';
-export type { ResourceContent, ResourceEntry, ResourceKind } from './resources';
-export { RESOURCE_KINDS } from './resources';
+export type { FileKind, ResourceContent, ResourceEntry, ResourceKind } from './resources';
+export { FILE_KINDS, RESOURCE_KINDS } from './resources';
 export type { BlockRule, CorsRule, CreateRuleInput, HeaderEdit, HeaderOperation, HeaderRule, Rule, RuleAction, RuleBase, RuleOf, RulePatch, RuleResourceType } from './rules';
 export { HEADER_OPERATIONS, RULE_ACTIONS, RULE_RESOURCE_TYPES } from './rules';
 export type { SessionDraft, SessionState, SessionTab } from './session';

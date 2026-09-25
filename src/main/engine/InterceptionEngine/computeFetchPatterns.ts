@@ -1,17 +1,21 @@
 import { toCdpUrlPattern } from '../../../shared/matcher';
-import type { Override, Rule, Settings } from '../../../shared/types';
+import type { Override, ResourceKind, Rule, Settings } from '../../../shared/types';
 import { RULE_ACTION_SPECS } from '../rules/constants';
-import { ANY_URL, DOCUMENT_KIND, OTHER_RESOURCE_TYPE, SCRIPT_KIND } from './constants';
+import { ANY_URL, DOCUMENT_KIND, OTHER_RESOURCE_TYPE, SCRIPT_KIND, XHR_RESOURCE_TYPE } from './constants';
 import { stripsIntegrity } from './stripsIntegrity';
 import type { FetchPattern } from './types';
 
 /** Joins a pattern's stage, URL and resource type into the key patterns are deduplicated by. */
 const KEY_SEPARATOR = '|';
 
+/** The CDP resource type a regex override of each kind pauses: a response override's fetch() and XHR are both `XHR`. */
+const PATTERN_TYPE: Record<ResourceKind, string> = { Document: 'Document', Script: 'Script', Stylesheet: 'Stylesheet', Fetch: XHR_RESOURCE_TYPE };
+
 /**
  * Pauses only the requests that an override, SRI stripping or a rule could
  * apply to. Exact/glob overrides get a precise URL pattern; regex overrides
- * fall back to "every request of this resource type". Workers load scripts
+ * fall back to "every request of this resource type" (`XHR` for a response
+ * override: fetch() and XHR are both paused as that). Workers load scripts
  * as `Other` too (a worker's first script, static module imports), so script
  * overrides also pause those.
  *
@@ -31,7 +35,7 @@ export function computeFetchPatterns(overrides: Override[], rules: readonly Rule
       add({ urlPattern, requestStage: 'Response' });
       continue;
     }
-    add({ urlPattern, resourceType: o.kind, requestStage: 'Response' });
+    add({ urlPattern, resourceType: PATTERN_TYPE[o.kind], requestStage: 'Response' });
     if (o.kind === SCRIPT_KIND) add({ urlPattern, resourceType: OTHER_RESOURCE_TYPE, requestStage: 'Response' });
   }
   if (stripsIntegrity(overrides, settings)) {

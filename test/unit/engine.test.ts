@@ -263,7 +263,7 @@ describe('InterceptionEngine', () => {
     expect(fulfill?.params?.responseCode).toBe(200);
     expect(Buffer.from(String(fulfill?.params?.body), 'base64').toString()).toBe('patched();');
     expect(fulfill?.params?.responseHeaders).toContainEqual({ name: 'Content-Type', value: 'application/javascript; charset=utf-8' });
-    expect(events).toContainEqual({ type: 'override-served', overrideId: 'o1', url: 'https://a.com/app.js?v=2' });
+    expect(events).toContainEqual({ type: 'override-served', overrideId: 'o1', url: 'https://a.com/app.js?v=2', requestId: 'n1' });
 
     transport.emit('Network.responseReceived', {
       requestId: 'n1',
@@ -1415,7 +1415,7 @@ describe('InterceptionEngine: Response stage (header and CORS rules)', () => {
       { name: 'Content-Type', value: 'text/javascript; charset=utf-8' },
     ]);
     expect(events).toEqual([
-      { type: 'override-served', overrideId: 'o1', url: 'https://a.com/app.js' },
+      { type: 'override-served', overrideId: 'o1', url: 'https://a.com/app.js', requestId: 'n1' },
       { type: 'rule-applied', ruleId: 'h1', url: 'https://a.com/app.js' },
     ]);
   });
