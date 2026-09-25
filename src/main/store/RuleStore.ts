@@ -32,8 +32,11 @@ interface IndexFile {
  * Entries this build can't read (a newer build's action or request type, a
  * hand edit) are never listed or applied, and are written back verbatim, last.
  * A file that isn't JSON of that shape is moved aside to rules.json.broken
- * (`setAside`) and the store starts empty: a secondary file never leaves the
- * app without a window, and the user's file is kept.
+ * (`setAside`) and the store starts empty. A file that can't be read, or
+ * moved aside, is left as it is and the store starts empty and `locked`:
+ * every change is refused, so it is never written over. Either way a
+ * secondary file never leaves the app without a window, and the user's file
+ * is kept.
  *
  * Changes run one at a time and reach memory (and so the engine) only once
  * they are on disk. `list` (what the engine applies) and `forRenderer` cover
@@ -50,6 +53,8 @@ export class RuleStore {
   private active: StoredRule[] = [];
   /** Where an unreadable rules.json was moved at load, if it was. */
   setAside: string | undefined;
+  /** Why changes are refused: rules.json couldn't be read or moved aside, and is left untouched. */
+  locked: string | undefined;
 
   constructor(readonly dir: string) {}
 
@@ -64,7 +69,9 @@ export class RuleStore {
       text = await readFile(this.indexPath, 'utf8');
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === FILE_NOT_FOUND) return;
-      throw new Error(`Could not read ${this.indexPath}: ${(err as Error).message}`);
+      this.locked = `${this.indexPath} could not be read (${(err as Error).message}); rules can't be changed until it can`;
+      console.warn(this.locked);
+      return;
     }
     const entries = this.parse(text);
     if (!entries) {
@@ -190,7 +197,8 @@ export class RuleStore {
       this.setAside = broken;
       console.warn(`${this.indexPath} could not be read; it was kept as ${broken} and the app starts with no rules`);
     } catch (err) {
-      console.warn(`${this.indexPath} could not be read or moved aside; the app starts with no rules`, err);
+      this.locked = `${this.indexPath} isn't valid and couldn't be moved aside (${(err as Error).message}); rules can't be changed until it is fixed or removed`;
+      console.warn(this.locked);
     }
   }
 
@@ -204,6 +212,8 @@ export class RuleStore {
    * leaves memory as it was.
    */
   private mutate<T>(change: (state: RuleState) => T): Promise<T> {
+    // Writing would replace a file that couldn't be read.
+    if (this.locked) return Promise.reject(new Error(this.locked));
     const run = this.writes.then(async () => {
       const next: RuleState = { rules: new Map(this.rules), foreign: [...this.foreign] };
       const result = change(next);

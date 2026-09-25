@@ -444,8 +444,11 @@ export class InterceptionEngine {
 
     const raw = await this.readPausedRaw(p);
     if (!raw) {
+      // The caller passes the head on with the rules anyway: what Chromium reads before the body (CSP, X-Frame-Options, Content-Type) can't change that way.
       if (ruled.applied.length > 0) {
-        this.report(`Could not re-serve ${p.request.url} to change its headers; security headers such as CSP stay as the server sent them`);
+        this.report(
+          `Could not re-serve ${p.request.url}: its other header changes still apply, but Content-Security-Policy, X-Frame-Options and Content-Type stay as the server sent them`,
+        );
       }
       return false;
     }

@@ -171,7 +171,10 @@ describe('rule matching', () => {
     expect(ruleTypeOf('TextTrack')).toBe('Media');
     expect(ruleTypeOf('Ping')).toBe('Ping');
     expect(ruleTypeOf('Script')).toBe('Script');
-    expect(ruleTypeOf('Prefetch')).toBe('Other');
+    // Builds that report these as Network does still reach a Fetch/XHR filter.
+    expect(ruleTypeOf('Preflight')).toBe('XHR');
+    expect(ruleTypeOf('Prefetch')).toBe('XHR');
+    expect(ruleTypeOf('WebSocket')).toBe('Other');
     expect(ruleTypeOf('constructor')).toBe('Other');
   });
 
@@ -195,17 +198,19 @@ describe('rule matching', () => {
     expect(findResponseRules(rules, 'https://a.com/x.js', 'Script', matchers).map((r) => r.id)).toEqual(['h-old', 'c', 'h-new']);
   });
 
-  it('compiles each matcher once, keyed by the matcher itself', () => {
+  it('compiles each matcher object once, until cleared', () => {
     const cache = new MatcherCache();
-    const one = cache.predicate(exact('https://a.com/'));
-    expect(cache.predicate({ ...exact('https://a.com/') })).toBe(one);
-    const noQuery = cache.predicate({ ...exact('https://a.com/'), ignoreQuery: false });
+    const match = exact('https://a.com/');
+    const one = cache.predicate(match);
+    expect(cache.predicate(match)).toBe(one);
+    const noQuery = cache.predicate({ ...match, ignoreQuery: false });
     expect(noQuery).not.toBe(one);
     expect(one('https://a.com/?q')).toBe(true);
     expect(noQuery('https://a.com/?q')).toBe(false);
+    // Another object (a store replaced the rule) gets its own predicate.
     expect(cache.predicate({ type: 'glob', pattern: 'https://a.com/', ignoreQuery: true })).not.toBe(one);
     cache.clear();
-    expect(cache.predicate(exact('https://a.com/'))).not.toBe(one);
+    expect(cache.predicate(match)).not.toBe(one);
   });
 });
 
