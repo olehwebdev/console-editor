@@ -1,19 +1,19 @@
 import type { BrowserWindow, Session, WebContentsView } from 'electron';
-import type { AppEvent, PageState, Rect } from '../../shared/types';
+import type { AppEvent, PageState } from '../../shared/types';
 import { ConsoleService } from '../console';
 import { PageInterception } from '../engine/PageInterception';
-import { loadFavicon } from '../favicon';
+import { PageWindow } from '../PageWindow';
+import type { PageWindowStore } from '../store/PageWindowStore';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { SettingsStore } from '../store/SettingsStore';
 import { attachDebugger } from './attachDebugger';
 import { createPageView } from './createPageView';
+import { fetchSiteFavicon } from './fetchSiteFavicon';
 import { fetchUncached } from './fetchUncached';
 import { openSiteSession } from './openSiteSession';
 import { PageLoader } from './PageLoader';
 import { pageState } from './pageState';
-import { shrinkFavicon } from './shrinkFavicon';
 import { snapshotPage } from './snapshotPage';
-import { toViewBounds } from './toViewBounds';
 import { watchLoading } from './watchLoading';
 import { windowOpenHandler } from './windowOpenHandler';
 
@@ -23,6 +23,8 @@ import { windowOpenHandler } from './windowOpenHandler';
  */
 export class PageController {
   readonly view: WebContentsView;
+  /** Where the page is shown: in the editor's window or in one of its own. */
+  readonly window: PageWindow;
   /** The console of the page and its frames. */
   readonly console: ConsoleService;
   private readonly engine: PageInterception;
@@ -34,9 +36,12 @@ export class PageController {
     private readonly store: OverrideStore,
     private readonly settings: SettingsStore,
     private readonly send: (event: AppEvent) => void,
+    windowStore: PageWindowStore,
   ) {
-    this.siteSession = openSiteSession(win);
+    // Permission prompts and pop-ups go to the window showing the site.
+    this.siteSession = openSiteSession(() => this.window.host);
     this.view = createPageView(win, this.siteSession);
+    this.window = new PageWindow({ editor: win, view: this.view, store: windowStore, moved: () => this.pushState() });
 
     const wc = this.view.webContents;
     const transport = attachDebugger(wc, (reason) => {
@@ -59,7 +64,7 @@ export class PageController {
     // A page's "Leave site?" guard would silently cancel reloads after a save,
     // Back/Forward and typed URLs (Electron shows no dialog): the editor wins.
     wc.on('will-prevent-unload', (event) => event.preventDefault());
-    wc.setWindowOpenHandler(windowOpenHandler(win, (url) => void this.navigate(url)));
+    wc.setWindowOpenHandler(windowOpenHandler(() => this.window.host, (url) => void this.navigate(url)));
     watchLoading(wc, () => this.pushState(), (event) => this.send(event));
   }
 
@@ -68,11 +73,14 @@ export class PageController {
   }
 
   private pushState(): void {
-    this.send({ type: 'page-state', state: this.state() });
+    const state = this.state();
+    this.send({ type: 'page-state', state });
+    // The website's own window, if it has one, shows it too.
+    this.window.showState(state);
   }
 
   state(): PageState {
-    return pageState(this.view.webContents);
+    return pageState(this.view.webContents, this.window.detached);
   }
 
   /** Loads `input`. With `fresh`, what came before it is dropped from Back once it has loaded (a workspace's page). */
@@ -91,11 +99,7 @@ export class PageController {
 
   /** The site's icon as a small data URL, from the candidates in `page-favicon-updated`; null if none loads. */
   fetchFavicon(candidates: string[]): Promise<string | null> {
-    return loadFavicon(candidates, {
-      // Through the site's session, like the page's own request for it (an intranet site may want its cookies).
-      fetch: (url) => this.siteSession.fetch(url, { credentials: 'include' }),
-      shrink: shrinkFavicon,
-    });
+    return fetchSiteFavicon(this.siteSession, candidates);
   }
 
   /** Reloads the page, first asking service workers that run outdated code to unregister (see `prepareReload`). */
@@ -120,10 +124,6 @@ export class PageController {
 
   openDevTools(): void {
     this.view.webContents.openDevTools({ mode: 'detach' });
-  }
-
-  setBounds(rect: Rect): void {
-    this.view.setBounds(toViewBounds(rect));
   }
 
   listResources() {

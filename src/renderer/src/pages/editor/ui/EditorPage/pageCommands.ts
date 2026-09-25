@@ -4,7 +4,7 @@ import { useLayout } from '../../model/layout';
 import { focusAddressBar } from './focusAddressBar';
 
 // Actions never change, so they are read once instead of subscribed to.
-const { toggleSidebar, toggleConsole } = useLayout.getState();
+const { toggleSidebar, toggleConsole, togglePreview } = useLayout.getState();
 const { toggle: togglePalette } = usePalette.getState();
 
 /** What the app menu can ask of the page (menu shortcuts also work while the website has focus). */
@@ -13,6 +13,8 @@ export interface PageCommands {
   togglePalette(): void;
   toggleSidebar(): void;
   toggleConsole(): void;
+  /** Shows the website preview (the website is back from its own window). */
+  showPreview(): void;
 }
 
 export const pageCommands: PageCommands = {
@@ -26,5 +28,8 @@ export const pageCommands: PageCommands = {
   },
   toggleConsole: () => {
     if (!isConfirmOpen()) toggleConsole();
+  },
+  showPreview: () => {
+    if (!useLayout.getState().previewVisible) togglePreview();
   },
 };

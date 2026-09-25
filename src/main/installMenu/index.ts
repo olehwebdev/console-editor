@@ -1,0 +1,1 @@
+export { installMenu } from './installMenu';

@@ -15,9 +15,9 @@ const PROMPT_BUTTON = { allow: 0, block: 1 } as const;
  * opened in the editor (or an iframe in it) could read the clipboard, use the
  * microphone or launch other applications without asking. Deny by default;
  * ask, once per origin and permission while the app runs, for the few a site
- * under development may need.
+ * under development may need. The prompt opens over the window showing the site (`parent`).
  */
-export function installSitePermissions(site: Session, win: BrowserWindow): void {
+export function installSitePermissions(site: Session, parent: () => BrowserWindow): void {
   const decided = new Map<string, boolean>();
 
   site.setPermissionRequestHandler((_wc, permission, callback, details) => {
@@ -30,7 +30,7 @@ export function installSitePermissions(site: Session, win: BrowserWindow): void 
     if (known !== undefined) return callback(known);
     const externalUrl = 'externalURL' in details ? details.externalURL : undefined;
     void dialog
-      .showMessageBox(win, {
+      .showMessageBox(parent(), {
         type: 'question',
         buttons: ['Allow', 'Block'],
         defaultId: PROMPT_BUTTON.block,
