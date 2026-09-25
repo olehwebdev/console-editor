@@ -6,7 +6,6 @@ import { cn } from '@/shared/lib';
 import { BUTTON_ICON_SIZE, Button } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icon';
 import { Input } from '@/shared/ui/input';
-import { Switch } from '@/shared/ui/switch';
 import type { TabMeta } from '@/entities/editor-tab';
 import { BLANK_HEADER_EDIT, HeaderEditList, nextRowKey } from '@/entities/rule';
 import {
@@ -20,6 +19,7 @@ import {
   type ResponseRuleForm,
   type ResponseRuleValue,
 } from '../../model';
+import { AnswerSwitches } from './AnswerSwitches';
 import { MethodMenu } from './MethodMenu';
 import { NumberField } from './NumberField';
 
@@ -94,13 +94,7 @@ export function ResponseRule({ tab, override }: { tab: TabMeta; override?: Overr
           >
             Header
           </Button>
-          <Switch
-            size="sm"
-            checked={form.send}
-            onCheckedChange={(send) => change({ send })}
-            label="Send request"
-            title={form.send ? 'The request reaches the server, and its response is replaced' : 'Answered before it is sent: the server never sees it (a POST changes nothing)'}
-          />
+          <AnswerSwitches send={form.send} patch={form.patch} onChange={change} />
         </div>
         {override ? (
           <Button size="sm" variant={dirty ? 'primary' : 'ghost'} disabled={!dirty} onClick={apply} className={cn('ml-auto', !dirty && 'opacity-60')} data-testid="response-apply">

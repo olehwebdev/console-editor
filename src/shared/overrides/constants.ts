@@ -28,8 +28,8 @@ export const MAX_STATUS = 599;
 /** The longest a response override holds its answer back. */
 export const MAX_DELAY_MS = 60_000;
 
-/** How a new response override answers until told otherwise: 200, at once, with the upstream headers, once the request was sent. */
-export const DEFAULT_RESPONSE: Readonly<ResponseSettings> = { status: 200, delayMs: 0, headers: [], send: true };
+/** How a new response override answers until told otherwise: 200, at once, with the upstream headers, once the request was sent, with the saved text. */
+export const DEFAULT_RESPONSE: Readonly<ResponseSettings> = { status: 200, delayMs: 0, headers: [], send: true, patch: false };
 
 /** Where a GraphQL document names its operation: `query GetCart(…)`, `mutation ApplyCoupon`… */
 export const OPERATION_IN_QUERY = /(?:^|[\s}])(?:query|mutation|subscription)\s+([_A-Za-z][_0-9A-Za-z]*)/;

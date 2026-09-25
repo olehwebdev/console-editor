@@ -3,7 +3,7 @@ import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { MenuCommand } from './menu';
 import type { NetworkRequest } from './network';
-import type { OverrideMeta } from './overrides';
+import type { OverrideMeta, UnpatchedReason } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
 import type { Rule } from './rules';
@@ -30,6 +30,8 @@ export type EngineEvent =
   /** An override answered a request; `requestId` is its network request id, when Chromium gave one. */
   | { type: 'override-served'; overrideId: string; url: string; requestId?: string }
   | { type: 'upstream-changed'; overrideId: string; url: string }
+  /** A response override set to patch the live response couldn't, and answered with its saved text instead. */
+  | { type: 'override-unpatched'; overrideId: string; url: string; reason: UnpatchedReason }
   /** A rule blocked a request, or changed its response's headers (one event per rule that changed something). */
   | { type: 'rule-applied'; ruleId: string; url: string }
   /** An enabled block rule matched a listed file that arrived anyway (it loaded before the rule applied, or a Chromium interception gap). */

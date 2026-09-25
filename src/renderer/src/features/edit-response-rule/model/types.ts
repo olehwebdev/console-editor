@@ -17,4 +17,6 @@ export interface ResponseRuleForm {
   rowKeys: string[];
   /** Off: answered before it is sent (the server never sees it). */
   send: boolean;
+  /** On: the live response with the edits applied, rather than the saved text. Only with `send`. */
+  patch: boolean;
 }

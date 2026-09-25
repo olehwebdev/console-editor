@@ -19,6 +19,8 @@ export interface EngineOptions {
    */
   hold?(request: HoldInput, owner: object): Promise<HeldAction | undefined>;
   releaseHeld?(owner: object): void;
+  /** The text a response override was made from (its diff base): what patch mode diffs its content against. */
+  getOverrideBase?(id: string): Promise<string>;
   emit(event: EngineEvent): void;
   /** Fetches a URL outside the page (used when the page no longer holds a body). */
   fallbackFetch?(url: string): Promise<string>;

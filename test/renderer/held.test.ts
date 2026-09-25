@@ -202,7 +202,7 @@ describe('a held request', () => {
       base: '{"items":[1]}',
       originalHash: null,
       request: { method: 'POST', operation: 'GetOrders' },
-      response: { status: 201, delayMs: 0, headers: [], send: false },
+      response: { status: 201, delayMs: 0, headers: [], send: false, patch: false },
     });
     expect(api.resumeHeldRequest).toHaveBeenCalledExactlyOnceWith('held-1', { type: 'respond', status: 201, headers: [], body: '{"items":[]}' });
     expect(useTabStore.getState().tabs).toEqual([expect.objectContaining({ id: tab.id, overrideId: 'o1', held: undefined, dirty: false })]);

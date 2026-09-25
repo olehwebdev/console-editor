@@ -99,7 +99,7 @@ describe.skipIf(!chromiumAvailable)('held and unsent requests in Chromium', () =
           enabled: true,
           originalHash: null,
           request: { method: 'POST', operation: '' },
-          response: { status: 201, delayMs: 0, headers: [], send: false },
+          response: { status: 201, delayMs: 0, headers: [], send: false, patch: false },
           createdAt: 0,
           updatedAt: 0,
           content: '{"id":42,"state":"mocked"}',

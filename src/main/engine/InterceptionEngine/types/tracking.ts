@@ -38,7 +38,7 @@ export interface ResourceTrackerContext {
 /** What the handler of paused requests works with. */
 export interface PausedRequestContext {
   cdp: CdpTransport;
-  opts: Pick<EngineOptions, 'getOverrides' | 'getRules' | 'getSettings' | 'getBreakpoints' | 'hold' | 'emit' | 'iframe' | 'workerSetups'>;
+  opts: Pick<EngineOptions, 'getOverrides' | 'getRules' | 'getSettings' | 'getBreakpoints' | 'getOverrideBase' | 'hold' | 'emit' | 'iframe' | 'workerSetups'>;
   /** What the requests this session holds are held by: let go of when it goes. */
   owner: object;
   matcher: OverrideMatcher;

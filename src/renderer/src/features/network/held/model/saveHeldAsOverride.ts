@@ -35,7 +35,7 @@ export async function saveHeldAsOverride(tabId: string): Promise<void> {
       originalHash: null,
       request: { method: held.method, operation: graphqlOperation(held.requestBody) ?? '' },
       // Sending anything but a GET again could change data: answered before it is sent from now on.
-      response: { status: action.status, delayMs: 0, headers: action.headers, send: held.method === GET_METHOD },
+      response: { status: action.status, delayMs: 0, headers: action.headers, send: held.method === GET_METHOD, patch: false },
     });
     useOverrideStore.getState().upsert(created);
     // The tab is the override's now: letting the request go leaves it open.

@@ -24,7 +24,7 @@ function unsent(partial: Partial<Override> = {}): Override {
     enabled: true,
     originalHash: null,
     request: { method: 'POST', operation: '' },
-    response: { status: 201, delayMs: 0, headers: [{ operation: 'set', name: 'X-Mock', value: 'order' }], send: false },
+    response: { status: 201, delayMs: 0, headers: [{ operation: 'set', name: 'X-Mock', value: 'order' }], send: false, patch: false },
     createdAt: 0,
     updatedAt: 0,
     content: '{"id":42}',
@@ -139,7 +139,7 @@ describe('answering before the request is sent', () => {
   });
 
   it('leaves an override that is sent to the response stage', async () => {
-    const { transport } = await engineWith([unsent({ response: { status: 200, delayMs: 0, headers: [], send: true } })]);
+    const { transport } = await engineWith([unsent({ response: { status: 200, delayMs: 0, headers: [], send: true, patch: false } })]);
     pausedRequest(transport);
     await flush();
     expect(fulfilled(transport)).toEqual([]);
@@ -158,7 +158,7 @@ describe('answering before the request is sent', () => {
   it('holds the answer back for its delay', async () => {
     vi.useFakeTimers();
     try {
-      const { transport } = await engineWith([unsent({ response: { status: 200, delayMs: 800, headers: [], send: false } })]);
+      const { transport } = await engineWith([unsent({ response: { status: 200, delayMs: 800, headers: [], send: false, patch: false } })]);
       pausedRequest(transport);
       await vi.advanceTimersByTimeAsync(700);
       expect(fulfilled(transport)).toEqual([]);
@@ -180,14 +180,14 @@ describe('the send setting', () => {
   });
 
   it('is on or off', () => {
-    expect(validateResponseSettings({ status: 200, delayMs: 0, headers: [], send: false })).toBeNull();
-    expect(validateResponseSettings({ status: 200, delayMs: 0, headers: [], send: 'no' as never })).toMatch(/Send request/);
+    expect(validateResponseSettings({ status: 200, delayMs: 0, headers: [], send: false, patch: false })).toBeNull();
+    expect(validateResponseSettings({ status: 200, delayMs: 0, headers: [], send: 'no' as never, patch: false })).toMatch(/Send request/);
   });
 
   it('is kept, and an override saved before it existed is sent', async () => {
     const a = new OverrideStore(dir);
     await a.load();
-    const off = await a.create({ kind: 'Fetch', sourceUrl: API, content: '{}', originalHash: null, response: { status: 200, delayMs: 0, headers: [], send: false } });
+    const off = await a.create({ kind: 'Fetch', sourceUrl: API, content: '{}', originalHash: null, response: { status: 200, delayMs: 0, headers: [], send: false, patch: false } });
     const old = await a.create({ kind: 'Fetch', sourceUrl: `${API}/old`, content: '{}', originalHash: null });
     const index = JSON.parse(await readFile(join(dir, 'overrides.json'), 'utf8'));
     delete index.overrides.find((o: Override) => o.id === old.id).response.send;
@@ -195,7 +195,7 @@ describe('the send setting', () => {
 
     const b = new OverrideStore(dir);
     await b.load();
-    expect(b.meta(off.id)?.response).toMatchObject({ send: false });
-    expect(b.meta(old.id)?.response).toEqual({ status: 200, delayMs: 0, headers: [], send: true });
+    expect(b.meta(off.id)?.response).toMatchObject({ send: false, patch: false });
+    expect(b.meta(old.id)?.response).toEqual({ status: 200, delayMs: 0, headers: [], send: true, patch: false });
   });
 });

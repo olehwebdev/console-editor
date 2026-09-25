@@ -35,6 +35,8 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
   let log: NetworkLog;
   let detachTransport: () => Promise<void>;
   let overrides: Override[];
+  /** The text each response override was made from, for patch mode. */
+  let bases: Map<string, string>;
   let events: EngineEvent[];
   let sent: AppEvent[];
 
@@ -55,7 +57,7 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       enabled: true,
       originalHash: null,
       request,
-      response: { status: 200, delayMs: 0, headers: [], send: true, ...response },
+      response: { status: 200, delayMs: 0, headers: [], send: true, patch: false, ...response },
       createdAt: 0,
       updatedAt: 0,
       content,
@@ -79,6 +81,7 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
 
   beforeEach(async () => {
     overrides = [];
+    bases = new Map();
     events = [];
     sent = [];
     const opened = await chrome.newPage();
@@ -90,6 +93,7 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       getOverrides: () => overrides,
       getRules: () => [],
       getSettings: () => ({ ...DEFAULT_SETTINGS }),
+      getOverrideBase: async (id) => bases.get(id) ?? overrides.find((o) => o.id === id)!.content,
       emit: (e) => {
         events.push(e);
         log.engineEvent(e);
@@ -189,6 +193,23 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       expect(await state('xhrCart()')).toEqual({ status: 503, body: { items: [], total: 0 } });
       expect(events.filter((e) => e.type === 'override-served' && e.overrideId === override.id)).toHaveLength(2);
       await waitFor(() => rows().filter((r) => r.url.startsWith(url(CART_PATH)) && r.overrideId === override.id).length === 2);
+    });
+
+    it('patch the live response with what was edited, and answer with the saved text when upstream fails', async () => {
+      await page.goto(url(NETWORK_PATH));
+      await row(CART_PATH);
+      // Made from an earlier cart (total 99): the edit empties the list, and the live total stays live.
+      const base = JSON.stringify({ ...JSON.parse(CART_JSON), total: 99 });
+      const edited = JSON.stringify({ ...JSON.parse(CART_JSON), items: [], total: 99 });
+      const cart = responseOverride(CART_PATH, edited, { method: 'GET', operation: '' }, { patch: true });
+      const broken = responseOverride(BROKEN_PATH, '{"error":"handled"}', { method: 'GET', operation: '' }, { patch: true });
+      bases.set(cart.id, base);
+      await setOverrides([cart, broken]);
+
+      expect(await state(`fetch('${CART_PATH}').then((r) => r.text())`)).toBe(JSON.stringify({ ...JSON.parse(CART_JSON), items: [] }));
+      // Upstream answers 500: the saved text answers, as it would while the backend is down.
+      expect(await state(`fetch('${BROKEN_PATH}').then((r) => r.text())`)).toBe('{"error":"handled"}');
+      expect(events.some((e) => e.type === 'override-unpatched')).toBe(false);
     });
 
     it('hold the answer back for their delay', async () => {

@@ -40,6 +40,12 @@ export interface ResponseSettings {
    * answered before it is sent: a POST changes nothing.
    */
   send: boolean;
+  /**
+   * Patch live: the page gets the live response with your edits applied (what changed from the text the
+   * override was made from), rather than the saved text as it is; the saved text still answers when
+   * upstream fails. Only for a request that is sent.
+   */
+  patch: boolean;
 }
 
 export interface OverrideMeta {
@@ -98,3 +104,13 @@ export interface OverridePatch {
   /** Response overrides only. */
   response?: ResponseSettings;
 }
+
+/**
+ * Why patch mode answered with the saved text:
+ * - saved: the text it was made from, or the edited one, isn't JSON (nothing to apply)
+ * - live:  the live response isn't JSON, or couldn't be read
+ * - shape: the live response no longer has what was edited (a member gone, a list now an object)
+ */
+export const UNPATCHED_REASONS = ['saved', 'live', 'shape'] as const;
+
+export type UnpatchedReason = (typeof UNPATCHED_REASONS)[number];

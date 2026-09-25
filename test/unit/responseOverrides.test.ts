@@ -19,7 +19,7 @@ function response(partial: Partial<Override> = {}): Override {
     enabled: true,
     originalHash: null,
     request: { method: 'GET', operation: '' },
-    response: { status: 200, delayMs: 0, headers: [], send: true },
+    response: { status: 200, delayMs: 0, headers: [], send: true, patch: false },
     createdAt: 0,
     updatedAt: 0,
     content: '{"items":[]}',
@@ -115,7 +115,7 @@ describe('validating a response override', () => {
   });
 
   it('takes a status of 100–599, a delay of up to a minute, and header changes a header rule could make', () => {
-    const ok = { status: 503, delayMs: 2000, headers: [{ operation: 'set' as const, name: 'X-Mock', value: '1' }], send: true };
+    const ok = { status: 503, delayMs: 2000, headers: [{ operation: 'set' as const, name: 'X-Mock', value: '1' }], send: true, patch: false };
     expect(validateResponseSettings(ok)).toBeNull();
     expect(validateResponseSettings({ ...ok, status: 99 })).toMatch(/status/);
     expect(validateResponseSettings({ ...ok, status: 200.5 })).toMatch(/status/);
@@ -142,7 +142,7 @@ describe('answering fetch() and XHR', () => {
   it('serves its body with its status, and its header changes on top of the upstream headers', async () => {
     const o = response({
       content: '{"items":[{"name":"Edited"}]}',
-      response: { status: 503, delayMs: 0, headers: [{ operation: 'set', name: 'X-Mock', value: 'cart-v2' }, { operation: 'remove', name: 'access-control-allow-origin', value: '' }], send: true },
+      response: { status: 503, delayMs: 0, headers: [{ operation: 'set', name: 'X-Mock', value: 'cart-v2' }, { operation: 'remove', name: 'access-control-allow-origin', value: '' }], send: true, patch: false },
     });
     const { transport, events } = await engineWith([o]);
     paused(transport);
@@ -208,7 +208,7 @@ describe('answering fetch() and XHR', () => {
   it('holds the answer back for its delay', async () => {
     vi.useFakeTimers();
     try {
-      const { transport } = await engineWith([response({ response: { status: 200, delayMs: 1000, headers: [], send: true } })]);
+      const { transport } = await engineWith([response({ response: { status: 200, delayMs: 1000, headers: [], send: true, patch: false } })]);
       paused(transport);
       await vi.advanceTimersByTimeAsync(999);
       expect(fulfilled(transport)).toHaveLength(0);
@@ -251,30 +251,30 @@ describe('OverrideStore with response overrides', () => {
   it('keeps a response as .json with its request match and settings, across instances', async () => {
     const a = new OverrideStore(dir);
     await a.load();
-    const o = await a.create({ ...input, request: { method: 'POST', operation: 'GetCart' }, response: { status: 201, delayMs: 500, headers: [], send: true } });
+    const o = await a.create({ ...input, request: { method: 'POST', operation: 'GetCart' }, response: { status: 201, delayMs: 500, headers: [], send: true, patch: false } });
     expect(await readFile(join(dir, 'files', `${o.id}.json`), 'utf8')).toBe('{"a":1}');
-    await a.update(o.id, { response: { status: 404, delayMs: 0, headers: [{ operation: 'set', name: 'X-A', value: '1' }], send: true } });
+    await a.update(o.id, { response: { status: 404, delayMs: 0, headers: [{ operation: 'set', name: 'X-A', value: '1' }], send: true, patch: false } });
 
     const b = new OverrideStore(dir);
     await b.load();
-    expect(b.meta(o.id)).toMatchObject({ request: { method: 'POST', operation: 'GetCart' }, response: { status: 404, delayMs: 0, headers: [{ operation: 'set', name: 'X-A', value: '1' }], send: true } });
+    expect(b.meta(o.id)).toMatchObject({ request: { method: 'POST', operation: 'GetCart' }, response: { status: 404, delayMs: 0, headers: [{ operation: 'set', name: 'X-A', value: '1' }], send: true, patch: false } });
   });
 
   it('fills in any method and a plain 200 when they are left out', async () => {
     const store = new OverrideStore(dir);
     await store.load();
     const o = await store.create(input);
-    expect(o).toMatchObject({ request: { method: '*', operation: '' }, response: { status: 200, delayMs: 0, headers: [], send: true } });
+    expect(o).toMatchObject({ request: { method: '*', operation: '' }, response: { status: 200, delayMs: 0, headers: [], send: true, patch: false } });
   });
 
   it('refuses a bad status, and a request match on a file override', async () => {
     const store = new OverrideStore(dir);
     await store.load();
-    await expect(store.create({ ...input, response: { status: 700, delayMs: 0, headers: [], send: true } })).rejects.toThrow(/status/);
+    await expect(store.create({ ...input, response: { status: 700, delayMs: 0, headers: [], send: true, patch: false } })).rejects.toThrow(/status/);
     await expect(store.create({ kind: 'Script', sourceUrl: 'https://a.com/x.js', content: 'x', originalHash: null, request: { method: 'GET', operation: '' } })).rejects.toThrow(/response override/);
     const script = await store.create({ kind: 'Script', sourceUrl: 'https://a.com/x.js', content: 'x', originalHash: null });
     expect(script.request).toBeUndefined();
-    await expect(store.update(script.id, { response: { status: 200, delayMs: 0, headers: [], send: true } })).rejects.toThrow(/response override/);
+    await expect(store.update(script.id, { response: { status: 200, delayMs: 0, headers: [], send: true, patch: false } })).rejects.toThrow(/response override/);
   });
 
   it('falls back to the defaults for settings a hand edit broke', async () => {
@@ -288,6 +288,6 @@ describe('OverrideStore with response overrides', () => {
 
     const b = new OverrideStore(dir);
     await b.load();
-    expect(b.get(o.id)).toMatchObject({ request: { method: 'GET', operation: '' }, response: { status: 200, delayMs: 0, headers: [], send: true } });
+    expect(b.get(o.id)).toMatchObject({ request: { method: 'GET', operation: '' }, response: { status: 200, delayMs: 0, headers: [], send: true, patch: false } });
   });
 });

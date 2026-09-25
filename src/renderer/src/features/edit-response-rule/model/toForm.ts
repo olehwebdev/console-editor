@@ -12,5 +12,6 @@ export function toForm({ request, response }: ResponseRuleValue): ResponseRuleFo
     headers: response.headers,
     rowKeys: savedRowKeys(response.headers),
     send: response.send,
+    patch: response.patch,
   };
 }

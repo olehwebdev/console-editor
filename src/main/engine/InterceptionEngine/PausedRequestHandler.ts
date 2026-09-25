@@ -14,8 +14,9 @@ import { isHtmlDocument } from './isHtmlDocument';
 import { listPausedScript } from './listPausedScript';
 import { MatcherCache } from './MatcherCache';
 import { matchedRequestOf } from './matchedRequestOf';
-import { overrideBody } from './overrideBody';
 import { overrideHead } from './overrideHead';
+import { overrideBody } from './overrideBody';
+import { patchedBody } from './patchedBody';
 import { pauseStage } from './pauseStage';
 import { phraseFor } from './phraseFor';
 import { reportError } from './reportError';
@@ -90,7 +91,9 @@ export class PausedRequestHandler {
     const settings = opts.getSettings();
     if (override.originalHash) await reportUpstreamChange(cdp, opts.emit, p, override);
 
-    const body = overrideBody(override, settings);
+    const saved = overrideBody(override, settings);
+    // Patch mode reads the live response first; anything else answers without waiting on it.
+    const body = override.response?.patch ? await patchedBody(this.ctx, p, override, saved) : saved;
     // A new service worker version may fetch its script before its session reports anything (no networkId);
     // that script is reported under the worker's id.
     const reportedAs = p.networkId ?? (worker?.isOwnScript(p.request.url, p.resourceType) ? worker.info.targetId : undefined);

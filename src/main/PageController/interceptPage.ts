@@ -31,6 +31,7 @@ export function interceptPage(transport: CdpTransport, sessions: SessionObserver
     getRules: () => rules.list(),
     getSettings: () => settings.get(),
     getBreakpoints: breakpoints,
+    getOverrideBase: (id) => store.base(id),
     hold: (request, owner) => network.held.hold(request, owner),
     releaseHeld: (owner) => network.held.releaseOwner(owner),
     emit: (event) => {
