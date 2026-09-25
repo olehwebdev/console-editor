@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The app's icon on Linux with the AppImage or the `.tar.gz`.** The dock, the window switcher and the app grid showed a generic icon, and on Ubuntu's default Wayland session nothing else could fix it. Now the app adds itself to your applications with its icon when it starts (in `~/.local/share`, as the `.deb` does for everyone), so you can also pin it and start it from the app grid. After an update renames the AppImage, the launcher follows it to the new file. With the `.deb` or `.rpm` installed, the package's launcher is used, and one the AppImage added before is removed. The `.rpm` also refreshes the system's icon cache when it installs, as the `.deb` already did.
+
 ## [0.3.0] - 2026-09-24
 
 ### Added
