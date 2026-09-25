@@ -343,4 +343,17 @@ describe('the request log', () => {
     expect(log.list()[0]).not.toHaveProperty('heldId');
     log.dispose();
   });
+  it('marks the row of a request held before the log listed it, unless it was let go by then', async () => {
+    const transport = new FakeTransport();
+    const log = new NetworkLog({ transport, send: () => undefined });
+    const sent = (requestId: string) =>
+      transport.emit('Network.requestWillBeSent', { requestId, loaderId: 'L', frameId: 'main', type: 'Fetch', timestamp: 1, wallTime: 1, request: { url: API, method: 'GET', headers: {} } });
+    void log.held.hold({ breakpointId: 'bp1', stage: 'request', url: API, method: 'GET', requestHeaders: [], networkId: 'net-1' }, {});
+    void log.held.hold({ breakpointId: 'bp1', stage: 'request', url: API, method: 'GET', requestHeaders: [], networkId: 'net-2' }, {});
+    log.held.resume('held-2', { type: 'continue' });
+    sent('net-1');
+    sent('net-2');
+    expect(log.list().map((r) => r.heldId)).toEqual(['held-1', undefined]);
+    log.dispose();
+  });
 });

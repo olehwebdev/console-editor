@@ -1,8 +1,9 @@
 /**
  * A page that talks to an API, for the Network panel and response overrides, all under /network/:
  * a JSON endpoint (by fetch() and XHR), a GraphQL endpoint (one URL, many operations), an event
- * stream, an endpoint that fails, and a dedicated worker that fetches too. API answers are never
- * cached, so every call reaches the network (and the Fetch domain).
+ * stream, an endpoint that fails, one that takes orders from other origins, and a dedicated worker
+ * that fetches too. API answers are never cached, so every call reaches the network (and the Fetch
+ * domain).
  */
 import type { FixtureRoute } from './site.ts';
 
@@ -13,6 +14,8 @@ export const EVENTS_PATH = '/network/events';
 export const BROKEN_PATH = '/network/api/broken';
 export const NETWORK_WORKER_PATH = '/network/worker.js';
 export const WORKER_DATA_PATH = '/network/api/worker';
+/** Takes orders by POST from another origin; like many APIs, it turns away CORS preflights. */
+export const ORDERS_PATH = '/network/api/orders';
 
 /** What the cart endpoint answers, on one line as APIs send it. */
 export const CART_JSON = JSON.stringify({ items: [{ id: 1, name: 'Alpha', price: 12.5 }, { id: 2, name: 'Beta', price: 7.25 }], total: 19.75 });
@@ -22,6 +25,7 @@ export const GRAPHQL_JSON = JSON.stringify({ data: { user: { name: 'Ada', id: 7 
 
 export const WORKER_DATA_JSON = JSON.stringify({ source: 'upstream' });
 export const BROKEN_JSON = JSON.stringify({ error: 'boom' });
+export const ORDERS_JSON = JSON.stringify({ id: 1, state: 'created' });
 
 /** How often the event stream sends, in ms. */
 export const EVENT_INTERVAL_MS = 200;
@@ -62,6 +66,12 @@ const NETWORK_HTML = `<!doctype html>
       return window.user;
     };
     window.loadBroken = async () => (await fetch('${BROKEN_PATH}')).status;
+    // Resolve to what the page got, or the error it got instead.
+    const settle = (promise) => promise.then(async (res) => ({ status: res.status, body: await res.text() }), (err) => ({ error: err.name }));
+    window.placeOrder = (origin) =>
+      settle(fetch(origin + '${ORDERS_PATH}', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: 'A1' }), credentials: 'include' }));
+    window.tryCart = (timeoutMs) => settle(fetch('${CART_PATH}', timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}));
+    window.tryGql = (operationName) => settle(fetch('${GRAPHQL_PATH}', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operationName }) }));
     window.ticks = 0;
     new EventSource('${EVENTS_PATH}').onmessage = (e) => {
       window.ticks += 1;
@@ -99,4 +109,5 @@ export const networkRoutes: Array<[string, FixtureRoute]> = [
   [EVENTS_PATH, { type: 'text/event-stream', body: '', eventStream: true, ...API }],
   [NETWORK_WORKER_PATH, { type: 'text/javascript', body: NETWORK_WORKER_JS, ...API }],
   [WORKER_DATA_PATH, { type: JSON_TYPE, body: WORKER_DATA_JSON, ...API }],
+  [ORDERS_PATH, { type: JSON_TYPE, body: ORDERS_JSON, rejectPreflight: true, ...API }],
 ];

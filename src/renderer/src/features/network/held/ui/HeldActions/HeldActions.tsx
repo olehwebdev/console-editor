@@ -9,7 +9,7 @@ import { FailMenu } from './FailMenu';
 /** What to do with a held request: send it as edited, as it was, fail it, or (a response) keep the edit as an override. */
 export function HeldActions({ tabId, held }: { tabId: string; held: HeldRequest }) {
   return (
-    <div className="flex shrink-0 items-center gap-1">
+    <div className="ml-auto flex shrink-0 items-center gap-1">
       {held.stage === 'response' ? (
         <Button size="sm" variant="ghost" onClick={() => void saveHeldAsOverride(tabId)} title="Answer with your version, and keep it as a response override" data-testid="held-save">
           Save as override

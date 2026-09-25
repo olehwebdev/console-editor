@@ -7,6 +7,7 @@ import { pauseLike } from '@/features/network/breakpoints';
 import { showHeld } from '@/features/network/held';
 import { openResource, openResponse } from '@/features/open-resource';
 import { opensAsFile, overridable, pausable } from '../../lib';
+import { ActionLabel } from './ActionLabel';
 import { CopyMenu } from './CopyMenu';
 
 export interface DetailActionsProps {
@@ -25,8 +26,8 @@ export function DetailActions({ request, detail }: DetailActionsProps) {
   return (
     <div className="flex shrink-0 items-center gap-1">
       {heldId ? (
-        <Button size="sm" variant="primary" leading={<Icon icon={icons.PauseIcon} size={BUTTON_ICON_SIZE.sm} />} onClick={() => showHeld(heldId)} data-testid="network-show-held">
-          Show paused
+        <Button size="sm" variant="primary" leading={<Icon icon={icons.PauseIcon} size={BUTTON_ICON_SIZE.sm} />} title="Show paused" onClick={() => showHeld(heldId)} data-testid="network-show-held">
+          <ActionLabel>Show paused</ActionLabel>
         </Button>
       ) : null}
       {overridable(request) && !file && !heldId ? (
@@ -34,15 +35,16 @@ export function DetailActions({ request, detail }: DetailActionsProps) {
           size="sm"
           variant="primary"
           leading={<Icon icon={icons.ResponseIcon} size={BUTTON_ICON_SIZE.sm} />}
+          title={request.overrideId ? 'Open override' : 'Override response'}
           onClick={() => void openResponse(request)}
           data-testid="network-override"
         >
-          {request.overrideId ? 'Open override' : 'Override response'}
+          <ActionLabel>{request.overrideId ? 'Open override' : 'Override response'}</ActionLabel>
         </Button>
       ) : null}
       {file ? (
-        <Button size="sm" variant="secondary" leading={<Icon icon={icons.FileIcon} size={BUTTON_ICON_SIZE.sm} />} onClick={() => void openResource(request.url)}>
-          Open file
+        <Button size="sm" variant="secondary" leading={<Icon icon={icons.FileIcon} size={BUTTON_ICON_SIZE.sm} />} title="Open file" onClick={() => void openResource(request.url)}>
+          <ActionLabel>Open file</ActionLabel>
         </Button>
       ) : null}
       {pausable(request) ? (

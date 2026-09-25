@@ -23,7 +23,7 @@ export class NetworkLog {
 
   constructor(private readonly opts: NetworkLogOptions) {
     this.batch = new NetworkBatch(opts.send, (id) => this.log.get(id)?.row);
-    this.ctx = { log: this.log, batch: this.batch, page: { load: 0 }, workers: new Map() };
+    this.ctx = { log: this.log, batch: this.batch, page: { load: 0 }, workers: new Map(), heldMarks: new Map() };
     this.held = new HeldRequests({ transport: opts.transport, send: opts.send, mark: (networkId, heldId) => this.markHeld(networkId, heldId) });
     for (const [event, handler] of NETWORK_EVENT_HANDLERS) {
       this.disposers.push(opts.transport.on(event, (params, sessionId) => handler(this.ctx, params, sessionId)));
@@ -72,7 +72,12 @@ export class NetworkLog {
 
   private markHeld(networkId: string, heldId: string | undefined): void {
     const entry = this.log.findAnywhere(networkId);
-    if (!entry) return;
+    if (!entry) {
+      // Not listed yet: its row takes the mark when it comes.
+      if (heldId) this.ctx.heldMarks.set(networkId, heldId);
+      else this.ctx.heldMarks.delete(networkId);
+      return;
+    }
     if (heldId) entry.row.heldId = heldId;
     else delete entry.row.heldId;
     this.batch.changed(entry.row.id);

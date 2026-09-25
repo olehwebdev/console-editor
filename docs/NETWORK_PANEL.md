@@ -2,7 +2,7 @@
 
 **Question.** A UI is often only as testable as the data behind it. Can the app show the page's requests, let you change a JSON response (an empty list, a very long name, a 500, a field the backend doesn't send yet) and see at once how the page renders it, with a real JSON editor and full control over the request and the response?
 
-**Status.** Phase 1 (§8) is built: the Network tab, response overrides and the JSON editor, as SPEC §6.3, §6.8 and §7 describe them. §11 lists where it differs from the plan below; phases 2 and 3 are still to come.
+**Status.** Phases 1 and 2 (§8) are built: the Network tab, response overrides and the JSON editor, answering without sending the request, breakpoints and Copy as fetch, as SPEC §6.3, §6.10, §6.11 and §7 describe them. §11 and §12 list where they differ from the plan below; phase 3 is still to come.
 
 **Short answer.** Yes. The `Fetch` domain the app already drives for scripts and stylesheets answers `fetch()` and XHR the same way, and the probes below show everything a request panel needs: the paused request carries its method, headers and body; the response can take any status, headers and body; a request can wait for as long as you edit it; and the request itself can be changed before it goes out. Most of the work is in the UI and in a fourth override kind, not in new browser mechanics. The traps are CORS preflights, streams and the page's own timeouts; each has a rule below.
 
@@ -136,7 +136,7 @@ Breakpoint rules are per workspace (`{ id, match: UrlMatcher, method, stage, ena
 
 - WebSocket messages can't be changed: CDP reports them but doesn't pause them.
 - A streaming response (event stream, streamed `fetch`) can be replaced as a whole, which ends it, but not edited as it arrives.
-- With the response stage (the default), the request still reaches the server: a POST still creates what it creates. That's why non-GET overrides start with **Send request** off. Until **Send request** comes (phase 2), every response override answers at the response stage.
+- With the response stage (the default), the request still reaches the server: a POST still creates what it creates. That's why non-GET overrides start with **Send request** off.
 - The page's own timeouts win: a breakpoint held longer than the page waits is abandoned, and the panel says so.
 - Requests a service worker answers from its caches are never paused (SPEC §6.6, with **Bypass service workers** off).
 
@@ -153,7 +153,7 @@ What differs from the plan above, and why:
 
 - **Header changes are a header rule's** (`HeaderEdit`: `set` or `remove`, in order), not `{ name, value | null }`: validation, the headers the app refuses to change, applying them and the editor's rows are shared with header rules (`entities/rule` now holds the rows).
 - **The request match is the method and the GraphQL operation** (`{ method, operation }`, '' for any body). `contains` and `regex` body matching wait for a need. Among overrides for the same URL, one naming a method or operation beats one that doesn't.
-- **No `send` yet.** Every response override answers at the response stage, so the request still reaches the server; **Send request** off comes with the request stage in phase 2.
+- **No `send` yet.** Every response override answered at the response stage, so the request still reached the server; phase 2 added **Send request** (§12).
 - **No drift warning for responses.** A response override has no `originalHash`, and the hash of the inferred schema (§5, Diff and drift) isn't kept yet; the upstream body is never read before serving one.
 - **The tab says "Live response"** until it is saved; the Explorer shows the method, and the status and delay when they aren't 200 and 0. A GraphQL override is named by its operation in tabs and the Explorer. **Compare live** is offered only for a GET: fetching the response again sends the request again.
 - **An unsaved response tab** keeps its method, operation, status, delay and header changes, across a restart too (the session keeps them with the tab). Reopened after a restart, it comes back from its draft, or a GET is fetched again; any other is dropped rather than sent again.
@@ -161,3 +161,18 @@ What differs from the plan above, and why:
 - **Page loads.** The log numbers each top-level page load from the main frame's first commit, so the first page's rows are load 0; the panel only compares loads.
 - **A narrow panel** shows a request's details in place of the list (below 44rem), and the list drops its type, size and time columns while details are open.
 
+## 12. Phase 2 as built
+
+What differs from the plan above, and what the probes added:
+
+- **Send request** is `ResponseSettings.send`; an override saved before it existed is sent. Off, the override's URL pauses at the request stage for `XHR` only, and it answers there with its status, body and header changes on a JSON response's own headers, plus CORS allowing the request's `Origin` with credentials. Its preflight (an OPTIONS asking for its method) gets a 204 allowing what it asked for, whatever GraphQL operation the override names: a preflight has no body to tell. Other methods, operations and preflights go on to the server, and a blocked request stays blocked. Pinned in `test/integration/held.chromium.test.ts`: another origin's POST and its preflight answered with the server never hit, and without the override the fixture API turning the preflight away.
+- **`HeldRequests`, not `PausedRequests`**, in `src/main/network/`, one per page for every session. The renderer gets the whole list on every change (`held-requests`) rather than one event per request, which keeps a restarting renderer and a missed event from disagreeing. `resumeHeldRequest(id, action)` takes `continue`, `send` (request stage), `respond` (either stage: without sending it, or instead of its response) or `fail`, checked by `validateHeldAction` in both processes.
+- **Let go of** when the page gives up on a request (`loadingFailed`), when its session's engine detaches, and when interception stops. A navigation cancels what is in flight, so it arrives as `loadingFailed` and needs no rule of its own.
+- **A fact for the log:** a request-stage pause and `Network.requestWillBeSent` come in either order. Usually the row is listed first, but under load the pause can come first, so the log keeps a held mark for a row not listed yet and gives it to the row when it comes (pinned in the same test and in `test/unit/breakpoints.test.ts`).
+- **Never stopped:** a CORS preflight, a redirect's response and an event stream (its body can't be read while it is open). Only the first enabled breakpoint that matches applies; up to 50 per workspace.
+- **Not sorted to the top.** A strip above the list shows what is held (each opens its tab) instead of reordering the virtualized list under the reader; rows carry a pause mark, and the Network tab and status bar a count.
+- **Pause like this** adds a response-stage breakpoint for the request's URL (exact, any query) and method, or turns an existing one back on. It stays until removed rather than stopping only the next request: the next one may not be the one you want.
+- **Save as override** exists at the response stage only (before it is sent, the tab holds the request's body, not a response). The tab becomes the override's, and a non-GET override starts with **Send request** off, as one made from the panel does.
+- **Closing a held tab** sends the request as it was, asking first if its body was edited; leaving it held with no tab would hang the page with nothing on screen to say why.
+- **Copy as fetch** leaves out the headers the browser sets itself (`Cookie`, `Host`, `Origin`, `Sec-*`, `Content-Length`…), passes the `Referer` as `referrer`, and uses `credentials: 'include'` for the cookies. The body is the one the details pane shows (formatted when it is JSON).
+- **Menus inside a popover** (the breakpoint form's match type, method and stage) closed it, since they draw outside it; a popover now counts its open menus as inside, and Esc in one closes the menu only.

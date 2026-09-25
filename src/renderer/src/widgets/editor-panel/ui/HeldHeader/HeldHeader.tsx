@@ -16,13 +16,16 @@ export function HeldHeader({ tab, heldId }: { tab: TabMeta; heldId: string }) {
   const held = useHeldStore((s) => s.held.find((h) => h.id === heldId));
   return (
     <div className="shrink-0 border-b border-line bg-surface-editor" data-testid="held-header">
-      <div className="flex h-10 items-center gap-2 px-3">
-        <Icon icon={icons.PauseIcon} size={15} className="shrink-0 text-warning" />
-        <Breadcrumbs root={hostOf(tab.url)} segments={pathSegments(tab.url)} title={tab.url} />
-        <Badge tone="warning" dot pulse={!!held}>
-          {held ? HELD_BADGES[held.stage] : 'Let go'}
-        </Badge>
-        <IconButton icon={icons.PrettifyIcon} label="Pretty-print" shortcut={SHORTCUT.format} className="ml-1" onClick={() => void formatTab(tab.id)} />
+      {/* The actions wrap under the location when the editor is too narrow for both. */}
+      <div className="flex min-h-10 flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5">
+        <div className="flex min-w-0 flex-[1_1_220px] items-center gap-2">
+          <Icon icon={icons.PauseIcon} size={15} className="shrink-0 text-warning" />
+          <Breadcrumbs root={hostOf(tab.url)} segments={pathSegments(tab.url)} title={tab.url} />
+          <Badge tone="warning" dot pulse={!!held}>
+            {held ? HELD_BADGES[held.stage] : 'Let go'}
+          </Badge>
+          <IconButton icon={icons.PrettifyIcon} label="Pretty-print" shortcut={SHORTCUT.format} onClick={() => void formatTab(tab.id)} />
+        </div>
         {held ? <HeldActions tabId={tab.id} held={held} /> : null}
       </div>
       {held ? <HeldFields held={held} /> : null}

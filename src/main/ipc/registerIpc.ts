@@ -84,7 +84,8 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   handle(IPC_CHANNEL.updateOverride, async (id: unknown, patch: OverridePatch) => {
     assertString(id, 'id');
     await store.update(id, patch);
-    await page.overridesChanged(patch.match !== undefined || patch.enabled !== undefined);
+    // Patterns follow the match, the switch and Send request (which stage a response override pauses at).
+    await page.overridesChanged(patch.match !== undefined || patch.enabled !== undefined || patch.response !== undefined);
     return store.meta(id);
   });
   handle(IPC_CHANNEL.deleteOverride, async (id: unknown) => {

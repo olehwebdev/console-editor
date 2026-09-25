@@ -28,6 +28,9 @@ export function requestSent(ctx: NetworkLogContext, p: RequestWillBeSent, sessio
   const { request } = p;
   // A GET carries no body to name an operation in.
   const operation = request.method !== GET_METHOD ? graphqlOperation(request.postData) : undefined;
+  // Held before it was listed.
+  const heldId = ctx.heldMarks.get(p.requestId);
+  ctx.heldMarks.delete(p.requestId);
   const entry = log.add({
     sessionId,
     requestId: p.requestId,
@@ -48,6 +51,7 @@ export function requestSent(ctx: NetworkLogContext, p: RequestWillBeSent, sessio
       ...(!worker && p.frameId ? { frameId: p.frameId } : {}),
       hasBody: !!request.hasPostData || request.postData !== undefined,
       ...(operation ? { operation } : {}),
+      ...(heldId ? { heldId } : {}),
       pageLoad: page.load,
     },
   });

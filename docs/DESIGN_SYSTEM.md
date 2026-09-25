@@ -119,12 +119,12 @@ Each component lives in its own folder with an `index.ts` public API. Props belo
 | `ToastStack` + `toast()` | `toast({title, description?, tone?, action?})` | stacked, swipe/auto-dismiss, bottom-left of the editor; its width is capped by `--preview-w` (published by the preview pane) so it never reaches the native page view |
 | `ConfirmDialog` + `confirm()` | `confirm({title, body, confirmLabel, tone}) => Promise<boolean>` | replaces `window.confirm` |
 | `UrlMatcherFields` | `value: UrlMatcher`, `onChange`, `onEnter?`, `testIdPrefix?`, `autoFocus?` | the match type menu, the pattern and "ignore ?query", as siblings the caller lays out in a wrapping row; shared by an override's match row and rule pages |
-| `Popover` | `open`, `onOpenChange`, `anchor: HTMLElement \| null`, `side?: 'right' \| 'bottom'`, `label` | a few controls beside an element (editing a workspace's tile); not modal: Esc (focus back on the anchor), a press or focus outside, window blur or resize close it; registers as an overlay like menus |
+| `Popover` | `open`, `onOpenChange`, `anchor: HTMLElement \| null`, `side?: 'right' \| 'bottom'`, `label` | a few controls beside an element (editing a workspace's tile, the Network panel's breakpoints); not modal: Esc (focus back on the anchor), a press or focus outside, window blur or resize close it; a `Menu` opened from inside it counts as inside (Esc there closes the menu only); registers as an overlay like menus |
 | `HoverHighlight` | wraps a list; one pill follows the hovered row | port of beUI SharedLayoutBg |
 | `Collapsible` / `Section` | `title`, `count?`, `actions?`, `defaultOpen?` | height auto animation, caps header |
 | `Tree` | rows rendered by the caller; `TreeRow` = `depth`, `expanded?`, `onToggle?`, `selected?`, `icon`, `label`, `meta?` | 26 px rows, guide lines, chevron rotates |
 | `EditorTabs` | `items`, `activeId`, `onSelect`, `onClose`, `onReorder?`, `renderLabel?`, `trailing?`, `onTabContextMenu?` | layout pill, enter/exit width animation; a click selects without taking focus from the editor |
-| `PaneTabs` | `tabs: {id, label}[]`, `value`, `onChange`, `label`, `caps?` | a pane's views as a strip of words (Console / Network, a request's Headers / Payload / Response): the shown one in `--fg` over a 2 px ember underline, the others `--fg-subtle`; one tab stop, arrows move and show (WAI-ARIA tabs, automatic activation); `caps` sets them as the pane's heading (`label-caps`). A toolbar that holds them keeps their width and lets its filter give way |
+| `PaneTabs` | `tabs: {id, label, count?}[]`, `value`, `onChange`, `label`, `caps?` | a pane's views as a strip of words (Console / Network, a request's Headers / Payload / Response): the shown one in `--fg` over a 2 px ember underline, the others `--fg-subtle`; one tab stop, arrows move and show (WAI-ARIA tabs, automatic activation); `caps` sets them as the pane's heading (`label-caps`). A tab's `count` (what waits in it: requests paused at a breakpoint) shows beside its label in the warning tone while above zero. A toolbar that holds them keeps their width and lets its filter give way |
 | `PanelResizer` | `onResize(delta, total)`, `onResizeStart?`, `onResizeEnd?`, `onReset?`, `orientation?`, `value?/min?/max?`, `hairline?` | window-splitter handle between panels: an 8 px hit area, a 2 px accent line on hover (after 200 ms), focus and drag, and a grip that says it can be dragged: three 2 px dots (`--fg-muted`, brightening to `--fg`) in a 7×24 px tab (`--surface-raised`, `--line-strong` outline turning `--accent` with the line) that bulges out of the panel's border on its left (top, when horizontal), so the border seems to curve around the dots. Nothing reaches past the border: that may be the native page view or a clipped edge. The tab is part of the handle and can be grabbed too |
 | `Spinner`, `Shimmer` | loading states | shimmer for "Pretty-printing…" |
 | `EmptyState` | `icon`, `title`, `children` | used by editor & preview |
@@ -147,9 +147,9 @@ src/renderer/src/
               filter-resources, update-settings, update-app, edit-workspace, run-in-frame, filter-console,
               name-frame, clear-console, expand-console-value, detach-page, rule/ (a slice group:
               quick-actions, edit, toggle, delete), action/ (a slice group: run, edit), edit-response-rule,
-              network/ (a slice group: filter, clear)
+              network/ (a slice group: filter, clear, breakpoints, held)
   entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule,
-              source-map, action, network-request
+              source-map, action, network-request, held-request
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format and source-map
               workers, overlays, native view rect), monaco, config (icons)
 ```

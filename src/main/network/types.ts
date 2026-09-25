@@ -36,6 +36,8 @@ export interface NetworkLogContext {
   page: { load: number; mainFrameId?: string };
   /** Worker sessions by session id: the kind of worker and its script URL. */
   workers: Map<string, { type: WorkerType; url: string }>;
+  /** Held ids by request id, for requests a breakpoint holds before `requestWillBeSent` lists them (the two can come in either order). */
+  heldMarks: Map<string, string>;
 }
 
 /** Handles one CDP event for the log; `sessionId` is undefined for the page's own session. */
