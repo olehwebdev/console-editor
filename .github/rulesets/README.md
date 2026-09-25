@@ -23,7 +23,7 @@ Deliberately left out:
 
 - **No bypass.** Claude sessions push to GitHub as the maintainer, who is the repository's admin, so a bypass for the admin role (or for the maintainer) would cover agents' pushes to `main` too. To get past the rules in an emergency, set the ruleset's enforcement to **Disabled** in Settings, then turn it back on. Changing a ruleset needs the Administration permission. Cloud sessions reach GitHub through the Claude GitHub app, which lacked it when this was written: reading branch protection through it, which needs Administration (read), returned 403. A session using your own credentials, such as a local `gh` login, has no such limit.
 - **No required approvals.** The maintainer is the only collaborator, every pull request (Claude's too) is opened as the maintainer, and GitHub doesn't let authors approve their own pull requests: one required approval would block every merge. Raise it when a second maintainer joins.
-- **No signed commits.** The maintainer's commits aren't signed, agents' included (they commit as the maintainer), and a merge commit brings a branch's commits into `main` as they are, so requiring signatures would block the maintainer's pull requests and release branches.
+- **No signed commits.** The maintainer's commits aren't signed, agents' included (they commit as the person they work for), and a merge commit brings a branch's commits into `main` as they are, so requiring signatures would block the maintainer's pull requests and release branches.
 - **No merge queue.** GitHub offers it only in organization-owned repositories, and `ci.yml` doesn't run on `merge_group` either.
 
 ## `release-tags.json`: Release tags are permanent
