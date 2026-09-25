@@ -11,6 +11,10 @@
  * installers and latest*.yml. The executable is the installed app on Windows,
  * the AppImage on Linux (updated in place), and the app inside the .app on
  * macOS, where updates are downloaded and checked rather than installed.
+ *
+ * An AppImage also installs its own desktop entry (in a data folder of the test's,
+ * through XDG_DATA_HOME): the test checks it starts the old file before the update
+ * and the renamed one after it.
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -91,6 +95,18 @@ await rm(join(updaterCache, 'pending'), { recursive: true, force: true });
 // --- Where a restarted app records its version. ---
 
 const userData = await mkdtemp(join(tmpdir(), 'console-editor-update-'));
+/** Where an AppImage installs its desktop entry and icons (instead of ~/.local/share). */
+const xdgData = await mkdtemp(join(tmpdir(), 'console-editor-update-xdg-'));
+const desktopEntry = join(xdgData, 'applications', 'console-editor.desktop');
+
+/** The file the AppImage's desktop entry starts, once there is one. */
+function desktopEntryTarget(): string | undefined {
+  try {
+    return /^TryExec=(.*)$/m.exec(readFileSync(desktopEntry, 'utf8'))?.[1];
+  } catch {
+    return undefined;
+  }
+}
 /** The data folder the app uses without CONSOLE_EDITOR_USER_DATA: the Windows installer restarts it from Explorer, without this test's environment. */
 const defaultUserData =
   process.platform === 'win32'
@@ -136,8 +152,12 @@ let restartedIn: string | undefined;
 try {
   const current = JSON.parse(await readFile(join(import.meta.dirname, '../../package.json'), 'utf8')).version as string;
   console.log(`Updating ${executable} (${current}) to ${next} from ${base}`);
-  running = await launchApp(executable, { CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_UPDATE_FEED: base });
+  running = await launchApp(executable, { CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_UPDATE_FEED: base, XDG_DATA_HOME: xdgData });
   const { editor } = running;
+  if (executable.endsWith('.AppImage')) {
+    await waitFor('the AppImage to install its desktop entry', () => desktopEntryTarget() === executable, 30_000);
+    if (!existsSync(join(xdgData, 'icons/hicolor/512x512/apps/console-editor.png'))) throw new Error('The AppImage installed no icon');
+  }
 
   // The first automatic check runs shortly after start and announces the release.
   const notifications = editor.locator('[aria-label="Notifications"]');
@@ -188,11 +208,13 @@ try {
     // (Where the restart kept this test's data folder, that start already happened there, with no debugging port
     // to look at it: the record goes back to the old version so this start is the first one again.)
     if (restartedIn === userData) await writeFile(join(userData, 'update.json'), `${JSON.stringify({ lastVersion: current })}\n`);
-    running = await launchApp(updated, { CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_UPDATE_FEED: base });
+    running = await launchApp(updated, { CONSOLE_EDITOR_USER_DATA: userData, CONSOLE_EDITOR_UPDATE_FEED: base, XDG_DATA_HOME: xdgData });
     const info = await running.editor.evaluate<{ version: string; updatedFrom: string | null }>('window.consoleEditor.getAppInfo()');
     if (info.version !== next) throw new Error(`The app runs ${info.version} after the update, not ${next}`);
     if (info.updatedFrom !== current) throw new Error(`Expected "updated from ${current}", got ${info.updatedFrom}`);
     await running.editor.locator('[data-testid="whats-new"]').getByText(`updated from ${current}`).waitFor({ timeout: 10_000 });
+    // The desktop entry follows the AppImage the update renamed, so the launcher and the dock's icon keep working.
+    if (appImage) await waitFor('the desktop entry to start the updated AppImage', () => desktopEntryTarget() === updated, 30_000);
     console.log(`Update OK on ${process.platform}-${process.arch}: ${current} → ${next}, installed and restarted.`);
   }
 } catch (err) {
@@ -217,5 +239,6 @@ try {
   server.closeAllConnections();
   server.close();
   await rm(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }).catch(() => undefined);
+  await rm(xdgData, { recursive: true, force: true }).catch(() => undefined);
 }
 process.exit(failed ? 1 : 0);

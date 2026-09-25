@@ -1,8 +1,6 @@
 import { realpathSync } from 'node:fs';
 import { isAbsolute, relative } from 'node:path';
-
-/** Environment variables the AppImage runtime sets. */
-const APPIMAGE_ENV = { image: 'APPIMAGE', dir: 'APPDIR' } as const;
+import { APPIMAGE_ENV } from './constants';
 
 /**
  * Whether this process runs from the AppImage that APPIMAGE names. The AppImage runtime sets APPIMAGE and

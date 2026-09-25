@@ -1,5 +1,5 @@
 import type { Configuration } from 'electron-builder';
-import { APP_ID } from './src/main/appInfo.ts';
+import { APP_ID, LINUX_APP_NAME, LINUX_CATEGORY, LINUX_ICONS_RESOURCE } from './src/main/appInfo.ts';
 
 /**
  * Installers. `npm run dist` builds the current OS's into dist/; releases are
@@ -80,9 +80,11 @@ const config: Configuration = {
 
   linux: {
     target: ['AppImage', 'deb', 'rpm', 'tar.gz'],
-    category: 'Development',
-    executableName: 'console-editor',
+    category: LINUX_CATEGORY,
+    executableName: LINUX_APP_NAME,
     icon: 'build/icons',
+    // Also in the app itself: an AppImage or .tar.gz installs its own desktop entry and icons (src/main/desktopEntry/).
+    extraResources: [{ from: 'build/icons', to: LINUX_ICONS_RESOURCE, filter: ['*.png'] }],
     synopsis: 'Live-patch the JavaScript, CSS and HTML of any website',
     maintainer: 'olehwebdev <10379680+olehwebdev@users.noreply.github.com>',
     // Names the .desktop file after package.json's desktopName, which Electron uses as the window's app id.
@@ -101,6 +103,9 @@ const config: Configuration = {
   },
   rpm: {
     artifactName: '${name}-${version}.${arch}.${ext}',
+    // electron-builder's install script, plus a refresh of GTK's icon cache, which Debian and Ubuntu do through a
+    // dpkg trigger: without it, a system with no such trigger for rpm installs shows a generic icon.
+    afterInstall: 'build/linux/after-install.tpl',
     packageCategory: 'Development/Tools',
     depends: [
       'gtk3',
