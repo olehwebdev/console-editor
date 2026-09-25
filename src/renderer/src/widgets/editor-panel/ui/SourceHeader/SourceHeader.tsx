@@ -21,13 +21,14 @@ export function SourceHeader({ tab, onShowExplorer }: { tab: SourceTab; onShowEx
   const bundle = fileName(tab.bundleUrl);
 
   return (
-    <div className="shrink-0 border-b border-line bg-surface-editor" data-testid="source-header">
+    // A container: the header's own width, not the window's, decides which labels fit.
+    <div className="@container shrink-0 border-b border-line bg-surface-editor" data-testid="source-header">
       <div className="flex h-10 items-center gap-2 px-3">
         <SourceIcon file={file} size={15} />
         <Breadcrumbs root={root.replace(WEB_SCHEME, '')} segments={[...dirs, file]} title={cleanLabel(tab.url)} />
         <Badge icon={icons.LockIcon}>Read-only</Badge>
         <Tooltip content={`Open ${tab.bundleUrl}`}>
-          <Button size="sm" variant="ghost" className="hidden max-w-40 sm:inline-flex" onClick={() => void openResource(tab.bundleUrl)}>
+          <Button size="sm" variant="ghost" className="hidden max-w-40 @xl:inline-flex" onClick={() => void openResource(tab.bundleUrl)}>
             <span className="truncate">from {bundle}</span>
           </Button>
         </Tooltip>
@@ -48,7 +49,7 @@ export function SourceHeader({ tab, onShowExplorer }: { tab: SourceTab; onShowEx
             data-testid="go-to-bundle"
             onClick={() => void goToBundle(tab.id)}
           >
-            <span className="hidden md:inline">Go to bundle code</span>
+            <span className="hidden @lg:inline">Go to bundle code</span>
           </Button>
         </Tooltip>
       </div>
