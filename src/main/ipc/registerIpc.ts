@@ -6,7 +6,6 @@ import {
   type OverridePatch,
   type Rect,
   type SessionDraft,
-  type Settings,
   type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
@@ -14,11 +13,14 @@ import { loadSiteSourceMap } from '../PageController';
 import { assertSourceMapRequest } from './assertSourceMapRequest';
 import { assertString } from './assertString';
 import { registerActionIpc } from './registerActionIpc';
+import { registerActionsWindowIpc } from './registerActionsWindowIpc';
+import { registerConsoleIpc } from './registerConsoleIpc';
 import { registerNetworkIpc } from './registerNetworkIpc';
 import { registerRuleIpc } from './registerRuleIpc';
+import { registerSettingsIpc } from './registerSettingsIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, rules, settings, session, actions, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, actions, actionsWindow, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -30,8 +32,11 @@ export function registerIpc({ win, page, store, rules, settings, session, action
       return fn(...args);
     });
   };
+  // The Actions panel's own window: it may list frames, run code, manage actions, read the workspaces and read or change the settings (its panel turns recording on), and nothing else.
+  const fromActionsUi = (event: IpcMainInvokeEvent | IpcMainEvent) => fromEditor(event) || actionsWindow.owns(event.sender);
   const handle = guarded(fromEditor);
   const handlePage = guarded(fromPageUi);
+  const handleActions = guarded(fromActionsUi);
 
   handlePage(IPC_CHANNEL.navigate, (url: unknown) => {
     assertString(url, 'url');
@@ -99,28 +104,18 @@ export function registerIpc({ win, page, store, rules, settings, session, action
 
   registerRuleIpc(handle, rules, page);
 
-  handle(IPC_CHANNEL.getSettings, () => settings.get());
-  handle(IPC_CHANNEL.updateSettings, async (patch: Partial<Settings>) => {
-    const next = await settings.update(patch);
-    await page.settingsChanged();
-    // Turning automatic checks on or off takes effect now.
-    if (patch.checkForUpdates !== undefined) updates.schedule();
-    return next;
-  });
+  registerSettingsIpc(handleActions, { settings, page, updates, send });
 
-  handle(IPC_CHANNEL.getWorkspaces, () => workspaces.state());
+  handleActions(IPC_CHANNEL.getWorkspaces, () => workspaces.state());
   handle(IPC_CHANNEL.getWorkspaceFavicons, () => workspaces.favicons());
   handle(IPC_CHANNEL.createWorkspace, () => workspaces.create());
   handle(IPC_CHANNEL.updateWorkspace, (id: unknown, patch: WorkspacePatch) => workspaces.update(id, patch));
   handle(IPC_CHANNEL.deleteWorkspace, (id: unknown) => workspaces.remove(id));
   handle(IPC_CHANNEL.switchWorkspace, (id: unknown) => workspaces.switchTo(id));
 
-  handle(IPC_CHANNEL.listFrames, () => page.console.listFrames());
-  handle(IPC_CHANNEL.getConsoleEntries, () => page.console.listEntries());
-  handle(IPC_CHANNEL.evaluateInFrame, (frameId: unknown, code: unknown) => page.console.evaluate(frameId, code));
-  handle(IPC_CHANNEL.getConsoleProperties, (handle: unknown) => page.console.properties(handle));
-  handle(IPC_CHANNEL.clearConsole, () => page.console.clear());
-  registerActionIpc(handle, actions, send);
+  registerConsoleIpc(handle, handleActions, page);
+  registerActionIpc(handleActions, actions, send);
+  registerActionsWindowIpc(handle, handleActions, actionsWindow);
   registerNetworkIpc(handle, page.network);
 
   handle(IPC_CHANNEL.getSession, () => session.get());

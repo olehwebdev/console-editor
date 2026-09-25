@@ -3,6 +3,7 @@ import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
 import { useNetworkStore } from '@/entities/network-request';
+import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
 import { receiveRequests } from '@/features/network/filter';
@@ -47,6 +48,8 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'network-requests': (event) => receiveRequests(event.requests),
   'network-cleared': () => useNetworkStore.getState().clear(),
   'held-requests': (event) => receiveHeld(event.held),
+  'actions-window': (event) => useActionStore.getState().setWindow(event.state),
+  'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),

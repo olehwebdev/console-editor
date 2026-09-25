@@ -1,0 +1,23 @@
+name: Feature request
+description: An idea for something Console Editor could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The task, and what gets in the way today.
+      placeholder: When I debug a checkout embedded in an iframe, I have to …
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like the app to do
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do now instead
+      description: Workarounds, or other tools that do it.

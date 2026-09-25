@@ -1,9 +1,9 @@
 import type { BrowserWindow } from 'electron';
-import type { PageWindowStore } from '../store/PageWindowStore';
+import type { WindowStore } from '../store/WindowStore';
 import { BOUNDS_SAVE_DELAY_MS } from './constants';
 
 /** Saves the window's bounds a moment after it stops moving or resizing. Returns what saves them at once. */
-export function trackPlacement(win: BrowserWindow, store: PageWindowStore): () => void {
+export function trackPlacement(win: BrowserWindow, store: WindowStore): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const save = () => {
     clearTimeout(timer);

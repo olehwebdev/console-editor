@@ -4,7 +4,7 @@
  * other) so every bundle can include them.
  */
 
-export type { ActionInput, ActionPatch, ConsoleAction } from './actions';
+export type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 export type { Breakpoint, BreakpointStage, FailReason, HeldAction, HeldActionType, HeldRequest, HeldResponse } from './breakpoints';
 export { BREAKPOINT_STAGES, FAIL_REASONS } from './breakpoints';
 export type { ConsoleEditorApi } from './api';

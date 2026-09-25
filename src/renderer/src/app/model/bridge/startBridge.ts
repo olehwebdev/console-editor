@@ -34,6 +34,7 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     api.listOverrides().then((overrides) => useOverrideStore.getState().setAll(overrides)),
     api.listRules().then((rules) => useRuleStore.getState().setAll(rules)),
     api.listActions().then((actions) => useActionStore.getState().setAll(actions)),
+    api.getActionsWindow().then((window) => useActionStore.getState().setWindow(window)),
     api.listResources().then(applyResourceSnapshot),
     api.getPageState().then((page) => usePageStore.getState().setPage(page)),
     // Frames first: the rows name them.

@@ -236,7 +236,8 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Cross-site and nested iframes
 - [x] A console for the page and every iframe: each frame's logs in one list, and code run in the frame you pick
 - [x] Actions: code kept to run in a frame with one click
-- [ ] Actions in a window of their own, with parameters and scenarios
+- [x] Actions in a window of their own, kept on top of the page or on another screen
+- [ ] Parameters and scenarios for actions
 - [x] Session restore with unsaved drafts
 - [x] Workspaces: a page, tabs and overrides per site or task, switched from the rail
 - [x] Rules: request blocking, response header changes, and CORS for APIs
@@ -275,7 +276,7 @@ When running as root on Linux (containers, CI), Electron needs its sandbox off: 
 
 ## Contributing
 
-Issues and pull requests are welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** explains how to set up, test and what a good PR looks like.
+Issues and pull requests are welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** explains how to set up, test and what a good PR looks like. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Found a security problem? Report it privately, as [SECURITY.md](SECURITY.md) explains, not in an issue.
 
 ## License
 

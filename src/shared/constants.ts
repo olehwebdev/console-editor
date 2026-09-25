@@ -3,11 +3,22 @@
  * Keep this file free of runtime imports so every bundle can include it.
  */
 
+import type { AppEvent } from './types';
+
 /** The location hash (without `#`) that shows the design-system gallery instead of the editor. */
 export const GALLERY_HASH = 'gallery';
 
 /** The location hash (without `#`) of the website's own window: the preview alone, without the editor. */
 export const PAGE_WINDOW_HASH = 'page-window';
+
+/** The location hash (without `#`) of the Actions panel's own window. */
+export const ACTIONS_WINDOW_HASH = 'actions-window';
+
+/**
+ * The events the Actions window is sent (the rest are the editor's): what its panel shows. Its UI has a handler
+ * for each, so one added here fails typecheck until it is handled there.
+ */
+export const ACTIONS_WINDOW_EVENTS = ['actions-changed', 'actions-window', 'frames-changed', 'settings-changed', 'workspaces-changed'] as const satisfies readonly AppEvent['type'][];
 
 /** The longest name a workspace can be given. */
 export const MAX_WORKSPACE_NAME = 40;

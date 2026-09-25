@@ -1,4 +1,4 @@
-import type { ConsoleAction } from './actions';
+import type { ActionsWindowState, ConsoleAction } from './actions';
 import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { MenuCommand } from './menu';
@@ -7,6 +7,7 @@ import type { OverrideMeta } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
 import type { Rule } from './rules';
+import type { Settings } from './settings';
 import type { UpdateState } from './updates';
 import type { MissedReason } from './workers';
 import type { WorkspacesState } from './workspaces';
@@ -59,6 +60,10 @@ export type AppEvent =
   | { type: 'network-cleared' }
   /** The requests breakpoints hold now, oldest first: one was stopped, or let go (by you, or the page gave up on it). */
   | { type: 'held-requests'; held: HeldRequest[] }
+  /** The Actions panel moved into its own window or back, or that window's Keep on top changed. */
+  | { type: 'actions-window'; state: ActionsWindowState }
+  /** A window changed the settings (the others show them as they are now). */
+  | { type: 'settings-changed'; settings: Settings }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };

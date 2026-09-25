@@ -1,6 +1,7 @@
 import { Menu, shell, type BrowserWindow, type MenuItemConstructorOptions } from 'electron';
 import { SHORTCUT } from '../../shared/constants';
 import type { AppEvent, MenuCommand } from '../../shared/types';
+import { ACTIONS_WINDOW_MENU_ID, type ActionsWindow } from '../ActionsWindow';
 import { REPO_URL } from '../appInfo';
 import type { PageController } from '../PageController';
 import { PAGE_WINDOW_MENU_ID } from '../PageWindow';
@@ -14,7 +15,7 @@ import { editorCommand } from './editorCommand';
  * Replaces Electron's default menu. The default one binds Ctrl/Cmd+R to reloading
  * the *editor* window, which would throw away unsaved edits.
  */
-export function installMenu(win: BrowserWindow, page: PageController, store: OverrideStore, send: (e: AppEvent) => void): void {
+export function installMenu(win: BrowserWindow, page: PageController, store: OverrideStore, actionsWindow: ActionsWindow, send: (e: AppEvent) => void): void {
   const isMac = process.platform === 'darwin';
   const command = (c: MenuCommand) => editorCommand(win, send, c);
   const { window: pageWindow } = page;
@@ -69,6 +70,13 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
           type: 'checkbox',
           checked: pageWindow.detached,
           click: () => (pageWindow.detached ? pageWindow.attach() : void pageWindow.detach()),
+        },
+        {
+          id: ACTIONS_WINDOW_MENU_ID,
+          label: 'Actions in Their Own Window',
+          type: 'checkbox',
+          checked: actionsWindow.detached,
+          click: () => (actionsWindow.detached ? actionsWindow.attach() : void actionsWindow.detach()),
         },
         { type: 'separator' },
         // Not F12 / Ctrl+Shift+I: Monaco uses those (go to definition / format on Linux).

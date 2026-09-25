@@ -1,4 +1,4 @@
-import type { ActionInput, ActionPatch, ConsoleAction } from './actions';
+import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 import type { HeldAction, HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
 import type { AppEvent } from './events';
@@ -105,6 +105,15 @@ export interface ConsoleEditorApi {
   listHeldRequests(): Promise<HeldRequest[]>;
   /** Lets a held request go, as `action` says. Throws for one no longer held (answered, or given up by the page). */
   resumeHeldRequest(id: string, action: HeldAction): Promise<void>;
+
+  /** Where the Actions panel is. */
+  getActionsWindow(): Promise<ActionsWindowState>;
+  /** Moves the Actions panel into a window of its own, where it was last, or brings that window forward. */
+  detachActions(): Promise<void>;
+  /** Puts the Actions panel back in the editor's sidebar, closing its window. */
+  attachActions(): Promise<void>;
+  /** Keeps the Actions window above the others, or not. */
+  setActionsOnTop(onTop: boolean): Promise<void>;
 
   /** The active workspace's page and tabs. */
   getSession(): Promise<SessionState>;

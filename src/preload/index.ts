@@ -61,6 +61,11 @@ const api: ConsoleEditorApi = {
   listHeldRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listHeldRequests),
   resumeHeldRequest: (id, action) => ipcRenderer.invoke(IPC_CHANNEL.resumeHeldRequest, id, action),
 
+  getActionsWindow: () => ipcRenderer.invoke(IPC_CHANNEL.getActionsWindow),
+  detachActions: () => ipcRenderer.invoke(IPC_CHANNEL.detachActions),
+  attachActions: () => ipcRenderer.invoke(IPC_CHANNEL.attachActions),
+  setActionsOnTop: (onTop) => ipcRenderer.invoke(IPC_CHANNEL.setActionsOnTop, onTop),
+
   getSession: () => ipcRenderer.invoke(IPC_CHANNEL.getSession),
   saveSessionTabs: (workspaceId, tabs, activeTabId) => ipcRenderer.invoke(IPC_CHANNEL.saveSessionTabs, workspaceId, tabs, activeTabId),
   getDraft: (tabId) => ipcRenderer.invoke(IPC_CHANNEL.getDraft, tabId),
