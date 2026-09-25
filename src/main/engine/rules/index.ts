@@ -6,8 +6,6 @@ export { findResponseRules } from './findResponseRules';
 export { isPreflight } from './isPreflight';
 export { pausedRequestOf } from './pausedRequestOf';
 export { preflightMethod } from './preflightMethod';
-export { requestHeader } from './requestHeader';
-export { RESPONSE_RULE_APPLIERS } from './responseRuleAppliers';
 export { ruleMatches } from './ruleMatches';
 export { ruleTypeOf } from './ruleTypeOf';
 export { sameHead } from './sameHead';

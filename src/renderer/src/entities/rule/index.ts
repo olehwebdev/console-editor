@@ -12,7 +12,6 @@ export { blockingRuleFor, isNewRowKey, nextRowKey, ruleLabel, savedRowKeys, toRu
 export { HEADER_PRESETS, NO_STORE_PRESET, REMOVE_CSP_PRESET, type HeaderPreset } from './config';
 export {
   BLANK_HEADER_EDIT,
-  HEADER_OPERATION_FIELDS,
   HeaderEditList,
   HeaderEditRow,
   HeaderNameList,

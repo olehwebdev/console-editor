@@ -1,5 +1,3 @@
-export { closeHeldTab } from './closeHeldTab';
-export { CONTINUE, HELD_BODY } from './constants';
 export { failHeldRequest } from './failHeldRequest';
 export { receiveHeld } from './receiveHeld';
 export { saveHeldAsOverride } from './saveHeldAsOverride';

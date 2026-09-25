@@ -49,7 +49,6 @@ export {
   InformationCircleIcon as InfoIcon,
   JavaScriptIcon as JsIcon,
   Layers01Icon as OverridesIcon,
-  Link01Icon as LinkIcon,
   LinkSquare02Icon as ExternalLinkIcon,
   LockIcon,
   MagicWand01Icon as PrettifyIcon,
