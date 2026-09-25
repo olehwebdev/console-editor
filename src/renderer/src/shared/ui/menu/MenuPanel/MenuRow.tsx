@@ -18,17 +18,17 @@ interface MenuRowProps {
   hasChecks: boolean;
   /** Some row has an icon: the others keep its slot empty. */
   hasIcons: boolean;
-  itemRefs: RefObject<(HTMLDivElement | null)[]>;
+  itemsRef: RefObject<(HTMLDivElement | null)[]>;
   setActive: (index: number) => void;
   choose: (index: number) => void;
 }
 
 /** One action in the panel. */
-export function MenuRow({ item, index, isActive, highlightId, reduce, hasChecks, hasIcons, itemRefs, setActive, choose }: MenuRowProps) {
+export function MenuRow({ item, index, isActive, highlightId, reduce, hasChecks, hasIcons, itemsRef, setActive, choose }: MenuRowProps) {
   return (
     <div
       ref={(el) => {
-        itemRefs.current[index] = el;
+        itemsRef.current[index] = el;
       }}
       role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
       aria-checked={item.checked}

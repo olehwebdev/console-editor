@@ -1,0 +1,23 @@
+// oxlint (https://oxc.rs): `npm run lint`, type-aware (typescript-go), so it keeps up with TypeScript 7.
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
+  // Code that is wrong or useless. The react plugin includes React's own rules (rules of hooks, honest effect
+  // dependencies, and the React Compiler's: refs aren't read in render, props and hook results aren't changed,
+  // components are pure), native here, not through a JS plugin.
+  "categories": { "correctness": "error" },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    // A promise handed where nothing awaits it (an async onClick). `void promise()`, used on purpose, stays allowed
+    // by no-floating-promises.
+    "typescript/no-misused-promises": "error",
+    // Callbacks and deps are declared as methods (`onChange(next): void`) and destructured, never using `this`: the
+    // rule can't tell them from class methods, so all but one of its findings were those.
+    "typescript/unbound-method": "off",
+    // `[...collection]` is how this code snapshots a collection its loop changes (deleting records, removing nested
+    // sessions, handlers that unsubscribe while dispatched): the rule can't see the change.
+    "unicorn/no-useless-spread": "off",
+    // Only says the React Compiler would skip a component (TanStack Virtual's useVirtualizer). Turn it on with the compiler.
+    "react/incompatible-library": "off"
+  }
+}

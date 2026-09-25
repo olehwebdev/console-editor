@@ -30,6 +30,7 @@ npm run demo-site      # in another terminal: pages to try it on (port 5174)
 npm run typecheck
 npm run lint:fsd
 npm run lint:structure # files of at most 150 lines, one function each, no switch (CLAUDE.md › Code structure)
+npm run lint           # oxlint with type information: React's rules and misused promises (.oxlintrc.json)
 npm run lint:unused    # no unused files, dependencies or exports (knip; types in a slice's index.ts are its public API)
 npm run lint:duplicates # no new copies of code (jscpd; .jscpd-baseline.json lists the older ones, and only shrinks)
 npm test               # unit, renderer, and engine tests in real Chromium (npx playwright install chromium)

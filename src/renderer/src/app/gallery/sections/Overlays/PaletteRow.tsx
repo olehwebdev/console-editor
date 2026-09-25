@@ -8,7 +8,7 @@ import { Row } from './Row';
 
 /** The command palette over the demo commands and 2 000 resources. */
 export function PaletteRow({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const groups = useMemo(commandGroups, []);
+  const groups = useMemo(() => commandGroups(), []);
   return (
     <Row title="Command palette" note="Fuzzy filter, 2 000 virtualized resources.">
       <DemoButton onClick={() => onOpenChange(true)}>

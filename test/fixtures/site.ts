@@ -400,9 +400,9 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   };
 }
 
-if (process.argv[1] && /site\.ts$/.test(process.argv[1])) {
+if (process.argv[1]?.endsWith('site.ts')) {
   const port = Number(process.env.PORT ?? 5174);
-  startFixtureSite(port).then((site) =>
+  void startFixtureSite(port).then((site) =>
     console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/services.html services in iframes that log and message each other\n  ${site.url}/workers/    dedicated, shared and service workers, and a worklet\n  ${site.url}/maps.html   source maps named every way there is`),
   );
 }

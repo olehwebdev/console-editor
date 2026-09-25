@@ -10,6 +10,7 @@ Before pushing:
 npm run typecheck
 npm run lint:fsd
 npm run lint:structure         # the Code structure rules below: thin files, one function each, no switch
+npm run lint                   # oxlint, type-aware: React's rules (hooks, refs, purity) and misused promises
 npm run lint:unused            # knip: no unused file, dependency or export (knip.jsonc says what counts)
 npm run lint:duplicates        # jscpd: no copy of code that isn't in .jscpd-baseline.json
 npm test
@@ -91,3 +92,4 @@ Other component rules:
 - Compute cheap derived values during render; `useMemo`/`useCallback` only for expensive work or a reference something depends on.
 - Subscribe to narrow store slices and select stable references (a selector returning a new object re-renders forever; use `useShallow`).
 - Keys are stable ids; an index is fine only for static lists that never reorder.
+- Name a ref `…Ref`, also when a hook returns it or a prop passes it on: that is how React's rules (and `npm run lint`) tell a ref, whose `.current` may be written in handlers, from a value that must not change.

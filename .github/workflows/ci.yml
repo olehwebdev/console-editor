@@ -35,6 +35,8 @@ jobs:
 
       - run: npm run lint:structure
 
+      - run: npm run lint
+
       - run: npm run lint:unused
 
       - run: npm run lint:duplicates

@@ -11,6 +11,6 @@
 ## Checklist
 
 - [ ] Comes from a git flow branch (`feature/…`, `bugfix/…`) into `main`, and does one thing
-- [ ] `npm run typecheck`, `npm run lint:fsd`, `npm run lint:structure`, `npm run lint:unused`, `npm run lint:duplicates`, `npm test` and `npm run test:e2e` pass
+- [ ] `npm run typecheck`, `npm run lint:fsd`, `npm run lint:structure`, `npm run lint`, `npm run lint:unused`, `npm run lint:duplicates`, `npm test` and `npm run test:e2e` pass
 - [ ] `docs/SPEC.md` describes any behaviour this changes
 - [ ] User-visible changes are noted under `[Unreleased]` in `CHANGELOG.md`

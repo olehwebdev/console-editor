@@ -27,7 +27,8 @@ export function FrameNameForm({ frameKey, name, automatic, address, onDone }: Fr
       data-testid="frame-name-form"
       onSubmit={(event) => {
         event.preventDefault();
-        void nameFrame(frameKey, String(new FormData(event.currentTarget).get('name') ?? ''));
+        const typed = new FormData(event.currentTarget).get('name');
+        void nameFrame(frameKey, typeof typed === 'string' ? typed : '');
         onDone();
       }}
     >
