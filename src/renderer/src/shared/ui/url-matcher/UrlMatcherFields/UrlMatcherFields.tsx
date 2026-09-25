@@ -1,6 +1,8 @@
+import { useId } from 'react';
 import { MATCH_TYPES } from '@common/types';
 import { icons, KEY } from '@/shared/config';
 import { BUTTON_ICON_SIZE, Button } from '@/shared/ui/button';
+import { FieldError } from '@/shared/ui/field-error';
 import { Icon } from '@/shared/ui/icon';
 import { Input } from '@/shared/ui/input';
 import { Menu } from '@/shared/ui/menu';
@@ -10,9 +12,11 @@ import type { UrlMatcherFieldsProps } from './types';
 
 /**
  * Which request URLs something applies to: the match type, the pattern and "ignore ?query".
- * Controlled; renders its three controls as siblings, so the caller lays them out (a wrapping row).
+ * Controlled; renders its three controls (and what is wrong with the pattern, on a line of its own)
+ * as siblings, so the caller lays them out (a wrapping row).
  */
-export function UrlMatcherFields({ value, onChange, onEnter, testIdPrefix = DEFAULT_TEST_ID_PREFIX, autoFocus }: UrlMatcherFieldsProps) {
+export function UrlMatcherFields({ value, onChange, onEnter, error, patternRef, testIdPrefix = DEFAULT_TEST_ID_PREFIX, autoFocus }: UrlMatcherFieldsProps) {
+  const errorId = useId();
   const { type, pattern, ignoreQuery } = value;
   return (
     <>
@@ -25,9 +29,12 @@ export function UrlMatcherFields({ value, onChange, onEnter, testIdPrefix = DEFA
         </Button>
       </Menu>
       <Input
+        ref={patternRef}
         size="sm"
         mono
         value={pattern}
+        invalid={!!error}
+        aria-describedby={error ? errorId : undefined}
         autoFocus={autoFocus}
         onChange={(e) => onChange({ ...value, pattern: e.target.value })}
         onKeyDown={(e) => {
@@ -43,6 +50,7 @@ export function UrlMatcherFields({ value, onChange, onEnter, testIdPrefix = DEFA
         onCheckedChange={(checked) => onChange({ ...value, ignoreQuery: checked })}
         label={<span className="text-[12px] text-fg-muted">ignore ?query</span>}
       />
+      <FieldError id={errorId} message={error} className="basis-full" data-testid={`${testIdPrefix}-error`} />
     </>
   );
 }

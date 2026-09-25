@@ -17,17 +17,15 @@ export interface TabMeta {
   saving: boolean;
 }
 
-/** Unapplied edits in a rule page, with the saved input they were made to (dropped once that changes). */
-export interface RulePageDraft {
-  base: CreateRuleInput;
-  value: CreateRuleInput;
-  /** Parallel to value.headers (empty for other actions): stable React keys for the header rows. */
-  rowKeys: string[];
-}
-
 interface PageTabBase {
   id: string;
   title: string;
+}
+
+/** A page whose form holds edits: the form lives with its feature, by page id; the tab only knows whether it has any. */
+interface EditablePage {
+  /** It holds edits not applied yet. */
+  dirty?: boolean;
 }
 
 /** A read-only original from a bundle's source map. Not kept between runs; closes with the file tabs. */
@@ -50,9 +48,9 @@ export interface SourceTab {
 export type PageTab =
   | (PageTabBase & { page: 'whats-new' })
   /** A saved rule's editor. */
-  | (PageTabBase & { page: 'rule'; ruleId: string; draft?: RulePageDraft })
+  | (PageTabBase & EditablePage & { page: 'rule'; ruleId: string })
   /** A rule being written, not created yet. */
-  | (PageTabBase & { page: 'new-rule'; seed: CreateRuleInput; draft?: RulePageDraft });
+  | (PageTabBase & EditablePage & { page: 'new-rule'; seed: CreateRuleInput });
 
 export type PageKind = PageTab['page'];
 
@@ -77,7 +75,7 @@ export interface TabStore {
   openSource(tab: SourceTab, activate?: boolean): void;
   /**
    * Shows a page, opening its tab (after the file and source tabs) if it isn't open yet. An open page
-   * with the same id takes the new fields in place, keeping its position and anything not given (its draft).
+   * with the same id takes the new fields in place, keeping its position and anything not given (whether it holds edits).
    */
   openPage(page: PageTab): void;
   activate(id: string): void;
@@ -88,7 +86,7 @@ export interface TabStore {
   /** Closes these pages; when the active one goes, its neighbour takes over as with `remove`. */
   removePages(ids: readonly string[]): void;
   patch(id: string, patch: Partial<TabMeta>): void;
-  /** Keeps (or, with undefined, drops) a rule page's unapplied edits. */
-  setPageDraft(id: string, draft: RulePageDraft | undefined): void;
+  /** Marks a page as holding edits not applied yet, or not. */
+  setPageDirty(id: string, dirty: boolean): void;
   setDiff(mode: DiffMode): void;
 }

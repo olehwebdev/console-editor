@@ -1,4 +1,3 @@
-export { checkRuleFields } from './checkRuleFields';
 export { compareRuleAge } from './compareRuleAge';
 export {
   HEADER_NAME,
@@ -10,14 +9,11 @@ export {
   PROTECTED_HEADERS,
   UNINTERCEPTED_URL,
 } from './constants';
-export { HEADER_VALUE_CHECKS } from './headerValueChecks';
-export { isHeaderOperation } from './isHeaderOperation';
-export { isMatchType } from './isMatchType';
-export { isRuleAction } from './isRuleAction';
+export { headerEditSchema } from './headerEditSchema';
+export { headerEditsSchema } from './headerEditsSchema';
 export { isRuleResourceType } from './isRuleResourceType';
-export { RULE_INPUT_CHECKS } from './ruleInputChecks';
+export { resourceTypesSchema } from './resourceTypesSchema';
+export { ruleInputSchema } from './ruleInputSchema';
+export { ruleMatcherSchema } from './ruleMatcherSchema';
 export { sameRuleInput } from './sameRuleInput';
-export type { HeaderValueChecks, RuleInputChecks, RuleInputOf } from './types';
-export { validateHeaderEdit } from './validateHeaderEdit';
-export { validateRuleInput } from './validateRuleInput';
-export { validateRuleMatcher } from './validateRuleMatcher';
+export type { RuleInputOf } from './types';

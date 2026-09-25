@@ -14,7 +14,6 @@ export {
   type PageKind,
   type PageTabOf,
   type PageScope,
-  type RulePageDraft,
   type DiffMode,
 } from './model/store';
 export {

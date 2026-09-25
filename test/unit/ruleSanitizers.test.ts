@@ -1,78 +1,78 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeHeaderEdits } from '../../src/main/store/sanitizeHeaderEdits';
-import { sanitizeMatcher } from '../../src/main/store/sanitizeMatcher';
-import { sanitizeResourceTypes } from '../../src/main/store/sanitizeResourceTypes';
-import { sanitizeRuleInput } from '../../src/main/store/sanitizeRuleInput';
-import { sanitizeRulePatch } from '../../src/main/store/sanitizeRulePatch';
+import { parseInput } from '../../src/main/store/parseInput';
+import { rulePatchSchema } from '../../src/main/store/rulePatchSchema';
 import { sanitizeStoredRule } from '../../src/main/store/sanitizeStoredRule';
 import { toRule } from '../../src/main/store/toRule';
-import { MAX_HEADER_EDITS } from '../../src/shared/rules';
+import { MAX_HEADER_EDITS, resourceTypesSchema, ruleInputSchema } from '../../src/shared/rules';
 
 const match = { type: 'glob', pattern: 'https://a.com/*', ignoreQuery: true };
 const edit = { operation: 'set', name: 'X-Mode', value: 'on' };
+const parseRule = (input: unknown) => parseInput(ruleInputSchema, input, 'rule');
+const parsePatch = (input: unknown) => parseInput(rulePatchSchema, input, 'rule');
 
-describe('sanitizeRuleInput (IPC)', () => {
+describe('reading a rule to create (IPC)', () => {
   it("keeps only the known fields of the input's action, as fresh copies", () => {
     const input = { action: 'headers', match: { ...match, extra: 1 }, resourceTypes: ['Script'], headers: [{ ...edit, extra: 2 }], id: 'ffffffff', enabled: false, workspaceId: 'x' };
-    const clean = sanitizeRuleInput(input);
+    const clean = parseRule(input);
     expect(clean).toEqual({ action: 'headers', match, resourceTypes: ['Script'], headers: [edit] });
     expect(clean.match).not.toBe(input.match);
-    expect(sanitizeRuleInput({ action: 'block', match, resourceTypes: [], headers: [edit] })).toEqual({ action: 'block', match, resourceTypes: [] });
-    expect(sanitizeRuleInput({ action: 'cors', match, resourceTypes: ['XHR'] })).toEqual({ action: 'cors', match, resourceTypes: ['XHR'] });
+    expect(parseRule({ action: 'block', match, resourceTypes: [], headers: [edit] })).toEqual({ action: 'block', match, resourceTypes: [] });
+    expect(parseRule({ action: 'cors', match, resourceTypes: ['XHR'] })).toEqual({ action: 'cors', match, resourceTypes: ['XHR'] });
   });
 
   it('puts request types in their canonical order, once each', () => {
-    expect(sanitizeRuleInput({ action: 'block', match, resourceTypes: ['XHR', 'Document', 'XHR', 'Script'] }).resourceTypes).toEqual(['Document', 'Script', 'XHR']);
+    expect(parseRule({ action: 'block', match, resourceTypes: ['XHR', 'Document', 'XHR', 'Script'] }).resourceTypes).toEqual(['Document', 'Script', 'XHR']);
   });
 
-  it('names the field of the wrong shape', () => {
+  it('names the field of the wrong shape, and says what is wrong with a value', () => {
     const valid = { action: 'headers', match, resourceTypes: [], headers: [edit] };
     const cases: Array<[unknown, string]> = [
       [null, 'Invalid rule: not an object'],
       [[valid], 'Invalid rule: not an object'],
-      [{ ...valid, action: 'redirect' }, 'Invalid rule: action'],
+      [{ ...valid, action: 'redirect' }, 'Unknown rule action'],
       [{ ...valid, match: 'https://a.com/' }, 'Invalid rule: match'],
       [{ ...valid, match: { ...match, type: 'prefix' } }, 'Invalid rule: match'],
       [{ ...valid, match: { ...match, pattern: 1 } }, 'Invalid rule: match'],
       [{ ...valid, match: { ...match, ignoreQuery: 'yes' } }, 'Invalid rule: match'],
+      [{ ...valid, match: { ...match, pattern: ' ' } }, 'Pattern is empty'],
       [{ ...valid, resourceTypes: 'Script' }, 'Invalid rule: resourceTypes'],
-      [{ ...valid, resourceTypes: ['Script', 'WebSocket'] }, 'Invalid rule: resourceTypes'],
+      [{ ...valid, resourceTypes: ['Script', 'WebSocket'] }, 'Unknown request type'],
       [{ ...valid, headers: undefined }, 'Invalid rule: headers'],
-      [{ ...valid, headers: [{ ...edit, operation: 'append' }] }, 'Invalid rule: headers'],
+      [{ ...valid, headers: [{ ...edit, operation: 'append' }] }, 'Unknown header operation'],
       [{ ...valid, headers: [{ ...edit, name: 7 }] }, 'Invalid rule: headers'],
       [{ ...valid, headers: [{ ...edit, value: null }] }, 'Invalid rule: headers'],
-      [{ ...valid, headers: Array(MAX_HEADER_EDITS + 1).fill(edit) }, 'Invalid rule: headers'],
+      [{ ...valid, headers: [{ ...edit, name: 'Set-Cookie' }] }, "Set-Cookie can't be changed: the browser stores cookies before a rule runs"],
+      [{ ...valid, headers: Array(MAX_HEADER_EDITS + 1).fill(edit) }, `A rule makes at most ${MAX_HEADER_EDITS} header changes`],
     ];
-    for (const [input, message] of cases) expect(() => sanitizeRuleInput(input), JSON.stringify(input)).toThrow(message);
+    for (const [input, message] of cases) expect(() => parseRule(input), JSON.stringify(input)).toThrow(message);
   });
 });
 
-describe('sanitizeRulePatch (IPC)', () => {
+describe('reading a rule edit (IPC)', () => {
   it('keeps only the fields present, as fresh copies', () => {
-    expect(sanitizeRulePatch({})).toEqual({});
-    expect(sanitizeRulePatch({ enabled: false, action: 'block', id: 'x' })).toEqual({ enabled: false });
-    const patch = sanitizeRulePatch({ match: { ...match, extra: 1 }, resourceTypes: ['Ping', 'Image'], headers: [edit] });
+    expect(parsePatch({})).toEqual({});
+    expect(parsePatch({ enabled: false, action: 'block', id: 'x' })).toEqual({ enabled: false });
+    const patch = parsePatch({ match: { ...match, extra: 1 }, resourceTypes: ['Ping', 'Image'], headers: [edit] });
     expect(patch).toEqual({ match, resourceTypes: ['Image', 'Ping'], headers: [edit] });
-    expect(Object.keys(sanitizeRulePatch({ match }))).toEqual(['match']);
+    expect(Object.keys(parsePatch({ match }))).toEqual(['match']);
   });
 
-  it('names the field of the wrong shape', () => {
-    expect(() => sanitizeRulePatch('x')).toThrow('Invalid rule: not an object');
-    expect(() => sanitizeRulePatch({ enabled: 'yes' })).toThrow('Invalid rule: enabled');
-    expect(() => sanitizeRulePatch({ match: null })).toThrow('Invalid rule: match');
-    expect(() => sanitizeRulePatch({ resourceTypes: ['Nope'] })).toThrow('Invalid rule: resourceTypes');
-    expect(() => sanitizeRulePatch({ headers: {} })).toThrow('Invalid rule: headers');
+  it('names the field of the wrong shape, and refuses a field given as undefined', () => {
+    expect(() => parsePatch('x')).toThrow('Invalid rule: not an object');
+    expect(() => parsePatch({ enabled: 'yes' })).toThrow('Invalid rule: enabled');
+    expect(() => parsePatch({ enabled: undefined })).toThrow('Invalid rule: enabled');
+    expect(() => parsePatch({ match: null })).toThrow('Invalid rule: match');
+    expect(() => parsePatch({ resourceTypes: ['Nope'] })).toThrow('Unknown request type');
+    expect(() => parsePatch({ headers: {} })).toThrow('Invalid rule: headers');
+    expect(() => parsePatch({ headers: [] })).toThrow('Add at least one header change');
   });
 });
 
-describe('field sanitizers', () => {
-  it('return null for anything of the wrong shape', () => {
-    expect(sanitizeMatcher(match)).toEqual(match);
-    expect(sanitizeMatcher(undefined)).toBeNull();
-    expect(sanitizeResourceTypes([])).toEqual([]);
-    expect(sanitizeResourceTypes(undefined)).toBeNull();
-    expect(sanitizeHeaderEdits([])).toEqual([]);
-    expect(sanitizeHeaderEdits([null])).toBeNull();
+describe('request types', () => {
+  it('are known ones only, in order, once each', () => {
+    expect(resourceTypesSchema.parse([])).toEqual([]);
+    expect(resourceTypesSchema.safeParse(undefined).success).toBe(false);
+    expect(resourceTypesSchema.parse(['Other', 'Document', 'Other'])).toEqual(['Document', 'Other']);
   });
 });
 

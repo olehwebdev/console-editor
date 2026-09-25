@@ -230,11 +230,10 @@ describe('session sync', () => {
 
   it('on close, reports unapplied rule edits as not kept, so closing asks first', async () => {
     stopSync = startSessionSync();
-    const input = { action: 'block' as const, match: { type: 'glob' as const, pattern: 'https://a.test/*', ignoreQuery: true }, resourceTypes: [] };
     useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1' });
     expect(await pageSession.flush()).toBe(true);
 
-    useTabStore.getState().setPageDraft('page:rule:r1', { base: input, value: { ...input, resourceTypes: ['Script'] }, rowKeys: [] });
+    useTabStore.getState().setPageDirty('page:rule:r1', true);
     expect(await pageSession.flush()).toBe(false);
   });
 });
@@ -377,9 +376,8 @@ describe('switching workspaces', () => {
 
   it('asks before losing a rule page’s unapplied edits; cancelling stays in the workspace', async () => {
     useRuleStore.getState().setAll([rule('r1')]);
-    const input = { action: 'block' as const, match: rule('r1').match, resourceTypes: [] };
     useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1' });
-    useTabStore.getState().setPageDraft('page:rule:r1', { base: input, value: { ...input, resourceTypes: ['Script'] }, rowKeys: [] });
+    useTabStore.getState().setPageDirty('page:rule:r1', true);
     confirm.mockResolvedValueOnce(false);
     mainSwitchesTo('wsb00000', { url: '', tabs: [], activeTabId: null });
 
