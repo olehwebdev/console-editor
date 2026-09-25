@@ -1,5 +1,10 @@
 import type { SidebarView } from '@/widgets/activity-bar';
 
+/** The bottom pane's views: they share its height and its toggle. */
+export const BOTTOM_VIEWS = ['console', 'network'] as const;
+
+export type BottomView = (typeof BOTTOM_VIEWS)[number];
+
 /** What is remembered between runs. */
 export interface SavedLayout {
   sidebar: SidebarView | null;
@@ -8,9 +13,12 @@ export interface SavedLayout {
   previewVisible: boolean;
   /** Preferred share of the row's width taken by the website preview. */
   previewRatio: number;
+  /** Whether the bottom pane (console or network) shows. */
   consoleVisible: boolean;
-  /** The console panel's height under the editor, in px. */
+  /** The bottom pane's height under the editor, in px. */
   consoleHeight: number;
+  /** The bottom pane's view: the last one shown, which its toggle brings back. */
+  bottomView: BottomView;
 }
 
 export interface Layout extends SavedLayout {
@@ -43,7 +51,10 @@ export interface LayoutStore extends Layout {
   resizePreview(deltaPx: number, totalPx: number): void;
   setRowWidth(width: number): void;
   setResizing(resizing: boolean): void;
+  /** Shows or hides the bottom pane, on the view it showed last. */
   toggleConsole(): void;
+  /** Shows the bottom pane on this view. */
+  showBottomView(view: BottomView): void;
   /** A PanelResizer step on the console's top edge (+ = lower, so shorter), within `CONSOLE_H` and the window. */
   resizeConsole(deltaPx: number, totalPx: number): void;
   /** A drag of the console's edge starts or ends. */

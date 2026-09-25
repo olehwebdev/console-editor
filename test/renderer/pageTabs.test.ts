@@ -12,6 +12,7 @@ vi.mock('@/shared/ui/dialog', () => ({ confirm, isConfirmOpen: () => false }));
 vi.mock('@/shared/monaco', () => ({
   monaco: { editor: { createModel: () => ({ dispose: () => {} }) }, Uri: { from: () => ({}) } },
   languageFor: () => 'javascript',
+  setModelSchema: () => {},
   editorHasFocus: () => false,
   dismissEditorWidgets: () => {},
   triggerInActiveEditor: () => {},

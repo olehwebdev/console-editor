@@ -15,6 +15,7 @@ export const KEY = {
   backspace: 'Backspace',
   delete: 'Delete',
   contextMenu: 'ContextMenu',
+  f2: 'F2',
   f10: 'F10',
   meta: 'Meta',
   control: 'Control',

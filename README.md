@@ -73,6 +73,9 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Handles the hard cases.** Compressed responses, Subresource Integrity (static and set at runtime), the HTTP cache, service workers, stale source maps, and Chromium's local-network checks on patched pages.
 - **Never loses work.** Overrides persist and can be switched on and off one by one. Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page next time.
 - **Block requests and change headers.** Right-click a file to block it (an analytics script, a slow third-party iframe) before it reaches the server, or to remove a page's Content-Security-Policy. Rules can also set or remove any response header, or let the page call an API on another origin, preflights and cookies included. Each rule shows how often it applied and to which URLs, and switches on and off like an override.
+- **Try UI states on real API data.** The **Network** tab beside the console lists the requests of the page, its iframes and its workers, the page's fetch and XHR calls first, with their headers, payload and response. **Override response** opens one as formatted JSON, with its keys suggested as you type: empty a list, lengthen a name, drop a field, save, and the page gets your version. Answer with another status (a 500, a 503), changed headers or a delay to see the loading state, and match a GraphQL call by its operation. Turn off **Send request** and the server never sees the call: a POST changes nothing.
+- **Pause a request and change it.** Breakpoints stop a fetch or XHR before it goes out or before the page gets its response: edit its URL, method, headers and body, or the answer, then send it on, send it as it was, fail it with a network error, or keep your version as an override. **Copy as fetch** gives any request as a `fetch()` call.
+- **Test UI states quickly.** **Patch live** applies your edit to each live response instead of freezing it; **Quick edits** empty every list, lengthen every text or null a value in one click; the network speed menu slows the page to 3G or takes it offline; WebSocket messages are listed as they come; a HAR file (yours or a teammate's) exports your requests or imports its responses as overrides; and a response can be browsed and edited as a tree.
 - **One workspace per task.** Keep a workspace for each site or fix you're working on, each with its own page, tabs, unsaved edits, overrides and rules, and switch between them from the left rail. A tile shows the site's icon, or a letter on a colour you pick.
 - **Tells what each frame runs.** The status bar names the page's UI libraries, and the Page stack lists every frame, cross-site iframes included, with its UI library (React, Vue, Angular, Svelte…), framework (Next.js, Nuxt…), state library and bundler, their versions and whether each is a production build.
 - **Reads the original sources.** When the site publishes source maps, expand a bundle to see the TypeScript, JSX or SCSS it was built from, open any file read-only, and jump between a line of it and the bundle code it became (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>), pretty-printed, edited or overridden.
@@ -135,6 +138,7 @@ Type a URL in the preview's address bar (`https://…` or `localhost:3000`), pic
 | `http://127.0.0.1:5174/services.html` | Services in iframes that log and message each other (try the console, and an action running `addItem('A1')` in `cart`) |
 | `http://127.0.0.1:5174/workers/` | Dedicated, shared and service workers, and a worklet |
 | `http://127.0.0.1:5174/maps.html` | Source maps named every way: a header, `X-SourceMap`, an inline map, a stylesheet's, a missing one, an HTML page instead |
+| `http://127.0.0.1:5174/network/` | A page that talks to a JSON API, GraphQL and an event stream (open the Network tab and override the cart's response) |
 
 To open a URL on start, pass it to the app (`console-editor https://example.com` after installing the Linux package) or set `CONSOLE_EDITOR_URL`: `CONSOLE_EDITOR_URL=https://example.com npm run dev`. On Linux and Windows, starting the app again with a URL opens it in the window that's already running.
 
@@ -153,7 +157,7 @@ To open a URL on start, pass it to the app (`console-editor https://example.com`
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>R</kbd> | Reload the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>L</kbd> | Focus the address bar |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>B</kbd> | Show or hide the sidebar |
-| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>J</kbd> | Show or hide the console |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>J</kbd> | Show or hide the console or the network panel (whichever you used last) |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>J</kbd> | DevTools for the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Alt</kbd> + <kbd>I</kbd> | DevTools for the editor itself |
 
@@ -224,6 +228,9 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - A service worker keeps the scripts it installed, so an edit to one takes effect when the app reloads the page: it unregisters the old worker and the page installs your version. That needs the page to register its service worker on every load, and the worker's push subscriptions are lost. After you restart the app, it doesn't know which of your edits a site's service worker installed: if the site has any script override (even one that's off, or for a file the worker doesn't load), the app's first reload with that worker running reinstalls it, and its push subscriptions are lost. Leaving the site and coming back doesn't do this.
 - Chromium's update checks fetch a service worker's scripts where the app can't change them, and can put the live ones back: when the page calls `registration.update()`, whatever your settings, and with **Settings › Bypass service workers** off, after page loads too. The app tells you when it sees this, and its next reload puts your version back. With that setting off, what a service worker answers from its own cache isn't overridden, and a copy it cached while an override was on keeps your edit until the site caches it again. With it on, after you restart the app, a page reaches a service worker it installed earlier only from its second load (a Chromium quirk).
 - Rules change only what the page sees: the browser's HTTP cache keeps the server's headers (**Settings › Disable HTTP cache**, on by default, skips it), cookies are stored before a rule runs, and a CSP set in a `<meta>` tag isn't a header (**Settings › Bypass Content-Security-Policy** covers it).
+- A response override with **Send request** on (the default for a GET) answers after the server has: the request is still sent, so a POST would still create what it creates, which is why overrides made from anything but a GET start with it off. An event stream an override matches is replaced as a whole, which ends it.
+- A paused request waits only as long as the page does: if the page gives up on it (a timeout, leaving the page), its tab closes with a note.
+- WebSocket messages are shown, not changed: Chromium reports them but can't hold or edit them. A HAR import makes overrides for fetch and XHR responses only, not for documents or scripts.
 - Chromium's local-network checks are off in the app's browser, so a patched localhost or intranet page can still reach its own servers. Browse only sites you're working on (see [SPEC §8](docs/SPEC.md#8-security)).
 
 ## Roadmap
@@ -245,6 +252,10 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Update notifications, What's New, and installing updates on Windows and with the AppImage, `.deb` and `.rpm`
 - [ ] Signed and notarized builds (and with them, installing updates in place on macOS)
 - [x] Source-map explorer: open the original sources behind a bundle
+- [x] Network panel: the page's requests, and response overrides for fetch and XHR with a JSON editor
+- [x] Network breakpoints, and answering a request without sending it
+- [x] Patch mode, quick edits for UI states, network speed, WebSocket messages, HAR export and import
+- [x] A response's JSON as a tree with in-place edits
 - [x] Page stack: the UI library, framework, state library and bundler of each frame
 - [ ] Component inspector: pick an element to see the component that rendered it, its source file, props, state and why it re-rendered ([research](docs/INSPECTOR_RESEARCH.md))
 

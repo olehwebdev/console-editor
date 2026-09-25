@@ -1,12 +1,15 @@
 import { useShallow } from 'zustand/react/shallow';
+import { NO_THROTTLING } from '@common/throttling';
 import { icons } from '@/shared/config';
 import { cn } from '@/shared/lib';
 import { Counter } from '@/shared/ui/counter';
 import { Icon } from '@/shared/ui/icon';
 import { Spinner } from '@/shared/ui/spinner';
 import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { useHeldStore } from '@/entities/held-request';
 import { selectEnabledCount, selectOverrideList, useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
+import { THROTTLING_LABELS, useSettingsStore } from '@/entities/settings';
 import { KIND_NAME, selectIframeCount, selectWorkerCount, useResourceStore } from '@/entities/resource';
 import { UpdateStatus } from '@/features/update-app';
 import { ITEM_ICON_SIZE } from './constants';
@@ -21,6 +24,8 @@ export function StatusBar() {
   const total = useOverrideStore(useShallow((s) => selectOverrideList(s).length));
   const iframes = useResourceStore(selectIframeCount);
   const workers = useResourceStore(selectWorkerCount);
+  const paused = useHeldStore((s) => s.held.length);
+  const throttling = useSettingsStore((s) => s.settings.throttling);
   // The active file's language, or an original's (read-only).
   const active = useTabStore(
     useShallow((s) => {
@@ -47,6 +52,18 @@ export function StatusBar() {
           <span>No overrides</span>
         )}
       </span>
+      {throttling !== NO_THROTTLING ? (
+        <span className="flex items-center gap-1.5 text-warning" data-testid="status-throttling">
+          <Icon icon={icons.ThrottleIcon} size={ITEM_ICON_SIZE} />
+          {THROTTLING_LABELS[throttling]}
+        </span>
+      ) : null}
+      {paused ? (
+        <span className="flex items-center gap-1.5 text-warning" data-testid="status-paused">
+          <Icon icon={icons.PauseIcon} size={ITEM_ICON_SIZE} />
+          <Counter value={paused} /> paused
+        </span>
+      ) : null}
       {iframes ? (
         <span className="flex items-center gap-1.5">
           <Icon icon={icons.IframeIcon} size={ITEM_ICON_SIZE} className="text-info" />

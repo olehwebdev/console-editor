@@ -15,7 +15,9 @@ import { assertString } from './assertString';
 import { registerActionIpc } from './registerActionIpc';
 import { registerActionsWindowIpc } from './registerActionsWindowIpc';
 import { registerConsoleIpc } from './registerConsoleIpc';
+import { registerHarIpc } from './registerHarIpc';
 import { registerInspectorIpc } from './registerInspectorIpc';
+import { registerNetworkIpc } from './registerNetworkIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import { registerSettingsIpc } from './registerSettingsIpc';
 import type { IpcDeps } from './types';
@@ -89,7 +91,8 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   handle(IPC_CHANNEL.updateOverride, async (id: unknown, patch: OverridePatch) => {
     assertString(id, 'id');
     await store.update(id, patch);
-    await page.overridesChanged(patch.match !== undefined || patch.enabled !== undefined);
+    // Patterns follow the match, the switch and Send request (which stage a response override pauses at).
+    await page.overridesChanged(patch.match !== undefined || patch.enabled !== undefined || patch.response !== undefined);
     return store.meta(id);
   });
   handle(IPC_CHANNEL.deleteOverride, async (id: unknown) => {
@@ -116,6 +119,8 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   registerInspectorIpc(handle, page);
   registerActionIpc(handleActions, actions, send);
   registerActionsWindowIpc(handle, handleActions, actionsWindow);
+  registerNetworkIpc(handle, page.network);
+  registerHarIpc(handle, { win, page, store });
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

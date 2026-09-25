@@ -2,6 +2,7 @@ import { MAX_WORKSPACE_NAME } from '../../shared/constants';
 import { WORKSPACE_COLORS } from '../../shared/types';
 import { DEFAULT_WORKSPACE_ICON, WORKSPACE_ID } from './constants';
 import { isWorkspaceColor } from './isWorkspaceColor';
+import { sanitizeBreakpoints } from './sanitizeBreakpoints';
 import { sanitizeFrameNames } from './sanitizeFrameNames';
 import { isWorkspaceIcon } from './isWorkspaceIcon';
 import { sanitizePage } from './sanitizePage';
@@ -17,6 +18,7 @@ export function sanitizeWorkspace(input: unknown): WorkspaceRecord | null {
     icon: isWorkspaceIcon(w.icon) ? w.icon : DEFAULT_WORKSPACE_ICON,
     color: isWorkspaceColor(w.color) ? w.color : WORKSPACE_COLORS[0],
     frameNames: sanitizeFrameNames(w.frameNames),
+    breakpoints: sanitizeBreakpoints(w.breakpoints),
     ...sanitizePage(w),
   };
 }

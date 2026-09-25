@@ -8,6 +8,8 @@ import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
+import { receiveRequests } from '@/features/network/filter';
+import { receiveHeld } from '@/features/network/held';
 import { startUpdates } from '@/features/update-app';
 import type { PageCommands, PageSession } from '@/pages/editor';
 import { pageCommands } from './commands/pageCommands';
@@ -42,6 +44,8 @@ export async function startBridge(commands: PageCommands, session: PageSession):
       useFrameStore.getState().setAll(frames);
       receiveEntries(await api.getConsoleEntries());
     }),
+    api.listNetworkRequests().then((requests) => receiveRequests(requests, true)),
+    api.listHeldRequests().then(receiveHeld),
   ]);
 
   // Unsaved edits are kept as drafts rather than guarded: closing never asks to discard them.

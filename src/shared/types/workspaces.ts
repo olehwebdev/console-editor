@@ -1,3 +1,5 @@
+import type { Breakpoint } from './breakpoints';
+
 /** Colours a workspace's rail tile can take (tokens `--workspace-<colour>`). */
 export const WORKSPACE_COLORS = ['ember', 'amber', 'lime', 'teal', 'sky', 'indigo', 'violet', 'rose'] as const;
 
@@ -28,6 +30,8 @@ export interface Workspace {
   color: WorkspaceColor;
   /** Names you gave the page's frames in the console, by frame address (see `frameAddress`). */
   frameNames: Record<string, string>;
+  /** Where the page's fetch() and XHR requests stop, oldest first. */
+  breakpoints: Breakpoint[];
 }
 
 export interface WorkspacePatch {
@@ -36,6 +40,8 @@ export interface WorkspacePatch {
   color?: WorkspaceColor;
   /** Replaces all of them. */
   frameNames?: Record<string, string>;
+  /** Replaces all of them. */
+  breakpoints?: Breakpoint[];
 }
 
 export interface WorkspacesState {

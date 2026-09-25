@@ -1,7 +1,7 @@
-import type { Settings } from '@common/types';
+import type { SwitchSetting, Throttling } from '@common/types';
 
-/** Human labels for each setting, in display order. */
-export const SETTING_META: Array<{ key: keyof Settings; label: string; help: string }> = [
+/** Human labels for each on/off setting, in display order. */
+export const SETTING_META: Array<{ key: SwitchSetting; label: string; help: string }> = [
   { key: 'autoReloadOnSave', label: 'Reload page after changes', help: 'Reload the page after saving, enabling or deleting an override or a rule.' },
   { key: 'autoFormatMinified', label: 'Pretty-print minified files', help: 'Format minified JS/CSS/HTML when you open them.' },
   { key: 'stripIntegrity', label: 'Strip integrity checks (SRI)', help: 'Otherwise the browser refuses edited files loaded with integrity="…".' },
@@ -13,3 +13,12 @@ export const SETTING_META: Array<{ key: keyof Settings; label: string; help: str
   { key: 'frameworkHooks', label: 'Framework hooks', help: 'Let React tell which version a frame runs, through a stand-in for its DevTools hook put in every page before its scripts. Takes effect on the next load.' },
   { key: 'checkForUpdates', label: 'Check for updates', help: 'Look for a new release on GitHub at start and every few hours.' },
 ];
+
+/** How each network speed reads. */
+export const THROTTLING_LABELS: Record<Throttling, string> = {
+  off: 'No throttling',
+  'fast-4g': 'Fast 4G',
+  'slow-4g': 'Slow 4G',
+  '3g': '3G',
+  offline: 'Offline',
+};
