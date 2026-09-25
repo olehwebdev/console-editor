@@ -8,6 +8,8 @@ export interface SourceTreeStore {
   toggle(key: string): void;
   setOpen(key: string, open: boolean, byDefault: boolean): void;
   requestScroll(bundleUrl: string): void;
+  /** Marks the ask with `token` done (a newer one stays). */
+  clearReveal(token: number): void;
   reset(): void;
 }
 
@@ -30,5 +32,6 @@ export const useSourceTree = create<SourceTreeStore>()((set) => ({
       return { toggled };
     }),
   requestScroll: (bundleUrl) => set((s) => ({ reveal: { bundleUrl, token: (s.reveal?.token ?? 0) + 1 } })),
+  clearReveal: (token) => set((s) => (s.reveal?.token === token ? { reveal: null } : s)),
   reset: () => set({ toggled: new Set(), reveal: null }),
 }));
