@@ -138,11 +138,9 @@ Breakpoint rules are per workspace (`{ id, match: UrlMatcher, method, stage, ena
 - The page's own timeouts win: a breakpoint held longer than the page waits is abandoned, and the panel says so.
 - Requests a service worker answers from its caches are never paused (SPEC §6.6, with **Bypass service workers** off).
 
-## 10. Decisions to make
+## 10. Decisions
 
-Recommendations first; each is cheap to change before phase 1 starts.
-
-1. **Where the JSON is edited:** in editor tabs (recommended: full width, diff, drafts and the save flow already exist) rather than inside the panel's detail pane.
-2. **Snapshot or patch by default:** snapshot for phase 1 (recommended: predictable, works offline), patch as a per-override option in phase 3.
-3. **Breakpoint rules:** kept per workspace (recommended) or only until the app closes.
-4. **What the log lists:** every type with Fetch/XHR selected by default (recommended), or fetch/XHR only, leaving files to the Explorer.
+1. **The JSON is edited in editor tabs**, not inside the panel's detail pane: they have the width, the diff, drafts and the save flow already.
+2. **An override serves a snapshot** in phase 1 (predictable, works while the backend is down); patch mode comes as a per-override option in phase 3.
+3. **Breakpoint rules are kept per workspace**, so a debugging setup survives a restart; paused requests never are.
+4. **The log lists every type**, with Fetch/XHR selected by default; scripts, stylesheets and documents open in the editor from there.
