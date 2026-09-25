@@ -1,22 +1,23 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHORTCUT } from '@common/constants';
-import type { ResourceKind } from '@common/types';
+import type { ResourceKind, SourceMapKind } from '@common/types';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
-import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
+import { isMappableKind, selectLoadedSources, useSourceMapStore } from '@/entities/source-map';
 import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
-import { openOverride, openResource } from '@/features/open-resource';
+import { bundleUrlOf, goToBundle, goToOriginal, openOriginalSource, openOverride, openResource, revealBundleSources } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
 import { setOverrideEnabled } from '@/features/toggle-override';
 import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
-import { usePageFiles } from '../model/files';
+import { originalSourceItems, usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 
 const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon };
@@ -28,17 +29,21 @@ const WORKSPACE_ITEM_PREFIX = 'workspace-';
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
+  /** Shows the Explorer sidebar, filter cleared. */
+  onShowExplorer(): void;
   onFocusAddressBar(): void;
   onSwitchWorkspace(id: string): void;
   onNewWorkspace(): void;
 }
 
-/** Ctrl/Cmd+K: jump to any file the page loaded, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace }: AppCommandPaletteProps) {
+/** Ctrl/Cmd+K: jump to any file the page loaded or original of a loaded map, switch workspaces or run a command. */
+export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
   const active = useTabStore(selectActiveTab);
+  const activeSource = useTabStore(selectActiveSource);
+  const loaded = useSourceMapStore(selectLoadedSources);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
 
@@ -58,9 +63,23 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
     }),
     [resources],
   );
+  const sources = useMemo<CommandGroup>(() => {
+    // Only originals of bundles the page still lists, opened with the kind it lists them as.
+    const bundles = new Map<string, SourceMapKind>();
+    for (const r of resources) if (isMappableKind(r.kind)) bundles.set(r.url, r.kind);
+    return { heading: 'Original sources', items: originalSourceItems(loaded, bundles, (bundleUrl, kind, url) => void openOriginalSource(bundleUrl, kind, url)) };
+  }, [resources, loaded]);
 
   const groups = useMemo<CommandGroup[]>(() => {
     if (!open) return [];
+    const showSources = (bundleUrl: string, kind: SourceMapKind) => {
+      void revealBundleSources(bundleUrl, kind);
+      onShowExplorer();
+    };
+    const jumpFromBundle = (kind: SourceMapKind, bundleUrl: string) => [
+      { id: 'go-to-original', label: 'Go to original source', icon: icons.JumpIcon, shortcut: SHORTCUT.jumpToMapped, onSelect: () => void goToOriginal() },
+      { id: 'show-sources', label: 'Show original sources in the Explorer', icon: icons.SourceRootIcon, onSelect: () => showSources(bundleUrl, kind) },
+    ];
     const actions: CommandGroup = {
       heading: 'Actions',
       items: [
@@ -70,6 +89,13 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
               { id: 'format', label: 'Pretty-print this file', icon: icons.PrettifyIcon, shortcut: SHORTCUT.format, onSelect: () => void formatTab() },
               { id: 'diff', label: 'Diff with where you started', icon: icons.DiffIcon, shortcut: SHORTCUT.diff, onSelect: toggleBaseDiff },
               ...(active.overrideId ? [{ id: 'live', label: 'Compare with the live file', icon: icons.GlobeIcon, onSelect: () => void compareWithLive() }] : []),
+            ]
+          : []),
+        ...(active && isMappableKind(active.kind) ? jumpFromBundle(active.kind, bundleUrlOf(active)) : []),
+        ...(activeSource
+          ? [
+              { id: 'go-to-bundle', label: 'Go to bundle code', icon: icons.JumpIcon, shortcut: SHORTCUT.jumpToMapped, onSelect: () => void goToBundle() },
+              { id: 'show-source', label: 'Show in the Explorer', icon: icons.SourceRootIcon, onSelect: () => showSources(activeSource.bundleUrl, activeSource.bundleKind) },
             ]
           : []),
         { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
@@ -110,8 +136,8 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
         { id: 'workspace-new', label: 'New workspace', icon: icons.AddIcon, keywords: ['workspace', 'site', 'project'], onSelect: onNewWorkspace },
       ],
     };
-    return [files, overrideGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, overrides, active, workspaces, activeWorkspaceId, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace]);
+    return [files, sources, overrideGroup, workspaceGroup, actions].filter((g) => g.items.length);
+  }, [open, files, sources, overrides, active, activeSource, workspaces, activeWorkspaceId, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

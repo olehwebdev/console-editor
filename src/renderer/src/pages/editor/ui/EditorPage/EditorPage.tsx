@@ -21,6 +21,7 @@ import { PreviewPane } from './PreviewPane';
 import { removeWorkspace } from './removeWorkspace';
 import { setAddressBar } from './setAddressBar';
 import { shortcutKey } from './shortcutKey';
+import { showExplorer } from './showExplorer';
 import { showSettings } from './showSettings';
 import { SidebarPane } from './SidebarPane';
 
@@ -101,7 +102,7 @@ export function EditorPage() {
         </AnimatePresence>
 
         <main className="min-w-0 flex-1">
-          <EditorPanel />
+          <EditorPanel onShowExplorer={showExplorer} />
         </main>
 
         {previewVisible ? (
@@ -112,7 +113,13 @@ export function EditorPage() {
         ) : null}
       </div>
       <StatusBar />
-      <AppCommandPalette onShowSettings={showSettings} onFocusAddressBar={focusAddressBar} onSwitchWorkspace={openWorkspace} onNewWorkspace={newWorkspace} />
+      <AppCommandPalette
+        onShowSettings={showSettings}
+        onShowExplorer={showExplorer}
+        onFocusAddressBar={focusAddressBar}
+        onSwitchWorkspace={openWorkspace}
+        onNewWorkspace={newWorkspace}
+      />
     </div>
   );
 }
