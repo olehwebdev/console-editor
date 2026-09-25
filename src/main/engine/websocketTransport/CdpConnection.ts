@@ -74,6 +74,13 @@ export class CdpConnection {
         }
       }
     }
-    for (const h of this.handlers) h(msg.method, msg.params, msg.sessionId);
+    for (const h of this.handlers) {
+      // One failing handler must neither skip the others nor break the connection's message loop.
+      try {
+        h(msg.method, msg.params, msg.sessionId);
+      } catch (err) {
+        console.error('CDP event handler failed', msg.method, err);
+      }
+    }
   }
 }

@@ -1,4 +1,4 @@
-import type { EngineEvent, Override, Settings, WorkerType } from '../../../../shared/types';
+import type { EngineEvent, Override, Rule, Settings, WorkerType } from '../../../../shared/types';
 import type { CdpTransport } from '../../cdp';
 import type { ServiceWorkerState } from './workers';
 
@@ -6,6 +6,8 @@ export interface EngineOptions {
   transport: CdpTransport;
   /** Current overrides (with content). Called on every intercepted request. */
   getOverrides(): Override[];
+  /** The active workspace's rules, oldest first. Called on every paused request: a cheap in-memory read. */
+  getRules(): readonly Rule[];
   getSettings(): Settings;
   emit(event: EngineEvent): void;
   /** Fetches a URL outside the page (used when the page no longer holds a body). */

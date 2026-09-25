@@ -24,7 +24,7 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
     {
       label: 'File',
       submenu: [
-        { label: 'Save Override', accelerator: toAccelerator(SHORTCUT.save), click: command('save') },
+        { label: 'Save', accelerator: toAccelerator(SHORTCUT.save), click: command('save') },
         { label: 'Format Document', accelerator: toAccelerator(SHORTCUT.format), click: command('format') },
         { type: 'separator' },
         { label: 'Reveal Overrides Folder', click: () => void shell.openPath(store.filesDir) },

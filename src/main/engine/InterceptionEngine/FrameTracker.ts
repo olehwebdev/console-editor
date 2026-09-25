@@ -36,6 +36,12 @@ export class FrameTracker {
     return this.iframe ? this.rootParentFrameId : undefined;
   }
 
+  /** The document URL of a frame of this session (the root frame when none is given), if known. */
+  urlOf(frameId: string | undefined): string | undefined {
+    const id = frameId ?? this.mainFrameId;
+    return id === undefined ? undefined : this.urls.get(id);
+  }
+
   /** The session's frames, from `Page.getFrameTree`. */
   seed(tree: FrameTree): void {
     this.mainFrameId = tree.frame.id;

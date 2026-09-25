@@ -72,7 +72,8 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Survives deploys.** Hashed bundle names such as `main.3f9a1c2b.js` can be matched as `main.*.js` in one click, and you're warned when the live file changes under your override.
 - **Handles the hard cases.** Compressed responses, Subresource Integrity (static and set at runtime), the HTTP cache, service workers, stale source maps, and Chromium's local-network checks on patched pages.
 - **Never loses work.** Overrides persist and can be switched on and off one by one. Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page next time.
-- **One workspace per task.** Keep a workspace for each site or fix you're working on, each with its own page, tabs, unsaved edits and overrides, and switch between them from the left rail. A tile shows the site's icon, or a letter on a colour you pick.
+- **Block requests and change headers.** Right-click a file to block it (an analytics script, a slow third-party iframe) before it reaches the server, or to remove a page's Content-Security-Policy. Rules can also set or remove any response header, or let the page call an API on another origin, preflights and cookies included. Each rule shows how often it applied and to which URLs, and switches on and off like an override.
+- **One workspace per task.** Keep a workspace for each site or fix you're working on, each with its own page, tabs, unsaved edits, overrides and rules, and switch between them from the left rail. A tile shows the site's icon, or a letter on a colour you pick.
 - **Works across screens.** Move the website into a window of its own and put it on another monitor, next to the code; it keeps running as it was, and goes back into the editor with one click or by closing its window.
 - **Stays fast on big bundles.** Multi-megabyte files open in a lighter highlight-only mode, and the file tree is virtualized.
 - **Keeps the site contained.** A site gets no permissions silently: camera, clipboard, location and similar ones prompt, the rest are denied. Its pop-ups stay under the editor's control, and a "Leave site?" guard can't block a reload.
@@ -141,7 +142,7 @@ To open a URL on start, pass it to the app (`console-editor https://example.com`
 
 | Keys | Action |
 |---|---|
-| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> | Save the override (and reload the page) |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> | Save the override, or apply a rule (and reload the page) |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd> (or <kbd>P</kbd>) | Open a file or run a command |
 | <kbd>Shift</kbd> + <kbd>Alt</kbd> + <kbd>F</kbd> | Pretty-print |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd> | Diff against the text you started from |
@@ -180,7 +181,8 @@ flowchart LR
 1. The site runs in an embedded Chromium view; the editor talks to it through the **Chrome DevTools Protocol**, the same channel DevTools uses.
 2. Requests an override applies to are paused at the **response** stage (`Fetch` domain). The real response arrives with its headers and cookies intact. Its body is hashed to detect redeploys, then replaced with your file.
 3. Documents are rewritten to drop `integrity` attributes, and a small guard does the same for ones set at runtime, so the browser accepts edited scripts.
-4. Every cross-site iframe is its own CDP target, and so is every worker. The app attaches to each one (and to theirs, recursively) and sets it up before it runs. A Web Worker's or worklet's requests are paused on the session of the frame that started it, a service or shared worker's mostly on its own.
+4. Rules pause only what they match: a blocked request fails before it is sent, and header changes are applied to the real response on its way to the page (a page's own document is re-served, since Chromium enforces the CSP it arrived with).
+5. Every cross-site iframe is its own CDP target, and so is every worker. The app attaches to each one (and to theirs, recursively) and sets it up before it runs. A Web Worker's or worklet's requests are paused on the session of the frame that started it, a service or shared worker's mostly on its own.
 
 The details, including facts about Chromium verified in tests, are in **[docs/SPEC.md](docs/SPEC.md)**.
 
@@ -202,6 +204,7 @@ Everything stays on your machine: no telemetry, no uploads. Besides the sites yo
 | | Where (under the app's data folder) |
 |---|---|
 | Overrides: your file, the text you started from, the match rule, on/off, and the workspace it belongs to | `workspace/` (<kbd>File › Reveal Overrides Folder</kbd>) |
+| Rules: what each blocks or changes, its pattern, on/off, and its workspace | `workspace/rules.json` |
 | Settings | `settings.json` |
 | The last version run, to know when to show What's New | `update.json` |
 | Workspaces: each one's name and tile, last page, open tabs, unsaved drafts and site icon | `session/` |
@@ -216,6 +219,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - A worker started by another worker runs its own first script unchanged: Chromium gives the app no way to change it (what that worker loads still gets your overrides). The app tells you when this happens.
 - A service worker keeps the scripts it installed, so an edit to one takes effect when the app reloads the page: it unregisters the old worker and the page installs your version. That needs the page to register its service worker on every load, and the worker's push subscriptions are lost. After you restart the app, it doesn't know which of your edits a site's service worker installed: if the site has any script override (even one that's off, or for a file the worker doesn't load), the app's first reload with that worker running reinstalls it, and its push subscriptions are lost. Leaving the site and coming back doesn't do this.
 - Chromium's update checks fetch a service worker's scripts where the app can't change them, and can put the live ones back: when the page calls `registration.update()`, whatever your settings, and with **Settings › Bypass service workers** off, after page loads too. The app tells you when it sees this, and its next reload puts your version back. With that setting off, what a service worker answers from its own cache isn't overridden, and a copy it cached while an override was on keeps your edit until the site caches it again. With it on, after you restart the app, a page reaches a service worker it installed earlier only from its second load (a Chromium quirk).
+- Rules change only what the page sees: the browser's HTTP cache keeps the server's headers (**Settings › Disable HTTP cache**, on by default, skips it), cookies are stored before a rule runs, and a CSP set in a `<meta>` tag isn't a header (**Settings › Bypass Content-Security-Policy** covers it).
 - Chromium's local-network checks are off in the app's browser, so a patched localhost or intranet page can still reach its own servers. Browse only sites you're working on (see [SPEC §8](docs/SPEC.md#8-security)).
 
 ## Roadmap
@@ -225,10 +229,10 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] A console for the page and every iframe: each frame's logs in one list, and code run in the frame you pick
 - [x] Session restore with unsaved drafts
 - [x] Workspaces: a page, tabs and overrides per site or task, switched from the rail
+- [x] Rules: request blocking, response header changes, and CORS for APIs
 - [x] Installers for macOS, Windows and Linux
 - [x] Workers and service workers
 - [ ] Edit in your own editor (watch the overrides folder), and export/import patch sets for teammates
-- [ ] Response header overrides and request blocking
 - [ ] Search across every file the page loaded
 - [ ] Drive your own Chrome over CDP
 - [x] Update notifications, What's New, and installing updates on Windows and with the AppImage, `.deb` and `.rpm`

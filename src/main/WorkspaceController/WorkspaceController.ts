@@ -1,64 +1,53 @@
 import type { WebContents } from 'electron';
-import type { AppEvent, Workspace, WorkspacePatch } from '../shared/types';
-import { HTTP_SCHEME } from './constants';
-import { parseUrl } from './parseUrl';
-import type { PageController } from './PageController';
-import type { OverrideStore } from './store/OverrideStore';
-import type { SessionStore } from './store/SessionStore';
-
-/** A page title is kept once it has stayed this long. */
-const TITLE_SETTLE_MS = 1000;
+import type { AppEvent, Workspace, WorkspacePatch } from '../../shared/types';
+import { HTTP_SCHEME } from '../constants';
+import { parseUrl } from '../parseUrl';
+import type { PageController } from '../PageController';
+import type { OverrideStore } from '../store/OverrideStore';
+import type { RuleStore } from '../store/RuleStore';
+import type { SessionStore } from '../store/SessionStore';
+import { TitleRecorder } from './TitleRecorder';
 
 /**
  * Workspaces: each has its own page, tabs (kept by the renderer through the
- * session store) and overrides. Switching leaves the page, makes the other
- * workspace's overrides the ones served, and loads its last page.
+ * session store), overrides and rules. Switching leaves the page, makes the
+ * other workspace's overrides and rules the ones applied, and loads its last page.
  */
 export class WorkspaceController {
   /** Switches and deletions run one at a time. */
   private queue: Promise<unknown> = Promise.resolve();
-  /** Per workspace: switching mustn't drop the last title of the one left. */
-  private readonly titleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly titles: TitleRecorder;
 
   constructor(
     private readonly page: PageController,
     private readonly session: SessionStore,
     private readonly store: OverrideStore,
+    private readonly rules: RuleStore,
     private readonly send: (event: AppEvent) => void,
-  ) {}
+  ) {
+    this.titles = new TitleRecorder(session, () => this.pushState());
+  }
 
   /**
-   * Serves the active workspace's overrides, handing it any that belong to no
-   * workspace (those saved before workspaces existed).
+   * Serves the active workspace's overrides and applies its rules, handing it
+   * any that belong to no workspace (overrides saved before workspaces existed,
+   * or those of a workspace that was lost).
    */
   async start(): Promise<void> {
-    await this.store.adopt(new Set(this.session.workspaces().workspaces.map((w) => w.id)), this.session.activeId);
-    this.store.setWorkspace(this.session.activeId);
+    const known = new Set(this.session.workspaces().workspaces.map((w) => w.id));
+    const { activeId } = this.session;
+    await this.store.adopt(known, activeId);
+    await this.rules.adopt(known, activeId);
+    this.store.setWorkspace(activeId);
+    this.rules.setWorkspace(activeId);
   }
 
   /** Follows the page: remembers where the active workspace is, and its site's icon. */
   watch(wc: WebContents): void {
     wc.on('did-navigate', (_event, url) => this.pageShown(url));
     wc.on('did-navigate-in-page', (_event, url, isMainFrame) => isMainFrame && this.pageShown(url));
-    wc.on('page-title-updated', (_event, title) => this.titleShown(wc.getURL(), title));
+    wc.on('page-title-updated', (_event, title) => this.titles.shown(wc.getURL(), title));
     wc.on('page-favicon-updated', (_event, favicons) => void this.faviconsFound(wc.getURL(), favicons));
-  }
-
-  private titleShown(pageUrl: string, title: string): void {
-    // Not about:blank's (the page left as the workspace changes) or an error page's.
-    if (!HTTP_SCHEME.test(pageUrl)) return;
-    const id = this.session.activeId;
-    clearTimeout(this.titleTimers.get(id));
-    // Some pages keep changing their title (a clock, an unread count): it is kept once it settles.
-    this.titleTimers.set(
-      id,
-      setTimeout(() => {
-        this.titleTimers.delete(id);
-        if (!this.session.has(id) || this.session.titleOf(id) === title.trim()) return;
-        void this.session.setTitle(id, title).catch(() => undefined);
-        this.pushState();
-      }, TITLE_SETTLE_MS),
-    );
   }
 
   private pageShown(url: string): void {
@@ -106,13 +95,15 @@ export class WorkspaceController {
     return updated;
   }
 
-  /** Deletes a workspace other than the active one, with its overrides. */
+  /** Deletes a workspace other than the active one, with its overrides and rules. */
   remove(id: unknown): Promise<void> {
     return this.serialize(async () => {
       if (!this.session.has(id)) throw new Error('Unknown workspace');
       if (id === this.session.activeId) throw new Error('The workspace in use cannot be deleted');
-      // Its overrides go first: were the workspace to go first and this fail, the next start would hand them to another.
+      // Its overrides and rules go first: were the workspace to go first and a deletion fail, the next
+      // start would hand them to another workspace.
       await this.store.removeWorkspace(id as string);
+      await this.rules.removeWorkspace(id as string);
       await this.session.remove(id);
       this.pushState();
     });
@@ -127,8 +118,12 @@ export class WorkspaceController {
       await this.page.leave();
       // In memory at once, written after: a failed write is reported, but the switch is whole.
       const saved = this.session.setActive(id);
+      // Both together, before anything awaits: no request is ever served one workspace's overrides and another's rules.
       this.store.setWorkspace(this.session.activeId);
+      this.rules.setWorkspace(this.session.activeId);
+      // One pattern refresh reads both stores; the rules then only need their event.
       await this.page.overridesChanged();
+      await this.page.rulesChanged(false);
       this.pushState();
       const { url } = this.session.get();
       if (url) void this.page.navigate(url, { fresh: true });

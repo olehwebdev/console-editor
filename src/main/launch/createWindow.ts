@@ -29,7 +29,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     iconPath: appIcon,
   });
   const userData = app.getPath('userData');
-  const { store, settings, session, pageWindow, hadData } = await openStores(userData);
+  const { store, rules, settings, session, pageWindow, hadData } = await openStores(userData);
 
   const win = createEditorWindow();
 
@@ -37,10 +37,15 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     if (!win.isDestroyed()) win.webContents.send(IPC_CHANNEL.onEvent, event);
   };
 
-  const page = new PageController(win, store, settings, send, pageWindow);
+  // Told once the editor UI can show it.
+  const { setAside, locked } = rules;
+  const rulesProblem = locked ?? (setAside && `rules.json could not be read and was kept as ${setAside}; you start with no rules`);
+  if (rulesProblem) win.webContents.once('did-finish-load', () => send({ type: 'error', message: rulesProblem }));
+
+  const page = new PageController(win, store, rules, settings, send, pageWindow);
   launchState.running = { win, page };
-  // Before the engine attaches: it serves the active workspace's overrides from the start.
-  const workspaces = new WorkspaceController(page, session, store, send);
+  // Before the engine attaches: it serves the active workspace's overrides and rules from the start.
+  const workspaces = new WorkspaceController(page, session, store, rules, send);
   await workspaces.start();
   const attached = page.attach();
   installMenu(win, page, store, send);
@@ -55,7 +60,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     // The website's own window goes with the editor (and opens again next time).
     page.window.dispose();
   });
-  registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed: (ok) => closing.flushed(ok) });
+  registerIpc({ win, page, store, rules, settings, session, workspaces, updates, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
 

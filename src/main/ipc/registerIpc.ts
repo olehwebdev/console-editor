@@ -11,9 +11,10 @@ import {
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
 import { assertString } from './assertString';
+import { registerRuleIpc } from './registerRuleIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -86,6 +87,8 @@ export function registerIpc({ win, page, store, settings, session, workspaces, u
   handle(IPC_CHANNEL.revealOverridesFolder, async () => {
     await shell.openPath(store.filesDir);
   });
+
+  registerRuleIpc(handle, rules, page);
 
   handle(IPC_CHANNEL.getSettings, () => settings.get());
   handle(IPC_CHANNEL.updateSettings, async (patch: Partial<Settings>) => {
