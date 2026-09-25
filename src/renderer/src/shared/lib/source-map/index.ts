@@ -1,3 +1,5 @@
+export { askSourceMapWorker } from './askSourceMapWorker';
+export { stopSourceMapWorker } from './stopSourceMapWorker';
 export type {
   AlignmentFit,
   Miss,
