@@ -1,24 +1,25 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHORTCUT } from '@common/constants';
-import type { ResourceKind, SourceMapKind } from '@common/types';
+import type { ResourceKind } from '@common/types';
 import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
-import { isMappableKind, selectLoadedSources, useSourceMapStore } from '@/entities/source-map';
+import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
 import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
-import { bundleUrlOf, goToBundle, goToOriginal, openOriginalSource, openOverride, openResource, revealBundleSources } from '@/features/open-resource';
+import { openOverride, openResource } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
 import { setOverrideEnabled } from '@/features/toggle-override';
 import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
-import { originalSourceItems, usePageFiles } from '../model/files';
+import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
+import { sourceActions, useOriginalSources } from '../model/sources';
 
 const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon };
 
@@ -34,16 +35,16 @@ export interface AppCommandPaletteProps {
   onFocusAddressBar(): void;
   onSwitchWorkspace(id: string): void;
   onNewWorkspace(): void;
+  onToggleConsole(): void;
 }
 
 /** Ctrl/Cmd+K: jump to any file the page loaded or original of a loaded map, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace }: AppCommandPaletteProps) {
+export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
   const active = useTabStore(selectActiveTab);
   const activeSource = useTabStore(selectActiveSource);
-  const loaded = useSourceMapStore(selectLoadedSources);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
 
@@ -52,34 +53,25 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
     () => ({
       heading: 'Page files',
       // Every file: the list is virtualized, so a page with thousands stays fast.
-      items: resources.map((r) => ({
-        id: r.url,
-        label: fileName(r.url),
-        hint: `${hostOf(r.url)}${pathOf(r.url)}${r.frame ? ' · iframe' : ''}`,
-        icon: KIND_ICON[r.kind],
-        keywords: [r.url, ...(r.frame ? ['iframe', r.frame.url] : [])],
-        onSelect: () => void openResource(r.url),
-      })),
+      items: resources.map((r) => {
+        const workerName = r.worker && WORKER_NAME[r.worker.type];
+        const workerUrl = workerScriptUrl(r);
+        return {
+          id: r.url,
+          label: fileName(r.url),
+          hint: `${hostOf(r.url)}${pathOf(r.url)}${r.frame ? ' · iframe' : ''}${workerName ? ` · ${workerName}` : ''}`,
+          icon: KIND_ICON[r.kind],
+          keywords: [r.url, ...(r.frame ? ['iframe', r.frame.url] : []), ...(workerName ? [workerName] : []), ...(workerUrl ? [workerUrl] : [])],
+          onSelect: () => void openResource(r.url),
+        };
+      }),
     }),
     [resources],
   );
-  const sources = useMemo<CommandGroup>(() => {
-    // Only originals of bundles the page still lists, opened with the kind it lists them as.
-    const bundles = new Map<string, SourceMapKind>();
-    for (const r of resources) if (isMappableKind(r.kind)) bundles.set(r.url, r.kind);
-    return { heading: 'Original sources', items: originalSourceItems(loaded, bundles, (bundleUrl, kind, url) => void openOriginalSource(bundleUrl, kind, url)) };
-  }, [resources, loaded]);
+  const sources = useOriginalSources(resources);
 
   const groups = useMemo<CommandGroup[]>(() => {
     if (!open) return [];
-    const showSources = (bundleUrl: string, kind: SourceMapKind) => {
-      void revealBundleSources(bundleUrl, kind);
-      onShowExplorer();
-    };
-    const jumpFromBundle = (kind: SourceMapKind, bundleUrl: string) => [
-      { id: 'go-to-original', label: 'Go to original source', icon: icons.JumpIcon, shortcut: SHORTCUT.jumpToMapped, onSelect: () => void goToOriginal() },
-      { id: 'show-sources', label: 'Show original sources in the Explorer', icon: icons.SourceRootIcon, onSelect: () => showSources(bundleUrl, kind) },
-    ];
     const actions: CommandGroup = {
       heading: 'Actions',
       items: [
@@ -91,14 +83,9 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
               ...(active.overrideId ? [{ id: 'live', label: 'Compare with the live file', icon: icons.GlobeIcon, onSelect: () => void compareWithLive() }] : []),
             ]
           : []),
-        ...(active && isMappableKind(active.kind) ? jumpFromBundle(active.kind, bundleUrlOf(active)) : []),
-        ...(activeSource
-          ? [
-              { id: 'go-to-bundle', label: 'Go to bundle code', icon: icons.JumpIcon, shortcut: SHORTCUT.jumpToMapped, onSelect: () => void goToBundle() },
-              { id: 'show-source', label: 'Show in the Explorer', icon: icons.SourceRootIcon, onSelect: () => showSources(activeSource.bundleUrl, activeSource.bundleKind) },
-            ]
-          : []),
+        ...sourceActions(active, activeSource, onShowExplorer),
         { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
+        { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },
@@ -137,7 +124,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
       ],
     };
     return [files, sources, overrideGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, sources, overrides, active, activeSource, workspaces, activeWorkspaceId, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace]);
+  }, [open, files, sources, overrides, active, activeSource, workspaces, activeWorkspaceId, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

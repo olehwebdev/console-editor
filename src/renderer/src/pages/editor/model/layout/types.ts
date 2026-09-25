@@ -8,6 +8,9 @@ export interface SavedLayout {
   previewVisible: boolean;
   /** Preferred share of the row's width taken by the website preview. */
   previewRatio: number;
+  consoleVisible: boolean;
+  /** The console panel's height under the editor, in px. */
+  consoleHeight: number;
 }
 
 export interface Layout extends SavedLayout {
@@ -18,6 +21,8 @@ export interface Layout extends SavedLayout {
   resizing: boolean;
   /** Fitted widths when the current drag started. */
   dragStart: PanelWidths | null;
+  /** The console's height when the current drag of its edge started. */
+  consoleDragStart: number | null;
 }
 
 export interface LayoutStore extends Layout {
@@ -38,6 +43,11 @@ export interface LayoutStore extends Layout {
   resizePreview(deltaPx: number, totalPx: number): void;
   setRowWidth(width: number): void;
   setResizing(resizing: boolean): void;
+  toggleConsole(): void;
+  /** A PanelResizer step on the console's top edge (+ = lower, so shorter), within `CONSOLE_H` and the window. */
+  resizeConsole(deltaPx: number, totalPx: number): void;
+  /** A drag of the console's edge starts or ends. */
+  setConsoleDragging(dragging: boolean): void;
 }
 
 export interface PanelWidths {

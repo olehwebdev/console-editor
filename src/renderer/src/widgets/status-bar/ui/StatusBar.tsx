@@ -7,10 +7,10 @@ import { Spinner } from '@/shared/ui/spinner';
 import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectEnabledCount, selectOverrideList, useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
-import { KIND_NAME, selectIframeCount, useResourceStore } from '@/entities/resource';
+import { KIND_NAME, selectIframeCount, selectWorkerCount, useResourceStore } from '@/entities/resource';
 import { UpdateStatus } from '@/features/update-app';
 
-/** The glyph before an item's count (overrides, iframes). */
+/** The glyph before an item's count (overrides, iframes, workers). */
 const ITEM_ICON_SIZE = 12;
 
 /** Quiet one-line summary: page state, what is being served, the active file. */
@@ -21,6 +21,7 @@ export function StatusBar() {
   const live = useOverrideStore(selectEnabledCount);
   const total = useOverrideStore(useShallow((s) => selectOverrideList(s).length));
   const iframes = useResourceStore(selectIframeCount);
+  const workers = useResourceStore(selectWorkerCount);
   // The active file's language, or an original's (read-only).
   const active = useTabStore(
     useShallow((s) => {
@@ -51,6 +52,12 @@ export function StatusBar() {
         <span className="flex items-center gap-1.5">
           <Icon icon={icons.IframeIcon} size={ITEM_ICON_SIZE} className="text-info" />
           <Counter value={iframes} /> {iframes === 1 ? 'iframe' : 'iframes'}
+        </span>
+      ) : null}
+      {workers ? (
+        <span className="flex items-center gap-1.5" data-testid="status-workers" data-count={workers}>
+          <Icon icon={icons.WorkerIcon} size={ITEM_ICON_SIZE} className="text-info" />
+          <Counter value={workers} /> {workers === 1 ? 'worker' : 'workers'}
         </span>
       ) : null}
       <span className="flex-1" />

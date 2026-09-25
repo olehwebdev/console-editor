@@ -38,7 +38,7 @@ vi.mock('@/features/compare-changes', () => ({ toggleBaseDiff: vi.fn() }));
 vi.mock('@/features/open-resource', async (importOriginal) => ({ ...(await importOriginal<object>()), jumpToMappedCode: vi.fn(async () => {}) }));
 vi.mock('@/features/update-app', () => ({ openWhatsNew: vi.fn(), checkForUpdatesNow: vi.fn(async () => {}), handleUpdateState: vi.fn(), startUpdates: vi.fn(async () => {}) }));
 
-const meta = (id: string): OverrideMeta => ({
+const meta = (id: string, updatedAt = 0): OverrideMeta => ({
   id,
   kind: 'Script',
   sourceUrl: `https://a.com/${id}.js`,
@@ -46,7 +46,7 @@ const meta = (id: string): OverrideMeta => ({
   enabled: true,
   originalHash: null,
   createdAt: 0,
-  updatedAt: 0,
+  updatedAt,
 });
 const tab = (id: string, overrideId?: string): TabMeta => ({
   id,
@@ -60,6 +60,15 @@ const tab = (id: string, overrideId?: string): TabMeta => ({
 });
 const res = (url: string): ResourceEntry => ({ url, kind: 'Script', mimeType: 'text/javascript', status: 200 });
 const command = (name: MenuCommand) => handleAppEvent({ type: 'command', command: name });
+
+interface ShownToast {
+  id: string;
+  title: string;
+  description: string;
+  tone: string;
+  action?: { label: string; onClick(): void };
+}
+const shown = () => (toast.mock.calls as unknown as Array<[ShownToast]>).map(([t]) => t);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -83,6 +92,58 @@ describe('app event bridge', () => {
     expect(calls[0]![0].title).toContain('app.js');
     calls[0]![0].action.onClick();
     await vi.waitFor(() => expect(api.reload).toHaveBeenCalledTimes(1));
+  });
+
+  it("says a nested worker's first script can't be changed, with no reload to offer", () => {
+    handleAppEvent({ type: 'override-missed', overrideId: 'o2', url: 'https://a.com/workers/nested.js', reason: 'nested-worker' });
+    const [shownToast] = shown();
+    expect(shownToast).toMatchObject({ id: 'missed:o2', title: "Your override can't apply to nested.js", tone: 'warning' });
+    expect(shownToast.description).toMatch(/first script of a worker started by another worker/);
+    // Reloading can't help.
+    expect(shownToast.action).toBeUndefined();
+  });
+
+  it("tells of a nested worker's first script once per version of the override (every page load reports it), other misses every time", () => {
+    useOverrideStore.getState().setAll([meta('n1', 1)]);
+    const nested = { type: 'override-missed', overrideId: 'n1', url: 'https://a.com/workers/nested.js', reason: 'nested-worker' } as const;
+    handleAppEvent(nested);
+    handleAppEvent(nested);
+    expect(shown().map((t) => t.id)).toEqual(['missed:n1']);
+    handleAppEvent({ type: 'override-missed', overrideId: 'n1', url: 'https://a.com/workers/nested.js' });
+    handleAppEvent({ type: 'override-missed', overrideId: 'n1', url: 'https://a.com/workers/nested.js' });
+    handleAppEvent({ type: 'override-missed', overrideId: 'sw', url: 'https://a.com/sw.js', reason: 'service-worker-update' });
+    handleAppEvent({ type: 'override-missed', overrideId: 'sw', url: 'https://a.com/sw.js', reason: 'service-worker-update' });
+    expect(toast).toHaveBeenCalledTimes(5);
+    // Saved again: said again, once.
+    useOverrideStore.getState().setAll([meta('n1', 2)]);
+    handleAppEvent(nested);
+    handleAppEvent(nested);
+    expect(toast).toHaveBeenCalledTimes(6);
+    expect(shown().at(-1)?.title).toBe("Your override can't apply to nested.js");
+  });
+
+  it("says Chromium's update check reinstalled a service worker, and offers the reload that reinstalls yours", async () => {
+    handleAppEvent({ type: 'override-missed', overrideId: 'o3', url: 'https://a.com/sw.js', reason: 'service-worker-update' });
+    const [shownToast] = shown();
+    expect(shownToast).toMatchObject({ id: 'missed:o3', title: 'The service worker reinstalled the live sw.js', tone: 'warning' });
+    expect(shownToast.description).toMatch(/update check/);
+    expect(shownToast.description).toMatch(/Settings › Bypass service workers/);
+    expect(shownToast.action?.label).toBe('Reload page');
+    shownToast.action!.onClick();
+    await vi.waitFor(() => expect(api.reload).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the usual "reload usually fixes it" toast when no reason is given', () => {
+    handleAppEvent({ type: 'override-missed', overrideId: 'o1', url: 'https://a.com/app.js' });
+    const [shownToast] = shown();
+    expect(shownToast.title).toBe("Your override didn't apply to app.js");
+    expect(shownToast.description).toMatch(/Reloading usually fixes it/);
+    expect(shownToast.action?.label).toBe('Reload page');
+  });
+
+  it('tells a miss for a reason it does not know (main and renderer out of step) as one without a reason', () => {
+    handleAppEvent({ type: 'override-missed', overrideId: 'o4', url: 'https://a.com/app.js', reason: 'renamed-reason' } as unknown as AppEvent);
+    expect(shown()).toEqual([expect.objectContaining({ title: "Your override didn't apply to app.js", action: expect.objectContaining({ label: 'Reload page' }) })]);
   });
 
   it('says once per override that its live file changed', () => {
@@ -135,7 +196,7 @@ describe('app event bridge', () => {
   });
 
   it('mirrors the workspaces and their site icons', () => {
-    const workspace = { id: 'w1', name: 'Shop', host: 'a.com', title: 'A', icon: 'favicon' as const, color: 'teal' as const };
+    const workspace = { id: 'w1', name: 'Shop', host: 'a.com', title: 'A', icon: 'favicon' as const, color: 'teal' as const, frameNames: {} };
     handleAppEvent({ type: 'workspaces-changed', state: { activeId: 'w1', workspaces: [workspace] } });
     handleAppEvent({ type: 'workspace-favicon', id: 'w1', favicon: 'data:image/png;base64,AA==' });
     expect(useWorkspaceStore.getState()).toMatchObject({ activeId: 'w1', workspaces: [workspace], favicons: { w1: 'data:image/png;base64,AA==' } });
@@ -180,7 +241,7 @@ describe('app event bridge', () => {
 
 describe('menu commands', () => {
   const execCommand = vi.fn();
-  const page = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn() };
+  const page = { focusAddressBar: vi.fn(), togglePalette: vi.fn(), toggleSidebar: vi.fn(), toggleConsole: vi.fn() };
 
   beforeEach(() => {
     vi.stubGlobal('document', { execCommand });
@@ -210,6 +271,7 @@ describe('menu commands', () => {
     ['focus-url', 'focusAddressBar'],
     ['toggle-palette', 'togglePalette'],
     ['toggle-sidebar', 'toggleSidebar'],
+    ['toggle-console', 'toggleConsole'],
   ] as const)('asks the shown page to run %s (%s)', (name, method) => {
     pageCommands.current = page;
     command(name);

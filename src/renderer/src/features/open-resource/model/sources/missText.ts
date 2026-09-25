@@ -2,8 +2,6 @@ import type { MissReason } from '@/shared/lib';
 import type { ToastTone } from '@/shared/ui/toast';
 import type { MissContext } from './types';
 
-const CHANGED_SINCE = (bundle: string) => `${bundle} changed since its source map was loaded`;
-
 /** What a toast says when a jump can't be made: a new reason fails typecheck until it has words. */
 export const MISS_TEXT: Record<MissReason, (context: MissContext) => { title: string; description?: string; tone: ToastTone }> = {
   unloaded: ({ bundle }) => ({ title: `The source map of ${bundle} is no longer loaded`, description: 'Try again.', tone: 'warning' }),
@@ -18,7 +16,7 @@ export const MISS_TEXT: Record<MissReason, (context: MissContext) => { title: st
   unmapped: () => ({ title: 'No original code maps here', description: 'Bundlers add code of their own (module loaders, helpers).', tone: 'neutral' }),
   edited: ({ bundle, cause }) =>
     cause === 'changed'
-      ? { title: CHANGED_SINCE(bundle), description: 'This code has no original in its source map.', tone: 'warning' }
+      ? { title: `${bundle} changed since its source map was loaded`, description: 'This code has no original in its source map.', tone: 'warning' }
       : { title: 'This is code you changed', description: 'Your edits have no original.', tone: 'warning' },
   'no-code-near': ({ bundle, file, line }) => ({
     title: `${file} has no code in ${bundle} near line ${line}`,

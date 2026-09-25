@@ -31,7 +31,7 @@ export function Explorer() {
           size="sm"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter files, iframes and sources"
+          placeholder="Filter files, iframes, workers and sources"
           aria-label="Filter files"
           leading={<Icon icon={icons.SearchIcon} size={14} className="text-fg-subtle" />}
           trailing={

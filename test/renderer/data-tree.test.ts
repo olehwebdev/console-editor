@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ResourceEntry } from '../../src/shared/types';
+import type { ResourceEntry, WorkerType } from '../../src/shared/types';
 import {
   buildResourceRows,
+  outlastsReset,
   selectIframeCount,
   selectResourceCount,
   selectUniqueResources,
+  selectWorkerCount,
   useResourceStore,
   type ResourceRow,
 } from '@/entities/resource';
@@ -18,8 +20,12 @@ const entry = (url: string, extra: Partial<ResourceEntry> = {}): ResourceEntry =
   ...extra,
 });
 
+const inWorker = (type: WorkerType, workerUrl: string, workerId: string, url = workerUrl): ResourceEntry =>
+  entry(url, { worker: { type, url: workerUrl }, workerId });
+
 describe('resource store: batched changes', () => {
-  beforeEach(() => useResourceStore.getState().reset());
+  // Not `reset()`: that keeps service and shared workers' files.
+  beforeEach(() => useResourceStore.setState({ byKey: {} }));
 
   it('applies adds, resets and iframe drops in order, as one update', () => {
     let updates = 0;
@@ -35,6 +41,35 @@ describe('resource store: batched changes', () => {
     off();
     expect(updates).toBe(1);
     expect(Object.values(useResourceStore.getState().byKey).map((e) => e.url)).toEqual(['https://site.test/b.js', 'https://w.test/w2.js']);
+  });
+
+  it("applies worker drops in order, and resets keep only service and shared workers' files", () => {
+    let updates = 0;
+    const off = useResourceStore.subscribe(() => updates++);
+    useResourceStore.getState().apply([
+      { type: 'add', entry: inWorker('service_worker', 'https://s.test/sw.js', 'W1') },
+      { type: 'add', entry: inWorker('shared_worker', 'https://s.test/shared.js', 'W2') },
+      { type: 'add', entry: inWorker('worker', 'https://s.test/w.js', 'W3') },
+      { type: 'reset' },
+      { type: 'drop-worker', workerId: 'W2' },
+      { type: 'add', entry: inWorker('shared_worker', 'https://s.test/shared.js', 'W2') },
+      { type: 'add', entry: entry('https://s.test/app.js') },
+    ]);
+    off();
+    expect(updates).toBe(1);
+    expect(Object.values(useResourceStore.getState().byKey).map((e) => e.url)).toEqual(['https://s.test/sw.js', 'https://s.test/shared.js', 'https://s.test/app.js']);
+  });
+
+  it('knows which changes still count when a reset follows them', () => {
+    expect(outlastsReset({ type: 'add', entry: inWorker('service_worker', 'https://s.test/sw.js', 'W1') })).toBe(true);
+    expect(outlastsReset({ type: 'add', entry: inWorker('shared_worker', 'https://s.test/shared.js', 'W2') })).toBe(true);
+    expect(outlastsReset({ type: 'add', entry: inWorker('worker', 'https://s.test/w.js', 'W3') })).toBe(false);
+    expect(outlastsReset({ type: 'add', entry: inWorker('worklet', 'https://s.test/', 'W4', 'https://s.test/worklet.js') })).toBe(false);
+    expect(outlastsReset({ type: 'add', entry: entry('https://s.test/app.js') })).toBe(false);
+    // The worker may be one whose files the reset keeps.
+    expect(outlastsReset({ type: 'drop-worker', workerId: 'W1' })).toBe(true);
+    expect(outlastsReset({ type: 'drop-iframe', iframeId: 'S1' })).toBe(false);
+    expect(outlastsReset({ type: 'reset' })).toBe(false);
   });
 
   it('leaves the state alone for an empty batch', () => {
@@ -60,6 +95,26 @@ describe('resource store: batched changes', () => {
     expect(selectUniqueResources(useResourceStore.getState())).not.toBe(selectUniqueResources(state));
     expect(selectResourceCount(useResourceStore.getState())).toBe(2);
     expect(selectIframeCount(useResourceStore.getState())).toBe(1);
+  });
+
+  it('counts distinct workers that loaded files, not their files or script URLs', () => {
+    useResourceStore.getState().addMany([
+      entry('https://s.test/lib.js'),
+      inWorker('worker', 'https://s.test/w.js', 'W1'),
+      inWorker('worker', 'https://s.test/w.js', 'W1', 'https://s.test/lib.js'),
+      // A second instance of the same script.
+      inWorker('worker', 'https://s.test/w.js', 'W2'),
+      inWorker('service_worker', 'https://s.test/sw.js', 'W3'),
+    ]);
+    const state = useResourceStore.getState();
+    expect(selectWorkerCount(state)).toBe(3);
+    expect(selectWorkerCount(state)).toBe(selectWorkerCount(useResourceStore.getState()));
+    expect(selectIframeCount(state)).toBe(0);
+    // Files, one per URL: the page's lib.js, w.js and sw.js.
+    expect(selectResourceCount(state)).toBe(3);
+
+    useResourceStore.getState().dropWorker('W1');
+    expect(selectWorkerCount(useResourceStore.getState())).toBe(2);
   });
 });
 
