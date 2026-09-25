@@ -3,6 +3,7 @@ import { PAGE_WINDOW_HASH } from '../../shared/constants';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent, PageState, Rect } from '../../shared/types';
 import { loadEditor } from '../launch/loadEditor';
+import { AddressBarFocus } from './AddressBarFocus';
 import { UNTITLED } from './constants';
 import { createPageWindow } from './createPageWindow';
 import { placePageWindow } from './placePageWindow';
@@ -26,6 +27,7 @@ export class PageWindow {
   private win: BrowserWindow | undefined;
   /** Saves the website window's bounds at once (they are also saved as it moves). */
   private savePlacement: (() => void) | undefined;
+  private focus: AddressBarFocus | undefined;
   /** The app is quitting, and hasn't asked the website window to close yet. */
   private quitting = false;
 
@@ -59,15 +61,20 @@ export class PageWindow {
   async detach(): Promise<void> {
     if (this.win) return this.focusAddressBar();
     const { store, editor } = this.deps;
+    if (editor.isDestroyed()) return;
     const saved = store.get();
     const win = createPageWindow(placePageWindow(saved.bounds, screen.getAllDisplays().map((d) => d.workArea), editor.getBounds()));
     this.win = win;
+    this.focus = new AddressBarFocus(win);
     this.savePlacement = trackPlacement(win, store);
     setUpPageWindow(win, { closing: () => this.closing(), maximized: !!saved.maximized });
-    this.moveView(win);
+    this.moveView(editor, win);
     void store.update({ detached: true });
     this.announce();
-    await loadEditor(win, PAGE_WINDOW_HASH);
+    await loadEditor(win, PAGE_WINDOW_HASH).catch((err: unknown) => {
+      // Put back, or gone with the editor, while its UI loaded: nothing waits for it any more.
+      if (this.win === win) throw err;
+    });
   }
 
   /** Puts the website back into the editor's window and closes its own. */
@@ -77,13 +84,14 @@ export class PageWindow {
     this.announce();
   }
 
-  /** Brings the website window forward with its address bar focused. */
+  /** Brings the website window forward with its address bar focused (once its UI listens). */
   focusAddressBar(): void {
-    const win = this.win;
-    if (!win) return;
-    if (win.isMinimized()) win.restore();
-    win.focus();
-    win.webContents.send(IPC_CHANNEL.onEvent, { type: 'command', command: 'focus-url' } satisfies AppEvent);
+    this.focus?.request();
+  }
+
+  /** `sender` asked for the page's state: the website window's UI does that once it listens for events. */
+  listening(sender: WebContents): void {
+    if (this.owns(sender)) this.focus?.uiReady();
   }
 
   /** Shows the page's state in the website window's UI (its toolbar), and its title on the window. */
@@ -99,6 +107,7 @@ export class PageWindow {
     this.savePlacement?.();
     const win = this.win;
     this.win = undefined;
+    this.focus = undefined;
     if (win && !win.isDestroyed()) win.destroy();
   }
 
@@ -119,12 +128,16 @@ export class PageWindow {
     if (!win) return false;
     this.savePlacement?.();
     this.win = undefined;
-    this.moveView(this.deps.editor);
+    this.focus = undefined;
+    this.moveView(win, this.deps.editor);
     if (!win.isDestroyed()) win.destroy();
     return true;
   }
 
-  private moveView(to: BrowserWindow): void {
+  private moveView(from: BrowserWindow, to: BrowserWindow): void {
+    // The site's pop-ups (a sign-in flow) go with it: they'd close with the website window, or stay on the editor.
+    // (The editor's UI can't open windows, so its children are all the site's.)
+    if (!from.isDestroyed()) for (const child of from.getChildWindows()) child.setParentWindow(to);
     to.contentView.addChildView(this.deps.view);
     this.deps.view.setBounds(NO_BOUNDS);
   }

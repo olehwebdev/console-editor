@@ -36,7 +36,12 @@ export function registerIpc({ win, page, store, settings, session, workspaces, u
   handlePage(IPC_CHANNEL.goBack, () => page.goBack());
   handlePage(IPC_CHANNEL.goForward, () => page.goForward());
   handlePage(IPC_CHANNEL.openPageDevTools, () => page.openDevTools());
-  handlePage(IPC_CHANNEL.getPageState, () => page.state());
+  ipcMain.handle(IPC_CHANNEL.getPageState, (event) => {
+    if (!fromPageUi(event)) throw new Error('Forbidden');
+    // The website window's UI asks once it listens: a focus asked for while it loaded goes out then.
+    page.window.listening(event.sender);
+    return page.state();
+  });
   handlePage(IPC_CHANNEL.capturePage, () => page.capture());
   handle(IPC_CHANNEL.detachPage, () => page.window.detach());
   handlePage(IPC_CHANNEL.attachPage, () => page.window.attach());
