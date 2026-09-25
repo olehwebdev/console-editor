@@ -1,3 +1,4 @@
+import type { ActionInput, ActionPatch, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
 import type { AppEvent } from './events';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
@@ -69,6 +70,13 @@ export interface ConsoleEditorApi {
   /** One level of an expandable value's properties. */
   getConsoleProperties(handle: number): Promise<ConsoleProperty[]>;
   clearConsole(): Promise<void>;
+
+  /** The active workspace's actions, oldest first. */
+  listActions(): Promise<ConsoleAction[]>;
+  /** Adds an action to the active workspace; the list follows as `actions-changed`. */
+  createAction(input: ActionInput): Promise<ConsoleAction>;
+  updateAction(id: string, patch: ActionPatch): Promise<ConsoleAction>;
+  deleteAction(id: string): Promise<void>;
 
   /** The active workspace's page and tabs. */
   getSession(): Promise<SessionState>;

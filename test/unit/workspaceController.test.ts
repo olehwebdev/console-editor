@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { WebContents } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PageController } from '../../src/main/PageController';
+import { ActionStore } from '../../src/main/store/ActionStore';
 import { OverrideStore } from '../../src/main/store/OverrideStore';
 import { SessionStore } from '../../src/main/store/SessionStore';
 import type { WriteQueue } from '../../src/main/store/WriteQueue';
@@ -14,6 +15,7 @@ import type { AppEvent } from '../../src/shared/types';
 let dir: string;
 let session: SessionStore;
 let store: OverrideStore;
+let actions: ActionStore;
 let events: AppEvent[];
 let calls: string[];
 let favicon: string | null;
@@ -39,13 +41,14 @@ beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'console-editor-workspaces-'));
   session = new SessionStore(join(dir, 'session'));
   store = new OverrideStore(join(dir, 'workspace'));
-  await Promise.all([session.load(), store.load()]);
+  actions = new ActionStore(join(dir, 'workspace'));
+  await Promise.all([session.load(), store.load(), actions.load()]);
   events = [];
   calls = [];
   favicon = null;
   wc.removeAllListeners();
   vi.clearAllMocks();
-  workspaces = new WorkspaceController(page as unknown as PageController, session, store, (e) => events.push(e));
+  workspaces = new WorkspaceController(page as unknown as PageController, session, store, actions, (e) => events.push(e));
   await workspaces.start();
   workspaces.watch(wc as unknown as WebContents);
 });
@@ -108,6 +111,39 @@ describe('WorkspaceController', () => {
     store.setWorkspace(second.id);
     expect(store.list()).toEqual([]);
     await expect(workspaces.remove(first)).rejects.toThrow(/in use/);
+  });
+
+  it("lists the active workspace's actions, and announces the other's on a switch", async () => {
+    const first = session.activeId;
+    const addItem = await actions.create({ name: 'Add item', target: 'name:cart', targetName: 'cart', code: "addItem('A1')" });
+    expect(actions.list()).toEqual([addItem]);
+    const second = await workspaces.create();
+
+    await workspaces.switchTo(second.id);
+    expect(actions.list()).toEqual([]);
+    const announced = events.findIndex((e) => e.type === 'actions-changed');
+    expect(events[announced]).toEqual({ type: 'actions-changed', actions: [] });
+    // Before the workspaces themselves: the renderer has the new actions when it sees the switch.
+    expect(events.findIndex((e) => e.type === 'workspaces-changed' && e.state.activeId === second.id)).toBeGreaterThan(announced);
+
+    await workspaces.switchTo(first);
+    expect(events.at(-2)).toEqual({ type: 'actions-changed', actions: [addItem] });
+  });
+
+  it("deletes a workspace's actions with it, before the workspace", async () => {
+    const first = session.activeId;
+    const second = await workspaces.create();
+    await workspaces.switchTo(second.id);
+    await actions.create({ name: 'Ping', target: 'top', targetName: '', code: 'ping()' });
+    await workspaces.switchTo(first);
+
+    vi.spyOn(actions, 'removeWorkspace').mockRejectedValueOnce(new Error('EACCES'));
+    await expect(workspaces.remove(second.id)).rejects.toThrow('EACCES');
+    expect(session.has(second.id)).toBe(true);
+
+    await workspaces.remove(second.id);
+    actions.setWorkspace(second.id);
+    expect(actions.list()).toEqual([]);
   });
 
   it("keeps each workspace's last page title, once it settles, across a switch", async () => {

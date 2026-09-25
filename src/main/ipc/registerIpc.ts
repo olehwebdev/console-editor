@@ -13,7 +13,7 @@ import { HTTP_URL } from '../constants';
 import { assertString } from './assertString';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, settings, session, actions, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -108,6 +108,16 @@ export function registerIpc({ win, page, store, settings, session, workspaces, u
   handle(IPC_CHANNEL.evaluateInFrame, (frameId: unknown, code: unknown) => page.console.evaluate(frameId, code));
   handle(IPC_CHANNEL.getConsoleProperties, (handle: unknown) => page.console.properties(handle));
   handle(IPC_CHANNEL.clearConsole, () => page.console.clear());
+
+  // Every change is announced, so whatever shows the actions shows them as they are.
+  const actionsChanged = <T>(result: T): T => {
+    send({ type: 'actions-changed', actions: actions.list() });
+    return result;
+  };
+  handle(IPC_CHANNEL.listActions, () => actions.list());
+  handle(IPC_CHANNEL.createAction, async (input: unknown) => actionsChanged(await actions.create(input)));
+  handle(IPC_CHANNEL.updateAction, async (id: unknown, patch: unknown) => actionsChanged(await actions.update(id, patch)));
+  handle(IPC_CHANNEL.deleteAction, async (id: unknown) => actionsChanged(await actions.remove(id)));
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

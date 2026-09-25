@@ -1,3 +1,4 @@
+import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
@@ -33,6 +34,7 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'frames-changed': (event) => useFrameStore.getState().setAll(event.frames),
   'console-entries': (event) => receiveEntries(event.entries),
   'console-cleared': () => useConsoleStore.getState().clear(),
+  'actions-changed': (event) => useActionStore.getState().setAll(event.actions),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),

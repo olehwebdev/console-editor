@@ -29,7 +29,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     iconPath: appIcon,
   });
   const userData = app.getPath('userData');
-  const { store, settings, session, pageWindow, hadData } = await openStores(userData);
+  const { store, settings, session, pageWindow, actions, hadData } = await openStores(userData);
 
   const win = createEditorWindow();
 
@@ -40,7 +40,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const page = new PageController(win, store, settings, send, pageWindow);
   launchState.running = { win, page };
   // Before the engine attaches: it serves the active workspace's overrides from the start.
-  const workspaces = new WorkspaceController(page, session, store, send);
+  const workspaces = new WorkspaceController(page, session, store, actions, send);
   await workspaces.start();
   const attached = page.attach();
   installMenu(win, page, store, send);
@@ -55,7 +55,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     // The website's own window goes with the editor (and opens again next time).
     page.window.dispose();
   });
-  registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed: (ok) => closing.flushed(ok) });
+  registerIpc({ win, page, store, settings, session, actions, workspaces, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
 

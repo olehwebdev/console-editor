@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, type AppEvent, type OverrideMeta, type PageState, type ResourceEntry, type Settings } from '../../src/shared/types';
 import { handleAppEvent, startBridge } from '@/app/model/bridge';
+import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore } from '@/entities/resource';
@@ -13,6 +14,7 @@ const api = vi.hoisted(() => ({
   listFrames: vi.fn(),
   getConsoleEntries: vi.fn(),
   listOverrides: vi.fn(),
+  listActions: vi.fn(),
   listResources: vi.fn(),
   getPageState: vi.fn(),
   sessionFlushed: vi.fn(),
@@ -83,6 +85,7 @@ describe('start bridge', () => {
     api.listFrames.mockResolvedValue([]);
     api.getConsoleEntries.mockResolvedValue([]);
     api.listOverrides.mockResolvedValue([]);
+    api.listActions.mockResolvedValue([]);
     api.listResources.mockResolvedValue([]);
     api.getPageState.mockResolvedValue(PAGE);
   });
@@ -116,6 +119,16 @@ describe('start bridge', () => {
     expect(urls()).toEqual(['https://site.test/b.js']);
     expect(useOverrideStore.getState().byId).toEqual({});
     expect(usePageStore.getState().page).toEqual(PAGE);
+    stop();
+  });
+
+  it("loads the workspace's actions, then follows their changes", async () => {
+    const action = { id: 'a1', name: 'Add A1', target: 'top', targetName: '', code: "addItem('A1')", createdAt: 1, updatedAt: 1 };
+    api.listActions.mockResolvedValueOnce([action]);
+    const stop = await startBridge(COMMANDS, SESSION);
+    expect(useActionStore.getState().actions).toEqual([action]);
+    emit({ type: 'actions-changed', actions: [] });
+    expect(useActionStore.getState().actions).toEqual([]);
     stop();
   });
 

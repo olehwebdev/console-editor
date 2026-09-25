@@ -45,6 +45,11 @@ export const IPC_CHANNEL = {
   getConsoleProperties: 'console:properties',
   clearConsole: 'console:clear',
 
+  listActions: 'actions:list',
+  createAction: 'actions:create',
+  updateAction: 'actions:update',
+  deleteAction: 'actions:delete',
+
   getSession: 'session:get',
   saveSessionTabs: 'session:tabs',
   getDraft: 'session:draft:get',

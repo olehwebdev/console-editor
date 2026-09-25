@@ -56,7 +56,7 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 
 ### Spacing and density
 
-4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px, status bar 26 px, activity rail 48 px wide. The rail holds the views (Explorer, Search), a hairline, the workspaces (28 px tiles in 36 px hit areas; the active one gets a `--fg` bar on the left, gliding with `SPRING_LAYOUT`, the others sit at 65 % opacity), +, and Settings at the bottom.
+4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px, status bar 26 px, activity rail 48 px wide. The rail holds the views (Explorer, Actions, Search), a hairline, the workspaces (28 px tiles in 36 px hit areas; the active one gets a `--fg` bar on the left, gliding with `SPRING_LAYOUT`, the others sit at 65 % opacity), +, and Settings at the bottom.
 
 ---
 
@@ -138,12 +138,12 @@ src/renderer/src/
                                sync and workspace switching (they reopen files through features)
               page-window/     — the website's own window: the page-preview widget alone
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
-              command-palette, console-panel
+              command-palette, console-panel, actions-panel
   features/   navigate-page, open-resource, save-override, toggle-override, delete-override, close-tab,
               edit-match-rule, format-document, compare-changes, filter-resources, update-settings,
               update-app, edit-workspace, run-in-frame, filter-console, name-frame, clear-console,
-              expand-console-value, detach-page
-  entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log
+              expand-console-value, detach-page, action/ (a group of slices: run, edit)
+  entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, action
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format worker,
               overlays, native view rect), monaco, config (icons)
 ```

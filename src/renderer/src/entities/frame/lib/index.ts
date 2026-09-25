@@ -1,6 +1,9 @@
 export { TOP_FRAME_KEY } from './constants';
+export { findFrame } from './findFrame';
 export { frameKey } from './frameKey';
 export { frameLabel } from './frameLabel';
 export { frameLabels } from './frameLabels';
 export { frameTone } from './frameTone';
 export { givenName } from './givenName';
+export { keyLabel } from './keyLabel';
+export { locateTarget } from './locateTarget';
