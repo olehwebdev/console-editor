@@ -599,6 +599,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - ✅ Source-map explorer: list the original files from `sourcesContent`, open them read-only, and jump between an original line and the bundle line (§6.8).
 - Research: editing an original module and recompiling only it (esbuild transform) inside a webpack/Vite bundle's module map.
 - ✅ Console panel for the page and every frame in it (§6.7), and actions: code kept to run in a frame with one click (§6.9). The Actions panel also goes into a window of its own. Still to come ([research](ACTIONS_RESEARCH.md)): parameters in actions, sending a message to a frame without writing code, a message log of `postMessage` between frames, waiting for a log, scenarios, showing a frame in the page, reloading or retargeting one frame, network and storage per frame.
+- Component inspector ([research](INSPECTOR_RESEARCH.md)): which UI library each frame runs, the component and source file behind an element (production builds too, through source maps), and how data reaches it and why it re-renders.
 
 ## 12. Risks and open questions
 
