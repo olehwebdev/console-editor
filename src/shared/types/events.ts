@@ -4,6 +4,7 @@ import type { MenuCommand } from './menu';
 import type { OverrideMeta } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
+import type { Rule } from './rules';
 import type { UpdateState } from './updates';
 import type { MissedReason } from './workers';
 import type { WorkspacesState } from './workspaces';
@@ -25,6 +26,10 @@ export type EngineEvent =
   | { type: 'resource'; resource: ResourceEntry }
   | { type: 'override-served'; overrideId: string; url: string }
   | { type: 'upstream-changed'; overrideId: string; url: string }
+  /** A rule blocked a request, or changed its response's headers (one event per rule that changed something). */
+  | { type: 'rule-applied'; ruleId: string; url: string }
+  /** An enabled block rule matched a listed file that arrived anyway (it loaded before the rule applied, or a Chromium interception gap). */
+  | { type: 'rule-missed'; ruleId: string; url: string }
   | { type: 'error'; message: string };
 
 /** Everything the main process pushes to the renderer. */
@@ -33,6 +38,8 @@ export type AppEvent =
   | { type: 'page-state'; state: PageState }
   /** The active workspace's overrides. */
   | { type: 'overrides-changed'; overrides: OverrideMeta[] }
+  /** The active workspace's rules, oldest first. */
+  | { type: 'rules-changed'; rules: Rule[] }
   | { type: 'workspaces-changed'; state: WorkspacesState }
   /** A workspace's site icon (a data URL), or null when its page moved to another site. */
   | { type: 'workspace-favicon'; id: string; favicon: string | null }

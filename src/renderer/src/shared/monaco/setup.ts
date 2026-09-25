@@ -51,6 +51,15 @@ monaco.typescript.javascriptDefaults.setCompilerOptions({
   target: monaco.typescript.ScriptTarget.ESNext,
 });
 
+// Only original sources, which are read-only, open as TypeScript: their imports can't resolve here,
+// so every check would be noise.
+monaco.typescript.typescriptDefaults.setDiagnosticsOptions({ noSemanticValidation: true, noSyntaxValidation: true, noSuggestionDiagnostics: true });
+monaco.typescript.typescriptDefaults.setCompilerOptions({
+  allowNonTsExtensions: true,
+  jsx: monaco.typescript.JsxEmit.Preserve,
+  target: monaco.typescript.ScriptTarget.ESNext,
+});
+
 defineThemes();
 monaco.editor.setTheme(THEME);
 

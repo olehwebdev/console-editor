@@ -1,6 +1,6 @@
 import type { ResourceKind } from '../../../shared/types';
 import { CONTENT_TYPE } from '../constants';
-import { BODY_HEADERS, CONTENT_TYPE_HEADER } from './constants';
+import { BODY_HEADERS, CONTENT_TYPE_HEADER, SOURCE_MAP_HEADERS } from './constants';
 import { defaultContentType } from './defaultContentType';
 import { findHeader } from './findHeader';
 import type { HeaderEntry } from './types';
@@ -8,8 +8,6 @@ import { withUtf8Charset } from './withUtf8Charset';
 
 /** Upstream caching headers: replaced by `Cache-Control: no-store`. */
 const CACHING_HEADERS = ['cache-control', 'expires', 'pragma'];
-/** Headers that point DevTools at a source map. */
-const SOURCE_MAP_HEADERS = ['sourcemap', 'x-sourcemap'];
 const CACHE_CONTROL_HEADER = 'Cache-Control';
 const NO_STORE = 'no-store';
 

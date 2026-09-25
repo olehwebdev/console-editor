@@ -1,9 +1,7 @@
 import type { MissedReason } from '../../../shared/types';
+import { MISSED_KEY_SEPARATOR } from './constants';
 import type { OverrideMatcher } from './OverrideMatcher';
 import type { EngineOptions } from './types';
-
-/** Joins an override id and a URL into a `reported` key. */
-const MISSED_KEY_SEPARATOR = '|';
 
 /**
  * Reports enabled overrides that matched a file which arrived unmodified, once

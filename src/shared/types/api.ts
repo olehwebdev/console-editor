@@ -4,7 +4,9 @@ import type { AppEvent } from './events';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
 import type { PageState, Rect } from './page';
 import type { ResourceContent, ResourceEntry } from './resources';
+import type { CreateRuleInput, Rule, RulePatch } from './rules';
 import type { SessionDraft, SessionState, SessionTab } from './session';
+import type { SourceMapFile, SourceMapRequest } from './sourceMaps';
 import type { Settings } from './settings';
 import type { AppInfo, UpdateState } from './updates';
 import type { Workspace, WorkspacePatch, WorkspacesState } from './workspaces';
@@ -30,6 +32,11 @@ export interface ConsoleEditorApi {
 
   listResources(): Promise<ResourceEntry[]>;
   getResourceContent(url: string): Promise<ResourceContent>;
+  /**
+   * Finds and reads a listed script's or stylesheet's source map: http(s) through the site's session,
+   * data: handed over undecoded, other schemes refused.
+   */
+  getSourceMap(request: SourceMapRequest): Promise<SourceMapFile>;
 
   /** The active workspace's overrides. */
   listOverrides(): Promise<OverrideMeta[]>;
@@ -43,6 +50,14 @@ export interface ConsoleEditorApi {
   deleteOverride(id: string): Promise<void>;
   revealOverridesFolder(): Promise<void>;
 
+  /** The active workspace's rules, oldest first. */
+  listRules(): Promise<Rule[]>;
+  /** Adds an enabled rule to the active workspace. Rejects input validateRuleInput refuses; 'rules-changed' is sent before this resolves. */
+  createRule(input: CreateRuleInput): Promise<Rule>;
+  /** Reaches a rule of any workspace, so an edit in flight during a switch lands where it began. */
+  updateRule(id: string, patch: RulePatch): Promise<Rule>;
+  deleteRule(id: string): Promise<void>;
+
   getSettings(): Promise<Settings>;
   updateSettings(patch: Partial<Settings>): Promise<Settings>;
 
@@ -52,7 +67,7 @@ export interface ConsoleEditorApi {
   /** Adds an empty workspace (without switching to it). */
   createWorkspace(): Promise<Workspace>;
   updateWorkspace(id: string, patch: WorkspacePatch): Promise<Workspace>;
-  /** Deletes a workspace that isn't the active one, with its overrides and drafts. */
+  /** Deletes a workspace that isn't the active one, with its overrides, rules and drafts. */
   deleteWorkspace(id: string): Promise<void>;
   /**
    * Makes `id` the active workspace: the page leaves for its last page, and its

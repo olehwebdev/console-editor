@@ -1,15 +1,16 @@
 import type { BrowserWindow, Session, WebContentsView } from 'electron';
 import type { AppEvent, PageState } from '../../shared/types';
 import { ConsoleService } from '../console';
-import { PageInterception } from '../engine/PageInterception';
+import type { PageInterception } from '../engine/PageInterception';
 import { PageWindow } from '../PageWindow';
-import type { PageWindowStore } from '../store/PageWindowStore';
 import type { OverrideStore } from '../store/OverrideStore';
+import type { PageWindowStore } from '../store/PageWindowStore';
+import type { RuleStore } from '../store/RuleStore';
 import type { SettingsStore } from '../store/SettingsStore';
 import { attachDebugger } from './attachDebugger';
 import { createPageView } from './createPageView';
 import { fetchSiteFavicon } from './fetchSiteFavicon';
-import { fetchUncached } from './fetchUncached';
+import { interceptPage } from './interceptPage';
 import { openSiteSession } from './openSiteSession';
 import { PageLoader } from './PageLoader';
 import { pageState } from './pageState';
@@ -28,12 +29,14 @@ export class PageController {
   /** The console of the page and its frames. */
   readonly console: ConsoleService;
   private readonly engine: PageInterception;
-  private readonly siteSession: Session;
+  /** The site's session (cookies, logins): reads out of the page go through it, like its favicon and source maps. */
+  readonly siteSession: Session;
   private readonly loader: PageLoader;
 
   constructor(
     win: BrowserWindow,
     private readonly store: OverrideStore,
+    private readonly rules: RuleStore,
     private readonly settings: SettingsStore,
     private readonly send: (event: AppEvent) => void,
     windowStore: PageWindowStore,
@@ -51,14 +54,7 @@ export class PageController {
     });
 
     this.console = new ConsoleService({ getSettings: () => this.settings.get(), send: (event) => this.send(event) });
-    this.engine = new PageInterception({
-      transport,
-      sessions: this.console,
-      getOverrides: () => this.store.list(),
-      getSettings: () => this.settings.get(),
-      emit: (event) => this.send(event),
-      fallbackFetch: (url) => fetchUncached(this.siteSession, url),
-    });
+    this.engine = interceptPage(transport, this.console, { store, rules, settings, send, siteSession: this.siteSession });
     this.loader = new PageLoader(wc, this.engine, () => this.pushState());
 
     // A page's "Leave site?" guard would silently cancel reloads after a save,
@@ -138,6 +134,12 @@ export class PageController {
   async overridesChanged(patterns = true): Promise<void> {
     if (patterns) await this.engine.refreshInterception();
     this.send({ type: 'overrides-changed', overrides: this.store.metas() });
+  }
+
+  /** Call after rules change. Pass `patterns: false` when only header edits or request types changed (read at pause time). */
+  async rulesChanged(patterns = true): Promise<void> {
+    if (patterns) await this.engine.refreshInterception();
+    this.send({ type: 'rules-changed', rules: this.rules.forRenderer() });
   }
 
   async settingsChanged(): Promise<void> {

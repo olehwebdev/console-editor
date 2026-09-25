@@ -24,7 +24,7 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
     {
       label: 'File',
       submenu: [
-        { label: 'Save Override', accelerator: toAccelerator(SHORTCUT.save), click: command('save') },
+        { label: 'Save', accelerator: toAccelerator(SHORTCUT.save), click: command('save') },
         { label: 'Format Document', accelerator: toAccelerator(SHORTCUT.format), click: command('format') },
         { type: 'separator' },
         { label: 'Reveal Overrides Folder', click: () => void shell.openPath(store.filesDir) },
@@ -62,6 +62,7 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
         { label: 'Reload Page', accelerator: toAccelerator(SHORTCUT.reload), click: () => void page.reload() },
         { label: 'Reload Page', accelerator: toAccelerator(SHORTCUT.reloadF5), visible: false, acceleratorWorksWhenHidden: true, click: () => void page.reload() },
         { label: 'Toggle Diff', accelerator: toAccelerator(SHORTCUT.diff), click: command('toggle-diff') },
+        { label: 'Go to Original Source or Bundle Code', accelerator: toAccelerator(SHORTCUT.jumpToMapped), click: command('jump-to-mapped') },
         {
           id: PAGE_WINDOW_MENU_ID,
           label: 'Website in Its Own Window',

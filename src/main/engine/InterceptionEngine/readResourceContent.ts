@@ -9,7 +9,8 @@ import type { EngineOptions, TrackedResource } from './types';
 /**
  * Returns the upstream content of a resource the page loaded (`tracked`, if
  * listed). Resources that were served from an override are re-fetched (with
- * `fallbackFetch`) so we never mistake the edited copy for the original.
+ * `fallbackFetch`) so we never mistake the edited copy for the original, and
+ * so are blocked ones, which the page never got.
  */
 export async function readResourceContent(
   cdp: CdpTransport,
@@ -19,7 +20,7 @@ export async function readResourceContent(
 ): Promise<ResourceContent> {
   const attempts: Array<() => Promise<string>> = [];
   // What the page got may be an override either way when a service worker answered it.
-  if (tracked && !tracked.entry.overrideId && !tracked.fromServiceWorker) {
+  if (tracked && !tracked.entry.overrideId && !tracked.entry.blockedBy && !tracked.fromServiceWorker) {
     attempts.push(() => networkBody(cdp, tracked.requestId, tracked.entry.mimeType));
     if (tracked.frameId) {
       const frameId = tracked.frameId;
@@ -38,7 +39,7 @@ export async function readResourceContent(
   for (const attempt of attempts) {
     try {
       const content = await attempt();
-      return { url, content, hash: tracked?.upstreamHash ?? sha256(content) };
+      return { url, content, hash: tracked?.upstreamHash ?? sha256(content), ...(tracked?.sourceMap ? { sourceMap: tracked.sourceMap } : {}) };
     } catch (err) {
       lastError = err;
     }

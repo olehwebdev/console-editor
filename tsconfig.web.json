@@ -33,6 +33,8 @@
   "include": [
     "src/renderer/**/*",
     "src/shared/**/*",
-    "test/renderer/**/*"
+    "test/renderer/**/*",
+    "test/fixtures/sourceMaps.ts",
+    "test/fixtures/esbuildApp.ts"
   ]
 }

@@ -71,7 +71,7 @@ Why it's worth building:
 - **Low-risk to use.** Changes exist only in the app's browser, on your machine.
 
 What to be clear about (limits):
-1. **You edit the built output, not the original sources.** Bundled, minified JS is pretty-printed so it's readable, but variable names stay mangled. Source maps can show the original TS/JSX *read-only* (planned M4). Editing an original module and recompiling just that module is a research item, not a promise.
+1. **You edit the built output, not the original sources.** Bundled, minified JS is pretty-printed so it's readable, but variable names stay mangled. Source maps can show the original TS/JSX *read-only* (the source-map explorer, SPEC §6.8). Editing an original module and recompiling just that module is a research item, not a promise.
 2. **Only the app's browser sees the change.** It's for debugging and trying fixes; the real fix still goes through your normal build and deploy.
 3. **Workers** are separate CDP targets. They're intercepted, as are iframes, including cross-site and nested ones, except a worker started by another worker: Chromium 152+ pauses its first script on no session the app can reach (what it loads is intercepted, and the app says so). For iframes, one Chromium gap remains: when a cross-site iframe navigates back to its parent's site, that one document's files can't be intercepted; the app detects it and suggests a reload.
 4. **Scripts that verify themselves** (anti-tamper checks, hash comparisons in code) may notice. That's rare outside ads and anti-bot scripts.

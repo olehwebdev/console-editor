@@ -7,8 +7,10 @@ import type { WorkerType } from '../../shared/types';
 export const CDP = {
   Fetch: {
     continueRequest: 'Fetch.continueRequest',
+    continueResponse: 'Fetch.continueResponse',
     disable: 'Fetch.disable',
     enable: 'Fetch.enable',
+    failRequest: 'Fetch.failRequest',
     fulfillRequest: 'Fetch.fulfillRequest',
     getResponseBody: 'Fetch.getResponseBody',
     // Events
@@ -110,3 +112,6 @@ export const CONTENT_TYPE = 'content-type';
 
 /** HTML's media type: what a document is taken to be when upstream sends no Content-Type. */
 export const HTML_MIME_TYPE = 'text/html';
+
+/** Fetch.failRequest's reason for a request a rule blocked (shows as net::ERR_BLOCKED_BY_CLIENT). */
+export const BLOCKED_BY_CLIENT = 'BlockedByClient';

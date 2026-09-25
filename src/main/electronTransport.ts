@@ -8,7 +8,15 @@ export function electronTransport(dbg: Debugger): CdpTransport & { dispose(): vo
   const onMessage = (_event: unknown, method: string, params: unknown, sessionId?: string) => {
     // The page's own events carry no (or an empty) sessionId; auto-attached
     // iframe targets carry theirs.
-    for (const handler of handlers.get(method) ?? []) handler(params, sessionId || undefined);
+    for (const handler of handlers.get(method) ?? []) {
+      // A throw out of the debugger's 'message' listener can freeze Electron's main process,
+      // and would skip the remaining handlers: each one is on its own.
+      try {
+        handler(params, sessionId || undefined);
+      } catch (err) {
+        console.error('CDP event handler failed', method, err);
+      }
+    }
   };
   dbg.on('message', onMessage);
 

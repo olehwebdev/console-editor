@@ -2,7 +2,7 @@ import type { Settings } from '@common/types';
 
 /** Human labels for each setting, in display order. */
 export const SETTING_META: Array<{ key: keyof Settings; label: string; help: string }> = [
-  { key: 'autoReloadOnSave', label: 'Reload page on save', help: 'Reload the page after saving, enabling or deleting an override.' },
+  { key: 'autoReloadOnSave', label: 'Reload page after changes', help: 'Reload the page after saving, enabling or deleting an override or a rule.' },
   { key: 'autoFormatMinified', label: 'Pretty-print minified files', help: 'Format minified JS/CSS/HTML when you open them.' },
   { key: 'stripIntegrity', label: 'Strip integrity checks (SRI)', help: 'Otherwise the browser refuses edited files loaded with integrity="…".' },
   { key: 'stripSourceMaps', label: 'Strip source maps from overrides', help: 'Edited files no longer line up with their source maps.' },

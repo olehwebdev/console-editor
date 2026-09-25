@@ -1,23 +1,31 @@
 import { toCdpUrlPattern } from '../../../shared/matcher';
-import type { Override, Settings } from '../../../shared/types';
+import type { Override, Rule, Settings } from '../../../shared/types';
+import { RULE_ACTION_SPECS } from '../rules/constants';
 import { ANY_URL, DOCUMENT_KIND, OTHER_RESOURCE_TYPE, SCRIPT_KIND } from './constants';
+import { stripsIntegrity } from './stripsIntegrity';
 import type { FetchPattern } from './types';
 
-/** Joins a pattern and its resource type into the key patterns are deduplicated by. */
+/** Joins a pattern's stage, URL and resource type into the key patterns are deduplicated by. */
 const KEY_SEPARATOR = '|';
 
 /**
- * Pauses only the requests that an override (or SRI stripping) could apply to.
- * Exact/glob overrides get a precise URL pattern; regex overrides fall back to
- * "every request of this resource type". Workers load scripts as `Other` too
- * (a worker's first script, static module imports), so script overrides also
- * pause those.
+ * Pauses only the requests that an override, SRI stripping or a rule could
+ * apply to. Exact/glob overrides get a precise URL pattern; regex overrides
+ * fall back to "every request of this resource type". Workers load scripts
+ * as `Other` too (a worker's first script, static module imports), so script
+ * overrides also pause those.
+ *
+ * Rules pause at their action's stage (blocks before the request is sent) and
+ * never carry a resource type: CDP's type filters differ between Chromium
+ * versions, and some types can't be filtered on at all, so the rule's type
+ * filter runs only in the handler, where it can't disagree with the pattern.
+ * The stage is part of the key, so a block rule and an override of one URL
+ * both keep their pattern (the request then pauses twice).
  */
-export function computeFetchPatterns(overrides: Override[], settings: Settings): FetchPattern[] {
+export function computeFetchPatterns(overrides: Override[], rules: readonly Rule[], settings: Settings): FetchPattern[] {
   const patterns = new Map<string, FetchPattern>();
-  const add = (p: FetchPattern) => patterns.set(`${p.urlPattern}${KEY_SEPARATOR}${p.resourceType ?? ''}`, p);
-  const enabled = overrides.filter((o) => o.enabled);
-  for (const o of enabled) {
+  const add = (p: FetchPattern) => patterns.set([p.requestStage, p.urlPattern, p.resourceType ?? ''].join(KEY_SEPARATOR), p);
+  for (const o of overrides.filter((o) => o.enabled)) {
     const urlPattern = toCdpUrlPattern(o.match);
     if (urlPattern !== ANY_URL) {
       add({ urlPattern, requestStage: 'Response' });
@@ -26,8 +34,13 @@ export function computeFetchPatterns(overrides: Override[], settings: Settings):
     add({ urlPattern, resourceType: o.kind, requestStage: 'Response' });
     if (o.kind === SCRIPT_KIND) add({ urlPattern, resourceType: OTHER_RESOURCE_TYPE, requestStage: 'Response' });
   }
-  if (settings.stripIntegrity && enabled.some((o) => o.kind !== DOCUMENT_KIND)) {
+  if (stripsIntegrity(overrides, settings)) {
     add({ urlPattern: ANY_URL, resourceType: DOCUMENT_KIND, requestStage: 'Response' });
+  }
+  for (const rule of rules) {
+    // An action this build doesn't know (a newer version's, kept in rules.json) pauses nothing.
+    if (!rule.enabled || !Object.hasOwn(RULE_ACTION_SPECS, rule.action)) continue;
+    add({ urlPattern: toCdpUrlPattern(rule.match), requestStage: RULE_ACTION_SPECS[rule.action].stage });
   }
   return [...patterns.values()];
 }

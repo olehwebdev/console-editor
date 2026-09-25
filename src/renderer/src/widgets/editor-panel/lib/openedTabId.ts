@@ -1,5 +1,7 @@
 interface TabsState {
   tabs: ReadonlyArray<{ id: string }>;
+  /** Originals opened from source maps: read-only, but their editor takes focus like a file's. */
+  sources?: ReadonlyArray<{ id: string }>;
   /** Page tabs (What's New): switching from one to a file focuses the file's editor too. */
   pages?: ReadonlyArray<{ id: string }>;
   activeId: string | null;
@@ -12,7 +14,7 @@ interface TabsState {
  */
 export function openedTabId(state: TabsState, prev: TabsState): string | null {
   if (!state.activeId || state.activeId === prev.activeId) return null;
-  const open = (id: string) => state.tabs.some((t) => t.id === id) || !!state.pages?.some((p) => p.id === id);
+  const open = (id: string) => [state.tabs, state.sources, state.pages].some((list) => !!list?.some((t) => t.id === id));
   const closed = !!prev.activeId && !open(prev.activeId);
   return closed ? null : state.activeId;
 }

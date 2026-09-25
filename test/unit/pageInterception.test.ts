@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
 import { sha256 } from '../../src/main/engine/InterceptionEngine';
 import { AUTO_ATTACH, SETUP_TIMEOUT_MS, SHARED_WORKER_HOLD_MS, UNREGISTER_TIMEOUT_MS, PageInterception, type SessionObserver } from '../../src/main/engine/PageInterception';
-import { DEFAULT_SETTINGS, type EngineEvent, type Override } from '../../src/shared/types';
+import { DEFAULT_SETTINGS, type BlockRule, type EngineEvent, type Override, type Rule } from '../../src/shared/types';
 
 type Handler = (params: any, sessionId?: string) => void;
 
@@ -95,15 +95,28 @@ interface SetupOptions {
   /** Runs on the fake connection before interception attaches. */
   before?: (cdp: FakeSessions) => void;
   sessions?: SessionObserver;
+  /** The rules every engine reads (the same array: push to add one). */
+  rules?: Rule[];
 }
 
-async function setup(overrides: Override[] = [], { fallbackFetch, before, sessions }: SetupOptions = {}) {
+const blockWidget: BlockRule = {
+  id: 'b1',
+  action: 'block',
+  match: { type: 'glob', pattern: 'https://widget.test/*', ignoreQuery: true },
+  resourceTypes: [],
+  enabled: true,
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+async function setup(overrides: Override[] = [], { fallbackFetch, before, sessions, rules = [] }: SetupOptions = {}) {
   const cdp = new FakeSessions();
   before?.(cdp);
   const events: EngineEvent[] = [];
   const pi = new PageInterception({
     transport: cdp,
     getOverrides: () => overrides,
+    getRules: () => rules,
     getSettings: () => DEFAULT_SETTINGS,
     emit: (e) => events.push(e),
     fallbackFetch,
@@ -1022,6 +1035,51 @@ describe('PageInterception', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe('rules', () => {
+    const requestPatterns = (c: { params?: Record<string, unknown> }) =>
+      (c.params?.patterns as Array<{ requestStage: string }>).filter((p) => p.requestStage === 'Request');
+
+    it("blocks a request paused on an iframe's session, on that session (every engine reads the rules)", async () => {
+      const { cdp, events } = await setup([], { rules: [blockWidget] });
+      cdp.emit('Target.attachedToTarget', iframe('S1'));
+      await flush();
+      cdp.emit('Fetch.requestPaused', { requestId: 'r1', networkId: 'n1', resourceType: 'Script', frameId: 'frame', request: { url: 'https://widget.test/ads.js', method: 'GET' } }, 'S1');
+      await flush();
+      expect(cdp.calls.find((c) => c.method === 'Fetch.failRequest')).toEqual({
+        method: 'Fetch.failRequest',
+        params: { requestId: 'r1', errorReason: 'BlockedByClient' },
+        sessionId: 'S1',
+      });
+      expect(events).toContainEqual({ type: 'rule-applied', ruleId: 'b1', url: 'https://widget.test/ads.js' });
+      expect(events.findLast((e) => e.type === 'resource')).toMatchObject({ resource: { blockedBy: 'b1', iframeId: 'S1' } });
+    });
+
+    it('fans Request-stage patterns out to the page and every iframe', async () => {
+      const rules: Rule[] = [];
+      const { cdp, pi } = await setup([], { rules });
+      cdp.emit('Target.attachedToTarget', iframe('S1'));
+      cdp.emit('Target.attachedToTarget', iframe('S2'));
+      await flush();
+      cdp.calls = [];
+      rules.push(blockWidget);
+      await pi.refreshInterception();
+      const enables = cdp.calls.filter((c) => c.method === 'Fetch.enable');
+      expect(enables.map((c) => c.sessionId)).toEqual([undefined, 'S1', 'S2']);
+      for (const c of enables) expect(requestPatterns(c)).toEqual([{ urlPattern: 'https://widget.test/**', requestStage: 'Request' }]);
+    });
+
+    it("sets a new iframe's rule patterns before it is let run", async () => {
+      const { cdp } = await setup([], { rules: [blockWidget] });
+      cdp.emit('Target.attachedToTarget', iframe('S1'));
+      await flush();
+      const child = cdp.calls.filter((c) => c.sessionId === 'S1');
+      const enable = child.findIndex((c) => c.method === 'Fetch.enable');
+      expect(enable).toBeGreaterThanOrEqual(0);
+      expect(requestPatterns(child[enable])).toHaveLength(1);
+      expect(enable).toBeLessThan(child.findIndex((c) => c.method === 'Runtime.runIfWaitingForDebugger'));
     });
   });
 });

@@ -11,4 +11,5 @@ export type MenuCommand =
   | 'redo'
   | 'select-all'
   | 'whats-new'
-  | 'check-updates';
+  | 'check-updates'
+  | 'jump-to-mapped';
