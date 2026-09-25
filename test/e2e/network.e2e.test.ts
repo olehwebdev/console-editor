@@ -24,8 +24,12 @@ const EMPTY_CART = '{ "items": [], "total": 0 }';
 const HELD_USER = '{ "data": { "user": { "name": "Held", "id": 1 } } }';
 const SAVED_USER = '{ "data": { "user": { "name": "Saved", "id": 2 } } }';
 
-/** Starts a call in the page without waiting for it (it may be held); `window.settled` gets what the page got. */
-const start = (call: string) => `window.settled = undefined; ${call}.then((r) => { window.settled = r; }); true`;
+/**
+ * Starts a call in the page without waiting for it (it may be held); `window.settled` gets what the page got,
+ * from the call started last only: one started before it may still settle.
+ */
+const start = (call: string) =>
+  `window.settled = undefined; { const n = (window.started = (window.started ?? 0) + 1); ${call}.then((r) => { if (window.started === n) window.settled = r; }); } true`;
 
 describe.skipIf(!built)('Network panel and response overrides in the app', () => {
   let site: FixtureSite;
@@ -42,6 +46,32 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
   async function openMenu(testId: string): Promise<void> {
     await expect.poll(() => win.getByRole('menu').count()).toBe(0);
     await win.getByTestId(testId).click();
+  }
+  const heldHeaders = () => win.getByTestId('held-header');
+
+  /**
+   * Whether a breakpoint holds the call started last. The menu shows a breakpoint at once, and main has the
+   * page stop what it names a moment later, once the workspace is saved: a call that went out before then
+   * goes through, and `call` is started again.
+   */
+  async function heldOrStartAgain(call: string): Promise<boolean> {
+    if ((await heldHeaders().count()) > 0) return true;
+    // Still pending reads as null: only a call that settled is started again.
+    if (await settled()) await inSite(start(call));
+    return false;
+  }
+
+  /**
+   * What the page got from the call started last, once it went through without being held. Main drops a
+   * removed breakpoint a moment after the menu does: a call it held meanwhile is let go, and `call` is
+   * started again.
+   */
+  async function settledOrStartAgain(call: string): Promise<unknown> {
+    if ((await heldHeaders().count()) === 0) return settled();
+    await win.getByTestId('held-send-original').click();
+    await expect.poll(() => heldHeaders().count()).toBe(0);
+    await inSite(start(call));
+    return undefined;
   }
   const editorText = async () => (await win.locator('.monaco-editor .view-lines').textContent())?.replace(/\u00a0/g, ' ');
 
@@ -126,7 +156,8 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
     await expect.poll(() => win.getByTestId('network-breakpoints').getAttribute('aria-label')).toBe('Breakpoints (1 on)');
 
     expect(await inSite(start("tryGql('GetUser')"))).toBe(true);
-    await expect.poll(() => win.getByTestId('held-header').textContent(), RELOAD_TIMEOUT).toContain('Paused at the response');
+    await expect.poll(() => heldOrStartAgain("tryGql('GetUser')"), RELOAD_TIMEOUT).toBe(true);
+    await expect.poll(() => heldHeaders().textContent()).toContain('Paused at the response');
     await expect.poll(() => win.getByTestId('network-held-request').count()).toBe(1);
     await expect.poll(() => win.getByTestId('status-paused').textContent()).toContain('1 paused');
     expect(await settled()).toBeFalsy();
@@ -164,11 +195,13 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
     await win.keyboard.press('Escape');
 
     expect(await inSite(start('tryCart()'))).toBe(true);
-    await expect.poll(() => win.getByTestId('held-header').textContent(), RELOAD_TIMEOUT).toContain('Paused before sending');
+    await expect.poll(() => heldOrStartAgain('tryCart()'), RELOAD_TIMEOUT).toBe(true);
+    await expect.poll(() => heldHeaders().textContent()).toContain('Paused before sending');
     expect(await win.getByTestId('held-url').inputValue()).toBe(`${site.url}${CART_PATH}`);
     await win.getByTestId('held-fail').click();
     await win.getByRole('menuitem', { name: 'Connection refused' }).click();
     await expect.poll(settled).toEqual({ error: 'TypeError' });
+    await expect.poll(() => heldHeaders().count()).toBe(0);
 
     // Removed, the next one goes through.
     await win.getByTestId('network-breakpoints').click();
@@ -176,7 +209,7 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
     await expect.poll(() => win.getByTestId('breakpoint-row').count()).toBe(1);
     await win.keyboard.press('Escape');
     expect(await inSite(start('tryCart()'))).toBe(true);
-    await expect.poll(settled).toMatchObject({ status: 200 });
+    await expect.poll(() => settledOrStartAgain('tryCart()'), RELOAD_TIMEOUT).toMatchObject({ status: 200 });
   });
 
   it('patches the live response with the saved edits', async () => {
