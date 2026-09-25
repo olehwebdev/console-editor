@@ -8,3 +8,4 @@ export { sameRuleInput } from './sameRuleInput';
 export type { HeaderValueChecks, RuleInputChecks, RuleInputOf } from './types';
 export { validateHeaderEdit } from './validateHeaderEdit';
 export { validateRuleInput } from './validateRuleInput';
+export { validateRuleMatcher } from './validateRuleMatcher';

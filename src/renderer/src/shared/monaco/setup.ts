@@ -2,10 +2,12 @@ import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import CssWorker from 'monaco-editor/language/css/css.worker?worker';
 import HtmlWorker from 'monaco-editor/language/html/html.worker?worker';
+import JsonWorker from 'monaco-editor/language/json/json.worker?worker';
 import TsWorker from 'monaco-editor/language/typescript/ts.worker?worker';
 import { conf as cssConf, language as cssLanguage } from 'monaco-editor/languages/definitions/css/css';
 import { conf as htmlConf, language as htmlLanguage } from 'monaco-editor/languages/definitions/html/html';
 import { conf as jsConf, language as jsLanguage } from 'monaco-editor/languages/definitions/javascript/javascript';
+import { JSON_LITE_CONF, JSON_LITE_LANGUAGE } from './json/constants';
 import { LANGUAGES } from './languages';
 import { defineThemes, THEME } from './theme';
 
@@ -19,6 +21,7 @@ const LANGUAGE_WORKERS: Record<string, new () => Worker> = {
   razor: HtmlWorker,
   typescript: TsWorker,
   javascript: TsWorker,
+  json: JsonWorker,
 };
 
 self.MonacoEnvironment = {
@@ -35,6 +38,7 @@ const LITE_GRAMMARS: Array<[id: string, alias: string, conf: monaco.languages.La
   [LANGUAGES.Script.lite, 'JavaScript (large file)', jsConf, jsLanguage],
   [LANGUAGES.Stylesheet.lite, 'CSS (large file)', cssConf, cssLanguage],
   [LANGUAGES.Document.lite, 'HTML (large file)', htmlConf, htmlLanguage],
+  [LANGUAGES.Fetch.lite, 'JSON (large file)', JSON_LITE_CONF, JSON_LITE_LANGUAGE],
 ];
 for (const [id, alias, conf, language] of LITE_GRAMMARS) {
   monaco.languages.register({ id, aliases: [alias] });

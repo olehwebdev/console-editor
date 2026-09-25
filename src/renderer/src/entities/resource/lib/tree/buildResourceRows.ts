@@ -1,11 +1,11 @@
-import type { ResourceEntry, ResourceKind } from '@common/types';
+import type { FileKind, ResourceEntry } from '@common/types';
 import { WEB_SCHEME } from './constants';
 import { matchesQuery } from './matchesQuery';
 import { parsed } from './parsed';
 import { subfolder } from './subfolder';
 import type { Folder, ResourceRow } from './types';
 
-const KIND_ORDER: Record<ResourceKind, number> = { Document: 0, Script: 1, Stylesheet: 2 };
+const KIND_ORDER: Record<FileKind, number> = { Document: 0, Script: 1, Stylesheet: 2 };
 /** Same order as `localeCompare`, without its per-call setup. */
 const { compare } = new Intl.Collator();
 /** Between a file row's folder path and its URL: NUL, which neither contains, so a file's key never equals a folder's. */
