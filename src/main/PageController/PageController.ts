@@ -1,6 +1,5 @@
 import type { BrowserWindow, Session, WebContentsView } from 'electron';
 import type { AppEvent, PageState } from '../../shared/types';
-import { ConsoleService } from '../console';
 import type { PageInterception } from '../engine/PageInterception';
 import { PageWindow } from '../PageWindow';
 import type { OverrideStore } from '../store/OverrideStore';
@@ -10,6 +9,7 @@ import type { SettingsStore } from '../store/SettingsStore';
 import { attachDebugger } from './attachDebugger';
 import { createPageView } from './createPageView';
 import { fetchSiteFavicon } from './fetchSiteFavicon';
+import { FrameServices } from './FrameServices';
 import { interceptPage } from './interceptPage';
 import { openSiteSession } from './openSiteSession';
 import { PageLoader } from './PageLoader';
@@ -26,8 +26,8 @@ export class PageController {
   readonly view: WebContentsView;
   /** Where the page is shown: in the editor's window or in one of its own. */
   readonly window: PageWindow;
-  /** The console of the page and its frames. */
-  readonly console: ConsoleService;
+  /** The console of the page and its frames, and the inspector. */
+  readonly frames: FrameServices;
   private readonly engine: PageInterception;
   /** The site's session (cookies, logins): reads out of the page go through it, like its favicon and source maps. */
   readonly siteSession: Session;
@@ -53,8 +53,8 @@ export class PageController {
       this.send({ type: 'error', message: `Interception stopped: debugger detached (${reason})` });
     });
 
-    this.console = new ConsoleService({ getSettings: () => this.settings.get(), send: (event) => this.send(event) });
-    this.engine = interceptPage(transport, this.console, { store, rules, settings, send, siteSession: this.siteSession });
+    this.frames = new FrameServices(() => this.settings.get(), (event) => this.send(event));
+    this.engine = interceptPage(transport, this.frames, { store, rules, settings, send, siteSession: this.siteSession });
     this.loader = new PageLoader(wc, this.engine, () => this.pushState());
 
     // A page's "Leave site?" guard would silently cancel reloads after a save,
@@ -143,6 +143,6 @@ export class PageController {
   }
 
   async settingsChanged(): Promise<void> {
-    await Promise.all([this.engine.applySettings(), this.console.applySettings()]);
+    await Promise.all([this.engine.applySettings(), this.frames.applySettings()]);
   }
 }

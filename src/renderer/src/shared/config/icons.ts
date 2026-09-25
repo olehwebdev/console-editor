@@ -23,6 +23,7 @@ export {
   Copy01Icon as CopyIcon,
   CpuIcon as WorkerIcon,
   CssFile01Icon as CssIcon,
+  CubeIcon as StackIcon,
   Delete02Icon as DeleteIcon,
   Download04Icon as DownloadIcon,
   File01Icon as FileIcon,

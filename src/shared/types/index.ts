@@ -9,6 +9,7 @@ export type { ConsoleEditorApi } from './api';
 export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, ConsoleProperty, ConsoleSource, ConsoleValue, ConsoleValueKind } from './console';
 export { CONSOLE_LEVELS } from './console';
 export type { AppEvent, EngineEvent } from './events';
+export type { FrameStack, StackHit } from './inspector';
 export type { MenuCommand } from './menu';
 export type { CreateOverrideInput, MatchType, Override, OverrideMeta, OverridePatch, OverrideWithContent, UrlMatcher } from './overrides';
 export { MATCH_TYPES } from './overrides';

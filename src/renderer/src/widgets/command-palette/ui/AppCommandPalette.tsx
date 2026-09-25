@@ -15,6 +15,7 @@ import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/w
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { attachPage, detachPage } from '@/features/detach-page';
 import { formatTab } from '@/features/format-document';
+import { openPageStack } from '@/features/inspect/stack';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
@@ -98,6 +99,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
         { id: 'page-window', label: move.label, icon: move.icon, keywords: ['window', 'screen', 'monitor', 'detach', 'pop out', 'attach'], onSelect: () => void move.run() },
+        { id: 'page-stack', label: 'Show the page stack', icon: icons.StackIcon, keywords: ['framework', 'library', 'react', 'vue', 'angular', 'frames'], onSelect: openPageStack },
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         ...newRuleItems(),
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },

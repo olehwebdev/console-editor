@@ -49,6 +49,8 @@ export interface SourceTab {
 /** A tab showing an app page rather than a file (like VS Code's release notes). Not kept between runs. */
 export type PageTab =
   | (PageTabBase & { page: 'whats-new' })
+  /** What each frame of the page runs. */
+  | (PageTabBase & { page: 'stack' })
   /** A saved rule's editor. */
   | (PageTabBase & { page: 'rule'; ruleId: string; draft?: RulePageDraft })
   /** A rule being written, not created yet. */

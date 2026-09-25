@@ -146,9 +146,10 @@ src/renderer/src/
               delete-override, close-tab, edit-match-rule, format-document, compare-changes,
               filter-resources, update-settings, update-app, edit-workspace, run-in-frame, filter-console,
               name-frame, clear-console, expand-console-value, detach-page, rule/ (a slice group:
-              quick-actions, edit, toggle, delete), action/ (a slice group: run, edit, detach)
+              quick-actions, edit, toggle, delete), action/ (a slice group: run, edit, detach),
+              inspect/ (a slice group: stack)
   entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule,
-              source-map, action
+              source-map, action, page-stack
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format and source-map
               workers, overlays, native view rect), monaco, config (icons)
 ```

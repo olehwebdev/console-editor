@@ -35,6 +35,7 @@
     "src/shared/**/*",
     "test/renderer/**/*",
     "test/fixtures/sourceMaps.ts",
-    "test/fixtures/esbuildApp.ts"
+    "test/fixtures/esbuildApp.ts",
+    "test/fixtures/stack/**/*"
   ]
 }

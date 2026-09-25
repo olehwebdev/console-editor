@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS, type AppEvent, type OverrideMeta, type PageState, type ResourceEntry, type Rule, type Settings } from '../../src/shared/types';
+import { DEFAULT_SETTINGS, type AppEvent, type FrameStack, type OverrideMeta, type PageState, type ResourceEntry, type Rule, type Settings } from '../../src/shared/types';
 import { handleAppEvent, startBridge } from '@/app/model/bridge';
 import { useActionStore } from '@/entities/action';
 import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
+import { usePageStackStore } from '@/entities/page-stack';
 import { useResourceStore } from '@/entities/resource';
 import { useRuleStore } from '@/entities/rule';
 import { startUpdates } from '@/features/update-app';
@@ -13,6 +14,7 @@ const api = vi.hoisted(() => ({
   getWorkspaces: vi.fn(),
   getWorkspaceFavicons: vi.fn(),
   listFrames: vi.fn(),
+  listStacks: vi.fn(),
   getConsoleEntries: vi.fn(),
   listOverrides: vi.fn(),
   listRules: vi.fn(),
@@ -96,6 +98,7 @@ describe('start bridge', () => {
     api.getWorkspaces.mockResolvedValue(WORKSPACES);
     api.getWorkspaceFavicons.mockResolvedValue({});
     api.listFrames.mockResolvedValue([]);
+    api.listStacks.mockResolvedValue([]);
     api.getConsoleEntries.mockResolvedValue([]);
     api.listOverrides.mockResolvedValue([]);
     api.listRules.mockResolvedValue([]);
@@ -159,6 +162,22 @@ describe('start bridge', () => {
     const stop = await started;
 
     expect(Object.keys(useRuleStore.getState().byId)).toEqual(['r2']);
+    stop();
+  });
+
+  it('loads the page stack, and a stack-changed event after the reply wins', async () => {
+    const stacks = deferred<FrameStack[]>();
+    api.listStacks.mockReturnValue(stacks.promise);
+    const top: FrameStack = { frameId: 'top', url: 'https://site.test/', hits: [{ id: 'react', signal: 'hook', version: '19.3.0', build: 'production' }], scannedAt: 1 };
+
+    const started = startBridge(COMMANDS, SESSION);
+    stacks.resolve([top]);
+    await tick();
+    expect(usePageStackStore.getState().stacks).toEqual([top]);
+    emit({ type: 'stack-changed', stacks: [] });
+    const stop = await started;
+
+    expect(usePageStackStore.getState().stacks).toEqual([]);
     stop();
   });
 

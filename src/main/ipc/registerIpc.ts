@@ -15,6 +15,7 @@ import { assertString } from './assertString';
 import { registerActionIpc } from './registerActionIpc';
 import { registerActionsWindowIpc } from './registerActionsWindowIpc';
 import { registerConsoleIpc } from './registerConsoleIpc';
+import { registerInspectorIpc } from './registerInspectorIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import { registerSettingsIpc } from './registerSettingsIpc';
 import type { IpcDeps } from './types';
@@ -112,6 +113,7 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   handle(IPC_CHANNEL.switchWorkspace, (id: unknown) => workspaces.switchTo(id));
 
   registerConsoleIpc(handle, handleActions, page);
+  registerInspectorIpc(handle, page);
   registerActionIpc(handleActions, actions, send);
   registerActionsWindowIpc(handle, handleActions, actionsWindow);
 

@@ -12,6 +12,7 @@ import type { AddressInfo } from 'node:net';
 import { gzipSync } from 'node:zlib';
 import { STORE_BUNDLE, STORE_BUNDLE_PATH, STORE_CSS, STORE_CSS_PATH, STORE_HTML, STORE_ICON, STORE_ICON_PATH } from './demoStore.ts';
 import { headersRoutes } from './headersPages.ts';
+import { STACK_HTML, STACK_PATH } from './stackPage.ts';
 import {
   BOTH_JS,
   BOTH_JS_MAP,
@@ -335,6 +336,7 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
   add('/frames/back.html', 'text/html; charset=utf-8', '<!doctype html><script src="/frames/back.js"></script><p>back on the top page\'s site</p>');
   add('/frames/back.js', 'text/javascript', BACK_JS);
   add('/services.html', 'text/html; charset=utf-8', servicesHtml(actualPort));
+  add(STACK_PATH, 'text/html; charset=utf-8', STACK_HTML);
   add('/services/nav.html', 'text/html; charset=utf-8', NAV_HTML);
   add('/services/cart.html', 'text/html; charset=utf-8', CART_HTML);
   add('/services/billing.html', 'text/html; charset=utf-8', BILLING_HTML);
@@ -403,6 +405,6 @@ export async function startFixtureSite(port = 0): Promise<FixtureSite> {
 if (process.argv[1] && /site\.ts$/.test(process.argv[1])) {
   const port = Number(process.env.PORT ?? 5174);
   startFixtureSite(port).then((site) =>
-    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/services.html services in iframes that log and message each other\n  ${site.url}/workers/    dedicated, shared and service workers, and a worklet\n  ${site.url}/maps.html   source maps named every way there is`),
+    console.log(`Demo site running:\n  ${site.url}/store/      a shop checkout with a bug to fix\n  ${site.url}/            files built to be awkward (gzip, SRI, hashed names)\n  ${site.url}/frames.html cross-site and nested iframes\n  ${site.url}/services.html services in iframes that log and message each other\n  ${site.url}/workers/    dedicated, shared and service workers, and a worklet\n  ${site.url}/maps.html   source maps named every way there is\n  ${site.url}/stack.html  what Vue, Angular, Next.js and webpack leave in a page`),
   );
 }

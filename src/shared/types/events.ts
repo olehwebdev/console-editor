@@ -1,5 +1,6 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame } from './console';
+import type { FrameStack } from './inspector';
 import type { MenuCommand } from './menu';
 import type { OverrideMeta } from './overrides';
 import type { PageState } from './page';
@@ -50,6 +51,8 @@ export type AppEvent =
   /** New console rows, oldest first. */
   | { type: 'console-entries'; entries: ConsoleEntry[] }
   | { type: 'console-cleared' }
+  /** A frame's stack was found, or went with its document: every frame's, the top page first. */
+  | { type: 'stack-changed'; stacks: FrameStack[] }
   /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
   | { type: 'actions-changed'; actions: ConsoleAction[] }
   /** The Actions panel moved into its own window or back, or that window's Keep on top changed. */

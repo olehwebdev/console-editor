@@ -17,6 +17,8 @@ export interface Settings {
   checkForUpdates: boolean;
   /** Record the console of the page and its frames (off: for a site that reacts to an attached debugger). */
   captureConsole: boolean;
+  /** Put a stand-in for the React DevTools hook in every new document, so the page stack can tell which React a frame runs. */
+  frameworkHooks: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -29,4 +31,5 @@ export const DEFAULT_SETTINGS: Settings = {
   autoFormatMinified: true,
   checkForUpdates: true,
   captureConsole: true,
+  frameworkHooks: true,
 };

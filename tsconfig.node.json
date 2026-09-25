@@ -32,6 +32,7 @@
     "vitest.e2e.config.mts"
   ],
   "exclude": [
-    "test/renderer/**/*"
+    "test/renderer/**/*",
+    "test/fixtures/stack/**/*"
   ]
 }

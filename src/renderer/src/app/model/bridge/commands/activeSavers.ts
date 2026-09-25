@@ -7,6 +7,7 @@ export const ACTIVE_SAVERS: ActiveSavers = {
   // Called without the id: saveTab saves the active tab.
   file: () => void saveTab(),
   'whats-new': () => undefined,
+  stack: () => undefined,
   rule: (id) => void applyRulePage(id),
   'new-rule': (id) => void createRulePage(id),
 };

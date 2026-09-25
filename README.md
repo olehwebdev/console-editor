@@ -74,6 +74,7 @@ Console Editor makes that workflow first-class. It embeds a browser, intercepts 
 - **Never loses work.** Overrides persist and can be switched on and off one by one. Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page next time.
 - **Block requests and change headers.** Right-click a file to block it (an analytics script, a slow third-party iframe) before it reaches the server, or to remove a page's Content-Security-Policy. Rules can also set or remove any response header, or let the page call an API on another origin, preflights and cookies included. Each rule shows how often it applied and to which URLs, and switches on and off like an override.
 - **One workspace per task.** Keep a workspace for each site or fix you're working on, each with its own page, tabs, unsaved edits, overrides and rules, and switch between them from the left rail. A tile shows the site's icon, or a letter on a colour you pick.
+- **Tells what each frame runs.** The status bar names the page's UI libraries, and the Page stack lists every frame, cross-site iframes included, with its UI library (React, Vue, Angular, Svelte…), framework (Next.js, Nuxt…), state library and bundler, their versions and whether each is a production build.
 - **Reads the original sources.** When the site publishes source maps, expand a bundle to see the TypeScript, JSX or SCSS it was built from, open any file read-only, and jump between a line of it and the bundle code it became (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>), pretty-printed, edited or overridden.
 - **Works across screens.** Move the website into a window of its own and put it on another monitor, next to the code; it keeps running as it was, and goes back into the editor with one click or by closing its window.
 - **Stays fast on big bundles.** Multi-megabyte files open in a lighter highlight-only mode, and the file tree is virtualized.
@@ -244,6 +245,8 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - [x] Update notifications, What's New, and installing updates on Windows and with the AppImage, `.deb` and `.rpm`
 - [ ] Signed and notarized builds (and with them, installing updates in place on macOS)
 - [x] Source-map explorer: open the original sources behind a bundle
+- [x] Page stack: the UI library, framework, state library and bundler of each frame
+- [ ] Component inspector: pick an element to see the component that rendered it, its source file, props, state and why it re-rendered ([research](docs/INSPECTOR_RESEARCH.md))
 
 ## Development
 

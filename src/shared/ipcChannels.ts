@@ -51,6 +51,9 @@ export const IPC_CHANNEL = {
   getConsoleProperties: 'console:properties',
   clearConsole: 'console:clear',
 
+  listStacks: 'inspect:stacks',
+  scanStacks: 'inspect:scan',
+
   listActions: 'actions:list',
   createAction: 'actions:create',
   updateAction: 'actions:update',

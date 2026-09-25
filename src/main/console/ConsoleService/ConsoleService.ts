@@ -29,7 +29,8 @@ import type { ConsoleServiceOptions, RowDraft } from './types';
 export class ConsoleService implements SessionObserver {
   private readonly sessions = new Map<SessionKey, ConsoleSession>();
   private readonly batch = new BatchSender((event) => this.opts.send(event), () => this.listFrames());
-  private readonly frames = new ConsoleFrames(() => this.batch.framesChanged());
+  /** The page's frames and where their code runs, which the inspector runs its own code by. */
+  readonly frames = new ConsoleFrames(() => this.batch.framesChanged());
   private readonly log = new EntryLog();
   private recording: boolean;
 

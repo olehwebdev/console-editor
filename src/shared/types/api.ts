@@ -1,5 +1,6 @@
 import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
+import type { FrameStack } from './inspector';
 import type { AppEvent } from './events';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
 import type { PageState, Rect } from './page';
@@ -85,6 +86,11 @@ export interface ConsoleEditorApi {
   /** One level of an expandable value's properties. */
   getConsoleProperties(handle: number): Promise<ConsoleProperty[]>;
   clearConsole(): Promise<void>;
+
+  /** What each frame of the page runs (UI library, framework, state, bundler), the top page first; empty while the console isn't recording. */
+  listStacks(): Promise<FrameStack[]>;
+  /** Looks at every frame again now; the result also arrives as `stack-changed`. */
+  scanStacks(): Promise<void>;
 
   /** The active workspace's actions, oldest first. */
   listActions(): Promise<ConsoleAction[]>;

@@ -56,6 +56,7 @@ Probed in Chromium 141 over CDP, the way the app drives its page view. The apps 
 | The component's hooks are the `memoizedState` list; a `useState` hook has `queue.dispatch`. Calling it from CDP re-rendered the production app (quantity 1 → 10) | State is readable and can be set in production. Hook *names* aren't in the fiber: they come from the original source (§3.6) |
 | `fiber.dependencies.firstContext.context` is the context a component reads; up the `return` chain, the fiber whose `type` is that context (tag 10) holds the provided `value` | **Context: CartContext `{currency: "EUR"}`, provided by App** |
 | The button's own click listener is React's no-op (`noop$1` in react-dom); real handlers are props | For React, handlers come from props, not from `DOMDebugger.getEventListeners` |
+| Without a hook, a development build's fibers (on elements and on the root container) have a `_debugOwner` property; a production build's don't | The page stack tells React's build with **Framework hooks** off, though not its version (SPEC §6.10) |
 | After a click, the last committed root showed which components did work (the `PerformedWork` flag) and whose state changed, compared with `fiber.alternate`; siblings that didn't render had neither | **Why it rendered**: props that changed, state, context or store |
 
 **Vue**
@@ -67,6 +68,8 @@ Probed in Chromium 141 over CDP, the way the app drives its page view. The apps 
 | `setupState` is empty when `setup` returns a render function, which is what `<script setup>` compiles to with an inline template (production). The render function's `[[Scopes]]` hold the setup's variables: the props, `currency "EUR"`, the `qty` ref and `handleAdd`, under minified names | State from closures, named through the map's `names` (§3.6) |
 | `setup` → `main.js:8`; the button's `onClick` (the vnode's props) → `main.js:11`, name `handleAdd` | The same source lookup as React |
 | `compiler-sfc` doesn't add `__file`; bundler plugins do, in development | `__file` is a bonus, not the way to find a file |
+| The app's `_context.reload` is a function in development builds only | The page stack's build for Vue 3 |
+| Vue 2.7: the root element carries `__vue__`; the version is on `Vue`, reached through `$root.constructor` and its `super` chain (no `window.Vue` in a bundle); components render through a `Proxy` (`vm._renderProxy !== vm`) in development builds only | The page stack's Vue 2 finding, version and build |
 
 **Angular**
 
@@ -106,7 +109,7 @@ Probed in Chromium 141 over CDP, the way the app drives its page view. The apps 
 
 - **Inspect view** (a rail view after Actions). **Stack** lists each frame with its UI library, version and build, and a warning when it has no source maps. **Components** is a tree of one frame's components, picked with a frame chip. Hovering a row highlights its elements in the page (`Overlay.highlightNode`); pressing it opens the component page.
 - **Pick** (the preview toolbar's button, `Ctrl/⌘+Shift+C` as in DevTools, the palette): every frame's session enters inspect mode. While the pointer moves, the view shows the element and its component chain, each with its file. A click pins it: the component page opens, the tree reveals the component, `$0` is the element, and every session leaves inspect mode. Esc stops.
-- **Page stack** (a page tab): per frame, each finding with its evidence ("`ng-version` on `<app-root>`", "renderer registered with the DevTools hook", "`__vite__mapDeps`"): UI library, build, meta-framework, bundler, state library, source maps. The status bar sums it up (**Angular · React · Vue**) and opens it.
+- **Page stack** (a page tab): per frame, each finding with its evidence ("`ng-version` on `<app-root>`", "renderer registered with the DevTools hook", "the `/@vite/client` script"): UI library, build, meta-framework, bundler, state library, source maps. The status bar sums it up (**Angular · React · Vue**) and opens it.
 - **Component page** (a page tab per component, like a rule page) has three tabs:
   - **Overview:** where it is defined (the original file through the map, else the bundle and pretty-printed line), with **Open original**, **Go to bundle code** and **Edit in an override**. Then props (and which component passed them), state, context and who provides it, the handlers on its elements with their files, and the chain that rendered it.
   - **Data flow:** what comes in (props from the parent, context from the provider, store slices) and what goes out (elements, state it sets, actions it dispatches, callbacks it calls up).
@@ -143,19 +146,19 @@ sequenceDiagram
 
 ### 3.3 Detection
 
-Once per frame, when its main-world context appears (`Runtime.executionContextCreated`, `isDefault`) and again 1 s after `load`, and on **Scan again**: one silent `Runtime.evaluate` with `returnByValue` runs `detect`. It checks these signals, each named in the result as its evidence:
+Once per frame, 1 s after it stops loading (`Page.frameStoppedLoading`), and on **Scan again**: one silent `Runtime.evaluate` with `returnByValue` runs `detect`. It checks these signals, each named in the result as its evidence:
 
 | Library | Runtime signal | Version | Build |
 |---|---|---|---|
-| React | the hook's `renderers`, else `__reactFiber$`/`__reactContainer$` keys on the root's elements | `renderer.version` | `bundleType` (0 production, 1 development) |
-| Vue 3 / 2 | `__vue_app__` / `__vue__` on an element | `app.version` / `Vue.version` | `__vueParentComponent` present (development) |
+| React | the hook's `renderers`, else `__reactFiber$`/`__reactContainer$` keys on the root's elements | `renderer.version` | `bundleType` (0 production, 1 development), else `_debugOwner` on a fiber (development) |
+| Vue 3 / 2 | `__vue_app__` / `__vue__` on an element | `app.version` / `Vue.version` through the root's constructor | `app._context.reload` / a render `Proxy` (development) |
 | Angular | `[ng-version]` | the attribute | `window.ng.getComponent` present (development) |
 | AngularJS, Svelte 5, Lit, Preact, Solid, Ember, jQuery | `angular.version`, `__svelte.v`, `litElementVersions`, Preact's vnode keys, `_$HY`, `Ember`, `jQuery.fn.jquery` | as listed | — |
 | Next.js, Nuxt, Remix, Gatsby, Astro | `__NEXT_DATA__`/`next.version`, `__NUXT__`, `__remixContext`, `#___gatsby`, `astro-island` | where exposed | — |
 | Redux, Pinia, Vuex, MobX, Apollo | the Redux stand-in's stores, `$pinia`/`$store` in the Vue app's globals, `__mobxGlobals`, `__APOLLO_CLIENT__` | where exposed | — |
-| Bundler | `webpackChunk*`, `__vite__mapDeps`, `parcelRequire`, `TURBOPACK`; and the resource list's URLs (`/_next/static/`, `/_nuxt/`, `/@vite/client`) | — | — |
+| Bundler | `webpackChunk*`, the `/@vite/client` script (Vite's dev server), `parcelRequire*`, `TURBOPACK`; later, the resource list's URLs (`/_next/static/`, `/_nuxt/`). A production Vite build leaves no global: `__vite__mapDeps` is a variable inside its bundles | — | — |
 
-Source-map coverage comes from what the Explorer already knows per bundle (SPEC §6.8), checked only when the Stack page is opened. Results go to the renderer as `stack-changed` per frame, and are dropped with the frame.
+Source-map coverage (from what the Explorer knows per bundle, SPEC §6.8) comes with phase 2. Results go to the renderer as `stack-changed`, and are dropped with the frame.
 
 ### 3.4 Framework hooks (installed before the page's scripts)
 
@@ -243,7 +246,7 @@ src/renderer/src/
 
 ## 6. Phases
 
-1. **Stack:** detection per frame with evidence, the Stack page and the status bar chip, and the React hook stand-in with `inject` only: without it, a page doesn't say which React it runs.
+1. **Stack:** detection per frame with evidence, the Stack page and the status bar chip, and the React hook stand-in with `inject` only: without it, a page doesn't say which React it runs. *Built: SPEC §6.10. Source-map coverage and the Inspect rail view's Stack section move to phase 2, with the view.*
 2. **Pick and component pages, React and Vue:** inspect mode, adapters, `[[FunctionLocation]]` through maps with names, props, state, context and handlers (read-only), the Components tree, `$0`.
 3. **Renders:** commit summaries from the stand-in, the Renders tab, why it rendered, setting state, hook names from originals.
 4. **Angular and the rest:** `ng` in development, the registry in production (labelled), custom elements, plain DOM listeners, **Load a source map…**.

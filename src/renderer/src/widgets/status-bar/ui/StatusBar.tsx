@@ -9,9 +9,8 @@ import { selectEnabledCount, selectOverrideList, useOverrideStore } from '@/enti
 import { usePageStore } from '@/entities/page';
 import { KIND_NAME, selectIframeCount, selectWorkerCount, useResourceStore } from '@/entities/resource';
 import { UpdateStatus } from '@/features/update-app';
-
-/** The glyph before an item's count (overrides, iframes, workers). */
-const ITEM_ICON_SIZE = 12;
+import { ITEM_ICON_SIZE } from './constants';
+import { StackChip } from './StackChip';
 
 /** Quiet one-line summary: page state, what is being served, the active file. */
 export function StatusBar() {
@@ -60,6 +59,7 @@ export function StatusBar() {
           <Counter value={workers} /> {workers === 1 ? 'worker' : 'workers'}
         </span>
       ) : null}
+      <StackChip />
       <span className="flex-1" />
       <UpdateStatus />
       {active ? (
