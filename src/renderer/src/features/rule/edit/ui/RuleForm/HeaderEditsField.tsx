@@ -5,12 +5,8 @@ import { icons } from '@/shared/config';
 import { BUTTON_ICON_SIZE, Button } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icon';
 import { Menu } from '@/shared/ui/menu';
-import { HEADER_PRESETS } from '@/entities/rule';
-import { isNewRowKey } from '../../model/isNewRowKey';
-import { nextRowKey } from '../../model/nextRowKey';
-import { BLANK_HEADER_EDIT, COMMON_HEADER_NAMES } from './constants';
+import { BLANK_HEADER_EDIT, HEADER_PRESETS, HeaderEditRow, HeaderNameList, isNewRowKey, nextRowKey } from '@/entities/rule';
 import { FormSection } from './FormSection';
-import { HeaderEditRow } from './HeaderEditRow';
 import type { RuleActionFieldsProps } from './types';
 import { withPreset } from './withPreset';
 
@@ -21,11 +17,7 @@ export function HeaderEditsField({ value, rowKeys, onChange }: RuleActionFieldsP
 
   return (
     <FormSection title="Header changes" hint="Applied in order to each matching response; a newer rule's change wins over an older one's.">
-      <datalist id={listId}>
-        {COMMON_HEADER_NAMES.map((name) => (
-          <option key={name} value={name} />
-        ))}
-      </datalist>
+      <HeaderNameList id={listId} />
       {value.headers.length ? (
         <div className="flex flex-col gap-1.5">
           {value.headers.map((edit, i) => (

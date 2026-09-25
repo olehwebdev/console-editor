@@ -11,6 +11,7 @@ import { WorkspaceController } from '../WorkspaceController';
 import { CloseGuard } from './CloseGuard';
 import { createEditorWindow } from './createEditorWindow';
 import { createUpdater } from './createUpdater';
+import { activeBreakpoints } from './activeBreakpoints';
 import { initialUrl } from './initialUrl';
 import { launchState } from './launchState';
 import { loadEditor } from './loadEditor';
@@ -46,7 +47,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const rulesProblem = locked ?? (setAside && `rules.json could not be read and was kept as ${setAside}; you start with no rules`);
   if (rulesProblem) win.webContents.once('did-finish-load', () => send({ type: 'error', message: rulesProblem }));
 
-  const page = new PageController(win, store, rules, settings, send, pageWindow);
+  const page = new PageController(win, { store, rules, settings, send, windowStore: pageWindow, breakpoints: () => activeBreakpoints(session) });
   launchState.running = { win, page };
   // Before the engine attaches: it serves the active workspace's overrides and rules from the start.
   const workspaces = new WorkspaceController(page, session, store, rules, actions, send);

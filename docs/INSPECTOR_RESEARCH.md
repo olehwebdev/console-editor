@@ -56,7 +56,7 @@ Probed in Chromium 141 over CDP, the way the app drives its page view. The apps 
 | The component's hooks are the `memoizedState` list; a `useState` hook has `queue.dispatch`. Calling it from CDP re-rendered the production app (quantity 1 → 10) | State is readable and can be set in production. Hook *names* aren't in the fiber: they come from the original source (§3.6) |
 | `fiber.dependencies.firstContext.context` is the context a component reads; up the `return` chain, the fiber whose `type` is that context (tag 10) holds the provided `value` | **Context: CartContext `{currency: "EUR"}`, provided by App** |
 | The button's own click listener is React's no-op (`noop$1` in react-dom); real handlers are props | For React, handlers come from props, not from `DOMDebugger.getEventListeners` |
-| Without a hook, a development build's fibers (on elements and on the root container) have a `_debugOwner` property; a production build's don't | The page stack tells React's build with **Framework hooks** off, though not its version (SPEC §6.10) |
+| Without a hook, a development build's fibers (on elements and on the root container) have a `_debugOwner` property; a production build's don't | The page stack tells React's build with **Framework hooks** off, though not its version (SPEC §6.12) |
 | After a click, the last committed root showed which components did work (the `PerformedWork` flag) and whose state changed, compared with `fiber.alternate`; siblings that didn't render had neither | **Why it rendered**: props that changed, state, context or store |
 
 **Vue**
@@ -250,8 +250,8 @@ src/renderer/src/
 
 ## 6. Phases
 
-1. **Stack:** detection per frame with evidence, the Stack page and the status bar chip, and the React hook stand-in with `inject` only: without it, a page doesn't say which React it runs. *Built: SPEC §6.10. Source-map coverage and the Inspect rail view's Stack section move to phase 2, with the view.*
-2. **Pick and component pages, React and Vue:** inspect mode, adapters, `[[FunctionLocation]]` through maps with names, props, state, context and handlers (read-only), the Components tree, `$0`. *Built: SPEC §6.11, React and Vue 3, with names from the map or, when it has none, from the original's text. One Component page per workspace, which each pick replaces, and the Inspect rail view with the stack in short. The Components tree and the stack's source-map coverage move to phase 3.*
+1. **Stack:** detection per frame with evidence, the Stack page and the status bar chip, and the React hook stand-in with `inject` only: without it, a page doesn't say which React it runs. *Built: SPEC §6.12. Source-map coverage and the Inspect rail view's Stack section move to phase 2, with the view.*
+2. **Pick and component pages, React and Vue:** inspect mode, adapters, `[[FunctionLocation]]` through maps with names, props, state, context and handlers (read-only), the Components tree, `$0`. *Built: SPEC §6.13, React and Vue 3, with names from the map or, when it has none, from the original's text. One Component page per workspace, which each pick replaces, and the Inspect rail view with the stack in short. The Components tree and the stack's source-map coverage move to phase 3.*
 3. **Renders:** the Components tree, source-map coverage in the stack, commit summaries from the stand-in, the Renders tab, why it rendered, setting state, hook names from originals.
 4. **Angular and the rest:** `ng` in development, the registry in production (labelled), custom elements, plain DOM listeners, **Load a source map…**.
 5. **Later:** Redux, Pinia and NgRx timelines; requests by component (`Network.requestWillBeSent`'s initiator stack through the maps); "Save as action" for setting state; a profiler view.

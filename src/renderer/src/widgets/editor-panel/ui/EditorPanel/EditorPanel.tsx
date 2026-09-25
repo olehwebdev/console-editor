@@ -8,11 +8,13 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
 import { getTabModel, selectActivePage, selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
+import { useOverrideStore } from '@/entities/override';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, useDiffSource } from '@/features/compare-changes';
-import { FileHeader } from '../FileHeader';
+import { ResponseTree, useResponseViews } from '@/features/network/response-tree';
 import { SourceHeader } from '../SourceHeader';
 import { SourceMissing } from '../SourceMissing';
+import { TabHeader } from '../TabHeader';
 import { PageView } from './PageView';
 import { stripItems } from './stripItems';
 import { useEditorActions } from './useEditorActions';
@@ -47,6 +49,8 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
   const original = useDiffSource((s) => s.original);
   const originalLabel = useDiffSource((s) => s.label);
   const activate = useTabStore((s) => s.activate);
+  const overrides = useOverrideStore((s) => s.byId);
+  const treeShown = useResponseViews((s) => !!activeId && !!s.tree[activeId]);
   const onMount = useEditorActions();
   const model = getTabModel(activeId);
   useFocusOnOpen();
@@ -55,13 +59,13 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
     <section className="flex h-full min-w-0 flex-col bg-surface-editor" aria-label="Editor" data-testid="editor-panel">
       {tabs.length || sources.length || pages.length ? (
         <EditorTabs
-          items={stripItems(tabs, sources, pages)}
+          items={stripItems(tabs, sources, pages, overrides)}
           activeId={activeId}
           onSelect={activate}
           onClose={(id) => void closeTab(id)}
         />
       ) : null}
-      {active ? <FileHeader tab={active} /> : activeSource ? <SourceHeader tab={activeSource} onShowExplorer={onShowExplorer} /> : null}
+      {active ? <TabHeader tab={active} /> : activeSource ? <SourceHeader tab={activeSource} onShowExplorer={onShowExplorer} /> : null}
 
       <div className="relative min-h-0 flex-1">
         {active && diff !== 'off' && original && model ? (
@@ -85,6 +89,13 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
         </div>
 
         {activeSource?.missing ? <SourceMissing tab={activeSource} /> : null}
+
+        {/* A response as a tree, over its text (which stays mounted, with its undo, and under its layers: the minimap); a diff shows instead. */}
+        {active && treeShown && diff === 'off' ? (
+          <div className="absolute inset-0 z-10">
+            <ResponseTree tabId={active.id} />
+          </div>
+        ) : null}
 
         {activePage ? (
           <div className="absolute inset-0">

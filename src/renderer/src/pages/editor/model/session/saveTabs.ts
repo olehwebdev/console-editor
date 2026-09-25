@@ -1,6 +1,7 @@
 import { api } from '@/shared/api';
 import { useTabStore } from '@/entities/editor-tab';
 import { activeFileId } from './activeFileId';
+import { keptTabs } from './keptTabs';
 import { sessionSync } from './sessionSync';
 import { toSessionTab } from './toSessionTab';
 import { track } from './track';
@@ -12,7 +13,7 @@ export function saveTabs(): void {
   if (!syncing) return;
   const state = useTabStore.getState();
   track(
-    api.saveSessionTabs(syncing, state.tabs.map(toSessionTab), activeFileId(state)).then(
+    api.saveSessionTabs(syncing, keptTabs(state.tabs).map(toSessionTab), activeFileId(state)).then(
       () => {
         sessionSync.tabsFailed = false;
       },
