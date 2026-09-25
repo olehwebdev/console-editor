@@ -6,6 +6,9 @@
 /** The location hash (without `#`) that shows the design-system gallery instead of the editor. */
 export const GALLERY_HASH = 'gallery';
 
+/** The location hash (without `#`) of the website's own window: the preview alone, without the editor. */
+export const PAGE_WINDOW_HASH = 'page-window';
+
 /** The longest name a workspace can be given. */
 export const MAX_WORKSPACE_NAME = 40;
 

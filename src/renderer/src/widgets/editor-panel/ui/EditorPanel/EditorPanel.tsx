@@ -1,22 +1,20 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
-import { DURATION, EASE_OUT, fileName } from '@/shared/lib';
+import { DURATION, EASE_OUT } from '@/shared/lib';
 import { CodeEditor, DiffEditor } from '@/shared/monaco';
 import { EditorTabs } from '@/shared/ui/editor-tabs';
 import { EmptyState } from '@/shared/ui/empty-state';
-import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd } from '@/shared/ui/kbd';
 import { getTabModel, selectActivePage, selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
-import { KindIcon } from '@/entities/resource';
-import { cleanLabel, parseSourceUrl } from '@/entities/source-map';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, useDiffSource } from '@/features/compare-changes';
-import { WhatsNewPage } from '@/features/update-app';
 import { FileHeader } from '../FileHeader';
 import { SourceHeader } from '../SourceHeader';
 import { SourceMissing } from '../SourceMissing';
+import { PageView } from './PageView';
+import { stripItems } from './stripItems';
 import { useEditorActions } from './useEditorActions';
 import { useFocusOnOpen } from './useFocusOnOpen';
 
@@ -26,9 +24,6 @@ const STEPS: Array<{ keys?: string[]; text: string }> = [
   { keys: SHORTCUT.save, text: 'Save: the page reloads running your version of the file.' },
   { keys: SHORTCUT.palette, text: 'Jump to any file or command.' },
 ];
-
-/** Tab icons: a file's kind and a page's glyph line up. */
-const TAB_ICON_SIZE = 13;
 
 /** The empty state fading in or out, in seconds. */
 const EMPTY_FADE_DURATION = DURATION.medium3;
@@ -60,23 +55,7 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
     <section className="flex h-full min-w-0 flex-col bg-surface-editor" aria-label="Editor" data-testid="editor-panel">
       {tabs.length || sources.length || pages.length ? (
         <EditorTabs
-          items={[
-            ...tabs.map((t) => ({
-              id: t.id,
-              label: fileName(t.url),
-              icon: <KindIcon kind={t.kind} size={TAB_ICON_SIZE} />,
-              dirty: t.dirty,
-              italic: !t.overrideId,
-              title: `${t.url}${t.overrideId ? '' : '\nNot saved as an override yet'}`,
-            })),
-            ...sources.map((t) => ({
-              id: t.id,
-              label: parseSourceUrl(t.url).file,
-              icon: <Icon icon={icons.SourceFileIcon} size={TAB_ICON_SIZE} className="text-info" />,
-              title: `${cleanLabel(t.url)}\nOriginal source, read-only · from ${fileName(t.bundleUrl)}`,
-            })),
-            ...pages.map((p) => ({ id: p.id, label: p.title, icon: <Icon icon={icons.WhatsNewIcon} size={TAB_ICON_SIZE} className="text-accent" />, title: p.title })),
-          ]}
+          items={stripItems(tabs, sources, pages)}
           activeId={activeId}
           onSelect={activate}
           onClose={(id) => void closeTab(id)}
@@ -109,7 +88,7 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
 
         {activePage ? (
           <div className="absolute inset-0">
-            <WhatsNewPage />
+            <PageView key={activePage.id} page={activePage} />
           </div>
         ) : null}
 

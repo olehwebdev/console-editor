@@ -2,6 +2,7 @@ import { api, onAppEvent } from '@/shared/api';
 import { useOverrideStore } from '@/entities/override';
 import { useFrameStore } from '@/entities/frame';
 import { usePageStore } from '@/entities/page';
+import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
@@ -28,6 +29,7 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     api.getWorkspaces().then((workspaces) => useWorkspaceStore.getState().setAll(workspaces)),
     api.getWorkspaceFavicons().then((favicons) => useWorkspaceStore.getState().setFavicons(favicons)),
     api.listOverrides().then((overrides) => useOverrideStore.getState().setAll(overrides)),
+    api.listRules().then((rules) => useRuleStore.getState().setAll(rules)),
     api.listResources().then(applyResourceSnapshot),
     api.getPageState().then((page) => usePageStore.getState().setPage(page)),
     // Frames first: the rows name them.

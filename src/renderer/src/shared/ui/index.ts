@@ -22,3 +22,4 @@ export * from './switch';
 export * from './toast';
 export * from './tooltip';
 export * from './tree';
+export * from './url-matcher';

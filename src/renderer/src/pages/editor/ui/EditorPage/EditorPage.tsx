@@ -13,6 +13,7 @@ import { PagePreview } from '@/widgets/page-preview';
 import { SettingsPanel } from '@/widgets/settings-panel';
 import { StatusBar } from '@/widgets/status-bar';
 import { TitleBar } from '@/widgets/title-bar';
+import { usePageStore } from '@/entities/page';
 import { useLayout } from '../../model/layout';
 import { focusAddressBar } from './focusAddressBar';
 import { ConsolePane } from './ConsolePane';
@@ -26,9 +27,10 @@ import { shortcutKey } from './shortcutKey';
 import { showExplorer } from './showExplorer';
 import { showSettings } from './showSettings';
 import { SidebarPane } from './SidebarPane';
+import { toggleWebsitePreview } from './toggleWebsitePreview';
 
 // Actions never change, so they are read once instead of subscribed to.
-const { toggleSidebar, showSidebarView, sidebarExited, togglePreview, toggleConsole } = useLayout.getState();
+const { toggleSidebar, showSidebarView, sidebarExited, toggleConsole } = useLayout.getState();
 const { toggle: togglePalette } = usePalette.getState();
 
 /** Global shortcuts, by lower-cased `KeyboardEvent.key` with Ctrl/Cmd (no Alt or Shift): the app menu's accelerators. */
@@ -48,6 +50,9 @@ export function EditorPage() {
   const { sidebar, previewVisible, resizing, consoleVisible } = useLayout(
     useShallow((s) => ({ sidebar: s.sidebar, previewVisible: s.previewVisible, resizing: s.resizing, consoleVisible: s.consoleVisible })),
   );
+  // In a window of its own, the website leaves the editor its room.
+  const detached = usePageStore((s) => s.page.detached);
+  const showPreview = previewVisible && !detached;
 
   // Global shortcuts. Capture phase so Monaco doesn't swallow them.
   useEffect(() => {
@@ -70,9 +75,9 @@ export function EditorPage() {
       <TitleBar
         onOpenPalette={togglePalette}
         sidebarVisible={!!sidebar}
-        previewVisible={previewVisible}
+        previewVisible={showPreview}
         onToggleSidebar={toggleSidebar}
-        onTogglePreview={togglePreview}
+        onTogglePreview={toggleWebsitePreview}
         consoleVisible={consoleVisible}
         onToggleConsole={toggleConsole}
       />
@@ -117,7 +122,7 @@ export function EditorPage() {
           ) : null}
         </main>
 
-        {previewVisible ? (
+        {showPreview ? (
           <PreviewPane>
             {/* The sidebar animating in or out can move the preview without resizing it. */}
             <PagePreview suspended={resizing} layoutKey={!!sidebar} addressBarRef={setAddressBar} />

@@ -1,67 +1,86 @@
 import type { Override } from '../../../shared/types';
-import { CDP, CONTENT_TYPE, HTML_MIME_TYPE } from '../constants';
-import { buildOverrideHeaders, buildRewrittenHeaders, headerValue, isRedirect, sourceMapHeader, stripIntegrityAttributes } from '../transform';
-import { DOCUMENT_KIND, OTHER_RESOURCE_TYPE, OVERRIDE_STATUS, WORKER_SCRIPT_TYPES } from './constants';
+import { CDP } from '../constants';
+import { applyResponseRules, findResponseRules, isPreflight, pausedRequestOf, type PausedRequest, type ResponseHead, type ResponseRule } from '../rules';
+import { buildOverrideHeaders, isRedirect, sourceMapHeader, withUtf8ContentType } from '../transform';
+import { answerRequestStage } from './answerRequestStage';
+import { OTHER_RESOURCE_TYPE, OVERRIDE_STATUS, WORKER_SCRIPT_TYPES } from './constants';
 import { continueRequest } from './continueRequest';
+import { continueWithRules } from './continueWithRules';
+import { emitApplied } from './emitApplied';
+import { hasResponseHead } from './hasResponseHead';
 import { isBenignCdpError } from './isBenignCdpError';
+import { isHtmlDocument } from './isHtmlDocument';
 import { isUpstreamOk } from './isUpstreamOk';
 import { listPausedScript } from './listPausedScript';
+import { MatcherCache } from './MatcherCache';
 import { overrideBody } from './overrideBody';
+import { pauseStage } from './pauseStage';
 import { readPausedBody } from './readPausedBody';
+import { reportError } from './reportError';
+import { serveDocument } from './serveDocument';
 import { sha256 } from './sha256';
-import type { PausedRequestContext, RequestPausedParams } from './types';
-
-/** Part of every HTML content type; a document whose type lacks it isn't rewritten. */
-const HTML_TYPE_MARKER = 'html';
+import type { PausedRequestContext, RequestPausedParams, RequestStage } from './types';
 
 /**
- * Answers the requests `Fetch` paused: with an override, with the document
- * stripped of its SRI attributes, or by letting them go on unchanged.
+ * Answers the requests `Fetch` paused: before they are sent, by blocking them
+ * (rules); once their response arrived, with an override, with the document
+ * stripped of its SRI attributes or re-served with the rules' headers, with
+ * the rules' header edits, or by letting them go on unchanged.
  */
 export class PausedRequestHandler {
+  /** How a paused request is answered, by the stage it paused at. */
+  private readonly stages: Record<RequestStage, (p: RequestPausedParams) => Promise<void>> = {
+    Request: (p) => answerRequestStage(this.ctx, this.ruleMatchers, p),
+    Response: (p) => this.answerResponse(p),
+  };
+  /** Rules' compiled matchers, kept per matcher object: the rule store hands out the same objects until a rule changes. */
+  private readonly ruleMatchers = new MatcherCache();
+
   constructor(private readonly ctx: PausedRequestContext) {}
 
   async handle(p: RequestPausedParams): Promise<void> {
-    const { cdp, opts, matcher, resources, worker } = this.ctx;
+    const { cdp, opts, worker } = this.ctx;
     try {
-      const workerScript = WORKER_SCRIPT_TYPES.has(p.resourceType);
       // A shared worker's first script is paused on its creator's session; it must not start before
       // the worker's own session intercepts.
       if (p.resourceType === OTHER_RESOURCE_TYPE && !worker) await opts.workerSetups?.();
-      // With the page bypassing service workers, a service worker's other requests are its own fetches (a
-      // precache, say): an edit served there would be stored in its caches and outlive the override.
-      if (worker?.isServiceWorker && opts.getSettings().bypassServiceWorker && !workerScript) {
-        await continueRequest(cdp, p.requestId);
-        return;
-      }
-      const override = matcher.find(p.request.url, p.resourceType);
-      if (worker?.isServiceWorker && workerScript) worker.paused(p.request.url, p.resourceType, matcher.version(p.request.url, p.resourceType));
-      const listed = worker?.pausesScripts && workerScript ? worker : undefined;
-      if (override && !isRedirect(p.responseStatusCode, p.responseHeaders)) {
-        await this.serveOverride(p, override);
-        if (listed) listPausedScript(resources, listed, p, override.id);
-        return;
-      }
-      if (
-        p.resourceType === DOCUMENT_KIND &&
-        opts.getSettings().stripIntegrity &&
-        isUpstreamOk(p) &&
-        (headerValue(p.responseHeaders, CONTENT_TYPE) ?? HTML_MIME_TYPE).includes(HTML_TYPE_MARKER)
-      ) {
-        if (await this.serveWithoutIntegrity(p)) return;
-      }
-      await continueRequest(cdp, p.requestId);
-      if (listed && !isRedirect(p.responseStatusCode, p.responseHeaders)) listPausedScript(resources, listed, p);
+      await this.stages[pauseStage(p)](p);
     } catch (err) {
-      // A frame or session that went away mid-request isn't the user's problem.
-      if (!isBenignCdpError(err)) {
-        opts.emit({ type: 'error', message: `Interception failed for ${p.request.url}: ${(err as Error).message}` });
-      }
+      // Fail open first: whatever went wrong, the page must never hang on this request.
       await continueRequest(cdp, p.requestId);
+      // A frame or session that went away mid-request isn't the user's problem.
+      if (!isBenignCdpError(err)) reportError(opts, `Interception failed for ${p.request.url}: ${(err as Error).message}`);
     }
   }
 
-  private async serveOverride(p: RequestPausedParams, override: Override): Promise<void> {
+  /**
+   * Response stage. An override chooses the body (never for a CORS preflight),
+   * SRI stripping a document's; header and CORS rules edit the resulting
+   * headers last. Anything nothing changes continues untouched.
+   */
+  private async answerResponse(p: RequestPausedParams): Promise<void> {
+    const { cdp, opts, matcher, resources, worker, frames } = this.ctx;
+    const workerScript = WORKER_SCRIPT_TYPES.has(p.resourceType);
+    // With the page bypassing service workers, a service worker's other requests are its own fetches (a
+    // precache, say): an edit served there would be stored in its caches and outlive the override.
+    if (worker?.isServiceWorker && opts.getSettings().bypassServiceWorker && !workerScript) return continueRequest(cdp, p.requestId);
+    const rules = findResponseRules(opts.getRules(), p.request.url, p.resourceType, this.ruleMatchers);
+    const request = pausedRequestOf(p, frames.urlOf(p.frameId));
+    const override = isPreflight(request) ? undefined : matcher.find(p.request.url, p.resourceType);
+    if (worker?.isServiceWorker && workerScript) worker.paused(p.request.url, p.resourceType, matcher.version(p.request.url, p.resourceType));
+    const listed = worker?.pausesScripts && workerScript ? worker : undefined;
+    if (override && !isRedirect(p.responseStatusCode, p.responseHeaders)) {
+      await this.serveOverride(p, override, rules, request);
+      if (listed) listPausedScript(resources, listed, p, override.id);
+      return;
+    }
+    if (isHtmlDocument(p) && (await serveDocument(this.ctx, p, rules, request))) return;
+    if (rules.length > 0 && hasResponseHead(p)) await continueWithRules(this.ctx, p, rules, request);
+    else await continueRequest(cdp, p.requestId);
+    if (listed && !isRedirect(p.responseStatusCode, p.responseHeaders)) listPausedScript(resources, listed, p);
+  }
+
+  private async serveOverride(p: RequestPausedParams, override: Override, rules: readonly ResponseRule[], request: PausedRequest): Promise<void> {
     const { cdp, opts, resources, worker } = this.ctx;
     const settings = opts.getSettings();
     if (override.originalHash && isUpstreamOk(p)) {
@@ -78,13 +97,16 @@ export class PausedRequestHandler {
     // Recorded first: the response can be reported before the fulfil is answered.
     if (reportedAs) resources.markServed(reportedAs, override.id);
     const upstreamMap = sourceMapHeader(p.responseHeaders);
-    if (reportedAs && upstreamMap) resources.markUpstreamSourceMap(reportedAs, upstreamMap);
+    if (reportedAs && upstreamMap) resources.sourceMaps.mark(reportedAs, upstreamMap);
+    // An override also answers requests whose upstream failed (404, 500, offline). Rules land last,
+    // so a rule's Cache-Control beats the forced no-store, and CORS still checks what they wrote.
+    const base: ResponseHead = { status: OVERRIDE_STATUS, headers: buildOverrideHeaders(p.responseHeaders, override.kind, settings) };
+    const { head, applied } = applyResponseRules(base, rules, request);
     try {
-      // An override also answers requests whose upstream failed (404, 500, offline).
       await cdp.send(CDP.Fetch.fulfillRequest, {
         requestId: p.requestId,
-        responseCode: OVERRIDE_STATUS,
-        responseHeaders: buildOverrideHeaders(p.responseHeaders, override.kind, settings),
+        responseCode: head.status,
+        responseHeaders: withUtf8ContentType(head.headers),
         body: Buffer.from(body, 'utf8').toString('base64'),
       });
     } catch (err) {
@@ -92,22 +114,6 @@ export class PausedRequestHandler {
       throw err;
     }
     opts.emit({ type: 'override-served', overrideId: override.id, url: p.request.url });
-  }
-
-  /** Strips SRI attributes from an HTML document. Returns false when nothing needed changing. */
-  private async serveWithoutIntegrity(p: RequestPausedParams): Promise<boolean> {
-    const { cdp, resources } = this.ctx;
-    const html = await readPausedBody(cdp, p);
-    if (html === undefined) return false;
-    const stripped = stripIntegrityAttributes(html);
-    if (stripped.count === 0) return false;
-    if (p.networkId) resources.markRewritten(p.networkId, sha256(html));
-    await cdp.send(CDP.Fetch.fulfillRequest, {
-      requestId: p.requestId,
-      responseCode: p.responseStatusCode,
-      responseHeaders: buildRewrittenHeaders(p.responseHeaders, HTML_MIME_TYPE),
-      body: Buffer.from(stripped.html, 'utf8').toString('base64'),
-    });
-    return true;
+    emitApplied(opts, applied, p.request.url);
   }
 }

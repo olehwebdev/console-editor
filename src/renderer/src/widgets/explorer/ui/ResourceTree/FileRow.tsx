@@ -1,5 +1,5 @@
 import { icons } from '@/shared/config';
-import { fileName } from '@/shared/lib';
+import { cn, fileName } from '@/shared/lib';
 import { Badge } from '@/shared/ui/badge';
 import { Icon } from '@/shared/ui/icon';
 import { ContextMenu } from '@/shared/ui/menu';
@@ -14,14 +14,16 @@ import { fileMenu } from './fileMenu';
 import type { RowProps } from './types';
 
 /**
- * A file in the tree: opens on click, with its actions on right-click and badges for iframes, workers
- * and overrides. A script or stylesheet opens onto its originals (chevron, →), loading its map.
+ * A file in the tree: opens on click, with its actions on right-click and badges for iframes, workers,
+ * overrides and blocked requests. A script or stylesheet opens onto its originals (chevron, →), loading its map.
  */
 export function FileRow({ row, context, nav }: RowProps<ExplorerFileRow>) {
   const { entry, nest } = row;
   const { kind } = entry;
   const frameLabel = describeFrame(entry);
   const workerLabel = describeWorker(entry);
+  const blocked = !!entry.blockedBy;
+  const received = blocked ? 'Blocked by a rule: the page never received it' : `${entry.mimeType} · ${entry.status}${entry.overrideId ? ' · served from your override' : ''}`;
   const toggle = nest && isMappableKind(kind) ? () => void toggleBundleSources(entry.url, kind) : undefined;
   return (
     <ContextMenu items={fileMenu(entry, nest)} label={`${fileName(entry.url)} actions`}>
@@ -35,13 +37,17 @@ export function FileRow({ row, context, nav }: RowProps<ExplorerFileRow>) {
         icon={<KindIcon kind={kind} size={ROW_ICON_SIZE} />}
         label={<TreeLabel text={row.label} highlight={context.query} />}
         meta={nest?.count ?? undefined}
-        title={`${entry.url}\n${entry.mimeType} · ${entry.status}${entry.overrideId ? ' · served from your override' : ''}${frameLabel ? `\n${frameLabel}` : ''}${workerLabel ? `\n${workerLabel}` : ''}`}
+        title={`${entry.url}\n${received}${frameLabel ? `\n${frameLabel}` : ''}${workerLabel ? `\n${workerLabel}` : ''}`}
         data-url={entry.url}
         data-testid="resource-row"
         data-iframe={entry.frame ? '' : undefined}
         data-worker={entry.worker?.type}
         data-source-map={nest?.status}
-        className={entry.overrideId ? '[&_[data-tree-label]]:text-live' : undefined}
+        data-blocked={blocked ? '' : undefined}
+        className={cn(
+          entry.overrideId && '[&_[data-tree-label]]:text-live',
+          blocked && '[&_[data-tree-label]]:text-fg-subtle [&_[data-tree-label]]:line-through [&_[data-tree-label]]:decoration-fg-subtle/60',
+        )}
         onClick={() => void openResource(entry.url)}
         trailing={
           <span className="flex items-center gap-1.5">
@@ -65,6 +71,11 @@ export function FileRow({ row, context, nav }: RowProps<ExplorerFileRow>) {
                   {WORKER_NAME[entry.worker.type]}
                 </Badge>
               </Tooltip>
+            ) : null}
+            {blocked ? (
+              <Badge tone="danger" icon={icons.BlockIcon}>
+                blocked
+              </Badge>
             ) : null}
             {entry.overrideId ? (
               <Tooltip content="Served from your override">

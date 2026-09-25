@@ -1,6 +1,9 @@
 import type { ResourceKind } from './resources';
 
-export type MatchType = 'exact' | 'glob' | 'regex';
+/** The match types, in the order the UI offers them. */
+export const MATCH_TYPES = ['exact', 'glob', 'regex'] as const;
+
+export type MatchType = (typeof MATCH_TYPES)[number];
 
 /**
  * Decides which request URLs an override applies to.

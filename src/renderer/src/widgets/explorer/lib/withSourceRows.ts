@@ -5,8 +5,8 @@ import type { ExplorerRow, SourceRowsInput } from './types';
 
 /**
  * Nests originals under the page's scripts and stylesheets. A bundle's nest is closed until opened,
- * and open while the filter matches some of its loaded originals. Documents, and files known to
- * have no map, have none.
+ * and open while the filter matches some of its loaded originals. Documents, blocked files, and files
+ * known to have no map have none.
  */
 export function withSourceRows(rows: readonly ResourceRow[], { byBundle, isOpen, query, matching }: SourceRowsInput): ExplorerRow[] {
   const out: ExplorerRow[] = [];
@@ -15,9 +15,10 @@ export function withSourceRows(rows: readonly ResourceRow[], { byBundle, isOpen,
       out.push(row);
       continue;
     }
-    const { url, kind } = row.entry;
+    const { url, kind, blockedBy } = row.entry;
     const state = byBundle[url];
-    const nest = isMappableKind(kind) ? bundleNestOf(state, url) : null;
+    // A file a rule blocked never reached the page: there is nothing to map.
+    const nest = isMappableKind(kind) && !blockedBy ? bundleNestOf(state, url) : null;
     if (!nest || !isMappableKind(kind)) {
       out.push({ ...row, nest: null });
       continue;

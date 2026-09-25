@@ -15,6 +15,8 @@ export const IPC_CHANNEL = {
   getPageState: 'page:state',
   setPageBounds: 'page:bounds',
   capturePage: 'page:capture',
+  detachPage: 'page:detach',
+  attachPage: 'page:attach',
 
   listResources: 'resources:list',
   getResourceContent: 'resources:content',
@@ -27,6 +29,11 @@ export const IPC_CHANNEL = {
   updateOverride: 'overrides:update',
   deleteOverride: 'overrides:delete',
   revealOverridesFolder: 'overrides:reveal',
+
+  listRules: 'rules:list',
+  createRule: 'rules:create',
+  updateRule: 'rules:update',
+  deleteRule: 'rules:delete',
 
   getSettings: 'settings:get',
   updateSettings: 'settings:update',

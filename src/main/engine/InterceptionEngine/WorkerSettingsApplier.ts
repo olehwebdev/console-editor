@@ -20,7 +20,7 @@ export class WorkerSettingsApplier implements SessionSettings {
 
   constructor(
     private readonly cdp: CdpTransport,
-    private readonly opts: Pick<EngineOptions, 'getOverrides' | 'getSettings'>,
+    private readonly opts: Pick<EngineOptions, 'getOverrides' | 'getRules' | 'getSettings'>,
     private readonly matcher: OverrideMatcher,
     private readonly session: WorkerSession,
   ) {}
@@ -75,7 +75,7 @@ export class WorkerSettingsApplier implements SessionSettings {
   private enableFetch(): Promise<void> {
     this.matcher.clear();
     this.fetchEnabled = true;
-    const patterns = workerFetchPatterns(this.opts.getOverrides(), this.opts.getSettings());
+    const patterns = workerFetchPatterns(this.opts.getOverrides(), this.opts.getRules(), this.opts.getSettings());
     return this.cdp.send(CDP.Fetch.enable, { patterns }).then(() => undefined);
   }
 }

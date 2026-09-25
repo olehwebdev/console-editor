@@ -10,37 +10,46 @@ import {
   type WorkspacePatch,
 } from '../../shared/types';
 import { HTTP_URL } from '../constants';
+import { loadSiteSourceMap } from '../PageController';
 import { assertSourceMapRequest } from './assertSourceMapRequest';
 import { assertString } from './assertString';
+import { registerRuleIpc } from './registerRuleIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, workspaces, updates, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
-  const handle = (channel: string, fn: (...args: any[]) => unknown) => {
+  // The website's own window shows the preview alone: it may drive the page, and nothing else.
+  const fromPageUi = (event: IpcMainInvokeEvent | IpcMainEvent) => fromEditor(event) || page.window.owns(event.sender);
+  const guarded = (allowed: typeof fromEditor) => (channel: string, fn: (...args: any[]) => unknown) => {
     ipcMain.handle(channel, (event, ...args) => {
-      if (!fromEditor(event)) throw new Error('Forbidden');
+      if (!allowed(event)) throw new Error('Forbidden');
       return fn(...args);
     });
   };
+  const handle = guarded(fromEditor);
+  const handlePage = guarded(fromPageUi);
 
-  handle(IPC_CHANNEL.navigate, (url: unknown) => {
+  handlePage(IPC_CHANNEL.navigate, (url: unknown) => {
     assertString(url, 'url');
     return page.navigate(url);
   });
-  handle(IPC_CHANNEL.reload, () => page.reload());
-  handle(IPC_CHANNEL.goBack, () => page.goBack());
-  handle(IPC_CHANNEL.goForward, () => page.goForward());
-  handle(IPC_CHANNEL.openPageDevTools, () => page.openDevTools());
-  handle(IPC_CHANNEL.getPageState, () => page.state());
-  handle(IPC_CHANNEL.capturePage, () => page.capture());
-  ipcMain.on(IPC_CHANNEL.setPageBounds, (event, rect: Rect) => {
-    if (!fromEditor(event)) return;
-    // The renderer measures CSS pixels; the view is placed in window pixels (they differ when the editor is zoomed).
-    const zoom = win.webContents.getZoomFactor();
-    page.setBounds({ x: rect.x * zoom, y: rect.y * zoom, width: rect.width * zoom, height: rect.height * zoom });
+  handlePage(IPC_CHANNEL.reload, () => page.reload());
+  handlePage(IPC_CHANNEL.goBack, () => page.goBack());
+  handlePage(IPC_CHANNEL.goForward, () => page.goForward());
+  handlePage(IPC_CHANNEL.openPageDevTools, () => page.openDevTools());
+  ipcMain.handle(IPC_CHANNEL.getPageState, (event) => {
+    if (!fromPageUi(event)) throw new Error('Forbidden');
+    // The website window's UI asks once it listens: a focus asked for while it loaded goes out then.
+    page.window.listening(event.sender);
+    return page.state();
   });
+  handlePage(IPC_CHANNEL.capturePage, () => page.capture());
+  handle(IPC_CHANNEL.detachPage, () => page.window.detach());
+  handlePage(IPC_CHANNEL.attachPage, () => page.window.attach());
+  // Only the window showing the page places it: the other one's reports (a panel going away) are stale.
+  ipcMain.on(IPC_CHANNEL.setPageBounds, (event, rect: Rect) => page.window.place(event.sender, rect));
 
   handle(IPC_CHANNEL.listResources, () => page.listResources());
   handle(IPC_CHANNEL.getResourceContent, (url: unknown) => {
@@ -49,7 +58,7 @@ export function registerIpc({ win, page, store, settings, session, workspaces, u
   });
   handle(IPC_CHANNEL.getSourceMap, (request: unknown) => {
     assertSourceMapRequest(request);
-    return page.getSourceMap(request);
+    return loadSiteSourceMap(request, page.siteSession, (url) => page.getResourceContent(url), page.view.webContents.getURL());
   });
 
   handle(IPC_CHANNEL.listOverrides, () => store.metas());
@@ -84,6 +93,8 @@ export function registerIpc({ win, page, store, settings, session, workspaces, u
   handle(IPC_CHANNEL.revealOverridesFolder, async () => {
     await shell.openPath(store.filesDir);
   });
+
+  registerRuleIpc(handle, rules, page);
 
   handle(IPC_CHANNEL.getSettings, () => settings.get());
   handle(IPC_CHANNEL.updateSettings, async (patch: Partial<Settings>) => {

@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OverrideMeta, SessionDraft, SessionState, Workspace, WorkspacesState } from '../../src/shared/types';
-import { closeSessionTabs, flushSession, restoreSession, startSessionSync } from '@/pages/editor/model/session';
+import type { OverrideMeta, Rule, SessionDraft, SessionState, Workspace, WorkspacesState } from '../../src/shared/types';
+import { closeSessionTabs, flushSession, pageSession, restoreSession, startSessionSync } from '@/pages/editor/model/session';
 import { createWorkspace, deleteWorkspace, switchWorkspace } from '@/pages/editor/model/workspaces';
 import { createSourceModel, createTabModel, disposeTabModel, getTabModel, markTabSaved, newTabId, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
+import { useRuleStore } from '@/entities/rule';
 import { useSourceMapStore } from '@/entities/source-map';
 import { useWorkspaceStore } from '@/entities/workspace';
 
@@ -58,15 +59,17 @@ const api = vi.hoisted(() => ({
   getResourceContent: vi.fn(),
   getWorkspaces: vi.fn<() => Promise<WorkspacesState>>(),
   listOverrides: vi.fn(async (): Promise<OverrideMeta[]> => []),
+  listRules: vi.fn(async (): Promise<Rule[]> => []),
   switchWorkspace: vi.fn(async (_id: string) => {}),
   createWorkspace: vi.fn<() => Promise<Workspace>>(),
   deleteWorkspace: vi.fn(async (_id: string) => {}),
 }));
 const toast = vi.hoisted(() => Object.assign(vi.fn(() => 'toast-1'), { dismiss: vi.fn(), update: vi.fn() }));
+const confirm = vi.hoisted(() => vi.fn(async (_options: { title: string }) => true));
 
 vi.mock('@/shared/api', () => ({ api, onAppEvent: () => () => {}, errorMessage: (err: unknown) => String(err) }));
 vi.mock('@/shared/ui/toast', () => ({ toast }));
-vi.mock('@/shared/ui/dialog', () => ({ confirm: async () => true, isConfirmOpen: () => false }));
+vi.mock('@/shared/ui/dialog', () => ({ confirm, isConfirmOpen: () => false }));
 vi.mock('@/shared/monaco', () => ({
   monaco: { editor: { createModel: (text: string) => new FakeModel(text) }, Uri: { from: () => ({}) } },
   languageFor: () => 'javascript',
@@ -224,6 +227,16 @@ describe('session sync', () => {
     expect(api.saveDraft).toHaveBeenLastCalledWith(id, { content: 'again' });
     await tick();
   });
+
+  it('on close, reports unapplied rule edits as not kept, so closing asks first', async () => {
+    stopSync = startSessionSync();
+    const input = { action: 'block' as const, match: { type: 'glob' as const, pattern: 'https://a.test/*', ignoreQuery: true }, resourceTypes: [] };
+    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1' });
+    expect(await pageSession.flush()).toBe(true);
+
+    useTabStore.getState().setPageDraft('page:rule:r1', { base: input, value: { ...input, resourceTypes: ['Script'] }, rowKeys: [] });
+    expect(await pageSession.flush()).toBe(false);
+  });
 });
 
 describe('switching workspaces', () => {
@@ -332,6 +345,55 @@ describe('switching workspaces', () => {
     mainSwitchesTo('wsa00000', { url: '', tabs: [], activeTabId: null });
     expect(await createWorkspace()).toBe(false);
     expect(api.deleteWorkspace).toHaveBeenCalledWith('wsc00000');
+  });
+
+  const rule = (id: string): Rule => ({
+    id,
+    action: 'block',
+    match: { type: 'glob', pattern: `https://${id}.test/*`, ignoreQuery: true },
+    resourceTypes: [],
+    enabled: true,
+    createdAt: 0,
+    updatedAt: 0,
+  });
+  const WHATS_NEW = { id: 'page:whats-new', page: 'whats-new', title: "What's New" } as const;
+
+  it("reloads the rules of the workspace switched to, and closes the other's rule pages but not What's New", async () => {
+    useRuleStore.getState().setAll([rule('r1')]);
+    const tabs = useTabStore.getState();
+    tabs.openPage(WHATS_NEW);
+    tabs.openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1' });
+    tabs.openPage({ id: 'page:new-rule:x', page: 'new-rule', seed: { action: 'cors', match: rule('r1').match, resourceTypes: [] }, title: 'New' });
+    api.listRules.mockResolvedValueOnce([rule('r2')]);
+    mainSwitchesTo('wsb00000', { url: '', tabs: [], activeTabId: null });
+
+    await switchWorkspace('wsb00000');
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(Object.keys(useRuleStore.getState().byId)).toEqual(['r2']);
+    expect(useTabStore.getState().pages.map((p) => p.id)).toEqual([WHATS_NEW.id]);
+    expect(useTabStore.getState().activeId).toBe(WHATS_NEW.id);
+  });
+
+  it('asks before losing a rule page’s unapplied edits; cancelling stays in the workspace', async () => {
+    useRuleStore.getState().setAll([rule('r1')]);
+    const input = { action: 'block' as const, match: rule('r1').match, resourceTypes: [] };
+    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1' });
+    useTabStore.getState().setPageDraft('page:rule:r1', { base: input, value: { ...input, resourceTypes: ['Script'] }, rowKeys: [] });
+    confirm.mockResolvedValueOnce(false);
+    mainSwitchesTo('wsb00000', { url: '', tabs: [], activeTabId: null });
+
+    await switchWorkspace('wsb00000');
+
+    expect(confirm).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ title: 'Discard your unapplied rule changes?' }));
+    expect(api.switchWorkspace).not.toHaveBeenCalled();
+    expect(useTabStore.getState().pages.map((p) => p.id)).toEqual(['page:rule:r1']);
+    expect(useWorkspaceStore.getState()).toMatchObject({ activeId: 'wsa00000', switchingTo: null });
+
+    // Confirmed, the switch goes on and the page closes.
+    await switchWorkspace('wsb00000');
+    expect(api.switchWorkspace).toHaveBeenCalledWith('wsb00000');
+    expect(useTabStore.getState().pages).toEqual([]);
   });
 
   it('deleting the workspace in use switches to its neighbour first', async () => {
