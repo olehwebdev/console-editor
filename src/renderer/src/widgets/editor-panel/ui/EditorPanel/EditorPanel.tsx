@@ -11,6 +11,7 @@ import { getTabModel, selectActivePage, selectActiveSource, selectActiveTab, use
 import { useOverrideStore } from '@/entities/override';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, useDiffSource } from '@/features/compare-changes';
+import { ResponseTree, useResponseViews } from '@/features/network/response-tree';
 import { SourceHeader } from '../SourceHeader';
 import { SourceMissing } from '../SourceMissing';
 import { TabHeader } from '../TabHeader';
@@ -49,6 +50,7 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
   const originalLabel = useDiffSource((s) => s.label);
   const activate = useTabStore((s) => s.activate);
   const overrides = useOverrideStore((s) => s.byId);
+  const treeShown = useResponseViews((s) => !!activeId && !!s.tree[activeId]);
   const onMount = useEditorActions();
   const model = getTabModel(activeId);
   useFocusOnOpen();
@@ -87,6 +89,13 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
         </div>
 
         {activeSource?.missing ? <SourceMissing tab={activeSource} /> : null}
+
+        {/* A response as a tree, over its text (which stays mounted, with its undo, and under its layers: the minimap); a diff shows instead. */}
+        {active && treeShown && diff === 'off' ? (
+          <div className="absolute inset-0 z-10">
+            <ResponseTree tabId={active.id} />
+          </div>
+        ) : null}
 
         {activePage ? (
           <div className="absolute inset-0">

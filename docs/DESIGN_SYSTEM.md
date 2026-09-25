@@ -148,7 +148,7 @@ src/renderer/src/
               filter-resources, update-settings, update-app, edit-workspace, run-in-frame, filter-console,
               name-frame, clear-console, expand-console-value, detach-page, rule/ (a slice group:
               quick-actions, edit, toggle, delete), action/ (a slice group: run, edit, detach), edit-response-rule,
-              network/ (a slice group: filter, clear, breakpoints, held, throttle, har)
+              network/ (a slice group: filter, clear, breakpoints, held, throttle, har, response-tree)
   entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule,
               source-map, action, network-request, held-request
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format and source-map

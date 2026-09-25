@@ -8,6 +8,7 @@ import type { TabMeta } from '@/entities/editor-tab';
 import { useHeldStore } from '@/entities/held-request';
 import { formatTab } from '@/features/format-document';
 import { HeldActions, HeldFields } from '@/features/network/held';
+import { TreeViewToggle } from '@/features/network/response-tree';
 import { Breadcrumbs } from '../Breadcrumbs';
 import { HELD_BADGES } from './constants';
 
@@ -25,6 +26,7 @@ export function HeldHeader({ tab, heldId }: { tab: TabMeta; heldId: string }) {
             {held ? HELD_BADGES[held.stage] : 'Let go'}
           </Badge>
           <IconButton icon={icons.PrettifyIcon} label="Pretty-print" shortcut={SHORTCUT.format} onClick={() => void formatTab(tab.id)} />
+          <TreeViewToggle tabId={tab.id} />
         </div>
         {held ? <HeldActions tabId={tab.id} held={held} /> : null}
       </div>

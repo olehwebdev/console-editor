@@ -203,6 +203,31 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
     await expect.poll(settled, RELOAD_TIMEOUT).toMatch(/^Saved Lorem ipsum/);
   });
 
+  it('edits a response as a tree: open, retype, rename and remove with the keyboard, then saves it', async () => {
+    // The GetUser override from the quick edit, in front.
+    await win.getByTestId('response-tree-toggle').click();
+    const tree = win.getByTestId('response-tree');
+    await expect.poll(() => tree.evaluate((el) => el === el.ownerDocument.activeElement)).toBe(true);
+    const keys = async (...pressed: string[]) => {
+      for (const key of pressed) await win.keyboard.press(key);
+    };
+    // The root, then data (opened), user (opened), and down to its id.
+    await keys('ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowDown', 'ArrowDown');
+    await expect.poll(() => tree.locator('[data-testid="tree-row"][aria-selected="true"]').getAttribute('data-id')).toBe('/data/user/id');
+    await keys('Enter');
+    await win.getByTestId('tree-edit').fill('7');
+    await keys('Enter', 'F2');
+    await win.getByTestId('tree-edit').fill('userId');
+    await keys('Enter', 'ArrowUp', 'Delete');
+    await expect.poll(() => tree.getByTestId('tree-key').allTextContents()).toEqual(['data:', 'user:', 'userId:']);
+
+    await win.getByTestId('response-tree-toggle').click();
+    await expect.poll(editorText).toBe('{ "data": { "user": { "userId": 7 } } }');
+    await win.getByTestId('save-button').click();
+    expect(await inSite(start("tryGql('GetUser').then((r) => r.body)"))).toBe(true);
+    await expect.poll(settled, RELOAD_TIMEOUT).toBe('{ "data": { "user": { "userId": 7 } } }');
+  });
+
   it('takes the page offline from the network speed menu, and back', async () => {
     const broken = start(`fetch('${BROKEN_PATH}').then((r) => ({ status: r.status }), (e) => ({ error: e.name }))`);
     await openMenu('network-throttling');

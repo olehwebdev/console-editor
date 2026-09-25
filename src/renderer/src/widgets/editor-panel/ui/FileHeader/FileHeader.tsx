@@ -12,6 +12,7 @@ import { KindIcon } from '@/entities/resource';
 import { isMappableKind, useSourceMapStore } from '@/entities/source-map';
 import { closeDiff, compareWithLive, showBaseDiff } from '@/features/compare-changes';
 import { ResponseRule } from '@/features/edit-response-rule';
+import { TreeViewToggle } from '@/features/network/response-tree';
 import { formatTab } from '@/features/format-document';
 import { bundleUrlOf, goToOriginal } from '@/features/open-resource';
 import { saveTab } from '@/features/save-override';
@@ -61,6 +62,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
             />
           ) : null}
           <IconButton icon={icons.PrettifyIcon} label="Pretty-print" shortcut={SHORTCUT.format} onClick={() => void formatTab(tab.id)} />
+          {isResponse ? <TreeViewToggle tabId={tab.id} /> : null}
           <IconButton
             icon={icons.DiffIcon}
             label={diff === 'base' ? 'Close diff' : 'Diff with where you started'}
