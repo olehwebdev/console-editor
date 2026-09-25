@@ -1,7 +1,7 @@
 import type { ResourceKind } from '@common/types';
 
 /** Which kinds of file can name a source map (a document's inline scripts are out of scope). */
-export const MAPPABLE_KINDS: Record<ResourceKind, boolean> = { Script: true, Stylesheet: true, Document: false };
+export const MAPPABLE_KINDS: Record<ResourceKind, boolean> = { Script: true, Stylesheet: true, Document: false, Fetch: false };
 
 /** Joins a bundle URL and an original's URL into one key (a NUL can't be in either). */
 export const SOURCE_KEY_SEPARATOR = '\u0000';

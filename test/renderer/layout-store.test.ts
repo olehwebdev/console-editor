@@ -35,7 +35,7 @@ describe('layout persistence', () => {
     useLayout.getState().showSidebarView('settings');
     expect(setItem).not.toHaveBeenCalled();
     vi.runAllTimers();
-    expect(stored()).toEqual({ sidebar: 'settings', sidebarWidth: 290, previewVisible: false, previewRatio: 0.42, consoleVisible: false, consoleHeight: 240 });
+    expect(stored()).toEqual({ sidebar: 'settings', sidebarWidth: 290, previewVisible: false, previewRatio: 0.42, consoleVisible: false, consoleHeight: 240, bottomView: 'console' });
 
     const { useLayout: reloaded } = await loadLayout(1600, stored());
     expect(reloaded.getState()).toMatchObject({ sidebar: 'settings', previewVisible: false, resizing: false });
@@ -73,6 +73,29 @@ describe('layout persistence', () => {
     useLayout.getState().togglePreview();
     vi.runAllTimers();
     expect(setItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('the bottom pane', () => {
+  it('shows the console or the network panel; its toggle brings back the last one shown', async () => {
+    const { useLayout } = await loadLayout();
+    expect(useLayout.getState()).toMatchObject({ consoleVisible: false, bottomView: 'console' });
+    useLayout.getState().showBottomView('network');
+    expect(useLayout.getState()).toMatchObject({ consoleVisible: true, bottomView: 'network' });
+    // Showing what already shows changes nothing (never hides it).
+    const before = useLayout.getState();
+    useLayout.getState().showBottomView('network');
+    expect(useLayout.getState()).toBe(before);
+    useLayout.getState().toggleConsole();
+    useLayout.getState().toggleConsole();
+    expect(useLayout.getState()).toMatchObject({ consoleVisible: true, bottomView: 'network' });
+    vi.runAllTimers();
+    expect(stored()).toMatchObject({ consoleVisible: true, bottomView: 'network' });
+  });
+
+  it("falls back to the console for a view it doesn't know (saved by a later version)", async () => {
+    const { useLayout } = await loadLayout(1600, { consoleVisible: true, bottomView: 'profiler' });
+    expect(useLayout.getState()).toMatchObject({ consoleVisible: true, bottomView: 'console' });
   });
 });
 

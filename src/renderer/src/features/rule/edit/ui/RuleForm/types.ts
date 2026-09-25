@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { RuleInputOf } from '@common/rules';
-import type { CreateRuleInput, HeaderEdit, RuleAction, RuleResourceType } from '@common/types';
+import type { CreateRuleInput, RuleAction, RuleResourceType } from '@common/types';
 import type { RulePageDraft } from '@/entities/editor-tab';
 
 export interface RuleFormProps {
@@ -31,23 +31,6 @@ export interface ResourceTypePickerProps {
   /** Empty: every type. */
   value: RuleResourceType[];
   onChange(next: RuleResourceType[]): void;
-}
-
-export interface HeaderEditRowProps {
-  edit: HeaderEdit;
-  /** The id of the datalist of common header names. */
-  listId: string;
-  /** The row was just added: its name field takes focus. */
-  autoFocus: boolean;
-  onChange(next: HeaderEdit): void;
-  onRemove(): void;
-}
-
-/** What a header operation shows in the editor. */
-export interface HeaderOperationField {
-  label: string;
-  /** Whether it takes a value (the value field is disabled, and emptied, otherwise). */
-  takesValue: boolean;
 }
 
 /** A note shown under the form when it applies to what is being written. */
