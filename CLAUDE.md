@@ -8,6 +8,7 @@ Before pushing:
 npm run typecheck
 npm run lint:fsd
 npm run lint:structure         # the Code structure rules below: thin files, one function each, no switch
+npm run lint:unused            # knip: no unused file, dependency or export (knip.jsonc says what counts)
 npm test
 xvfb-run -a npm run test:e2e   # builds, then drives the real app (headless Linux needs xvfb)
 ```

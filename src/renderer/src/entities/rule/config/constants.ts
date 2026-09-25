@@ -10,7 +10,7 @@ export const REMOVE_CSP_PRESET: HeaderPreset = {
 };
 
 /** Lets a page that refuses to be framed load in an iframe. */
-export const ALLOW_FRAMING_PRESET: HeaderPreset = {
+const ALLOW_FRAMING_PRESET: HeaderPreset = {
   label: 'Allow framing (remove X-Frame-Options)',
   edits: [{ operation: 'remove', name: 'X-Frame-Options', value: '' }],
 };

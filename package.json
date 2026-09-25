@@ -42,7 +42,8 @@
     "test:update": "node --no-warnings test/smoke/update.ts",
     "demo-site": "node --no-warnings test/fixtures/site.ts",
     "lint:fsd": "steiger ./src/renderer/src",
-    "lint:structure": "node --no-warnings scripts/check-structure.ts"
+    "lint:structure": "node --no-warnings scripts/check-structure.ts",
+    "lint:unused": "knip"
   },
   "devDependencies": {
     "@babel/parser": "^7.29.9",
@@ -57,6 +58,7 @@
     "electron": "^44.4.5",
     "electron-builder": "^26.16.1",
     "electron-vite": "^6.0.0-beta.1",
+    "knip": "^6.38.0",
     "playwright-core": "^1.63.0",
     "steiger": "^0.6.0",
     "tailwindcss": "^4.3.3",
@@ -81,7 +83,6 @@
     "motion": "^13.4.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-use-measure": "^2.1.7",
     "tailwind-merge": "^3.7.0",
     "zustand": "^5.0.15"
   },

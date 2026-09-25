@@ -16,8 +16,6 @@ export const LANGUAGES: Record<ResourceKind, { full: string; lite: string }> = {
   Document: { full: 'html', lite: 'html-lite' },
 };
 
-export const JS_LITE = LANGUAGES.Script.lite;
-
 /** A language an original source can be shown in, and its name for the status bar. */
 export interface SourceLanguage {
   id: string;

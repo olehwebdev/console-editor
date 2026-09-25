@@ -1,6 +1,5 @@
 export { computeFetchPatterns } from './computeFetchPatterns';
 export { InterceptionEngine } from './InterceptionEngine';
-export { isBenignCdpError } from './isBenignCdpError';
 export { isServiceWorkerOutdated } from './isServiceWorkerOutdated';
 export { MatcherCache } from './MatcherCache';
 export { originOf } from './originOf';

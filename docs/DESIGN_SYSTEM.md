@@ -71,7 +71,6 @@ Presets live in `shared/lib/motion.ts` (ported from beUI's `ease.ts`):
 | `SPRING_LAYOUT` | shared-layout glides: active tab pill, rail indicator, hover highlight |
 | `SPRING_PANEL` | menus, palette, dialogs entering |
 | `SPRING_SWAP` | icon/label swaps (Save → Saved ✓) |
-| `FADE_UP` | fade and 4 px rise for most appearing elements |
 | `SLIDE_IN_X` | −6 px: where list rows and sidebar views slide in from |
 
 Durations come from one scale, `DURATION`, shortest first; a component picks a step rather than writing seconds:
@@ -121,7 +120,7 @@ Each component lives in its own folder with an `index.ts` public API. Props belo
 | `UrlMatcherFields` | `value: UrlMatcher`, `onChange`, `onEnter?`, `testIdPrefix?`, `autoFocus?` | the match type menu, the pattern and "ignore ?query", as siblings the caller lays out in a wrapping row; shared by an override's match row and rule pages |
 | `Popover` | `open`, `onOpenChange`, `anchor: HTMLElement \| null`, `side?: 'right' \| 'bottom'`, `label` | a few controls beside an element (editing a workspace's tile); not modal: Esc (focus back on the anchor), a press or focus outside, window blur or resize close it; registers as an overlay like menus |
 | `HoverHighlight` | wraps a list; one pill follows the hovered row | port of beUI SharedLayoutBg |
-| `Collapsible` / `Section` | `title`, `count?`, `actions?`, `defaultOpen?` | height auto animation, caps header |
+| `Section` | `title`, `count?`, `actions?`, `defaultOpen?` | height auto animation, caps header |
 | `Tree` | rows rendered by the caller; `TreeRow` = `depth`, `expanded?`, `onToggle?`, `selected?`, `icon`, `label`, `meta?` | 26 px rows, guide lines, chevron rotates |
 | `EditorTabs` | `items`, `activeId`, `onSelect`, `onClose`, `onReorder?`, `renderLabel?`, `trailing?`, `onTabContextMenu?` | layout pill, enter/exit width animation; a click selects without taking focus from the editor |
 | `PanelResizer` | `onResize(delta, total)`, `onResizeStart?`, `onResizeEnd?`, `onReset?`, `orientation?`, `value?/min?/max?`, `hairline?` | window-splitter handle between panels: an 8 px hit area, a 2 px accent line on hover (after 200 ms), focus and drag, and a grip that says it can be dragged: three 2 px dots (`--fg-muted`, brightening to `--fg`) in a 7×24 px tab (`--surface-raised`, `--line-strong` outline turning `--accent` with the line) that bulges out of the panel's border on its left (top, when horizontal), so the border seems to curve around the dots. Nothing reaches past the border: that may be the native page view or a clipped edge. The tab is part of the handle and can be grabbed too |

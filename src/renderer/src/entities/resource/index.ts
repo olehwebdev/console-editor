@@ -1,6 +1,5 @@
 export {
   useResourceStore,
-  resourceKey,
   outlastsReset,
   uniqueResources,
   findResource,

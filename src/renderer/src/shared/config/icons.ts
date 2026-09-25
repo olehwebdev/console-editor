@@ -18,7 +18,6 @@ export {
   CheckmarkCircle02Icon as SuccessIcon,
   CodeFolderIcon as SourceRootIcon,
   CodeIcon as DevToolsIcon,
-  CommandIcon,
   CommandLineIcon as ConsoleIcon,
   Copy01Icon as CopyIcon,
   CpuIcon as WorkerIcon,

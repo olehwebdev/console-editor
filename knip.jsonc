@@ -1,0 +1,16 @@
+// knip (https://knip.dev) finds files, dependencies and exports nothing uses: `npm run lint:unused`.
+// It reads the entry points from package.json scripts and the vite, electron-vite and vitest configs.
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // Loaded by their own CLIs, which knip has no plugin for: what they import counts as used.
+  "entry": ["electron-builder.ts", "steiger.config.mjs"],
+  // test/smoke/update.ts mounts macOS disk images with it.
+  "ignoreBinaries": ["hdiutil"],
+  // A type used in its own file (a component's size or tone, the base a union extends) is part of that file's contract.
+  "ignoreExportsUsedInFile": { "interface": true, "type": true },
+  "ignoreIssues": {
+    // A module's index.ts is its public API (a slice's, under Feature-Sliced Design). Its props and store types
+    // are the contract (docs/DESIGN_SYSTEM.md › Components), exported before anyone imports them. Values are not.
+    "src/**/index.ts": ["types"]
+  }
+}
