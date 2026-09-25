@@ -165,24 +165,33 @@ describe('app event bridge', () => {
     apply.mockRestore();
   });
 
-  it("takes the new rule list: a deleted rule's page closes, and edits made to an older version are dropped", () => {
-    const [r1, r2, r3] = [rule('r1'), rule('r2'), rule('r3')];
-    useRuleStore.getState().setAll([r1, r2, r3]);
+  it("takes the new rule list: a deleted rule's page closes, and an applied rule keeps only the edits typed since", () => {
+    const [r1, r2, r3, r4] = [rule('r1'), rule('r2'), rule('r3'), rule('r4')];
+    useRuleStore.getState().setAll([r1, r2, r3, r4]);
     const tabs = useTabStore.getState();
-    const draftOf = (base: CreateRuleInput) => ({ base, value: { ...base, resourceTypes: ['Script' as const] }, rowKeys: [] });
-    tabs.openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1', draft: draftOf(toRuleInput(r1)) });
-    tabs.openPage({ id: 'page:rule:r2', page: 'rule', ruleId: 'r2', title: 'r2', draft: draftOf(toRuleInput(r2)) });
+    const scripts = (input: CreateRuleInput): CreateRuleInput => ({ ...input, resourceTypes: ['Script'] });
+    const draftOf = (base: CreateRuleInput, value = scripts(base)) => ({ base, value, rowKeys: [] });
+    // r1's edits were all applied; r2's pattern was applied while its types were still being edited.
+    const r2Typed = { ...scripts(toRuleInput(r2)), match: { ...r2.match, pattern: 'https://b.com/*' } };
+    tabs.openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1', draft: draftOf(toRuleInput(r1), { ...scripts(toRuleInput(r1)), match: { ...r1.match, pattern: ' https://b.com/* ' } }) });
+    tabs.openPage({ id: 'page:rule:r2', page: 'rule', ruleId: 'r2', title: 'r2', draft: draftOf(toRuleInput(r2), r2Typed) });
     tabs.openPage({ id: 'page:rule:r3', page: 'rule', ruleId: 'r3', title: 'r3' });
+    const r4Draft = draftOf(toRuleInput(r4));
+    tabs.openPage({ id: 'page:rule:r4', page: 'rule', ruleId: 'r4', title: 'r4', draft: r4Draft });
 
-    // r1 changed elsewhere, r2 was only turned off (not part of the input), r3 deleted.
-    const changed = rule('r1', 'https://b.com/*');
-    handleAppEvent({ type: 'rules-changed', rules: [changed, { ...r2, enabled: false }] });
+    // r4 was only turned off (not part of the input), r3 deleted.
+    const r1Applied: Rule = { ...rule('r1', 'https://b.com/*'), resourceTypes: ['Script'] };
+    const r2Applied = rule('r2', 'https://b.com/*');
+    handleAppEvent({ type: 'rules-changed', rules: [r1Applied, r2Applied, { ...r4, enabled: false }] });
 
-    expect(useRuleStore.getState().byId).toEqual({ r1: changed, r2: { ...r2, enabled: false } });
+    expect(useRuleStore.getState().byId).toEqual({ r1: r1Applied, r2: r2Applied, r4: { ...r4, enabled: false } });
     const pages = useTabStore.getState().pages;
-    expect(pages.map((p) => p.id)).toEqual(['page:rule:r1', 'page:rule:r2']);
-    expect(pages.map((p) => ('draft' in p ? !!p.draft : null))).toEqual([false, true]);
-    expect(useTabStore.getState().activeId).toBe('page:rule:r2');
+    expect(pages.map((p) => p.id)).toEqual(['page:rule:r1', 'page:rule:r2', 'page:rule:r4']);
+    const drafts = pages.map((p) => ('draft' in p ? p.draft : null));
+    expect(drafts[0]).toBeUndefined();
+    expect(drafts[1]).toEqual({ base: toRuleInput(r2Applied), value: r2Typed, rowKeys: [] });
+    expect(drafts[2]).toBe(r4Draft);
+    expect(useTabStore.getState().activeId).toBe('page:rule:r4');
   });
 
   it('counts rule hits once per frame: three in one frame are one store update', () => {

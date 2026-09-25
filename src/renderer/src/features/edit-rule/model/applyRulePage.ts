@@ -5,19 +5,21 @@ import { toast } from '@/shared/ui/toast';
 import { type PageTabOf, useTabStore } from '@/entities/editor-tab';
 import { toRuleInput, useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
-import { useWorkspaceStore } from '@/entities/workspace';
+import { isWorkspaceShown, useWorkspaceStore } from '@/entities/workspace';
 import { openRuleEditor } from './openRuleEditor';
 import { patchFor } from './patchFor';
 import { pendingPages } from './pendingPages';
+import { rebaseRuleDraft } from './rebaseRuleDraft';
 import { trimPattern } from './trimPattern';
 
 /**
- * Applies a rule page's edits (Apply, Enter, Ctrl/Cmd+S): sends what changed, clears the draft,
- * retitles the tab and reloads the page when enabled in settings. Invalid edits are not sent.
- * Refused while workspaces switch.
+ * Applies a rule page's edits (Apply, Enter, Ctrl/Cmd+S): sends what changed, keeps only what was
+ * typed meanwhile as the draft, retitles the tab and reloads the page when enabled in settings.
+ * Invalid edits are not sent. Refused while workspaces switch.
  */
 export async function applyRulePage(pageId: string): Promise<void> {
-  if (useWorkspaceStore.getState().switchingTo !== null || pendingPages.has(pageId)) return;
+  const { activeId, switchingTo } = useWorkspaceStore.getState();
+  if (switchingTo !== null || pendingPages.has(pageId)) return;
   const page = useTabStore.getState().pages.find((p): p is PageTabOf<'rule'> => p.id === pageId && p.page === 'rule');
   const rule = page && useRuleStore.getState().byId[page.ruleId];
   if (!page || !rule) return;
@@ -40,10 +42,13 @@ export async function applyRulePage(pageId: string): Promise<void> {
   pendingPages.add(pageId);
   try {
     const updated = await api.updateRule(rule.id, patch);
-    useRuleStore.getState().upsert(updated);
-    useTabStore.getState().setPageDraft(pageId, undefined);
-    openRuleEditor(updated);
     toast({ title: 'Rule updated', tone: 'success', duration: TOAST_DURATION.confirm });
+    // Applied in the workspace it began in; another shown since has its own rules and tabs.
+    if (!isWorkspaceShown(activeId)) return;
+    useRuleStore.getState().upsert(updated);
+    const draft = useTabStore.getState().pages.find((p): p is PageTabOf<'rule'> => p.id === pageId && p.page === 'rule')?.draft;
+    useTabStore.getState().setPageDraft(pageId, draft && rebaseRuleDraft(draft, toRuleInput(updated)));
+    openRuleEditor(updated);
     if (useSettingsStore.getState().settings.autoReloadOnSave) await api.reload();
   } catch (err) {
     toast({ title: 'Could not update the rule', description: errorMessage(err), tone: 'danger' });

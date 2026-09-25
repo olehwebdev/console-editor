@@ -222,11 +222,38 @@ describe('RuleStore', () => {
     expect(clean.setAside).toBeUndefined();
   });
 
-  it('starts empty without a file, and throws when the file cannot be read', async () => {
+  it('starts empty without a file', async () => {
     const empty = await open();
     expect(empty.list()).toEqual([]);
+    expect(empty.locked).toBeUndefined();
     await expect(stat(index())).rejects.toThrow();
+  });
+
+  it('starts empty and refuses every change when the file cannot be read, never writing over it', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await mkdir(index());
-    await expect(new RuleStore(dir).load()).rejects.toThrow(/Could not read .*rules\.json/);
+    await writeFile(join(index(), 'inside'), 'kept');
+    const store = await open();
+    expect(store.locked).toMatch(/rules\.json could not be read .*rules can't be changed until it can/);
+    expect(store.list()).toEqual([]);
+    await expect(store.create(block())).rejects.toThrow(store.locked);
+    await expect(store.removeWorkspace('ws-a')).rejects.toThrow(store.locked);
+    // Nothing to adopt: start-up goes on.
+    await store.adopt(new Set(['ws-a']), 'ws-a');
+    expect(await readFile(join(index(), 'inside'), 'utf8')).toBe('kept');
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('keeps a file it cannot parse or move aside, and refuses changes rather than write over it', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await writeFile(index(), '{nope');
+    // The .broken name is taken by a folder that isn't empty: the move fails.
+    await mkdir(`${index()}.broken`);
+    await writeFile(join(`${index()}.broken`, 'x'), 'x');
+    const store = await open();
+    expect(store.setAside).toBeUndefined();
+    expect(store.locked).toMatch(/isn't valid and couldn't be moved aside/);
+    await expect(store.create(block())).rejects.toThrow(/couldn't be moved aside/);
+    expect(await readFile(index(), 'utf8')).toBe('{nope');
   });
 });

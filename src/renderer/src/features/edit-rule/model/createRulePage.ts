@@ -5,7 +5,7 @@ import { toast } from '@/shared/ui/toast';
 import { type PageTabOf, useTabStore } from '@/entities/editor-tab';
 import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
-import { useWorkspaceStore } from '@/entities/workspace';
+import { isWorkspaceShown, useWorkspaceStore } from '@/entities/workspace';
 import { openRuleEditor } from './openRuleEditor';
 import { pendingPages } from './pendingPages';
 import { trimPattern } from './trimPattern';
@@ -16,7 +16,8 @@ import { trimPattern } from './trimPattern';
  * Refused while workspaces switch.
  */
 export async function createRulePage(pageId: string): Promise<void> {
-  if (useWorkspaceStore.getState().switchingTo !== null || pendingPages.has(pageId)) return;
+  const { activeId, switchingTo } = useWorkspaceStore.getState();
+  if (switchingTo !== null || pendingPages.has(pageId)) return;
   const page = useTabStore.getState().pages.find((p): p is PageTabOf<'new-rule'> => p.id === pageId && p.page === 'new-rule');
   if (!page) return;
   const value = trimPattern(page.draft?.value ?? page.seed);
@@ -28,10 +29,12 @@ export async function createRulePage(pageId: string): Promise<void> {
   pendingPages.add(pageId);
   try {
     const created = await api.createRule(value);
+    toast({ title: 'Rule added', tone: 'success', duration: TOAST_DURATION.confirm });
+    // Added to the workspace it began in; another shown since has its own rules and tabs.
+    if (!isWorkspaceShown(activeId)) return;
     useRuleStore.getState().upsert(created);
     useTabStore.getState().remove(pageId);
     openRuleEditor(created);
-    toast({ title: 'Rule added', tone: 'success', duration: TOAST_DURATION.confirm });
     if (useSettingsStore.getState().settings.autoReloadOnSave) await api.reload();
   } catch (err) {
     toast({ title: 'Could not add the rule', description: errorMessage(err), tone: 'danger' });

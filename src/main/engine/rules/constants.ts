@@ -13,9 +13,15 @@ export const RULE_ACTION_SPECS = {
   cors: { stage: 'Response', documents: false },
 } as const satisfies Record<RuleAction, RuleActionSpec>;
 
-/** CDP resource types a rule's type filter knows under another name (fetch() pauses as XHR, but some builds say Fetch). */
+/**
+ * CDP resource types a rule's type filter knows under another name. fetch() and CORS preflights pause
+ * as XHR in the builds probed, and <link rel=prefetch> as Fetch; the other names cover builds that
+ * report them as Network does.
+ */
 export const RESOURCE_TYPE_ALIASES: Readonly<Record<string, RuleResourceType>> = {
   Fetch: 'XHR',
+  Preflight: 'XHR',
+  Prefetch: 'XHR',
   EventSource: 'XHR',
   TextTrack: 'Media',
 };

@@ -48,7 +48,7 @@ const EDITOR_PAGE = '../renderer/index.html';
 /** How long closing waits for the renderer to write its drafts. */
 const FLUSH_TIMEOUT_MS = 5000;
 
-/** The "unsaved edits could not be kept" dialog's buttons, by index. */
+/** The "some edits can't be kept" dialog's buttons, by index. */
 const FLUSH_FAILED_BUTTON = { closeAnyway: 0, cancel: 1 } as const;
 
 /** A macOS disk image. */
@@ -102,12 +102,9 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   };
 
   // Told once the editor UI can show it.
-  const { setAside } = rules;
-  if (setAside) {
-    win.webContents.once('did-finish-load', () =>
-      send({ type: 'error', message: `rules.json could not be read and was kept as ${setAside}; you start with no rules` }),
-    );
-  }
+  const { setAside, locked } = rules;
+  const rulesProblem = locked ?? (setAside && `rules.json could not be read and was kept as ${setAside}; you start with no rules`);
+  if (rulesProblem) win.webContents.once('did-finish-load', () => send({ type: 'error', message: rulesProblem }));
 
   const page = new PageController(win, store, rules, settings, send);
   launchState.running = { win, page };
@@ -145,8 +142,8 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
           buttons: ['Close anyway', 'Cancel'],
           defaultId: FLUSH_FAILED_BUTTON.cancel,
           cancelId: FLUSH_FAILED_BUTTON.cancel,
-          message: 'Your unsaved edits could not be kept.',
-          detail: 'Close anyway and lose them?',
+          message: 'Some of your edits can’t be kept.',
+          detail: 'Unapplied rule changes, and unsaved edits that couldn’t be written, are lost if you close anyway.',
         });
         if (choice !== FLUSH_FAILED_BUTTON.closeAnyway) return false;
       }

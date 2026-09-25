@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OverrideMeta, Rule, SessionDraft, SessionState, Workspace, WorkspacesState } from '../../src/shared/types';
-import { closeSessionTabs, flushSession, restoreSession, startSessionSync } from '@/pages/editor/model/session';
+import { closeSessionTabs, flushSession, pageSession, restoreSession, startSessionSync } from '@/pages/editor/model/session';
 import { createWorkspace, deleteWorkspace, switchWorkspace } from '@/pages/editor/model/workspaces';
 import { createTabModel, disposeTabModel, getTabModel, markTabSaved, newTabId, useTabStore } from '@/entities/editor-tab';
 import { useOverrideStore } from '@/entities/override';
@@ -224,6 +224,16 @@ describe('session sync', () => {
     expect(await flushSession()).toBe(true);
     expect(api.saveDraft).toHaveBeenLastCalledWith(id, { content: 'again' });
     await tick();
+  });
+
+  it('on close, reports unapplied rule edits as not kept, so closing asks first', async () => {
+    stopSync = startSessionSync();
+    const input = { action: 'block' as const, match: { type: 'glob' as const, pattern: 'https://a.test/*', ignoreQuery: true }, resourceTypes: [] };
+    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1' });
+    expect(await pageSession.flush()).toBe(true);
+
+    useTabStore.getState().setPageDraft('page:rule:r1', { base: input, value: { ...input, resourceTypes: ['Script'] }, rowKeys: [] });
+    expect(await pageSession.flush()).toBe(false);
   });
 });
 
