@@ -14,6 +14,7 @@ export {
   newTabId,
   onTabEdited,
   createTabModel,
+  createSourceModel,
   getTabModel,
   getTabBase,
   setTabBase,

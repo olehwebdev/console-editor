@@ -54,6 +54,7 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
         { label: 'Reload Page', accelerator: toAccelerator(SHORTCUT.reload), click: () => page.reload() },
         { label: 'Reload Page', accelerator: toAccelerator(SHORTCUT.reloadF5), visible: false, acceleratorWorksWhenHidden: true, click: () => page.reload() },
         { label: 'Toggle Diff', accelerator: toAccelerator(SHORTCUT.diff), click: command('toggle-diff') },
+        { label: 'Go to Original Source or Bundle Code', accelerator: toAccelerator(SHORTCUT.jumpToMapped), click: command('jump-to-mapped') },
         { type: 'separator' },
         // Not F12 / Ctrl+Shift+I: Monaco uses those (go to definition / format on Linux).
         { label: 'Page DevTools', accelerator: toAccelerator(SHORTCUT.pageDevTools), click: () => page.openDevTools() },

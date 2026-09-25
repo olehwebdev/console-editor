@@ -7,3 +7,4 @@ export {
   type SourceMapState,
   type SourceMapStore,
 } from './model/store';
+export { bundleNestKey, cleanLabel, describeFailure, isMappableKind, MAPPABLE_KINDS, parseSourceUrl, sourceKey, type SourcePath } from './lib';

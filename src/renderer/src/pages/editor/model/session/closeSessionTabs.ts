@@ -1,10 +1,12 @@
 import { disposeTabModel, useTabStore } from '@/entities/editor-tab';
+import { forgetSourceMaps } from '@/features/open-resource';
 import { sessionSync } from './sessionSync';
 import { stopSessionSync } from './stopSessionSync';
 
 /**
  * Closes the file tabs as the workspace is left, keeping their drafts on disk
- * (flush first). Pages such as What's New stay open.
+ * (flush first), and the originals opened from source maps, which are
+ * forgotten with the maps. Pages such as What's New stay open.
  */
 export function closeSessionTabs(): void {
   stopSessionSync();
@@ -18,8 +20,10 @@ export function closeSessionTabs(): void {
   sessionSync.failedDrafts.clear();
   sessionSync.tabsFailed = false;
   sessionSync.activeFile = null;
-  const closed = useTabStore.getState().tabs.map((t) => t.id);
+  const { tabs, sources } = useTabStore.getState();
+  const closed = [...tabs, ...sources].map((t) => t.id);
   useTabStore.getState().removeTabs();
+  forgetSourceMaps();
   // After React has moved the editor off their models.
   setTimeout(() => closed.forEach(disposeTabModel), 0);
 }

@@ -5,7 +5,8 @@ interface Entry {
   savedVersionId: number;
   /** Text editing started from (diff base); fetched lazily for overrides. */
   base?: string;
-  disposeListener: monaco.IDisposable;
+  /** Keeps the tab's dirty flag in step; read-only originals have none. */
+  disposeListener?: monaco.IDisposable;
 }
 
 /** Monaco models per tab id. Kept out of the store because they aren't serializable. */
