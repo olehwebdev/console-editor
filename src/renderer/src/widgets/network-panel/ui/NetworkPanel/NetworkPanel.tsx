@@ -27,12 +27,13 @@ export function NetworkPanel({ heading, onClose }: NetworkPanelProps) {
   const resolve = useFrameResolver();
 
   const shown = useMemo(() => requests.filter((r) => matchesNetworkFilter(r, filter)), [requests, filter]);
+  const shownIds = useMemo(() => shown.map((r) => r.id), [shown]);
   // Its details close once it leaves the log (cleared, or an earlier page's).
   const selected = selectedId === null ? undefined : requests.find((r) => r.id === selectedId);
 
   return (
     <section aria-label="Network" data-testid="network-panel" className="flex h-full min-h-0 flex-col bg-surface-editor">
-      <NetworkToolbar heading={heading} onClose={onClose} />
+      <NetworkToolbar heading={heading} shownIds={shownIds} onClose={onClose} />
       <HeldStrip />
       {/* Narrower than 44rem, a request's details take the whole panel; closing them brings the list back. */}
       <div className="@container flex min-h-0 flex-1">

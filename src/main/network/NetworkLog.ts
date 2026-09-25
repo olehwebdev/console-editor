@@ -1,4 +1,5 @@
 import type { EngineEvent, NetworkBody, NetworkRequest, NetworkRequestDetail, SocketMessages } from '../../shared/types';
+import { harOf, type HarLog } from '../har';
 import { NETWORK_EVENT_HANDLERS } from './events';
 import { HeldRequests } from './HeldRequests';
 import { NetworkBatch } from './NetworkBatch';
@@ -56,6 +57,12 @@ export class NetworkLog {
     const first = (entry.row.messages ?? 0) - kept.length;
     const skip = Math.max(0, (Number.isSafeInteger(from) ? (from as number) : 0) - first);
     return { first: first + Math.min(skip, kept.length), messages: kept.slice(skip) };
+  }
+
+  /** The requests with these ids that are still logged, as a HAR log with the bodies that can still be read. */
+  har(ids: readonly string[], version: string): Promise<HarLog> {
+    const entries = ids.flatMap((id) => this.log.get(id) ?? []);
+    return harOf(this.opts.transport, entries, version);
   }
 
   clear(): void {

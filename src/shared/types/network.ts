@@ -101,3 +101,9 @@ export interface SocketMessage {
   length: number;
   truncated?: boolean;
 }
+
+/** What a HAR import made: response overrides, and how many entries it left out (not fetch/XHR, no text body, an earlier response to the same request). */
+export interface HarImport {
+  created: number;
+  skipped: number;
+}

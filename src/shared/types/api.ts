@@ -1,8 +1,7 @@
 import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
-import type { HeldAction, HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
 import type { AppEvent } from './events';
-import type { NetworkBody, NetworkRequest, NetworkRequestDetail, SocketMessages } from './network';
+import type { NetworkApi } from './networkApi';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
 import type { PageState, Rect } from './page';
 import type { ResourceContent, ResourceEntry } from './resources';
@@ -14,7 +13,7 @@ import type { AppInfo, UpdateState } from './updates';
 import type { Workspace, WorkspacePatch, WorkspacesState } from './workspaces';
 
 /** The API exposed to the renderer as `window.consoleEditor`. */
-export interface ConsoleEditorApi {
+export interface ConsoleEditorApi extends NetworkApi {
   navigate(url: string): Promise<void>;
   reload(): Promise<void>;
   goBack(): Promise<void>;
@@ -94,22 +93,6 @@ export interface ConsoleEditorApi {
   createAction(input: ActionInput): Promise<ConsoleAction>;
   updateAction(id: string, patch: ActionPatch): Promise<ConsoleAction>;
   deleteAction(id: string): Promise<void>;
-  /** The requests kept so far (the most recent `MAX_NETWORK_REQUESTS`), oldest first. */
-  listNetworkRequests(): Promise<NetworkRequest[]>;
-  /** A request's headers and body. Throws for a request no longer kept. */
-  getNetworkRequest(id: string): Promise<NetworkRequestDetail>;
-  /** A response's body, read through the session that received it; never an open event stream's. */
-  getNetworkResponseBody(id: string): Promise<NetworkBody>;
-  /**
-   * A WebSocket's messages from number `from` on (0: every one kept), oldest first; the oldest go once
-   * it has more than `MAX_SOCKET_MESSAGES`. Throws for a request no longer kept.
-   */
-  getNetworkMessages(id: string, from: number): Promise<SocketMessages>;
-  clearNetworkLog(): Promise<void>;
-  /** The requests breakpoints hold now, oldest first. */
-  listHeldRequests(): Promise<HeldRequest[]>;
-  /** Lets a held request go, as `action` says. Throws for one no longer held (answered, or given up by the page). */
-  resumeHeldRequest(id: string, action: HeldAction): Promise<void>;
 
   /** Where the Actions panel is. */
   getActionsWindow(): Promise<ActionsWindowState>;

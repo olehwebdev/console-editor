@@ -8,6 +8,7 @@
 import type { Page } from 'playwright-core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PageInterception } from '../../src/main/engine/PageInterception';
+import { overridesFromHar } from '../../src/main/har';
 import { NetworkLog } from '../../src/main/network';
 import { defaultMatcherFor } from '../../src/shared/matcher';
 import { DEFAULT_SETTINGS, type AppEvent, type EngineEvent, type NetworkRequest, type Override, type RequestMatch, type ResponseSettings, type Settings } from '../../src/shared/types';
@@ -170,6 +171,36 @@ describe.skipIf(!chromiumAvailable)('the Network panel in Chromium', () => {
       const ticks = (await state('window.ticks')) as number;
       expect(await log.responseBody(stream.id)).toEqual({ available: false, gap: 'stream' });
       await waitFor(() => state(`window.ticks > ${ticks + 2}`));
+    });
+  });
+
+  describe('HAR files', () => {
+    it("write the page's requests with their bodies, and a HAR's responses answer them again without the server", async () => {
+      await page.goto(url(NETWORK_PATH));
+      await waitFor(() => state('window.cart && window.user'));
+      const cart = await row(CART_PATH);
+      await row(GRAPHQL_PATH);
+
+      const har = await log.har(rows().map((r) => r.id), '1.2.3');
+      expect(har.log).toMatchObject({ version: '1.2', creator: { name: 'Console Editor', version: '1.2.3' } });
+      const written = har.log.entries.find((e) => e.request.url === cart.url)!;
+      expect(written).toMatchObject({ request: { method: 'GET' }, response: { status: 200, content: { mimeType: 'application/json', text: CART_JSON } }, _resourceType: 'fetch' });
+      expect(har.log.entries.find((e) => e.request.url === url(GRAPHQL_PATH))?.request.postData?.text).toContain('GetUser');
+
+      // Read back, with other answers: the page gets them, and the server sees nothing.
+      const edited = JSON.parse(JSON.stringify(har)) as typeof har;
+      for (const e of edited.log.entries) if (e.request.url === cart.url) e.response.content.text = '{"items":[],"total":0}';
+      const { overrides: inputs } = overridesFromHar(edited.log.entries);
+      expect(inputs.map((i) => [i.request?.method, i.request?.operation, i.sourceUrl])).toEqual(
+        expect.arrayContaining([
+          ['GET', '', cart.url],
+          ['POST', 'GetUser', url(GRAPHQL_PATH)],
+        ]),
+      );
+      await setOverrides(inputs.map((input, i) => ({ ...input, id: `h${i}`, match: input.match!, enabled: true, createdAt: 0, updatedAt: 0 })));
+      const hits = site.hits(CART_PATH);
+      expect(await state(`fetch('${CART_PATH}').then((r) => r.json())`)).toEqual({ items: [], total: 0 });
+      expect(site.hits(CART_PATH)).toBe(hits);
     });
   });
 

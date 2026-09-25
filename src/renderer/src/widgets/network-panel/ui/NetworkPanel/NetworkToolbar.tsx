@@ -7,12 +7,15 @@ import { Input } from '@/shared/ui/input';
 import { BreakpointsButton } from '@/features/network/breakpoints';
 import { clearNetworkLog } from '@/features/network/clear';
 import { useNetworkFilter } from '@/features/network/filter';
+import { HarMenu } from '@/features/network/har';
 import { ThrottlingMenu } from '@/features/network/throttle';
 import { GroupChips } from './GroupChips';
 
 export interface NetworkToolbarProps {
   /** What names the panel on the left: the bottom pane's tabs. */
   heading: ReactNode;
+  /** The requests the list shows: what exporting a HAR saves. */
+  shownIds: readonly string[];
   onClose(): void;
 }
 
@@ -20,7 +23,7 @@ export interface NetworkToolbarProps {
 const { setText, toggleKeepRows } = useNetworkFilter.getState();
 
 /** The Network panel's header: its heading, the text filter and actions (breakpoints among them), then the type chips. */
-export function NetworkToolbar({ heading, onClose }: NetworkToolbarProps) {
+export function NetworkToolbar({ heading, shownIds, onClose }: NetworkToolbarProps) {
   const text = useNetworkFilter((s) => s.text);
   const keepRows = useNetworkFilter((s) => s.keepRows);
   return (
@@ -41,6 +44,7 @@ export function NetworkToolbar({ heading, onClose }: NetworkToolbarProps) {
         <ThrottlingMenu />
         <BreakpointsButton />
         <IconButton icon={icons.PinIcon} label="Keep rows when the page loads another page" size="sm" active={keepRows} aria-pressed={keepRows} onClick={toggleKeepRows} />
+        <HarMenu shownIds={shownIds} />
         <IconButton icon={icons.DeleteIcon} label="Clear the list" size="sm" data-testid="network-clear" onClick={clearNetworkLog} />
         <IconButton icon={icons.CloseIcon} label="Close the panel" size="sm" shortcut={SHORTCUT.console} onClick={onClose} />
       </div>
