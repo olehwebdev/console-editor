@@ -108,7 +108,11 @@ export class PageWindow {
     if (win && !win.isDestroyed()) win.destroy();
   }
 
-  /** The website window is asked to close: it puts the website back instead (once the close event is over). */
+  /**
+   * The website window is asked to close: it puts the website back instead, once the close event is over. Not in a
+   * microtask: that runs before the event returns to Electron, which then goes on with a window destroyed under it
+   * (the app crashed now and then).
+   */
   private closing(): void {
     // By the quit: it stays as it is, to go with the editor's window (`dispose`) and open again next time. Should
     // the editor stay (its drafts couldn't be written), nothing has moved.
@@ -116,7 +120,7 @@ export class PageWindow {
       this.quitting = false;
       return;
     }
-    queueMicrotask(() => this.attach());
+    setImmediate(() => this.attach());
   }
 
   /** Moves the view back into the editor and destroys the website window. Returns whether there was one. */

@@ -90,13 +90,16 @@ export class ActionsWindow {
     if (win && !win.isDestroyed()) win.destroy();
   }
 
-  /** The window is asked to close: it docks the panel instead (once the close event is over), unless the app quits. */
+  /**
+   * The window is asked to close: it docks the panel instead, once the close event is over (as the website's
+   * window does: see PageWindow), unless the app quits.
+   */
   private closing(): void {
     if (this.quitting) {
       this.quitting = false;
       return;
     }
-    queueMicrotask(() => this.attach());
+    setImmediate(() => this.attach());
   }
 
   private show(win: BrowserWindow): void {
