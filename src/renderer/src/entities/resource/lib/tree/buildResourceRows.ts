@@ -14,12 +14,13 @@ const FILE_KEY_SEPARATOR = '\u0000';
 /**
  * Flattens resources into tree rows (origin → folders → files) for a
  * virtualized list. Single-child folder chains are compacted (`static/js`) like
- * VS Code; while filtering every folder is shown expanded.
+ * VS Code; while filtering every folder is shown expanded. URLs in `include`
+ * are listed even when they don't match (bundles whose originals do).
  */
-export function buildResourceRows(entries: ResourceEntry[], query: string, collapsed: ReadonlySet<string>): ResourceRow[] {
+export function buildResourceRows(entries: ResourceEntry[], query: string, collapsed: ReadonlySet<string>, include?: ReadonlySet<string>): ResourceRow[] {
   const byOrigin = new Map<string, Folder>();
   for (const entry of entries) {
-    if (!matchesQuery(entry, query)) continue;
+    if (!matchesQuery(entry, query) && !include?.has(entry.url)) continue;
     const { origin, dirs, file } = parsed(entry.url);
     let folder = subfolder(byOrigin, origin);
     folder.count++;

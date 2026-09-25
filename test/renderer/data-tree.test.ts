@@ -100,6 +100,15 @@ describe('buildResourceRows', () => {
   });
 });
 
+describe('buildResourceRows with originals that match', () => {
+  it('lists entries named by include although they do not match the query', () => {
+    const entries = [entry('https://a.test/js/main.js'), entry('https://a.test/js/vendor.js'), entry('https://a.test/app.css')];
+    const urls = (rows: ResourceRow[]) => rows.flatMap((r) => (r.type === 'file' ? [r.entry.url] : []));
+    expect(urls(buildResourceRows(entries, 'app', new Set()))).toEqual(['https://a.test/app.css']);
+    expect(urls(buildResourceRows(entries, 'app', new Set(), new Set(['https://a.test/js/main.js'])))).toEqual(['https://a.test/js/main.js', 'https://a.test/app.css']);
+  });
+});
+
 describe('tree keyboard navigation over the row model', () => {
   // origin (expanded) > folder (expanded) > 3 files, folder (collapsed), file; origin (collapsed)
   const rows = [
