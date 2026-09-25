@@ -49,7 +49,7 @@ export function ActionForm({ editing, frames, names }: ActionFormProps) {
       data-testid="action-form"
       aria-label={editing.id ? 'Edit action' : 'New action'}
       className="mx-1.5 mb-2 flex flex-col gap-2 rounded-lg border border-line bg-surface-editor p-2"
-      onSubmit={save}
+      onSubmit={(event) => void save(event)}
       noValidate
     >
       <Input

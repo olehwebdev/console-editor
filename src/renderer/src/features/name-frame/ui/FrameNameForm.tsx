@@ -30,7 +30,7 @@ export function FrameNameForm({ frameKey, name, automatic, address, onDone }: Fr
   });
 
   return (
-    <form className="flex w-[260px] flex-col gap-2" data-testid="frame-name-form" onSubmit={save}>
+    <form className="flex w-[260px] flex-col gap-2" data-testid="frame-name-form" onSubmit={(event) => void save(event)}>
       <span className="label-caps">Frame name</span>
       <Input
         {...register('name')}
