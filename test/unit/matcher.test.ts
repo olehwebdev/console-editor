@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   compileMatcher,
   defaultMatcherFor,
+  sameMatcher,
   stripQuery,
   suggestHashGlob,
   toCdpUrlPattern,
@@ -24,6 +25,16 @@ describe('a match type this build does not know', () => {
     const inherited = { ...unknown, type: 'toString' } as unknown as typeof unknown;
     expect(compileMatcher(inherited)('https://a.com/')).toBe(false);
     expect(toCdpUrlPattern(inherited)).toBe('*');
+  });
+});
+
+describe('sameMatcher', () => {
+  it('compares type, pattern and ignoreQuery', () => {
+    const a = { type: 'glob' as const, pattern: 'https://a.com/*.js', ignoreQuery: true };
+    expect(sameMatcher(a, { ...a })).toBe(true);
+    expect(sameMatcher(a, { ...a, type: 'regex' })).toBe(false);
+    expect(sameMatcher(a, { ...a, pattern: 'https://a.com/*' })).toBe(false);
+    expect(sameMatcher(a, { ...a, ignoreQuery: false })).toBe(false);
   });
 });
 
