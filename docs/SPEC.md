@@ -32,7 +32,7 @@ A desktop app where you enter a website's URL, see every script, stylesheet and 
 | U12b | Overrides for scripts loaded by workers | 🔜 M2 |
 | U13 | Export/import a workspace's overrides to share them with teammates | 🔜 M2 |
 | U14 | Use my own Chrome (existing profile, extensions) instead of the embedded browser | 🔜 M3 |
-| U15 | Browse original sources from source maps (read-only) and jump to the matching bundle code | 🔜 M4 |
+| U15 | Browse original sources from source maps (read-only) and jump to the matching bundle code | ✅ (§6.7) |
 | U16 | I keep a workspace per site or task (its page, tabs, unsaved edits and overrides) and switch between them from the rail, which shows each one's favicon or a colour I pick | ✅ (§5.1) |
 
 ## 3. Architecture
@@ -89,9 +89,13 @@ src/
     PageController/  PageController.ts (WebContentsView for the site, navigation, engine wiring), normalizeUrl.ts
     WorkspaceController.ts  workspaces: switching, the page URL, title and favicon each remembers (§5.1)
     favicon/         a page's favicon as a small data URL (sniffed, size-capped)
+    sourceMap/       a script's or stylesheet's source map: found (SourceMap/X-SourceMap header or trailing
+                     comment, per-kind precedence) and read out of page (http(s) through the site session,
+                     data: handed over undecoded; 64 MB, 30 s) (§6.7)
+    readCapped.ts    capped streaming reads (favicons, source maps)
     electronTransport.ts  webContents.debugger → CdpTransport
     engine/          PageInterception/ (one engine per CDP session: page + iframes),
-                     InterceptionEngine/, transform/ (SRI/source maps/headers),
+                     InterceptionEngine/, transform/ (SRI/source maps/headers, the SourceMap header a response names),
                      cdp/ (transport interface), websocketTransport/ (browser-level CDP, used by tests),
                      constants.ts (CDP command and event names, HTTP status classes)
     store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts, writeAtomic.ts and their helpers
@@ -106,20 +110,26 @@ src/
     app/             entry, providers, event bridge (main → stores), styles/tokens, component gallery
     pages/editor/    the workspace layout and its persisted layout store; session sync and workspace switching
     widgets/         title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel, command-palette
-    features/        open-resource, save-override, format-document, compare-changes, toggle/delete-override,
+    features/        open-resource (also original sources and the jumps between them and bundles), save-override, format-document, compare-changes, toggle/delete-override,
                      edit-match-rule, navigate-page, filter-resources, update-settings, close-tab,
                      update-app (notifications, the What's New page, the status-bar entry), edit-workspace
-    entities/        page, settings, override, editor-tab (+ Monaco model registry, page tabs), resource,
-                     app-update (updater state, the bundled CHANGELOG.md), workspace (+ its rail tile)
-    shared/          api (preload bridge), ui (design system), monaco, lib (format worker, overlays, motion), config
+    entities/        page, settings, override, editor-tab (+ Monaco model registry, page tabs, read-only source tabs),
+                     resource, source-map (each bundle's map state, the originals tree), app-update (updater state,
+                     the bundled CHANGELOG.md), workspace (+ its rail tile)
+    shared/          api (preload bridge), ui (design system), monaco, lib (format and source-map workers,
+                     overlays, motion), config
 test/
-  unit/              matcher, transform, store, engine and PageInterception (fake CDP), minified heuristic
-  renderer/          resource tree building, palette fuzzy matching
-  integration/       engine and iframe sessions against real Chromium + fixture site
+  unit/              matcher, transform, store, engine and PageInterception (fake CDP), minified heuristic,
+                     source maps (finding, loading, header capture)
+  renderer/          resource tree building, palette fuzzy matching, original sources (parsing, positions through
+                     pretty-printing, tabs, jumps, tree)
+  integration/       engine and iframe sessions against real Chromium + fixture site, source maps in every form
   e2e/               the built Electron app driven by Playwright
   smoke/packaged.ts  a packaged build (installed app) driven over the remote debugging port
   smoke/update.ts    an installed app updated to a newer build from a local stand-in for GitHub
-  fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps, iframes
+  fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, iframes, source maps (header,
+                     X-SourceMap, comment, data: URI, a stylesheet's, HTML fallback, XSSI, a missing one);
+                     sourceMaps.ts builds them, esbuildApp.ts is a checked-in esbuild build
   helpers/           Chromium launcher with the app's flags, WebSocket CDP harness
 build/               app icon (icon.png 1024 px original, icon.icns macOS, icon.ico Windows, icons/ Linux sizes),
                      macOS entitlements, NSIS hooks (electron-builder's build resources)
@@ -167,6 +177,8 @@ interface SessionState {  // what a workspace reopens (the active one's: on star
 }
 // Each override belongs to one workspace (`workspaceId` in overrides.json).
 ```
+
+Originals opened from source maps (§6.7) are tabs of their own kind, kept apart from file tabs as pages are: they are read-only, never saved or restored, and close with the workspace.
 
 **Storage** (`<userData>/workspace/`, written atomically via temp file + rename, one write at a time):
 
@@ -259,7 +271,37 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 - `Network.responseReceived` with type Document/Script/Stylesheet (not `data:`/`blob:`/internal URLs) → entry `{ url, kind, mimeType, status, overrideId?, frame?, iframeId? }`. `frame` (URL and depth) marks files loaded inside an iframe; an iframe's own document is labelled with its new URL.
 - **Navigations reset the list when they commit, not when they start.** A main-frame document request (`requestId === loaderId`) only marks a navigation as pending. Until `Page.frameNavigated` commits it, late responses of the old page are not listed, and the new document's own response is held. On commit the list is cleared, `navigated` is emitted, then the held document is listed. A navigation that never commits (a download, a 204, a cancelled load: `Page.frameStoppedLoading` with nothing committed) leaves the list as it was. A commit without a request (back/forward cache, `about:blank`) resets the list too. Each iframe session applies the same rules to its own root frame and tags its `navigated` event with its `iframeId`.
 - **Missed overrides:** an enabled override whose URL arrived without being served (it was enabled after the request, or an iframe loaded it on no session, §6.5) emits `override-missed` once per override and URL until the next navigation; the UI offers "Reload page".
-- **Content for the editor:** for files served from an override, re-fetch upstream out-of-page (session cookies included) so the edited copy is never mistaken for the original. Otherwise try `Network.getResponseBody`, then `Page.getResourceContent`, then the out-of-page fetch. The result carries a sha256 hash (becomes `originalHash`).
+- **Content for the editor:** for files served from an override, re-fetch upstream out-of-page (session cookies included) so the edited copy is never mistaken for the original. Otherwise try `Network.getResponseBody`, then `Page.getResourceContent`, then the out-of-page fetch. The result carries a sha256 hash (becomes `originalHash`), and the `SourceMap` (else `X-SourceMap`) header the response named, if any. For a file served from an override that is the upstream response's header, taken at `Fetch.requestPaused` before the override replaces the response (and its header, when source maps are stripped).
+
+### 6.7 Source maps
+
+Scripts and stylesheets the page loaded can show the original files they were built from, read-only, and jump between a line of an original and the bundle code it became. Nothing is read until you expand a bundle or ask for a jump.
+
+**Finding the map** (`src/main/sourceMap/`), always from the file as the server sent it, even when an override serves it:
+
+| File | Wins | Then | The comment |
+|---|---|---|---|
+| Script | the header | the comment | ECMA-426's rule without parsing: walking back from the end past blank lines and other whole-line comments, the last `//# sourceMappingURL=` (or `//@`, or a one-line `/*# … */`) counts; any code after it means there is none |
+| Stylesheet | the comment | the header | Blink's: the last `/*# sourceMappingURL=… */` anywhere, its value up to the comment's end or the line's |
+
+`SourceMap` is read before the deprecated `X-SourceMap`. If the winner fails, the other isn't tried, as in Chrome.
+
+**Reading it:**
+- resolved against the bundle's final URL;
+- http(s) only, through the site's session, with its cookies only when the map is on the bundle's or the page's origin;
+- a `data:` map is handed to the renderer undecoded; every other scheme is refused before any request;
+- at most 64 MB and 30 s; a bundle over 16 M characters isn't sent for lining up (its originals can be browsed, not jumped to), so one reply stays under Chromium's IPC limit;
+- checked again once per page load: while the bundle's hash and map URL are unchanged, main answers `unchanged` and sends nothing.
+
+**Parsing** happens in a renderer worker (`shared/lib/source-map`, `@jridgewell/trace-mapping`): a BOM and the `)]}'` line are stripped, an HTML page (a single-page app's fallback route) is refused as *not a source map*, index maps are flattened (sections pointing to other files are refused), and sources are resolved as DevTools does (an empty `sourceRoot` is none, and it prefixes only relative sources; the result is resolved against the map's URL, or the bundle's for an inline map). Ignore-listed sources and anything under `/node_modules/` are grouped as **Libraries**.
+
+**Positions through pretty-printing.** The map describes the file as served, but a tab usually shows it pretty-printed, and maybe edited. Both texts are lined up on their characters other than whitespace (JavaScript's `\s` plus U+180E), because js-beautify with the app's options only ever changes whitespace; a common prefix and suffix are matched, so an edited or override tab maps exactly outside the edited part, and a jump into it lands where the edits start and says so. Map lines are split on `\n` only. Original lines without code (types, comments) give way to the nearest line below with some, then above, up to 200 lines each way. A map with more than 1% (and more than 10) of its positions outside its bundle is flagged as possibly from another build.
+
+**Lifetime.** Loaded maps survive navigations (checked again on next use) and are forgotten on a workspace switch. The worker keeps at most 4 maps, 48 MB of map text, decoded; the least recently used is dropped and read again when needed, and the worker shuts down after 3 idle minutes. The store keeps only each map's file list.
+
+**Chromium facts** pinned by `test/integration/sourceMaps.chromium.test.ts`: `Network.responseReceived` carries the `SourceMap` header, and a response fulfilled from an override lacks it when source maps are stripped.
+
+**Not supported:** editing originals; originals the map lists without their text (shown as *not in the source map*, with a way to their bundle code); keeping source tabs across restarts; index-map sections that point to other files; lone CR, LS or PS line breaks in bundles; `debugId`.
 
 ## 7. Editor behaviour
 
@@ -272,14 +314,16 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 | Compare live | Fetch today's live file (pretty-printed if minified) and diff it against the override |
 | Match row | Choose exact/glob/regex, edit the pattern, toggle ignore-query, Apply. Invalid regexes are rejected, and a pattern that no longer matches the source URL asks for confirmation |
 | Build-hash hint | If the file name contains a build hash, offer a one-click glob (`main.3f9a1c2b.js` → `main.*.js`, `index-BkT3x9aQ.js` → `index-*.js`) |
-| Explorer | Overrides (switch on/off, hit counter, ⚠ upstream changed, context menu) and page resources as a tree (origin → folders → files, served-from-override dot, iframe badge); a filter box covers both, including iframe URLs. The tree is virtualized and keyboard-navigable over all rows; resource events are applied once per animation frame (every 250 ms while the window is hidden), so pages with thousands of files stay smooth |
-| Command palette (Ctrl/Cmd+K or P) | Fuzzy search over every page file, overrides and actions; the list refreshes while open as files arrive |
+| Explorer | Overrides (switch on/off, hit counter, ⚠ upstream changed, context menu) and page resources as a tree (origin → folders → files, served-from-override dot, iframe badge); scripts and stylesheets expand to the original files of their source map (root → folders → files, third-party code under a closed **Libraries**; §6.7). A filter box covers both, including iframe URLs and loaded originals (a bundle with matching originals is listed, open). The tree is virtualized and keyboard-navigable over all rows; resource events are applied once per animation frame (every 250 ms while the window is hidden), so pages with thousands of files stay smooth |
+| Original sources | Open read-only from the Explorer or the palette: a tab of their own after the file tabs, a header with a **Read-only** badge, where the file comes from and **Go to bundle code**, and Monaco's read-only message when typed into. Save, pretty-print and diffs don't apply. An original the map has no text for says so, and offers its bundle code |
+| Go to bundle code / Go to original source (Ctrl/Cmd+Shift+M) | From a line of an original to the code it became in the bundle's tab (opened as usual: pretty-printed, or the override that applies), or from the cursor in a script or stylesheet tab to the original line. Header buttons, the editor's context menu, **View** menu and palette. Exact through pretty-printing and outside your edits; inside them, or where a new build changed the file, a toast says why a jump landed short or couldn't be made |
+| Command palette (Ctrl/Cmd+K or P) | Fuzzy search over every page file, the original files of loaded maps, overrides and actions; the list refreshes while open as files arrive |
 | Layout | Sidebar and preview are fitted to the window (the editor keeps at least 240 px; panel minimums give way below that, e.g. when zoomed in). Hiding the preview takes the native page view out of the window with it. Visibility and sizes are saved on every change |
 | Large files | Scripts, stylesheets and HTML over 1 M characters open in a lite mode: syntax colouring only (Monarch grammars, no language service or validation, folding, minimap or bracket colourization), shown as "Large file" |
-| Focus | Opening or switching tabs focuses the editor; closing a tab from the keyboard, typing in a field or arrowing through the Explorer never has focus pulled into the code |
+| Focus | Opening or switching tabs (original sources too) focuses the editor; closing a tab from the keyboard, typing in a field or arrowing through the Explorer never has focus pulled into the code |
 | Workspaces | The rail lists them below Explorer and Search: a tile each (site favicon or the name's first letter, on the workspace's colour), the active one marked, + to add one. Clicking another tile switches to it (§5.1); clicking the active one opens a popover to rename it and pick its icon and colour, applied as you change them; right-click for the same, or to delete it. The tooltip shows the name and the page title. The palette lists them too |
 | Close with unsaved edits | Closing a tab asks first. Closing the app keeps every unsaved edit as a draft and reopens it next time, with the tabs and the last page (see §5, Session restore) |
-| Menu | App menu replaces Electron's default, so Ctrl/Cmd+R reloads **the site**, not the editor. Undo/redo/select-all are routed to Monaco. Page DevTools: Ctrl/Cmd+Shift+J; editor DevTools: Ctrl/Cmd+Alt+I. Ctrl/Cmd+B toggles the sidebar |
+| Menu | App menu replaces Electron's default, so Ctrl/Cmd+R reloads **the site**, not the editor. Undo/redo/select-all are routed to Monaco. Page DevTools: Ctrl/Cmd+Shift+J; editor DevTools: Ctrl/Cmd+Alt+I. Ctrl/Cmd+B toggles the sidebar. **View › Go to Original Source or Bundle Code** (Ctrl/Cmd+Shift+M) jumps whichever way applies, and says so on other tabs |
 
 ## 8. Security
 
@@ -292,20 +336,21 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 - Packaged builds flip Electron's fuses: `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and the `--inspect` switches are ignored, the app loads only from its `app.asar`, whose integrity is checked on macOS and Windows, and the site view's cookies are encrypted with the OS keystore (not yet on macOS: an ad-hoc signed app would be asked for the Keychain password after every update). `file://` keeps its extra privileges because the editor UI and its module workers load from it.
 - Packaged builds drop `--remote-debugging-port`/`--remote-debugging-pipe` when the data folder is the default one (compared after resolving links, so pointing `CONSOLE_EDITOR_USER_DATA` at it doesn't count as another), as Chrome does for its default profile: otherwise any local program could start the app with a port and read the site view's logins.
 - One instance per data folder (`app.requestSingleInstanceLock`), so two processes never write the same overrides and session files. A second launch hands its URL to the running window and exits; if the first is still starting, that URL replaces the one it was about to open. On macOS, where Finder and `open` reopen the running app instead of starting a second process, the app also takes URLs from `open-url` the same way (following Electron's documentation; not yet checked on a Mac). Runs from source use a separate `… (dev)` data folder, so they never share one with an installed copy.
-- IPC inputs are type-checked; matchers are validated before storage; settings are filtered to known boolean keys.
+- IPC inputs are type-checked; matchers are validated before storage; settings are filtered to known boolean keys. Source-map calls take only an http(s) bundle URL: main derives the map URL itself.
+- Original sources are only ever shown as editor text, and their names (which the page chooses) as plain labels with control characters removed.
 - The site sees a standard Chrome user agent (Electron tokens removed).
-- All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open and for the page's favicon (from the site shown, through its session; kept only if its bytes are an image, and shown as an `<img>` data URL, where SVG can't run scripts), the only network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
+- All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open and for the page's favicon (from the site shown, through its session; kept only if its bytes are an image, and shown as an `<img>` data URL, where SVG can't run scripts), the source maps of the page's scripts and stylesheets when you ask for them (§6.7: http(s) through the site's session, with cookies only for the bundle's or the page's origin; `data:` maps decoded locally; any other scheme refused; 64 MB, 30 s), the only other network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
 - Updates are verified before they are installed: electron-updater checks the SHA-512 in the release's `latest*.yml`, and manual downloads are checked against the release's `SHA256SUMS.txt` before they are kept. Both come from the same GitHub release, so this guards against damaged downloads, not a compromised release; signed builds would add that (§11). Release notes are Markdown rendered with `marked` and sanitized with DOMPurify (no images, styles, forms or frames), and their links open in the default browser (http and https only). `CONSOLE_EDITOR_UPDATE_FEED` (a local update server, for tests) is honoured only with a data folder of its own, like the debugging port.
 
 ## 9. Testing
 
 | Layer | What | Command |
 |---|---|---|
-| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion), favicon loading (recognising images, size caps) | `npm test` |
-| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened) | `npm test` |
+| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion), favicon loading (recognising images, size caps), source maps (finding the reference, loading limits, header capture) | `npm test` |
+| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened), original sources (parsing, positions through pretty-printing, tabs, jumps both ways, the tree, the palette) | `npm test` |
 | Architecture | Feature-Sliced Design layer rules | `npm run lint:fsd` |
-| Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
-| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart). Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
+| Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target. Source maps named by headers, `X-SourceMap`, comments and `data:` URIs, a stylesheet's, and an override-served bundle's | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
+| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart). Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted. The original sources behind a bundle: listed, opened read-only, jumping to the pretty-printed bundle line and back, found from the palette | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
 | Packaged | The installed app (asar, fuses, signature) fixes the demo store's checkout through the UI, driven over `--remote-debugging-port` since the fuses disable Node's inspector. The release workflow runs it on six runners, one per architecture: macOS (from the disk image), Windows (after a silent install; the x64 runner also checks that the ARM installer refuses it) and Linux (from the installed `.deb`, with Ubuntu's user-namespace restriction left on) | `npm run test:packaged -- <app>` |
 | Update | An installed app updates itself to a build one patch higher, served by a local stand-in for GitHub: the notification, What's New, the download, **Restart to update**, the restarted app running the new version (and What's New after it). The release workflow runs it for the Windows installers (then uninstalls, checking the updater's cache goes too) and the AppImages on their four runners. The `.deb` path (as root, through `sudo`, and with the password refused) and the AppImage installing on quit were checked by hand | `npm run test:update -- <app> <newer dist>` |
 
@@ -361,7 +406,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - Signed and notarized builds, and with them installing updates in place on macOS.
 
 **M4: Sources**
-- Source-map explorer: list the original files from `sourcesContent`, open them read-only, and jump between an original line and the bundle line.
+- ✅ Source-map explorer: list the original files from `sourcesContent`, open them read-only, and jump between an original line and the bundle line (§6.7).
 - Research: editing an original module and recompiling only it (esbuild transform) inside a webpack/Vite bundle's module map.
 - Console panel inside the app (mirror of `Runtime.consoleAPICalled`), and quick snippets.
 
@@ -373,4 +418,5 @@ The package manager is asked rather than electron-builder's `resources/package-t
 | Huge bundles (10+ MB) are slow to pretty-print and highlight | The formatter runs in a worker that shuts down when idle; files over 1 M characters open in lite mode (no TypeScript service); file contents cross IPC once. Measured on a 2.7 MB bundle: opens in ~1.5 s; the editor window grows from ~190 MB to ~560–600 MB, of which only ~130 MB is JS heap (the rest is Monaco's native line/token buffers and rendering). A small file costs ~125 MB, mostly the TypeScript service, loaded on first use |
 | Self-verifying scripts detect edits | Out of scope; document it |
 | CDP behaviour changes between Chromium versions | Integration tests run the engine against real Chromium; pin and bump Electron deliberately |
-| Minified identifiers make edits hard to write | Pretty-print now; source-map explorer (M4) |
+| Minified identifiers make edits hard to write | Pretty-print, and read the original sources through their source maps (§6.7) |
+| Huge source maps (tens of MB) | Read only when asked for, parsed in a worker; 64 MB cap; at most 4 maps (48 MB) kept decoded, the least recently used dropped, and the worker stopped after 3 idle minutes |

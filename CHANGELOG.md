@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - **Workspaces.** Keep one for each site or task you're working on, and switch between them from the left rail. Each has its own page, open tabs, unsaved edits and overrides, so a fix in progress on one never shows up in another, even on the same site. A workspace's tile shows the site's icon, or the first letter of its name on a colour you pick: click the current tile, or right-click any, to name it or change its icon. **+** adds a workspace, and the command palette switches between them too. Everything you had before is in the first one.
+- **Original sources from source maps.** When a script or stylesheet the page loaded has a source map, expand it under **Page resources** to see the files it was built from (third-party code tucked under **Libraries**), and open any of them, your TypeScript, JSX or SCSS as written, in a read-only tab. **Go to bundle code** takes you from a line of an original to the code it became in the bundle, pretty-printed or not, even in your override, and **Go to original source** takes you back; <kbd>Ctrl/Cmd+Shift+M</kbd> goes either way. The command palette and the Explorer filter find original files too.
 - **Resize handles show a grip**: three dots in a small tab bulging out of the edges you can drag (the sidebar's and the website preview's), so it's clear which ones move. The tab lights up with the edge on hover, and you can grab it too.
 
 ### Changed

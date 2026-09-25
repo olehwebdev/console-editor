@@ -96,7 +96,7 @@ Rules:
 
 ## 3. Icons
 
-Hugeicons (stroke, 1.5 px) through one wrapper: `shared/ui/icon` → `<Icon icon={Search01Icon} size={16} />`. Sizes: 14 (inline), 16 (controls, default), 18 (rail). Icons inherit `currentColor`; file kinds get tinted glyphs (`JavaScriptIcon`, `CssFile01Icon`, `Html5Icon`).
+Hugeicons (stroke, 1.5 px) through one wrapper: `shared/ui/icon` → `<Icon icon={Search01Icon} size={16} />`. Sizes: 14 (inline), 16 (controls, default), 18 (rail). Icons inherit `currentColor`; file kinds get tinted glyphs (`JavaScriptIcon`, `CssFile01Icon`, `Html5Icon`). Original sources get their language's glyph (`SourceIcon` in `entities/source-map`): TypeScript and JSX (`TypescriptIcon`, `ReactIcon`) in `--info`, JS, CSS and HTML in the kind tints, anything else `FileCodeIcon`. Read-only is marked with a lock (the **Read-only** badge) and a locked-file tab glyph (`FileLockedIcon`) in `--info`, never by colour alone.
 
 ---
 
@@ -138,12 +138,13 @@ src/renderer/src/
                                sync and workspace switching (they reopen files through features)
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
               command-palette
-  features/   navigate-page, open-resource, save-override, toggle-override, delete-override, close-tab,
+  features/   navigate-page, open-resource (also original sources, the jumps between them and bundles,
+              and which of a bundle's originals the Explorer shows open), save-override, toggle-override, delete-override, close-tab,
               edit-match-rule, format-document, compare-changes, filter-resources, update-settings,
               update-app, edit-workspace
-  entities/   page, resource, override, editor-tab, settings, app-update, workspace
-  shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format worker,
-              overlays, native view rect), monaco, config (icons)
+  entities/   page, resource, override, editor-tab, settings, app-update, workspace, source-map
+  shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format and source-map
+              workers, overlays, native view rect), monaco, config (icons)
 ```
 
 Rules (checked by `npm run lint:fsd` with [Steiger](https://github.com/feature-sliced/steiger)):
@@ -162,7 +163,7 @@ Code shared with the main process (`src/shared`: IPC types, URL matching) is imp
 - **Events are batched:** the bridge queues resource, navigation and iframe events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file.
 - **One IPC bridge**: `startBridge()` in `app/model/bridge/` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features) through typed handler tables, one handler per event type and per menu command.
 - **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
-- **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models/`, `shared/monaco/editors/`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode).
+- **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models/`, `shared/monaco/editors/`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode). Decoded source maps live in the source-map worker; `entities/source-map` keeps each bundle's state and file list.
 
 ## 7. Accessibility
 
