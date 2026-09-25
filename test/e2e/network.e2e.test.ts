@@ -38,6 +38,11 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
   const settled = () => inSite('window.settled');
   const overrideRow = (text: string) => win.locator('[data-override-id]').filter({ hasText: text });
   const menuItem = (name: string | RegExp) => win.getByRole('menuitem', { name }).or(win.getByRole('menuitemcheckbox', { name }));
+  /** Opens a menu from its button. One that just closed may still be leaving: waited for, so its items aren't taken for the new one's. */
+  async function openMenu(testId: string): Promise<void> {
+    await expect.poll(() => win.getByRole('menu').count()).toBe(0);
+    await win.getByTestId(testId).click();
+  }
   const editorText = async () => (await win.locator('.monaco-editor .view-lines').textContent())?.replace(/\u00a0/g, ' ');
 
   /** Replaces the active editor's text. Pasted: typing would have the editor close each bracket as it opens. */
@@ -190,7 +195,7 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
   it('lengthens every text with a quick edit, and the page gets it once saved', async () => {
     await overrideRow('GetUser').getByTestId('override-method').click();
     await expect.poll(editorText).toBe(SAVED_USER);
-    await win.getByTestId('response-quick-edits').click();
+    await openMenu('response-quick-edits');
     await menuItem('Lengthen every text').click();
     await expect.poll(editorText).toContain('"name": "Saved Lorem ipsum');
     await win.getByTestId('save-button').click();
@@ -200,13 +205,13 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
 
   it('takes the page offline from the network speed menu, and back', async () => {
     const broken = start(`fetch('${BROKEN_PATH}').then((r) => ({ status: r.status }), (e) => ({ error: e.name }))`);
-    await win.getByTestId('network-throttling').click();
+    await openMenu('network-throttling');
     await menuItem('Offline').click();
     await expect.poll(() => win.getByTestId('status-throttling').textContent()).toBe('Offline');
     expect(await inSite(broken)).toBe(true);
     await expect.poll(settled).toEqual({ error: 'TypeError' });
 
-    await win.getByTestId('network-throttling').click();
+    await openMenu('network-throttling');
     await menuItem('No throttling').click();
     await expect.poll(() => win.getByTestId('status-throttling').count()).toBe(0);
     expect(await inSite(broken)).toBe(true);
@@ -214,7 +219,8 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
   });
 
   it("lists a WebSocket and shows the messages it sent and got", async () => {
-    expect(await inSite('openSocket()')).toBe(true);
+    expect(await inSite(start('openSocket()'))).toBe(true);
+    await expect.poll(settled).toBe(true);
     // Sent once the greeting is in, so the three come in a known order.
     await expect.poll(() => inSite('socketMessages.length')).toBe(1);
     expect(await inSite('socket.send("ping"), true')).toBe(true);
@@ -236,16 +242,14 @@ describe.skipIf(!built)('Network panel and response overrides in the app', () =>
       dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as unknown as typeof dialog.showOpenDialog;
     }, harPath);
 
-    await win.getByTestId('network-har').click();
+    await openMenu('network-har');
     await menuItem(/^Export these \d+ requests as HAR/).click();
     await expect.poll(async () => JSON.parse(await readFile(harPath, 'utf8').catch(() => '{}')).log?.entries?.length ?? 0, RELOAD_TIMEOUT).toBeGreaterThan(0);
     const har = JSON.parse(await readFile(harPath, 'utf8'));
     expect(har.log.entries.some((e: { request: { url: string } }) => e.request.url.includes(CART_PATH))).toBe(true);
 
     const before = await win.locator('[data-override-id]').count();
-    // The export's menu is gone before the next opens.
-    await expect.poll(() => win.getByRole('menu').count()).toBe(0);
-    await win.getByTestId('network-har').click();
+    await openMenu('network-har');
     await menuItem('Import a HAR as overrides…').click();
     await expect.poll(() => win.locator('[data-override-id]').count(), RELOAD_TIMEOUT).toBeGreaterThan(before);
   });
