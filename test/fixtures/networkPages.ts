@@ -63,7 +63,10 @@ const NETWORK_HTML = `<!doctype html>
     };
     window.loadBroken = async () => (await fetch('${BROKEN_PATH}')).status;
     window.ticks = 0;
-    new EventSource('${EVENTS_PATH}').onmessage = () => { window.ticks += 1; };
+    new EventSource('${EVENTS_PATH}').onmessage = (e) => {
+      window.ticks += 1;
+      window.lastEvent = e.data;
+    };
     const worker = new Worker('${NETWORK_WORKER_PATH}');
     worker.onmessage = (e) => {
       window.workerData = e.data;

@@ -118,7 +118,8 @@ describe.skipIf(!browserAvailable)('InterceptionEngine in Chromium', () => {
     expect(await appText()).toBe('app: patched');
     const entry = engine.listResources().find((r) => r.url.endsWith('/app.js'));
     expect(entry?.overrideId).toBe(overrides[0].id);
-    expect(events).toContainEqual({ type: 'override-served', overrideId: overrides[0].id, url: `${site.url}/app.js` });
+    // Its request id ties it to the Network panel's row.
+    expect(events).toContainEqual({ type: 'override-served', overrideId: overrides[0].id, url: `${site.url}/app.js`, requestId: expect.any(String) });
   });
 
   it('is blocked by Subresource Integrity when SRI stripping is off', async () => {
