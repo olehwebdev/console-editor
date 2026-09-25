@@ -8,9 +8,12 @@ import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
+import { usePageStore } from '@/entities/page';
+import { selectRuleList, useRuleStore } from '@/entities/rule';
 import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
 import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
+import { attachPage, detachPage } from '@/features/detach-page';
 import { formatTab } from '@/features/format-document';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
@@ -20,13 +23,11 @@ import { checkForUpdatesNow, openWhatsNew } from '@/features/update-app';
 import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 import { sourceActions, useOriginalSources } from '../model/sources';
+import { OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
+import { newRuleItems } from './newRuleItems';
+import { ruleItems } from './ruleItems';
 
 const KIND_ICON: Record<ResourceKind, (typeof icons)['JsIcon']> = { Script: icons.JsIcon, Stylesheet: icons.CssIcon, Document: icons.HtmlIcon };
-
-/** An override has two items: their ids are one of these prefixes and its id. */
-const OVERRIDE_ITEM_PREFIX = { open: 'open-', toggle: 'toggle-' } as const;
-/** A workspace's item id: this prefix and its id. */
-const WORKSPACE_ITEM_PREFIX = 'workspace-';
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
@@ -38,15 +39,17 @@ export interface AppCommandPaletteProps {
   onToggleConsole(): void;
 }
 
-/** Ctrl/Cmd+K: jump to any file the page loaded or original of a loaded map, switch workspaces or run a command. */
+/** Ctrl/Cmd+K: jump to any file the page loaded, an original of a loaded map, an override or a rule, switch workspaces or run a command. */
 export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
+  const rules = useRuleStore(useShallow(selectRuleList));
   const active = useTabStore(selectActiveTab);
   const activeSource = useTabStore(selectActiveSource);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
+  const detached = usePageStore((s) => s.page.detached);
 
   const resources = usePageFiles(open);
   const files = useMemo<CommandGroup>(
@@ -72,6 +75,10 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
 
   const groups = useMemo<CommandGroup[]>(() => {
     if (!open) return [];
+    // Moving the website to a window of its own (another screen), or back.
+    const move = detached
+      ? { label: 'Put the website back in the editor window', icon: icons.DockIcon, run: attachPage }
+      : { label: 'Open the website in its own window', icon: icons.PopOutIcon, run: detachPage };
     const actions: CommandGroup = {
       heading: 'Actions',
       items: [
@@ -87,7 +94,9 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
         { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
+        { id: 'page-window', label: move.label, icon: move.icon, keywords: ['window', 'screen', 'monitor', 'detach', 'pop out', 'attach'], onSelect: () => void move.run() },
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
+        ...newRuleItems(),
         { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },
         { id: 'settings', label: 'Settings', icon: icons.SettingsIcon, onSelect: onShowSettings },
         { id: 'whats-new', label: "What's New", icon: icons.WhatsNewIcon, keywords: ['release notes', 'changelog', 'version'], onSelect: openWhatsNew },
@@ -107,6 +116,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         },
       ]),
     };
+    const ruleGroup: CommandGroup = { heading: 'Rules', items: ruleItems(rules) };
     const workspaceGroup: CommandGroup = {
       heading: 'Workspaces',
       items: [
@@ -123,8 +133,8 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         { id: 'workspace-new', label: 'New workspace', icon: icons.AddIcon, keywords: ['workspace', 'site', 'project'], onSelect: onNewWorkspace },
       ],
     };
-    return [files, sources, overrideGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, sources, overrides, active, activeSource, workspaces, activeWorkspaceId, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
+    return [files, sources, overrideGroup, ruleGroup, workspaceGroup, actions].filter((g) => g.items.length);
+  }, [open, files, sources, overrides, rules, active, activeSource, workspaces, activeWorkspaceId, detached, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

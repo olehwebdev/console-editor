@@ -1,4 +1,4 @@
-import type { ResourceKind, SourceMapKind } from '@common/types';
+import type { CreateRuleInput, ResourceKind, SourceMapKind } from '@common/types';
 
 export type DiffMode = 'off' | 'base' | 'live';
 
@@ -17,10 +17,16 @@ export interface TabMeta {
   saving: boolean;
 }
 
-/** A tab showing an app page rather than a file (like VS Code's release notes). Not kept between runs. */
-export interface PageTab {
+/** Unapplied edits in a rule page, with the saved input they were made to (dropped once that changes). */
+export interface RulePageDraft {
+  base: CreateRuleInput;
+  value: CreateRuleInput;
+  /** Parallel to value.headers (empty for other actions): stable React keys for the header rows. */
+  rowKeys: string[];
+}
+
+interface PageTabBase {
   id: string;
-  page: 'whats-new';
   title: string;
 }
 
@@ -40,6 +46,22 @@ export interface SourceTab {
   missing: boolean;
 }
 
+/** A tab showing an app page rather than a file (like VS Code's release notes). Not kept between runs. */
+export type PageTab =
+  | (PageTabBase & { page: 'whats-new' })
+  /** A saved rule's editor. */
+  | (PageTabBase & { page: 'rule'; ruleId: string; draft?: RulePageDraft })
+  /** A rule being written, not created yet. */
+  | (PageTabBase & { page: 'new-rule'; seed: CreateRuleInput; draft?: RulePageDraft });
+
+export type PageKind = PageTab['page'];
+
+/** The page tab of one kind. */
+export type PageTabOf<K extends PageKind> = Extract<PageTab, { page: K }>;
+
+/** Whether a page belongs to the app, or to the workspace shown (closed when that changes). */
+export type PageScope = 'app' | 'workspace';
+
 export interface TabStore {
   /** File tabs. Sources and pages are kept apart, so everything that works on files ignores them. */
   tabs: TabMeta[];
@@ -53,13 +75,20 @@ export interface TabStore {
   add(tab: TabMeta, activate?: boolean): void;
   /** Adds a source tab after the file tabs (unless its id is open), and activates it unless `activate` is false. */
   openSource(tab: SourceTab, activate?: boolean): void;
-  /** Shows a page, opening its tab (after the file and source tabs) if it isn't open yet. */
+  /**
+   * Shows a page, opening its tab (after the file and source tabs) if it isn't open yet. An open page
+   * with the same id takes the new fields in place, keeping its position and anything not given (its draft).
+   */
   openPage(page: PageTab): void;
   activate(id: string): void;
   /** Closes a file tab, source tab or page. */
   remove(id: string): void;
   /** Closes every file and source tab (pages stay open). */
   removeTabs(): void;
+  /** Closes these pages; when the active one goes, its neighbour takes over as with `remove`. */
+  removePages(ids: readonly string[]): void;
   patch(id: string, patch: Partial<TabMeta>): void;
+  /** Keeps (or, with undefined, drops) a rule page's unapplied edits. */
+  setPageDraft(id: string, draft: RulePageDraft | undefined): void;
   setDiff(mode: DiffMode): void;
 }

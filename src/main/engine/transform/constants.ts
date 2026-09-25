@@ -42,3 +42,18 @@ export const UTF8 = 'utf-8';
  * deprecated `X-SourceMap`.
  */
 export const SOURCE_MAP_HEADERS = ['sourcemap', 'x-sourcemap'] as const;
+
+/**
+ * Headers that describe how upstream framed and encoded its bytes. A body we
+ * pass back is already decoded, so they go; ETag and Last-Modified stay, as
+ * the bytes themselves don't change.
+ */
+export const ENCODING_HEADERS = new Set([
+  'content-encoding',
+  'content-length',
+  'transfer-encoding',
+  'content-md5',
+  'digest',
+  'content-digest',
+  'repr-digest',
+]);

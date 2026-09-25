@@ -1,19 +1,20 @@
 import type { BrowserWindow, Session, WebContentsView } from 'electron';
-import type { AppEvent, PageState, Rect, SourceMapFile, SourceMapRequest } from '../../shared/types';
+import type { AppEvent, PageState } from '../../shared/types';
 import { ConsoleService } from '../console';
-import { PageInterception } from '../engine/PageInterception';
+import type { PageInterception } from '../engine/PageInterception';
+import { PageWindow } from '../PageWindow';
 import type { OverrideStore } from '../store/OverrideStore';
+import type { PageWindowStore } from '../store/PageWindowStore';
+import type { RuleStore } from '../store/RuleStore';
 import type { SettingsStore } from '../store/SettingsStore';
 import { attachDebugger } from './attachDebugger';
 import { createPageView } from './createPageView';
 import { fetchSiteFavicon } from './fetchSiteFavicon';
-import { fetchUncached } from './fetchUncached';
-import { loadSiteSourceMap } from './loadSiteSourceMap';
+import { interceptPage } from './interceptPage';
 import { openSiteSession } from './openSiteSession';
 import { PageLoader } from './PageLoader';
 import { pageState } from './pageState';
 import { snapshotPage } from './snapshotPage';
-import { toViewBounds } from './toViewBounds';
 import { watchLoading } from './watchLoading';
 import { windowOpenHandler } from './windowOpenHandler';
 
@@ -23,20 +24,27 @@ import { windowOpenHandler } from './windowOpenHandler';
  */
 export class PageController {
   readonly view: WebContentsView;
+  /** Where the page is shown: in the editor's window or in one of its own. */
+  readonly window: PageWindow;
   /** The console of the page and its frames. */
   readonly console: ConsoleService;
   private readonly engine: PageInterception;
-  private readonly siteSession: Session;
+  /** The site's session (cookies, logins): reads out of the page go through it, like its favicon and source maps. */
+  readonly siteSession: Session;
   private readonly loader: PageLoader;
 
   constructor(
     win: BrowserWindow,
     private readonly store: OverrideStore,
+    private readonly rules: RuleStore,
     private readonly settings: SettingsStore,
     private readonly send: (event: AppEvent) => void,
+    windowStore: PageWindowStore,
   ) {
-    this.siteSession = openSiteSession(win);
+    // Permission prompts and pop-ups go to the window showing the site.
+    this.siteSession = openSiteSession(() => this.window.host);
     this.view = createPageView(win, this.siteSession);
+    this.window = new PageWindow({ editor: win, view: this.view, store: windowStore, moved: () => this.pushState() });
 
     const wc = this.view.webContents;
     const transport = attachDebugger(wc, (reason) => {
@@ -46,20 +54,13 @@ export class PageController {
     });
 
     this.console = new ConsoleService({ getSettings: () => this.settings.get(), send: (event) => this.send(event) });
-    this.engine = new PageInterception({
-      transport,
-      sessions: this.console,
-      getOverrides: () => this.store.list(),
-      getSettings: () => this.settings.get(),
-      emit: (event) => this.send(event),
-      fallbackFetch: (url) => fetchUncached(this.siteSession, url),
-    });
+    this.engine = interceptPage(transport, this.console, { store, rules, settings, send, siteSession: this.siteSession });
     this.loader = new PageLoader(wc, this.engine, () => this.pushState());
 
     // A page's "Leave site?" guard would silently cancel reloads after a save,
     // Back/Forward and typed URLs (Electron shows no dialog): the editor wins.
     wc.on('will-prevent-unload', (event) => event.preventDefault());
-    wc.setWindowOpenHandler(windowOpenHandler(win, (url) => void this.navigate(url)));
+    wc.setWindowOpenHandler(windowOpenHandler(() => this.window.host, (url) => void this.navigate(url)));
     watchLoading(wc, () => this.pushState(), (event) => this.send(event));
   }
 
@@ -68,11 +69,14 @@ export class PageController {
   }
 
   private pushState(): void {
-    this.send({ type: 'page-state', state: this.state() });
+    const state = this.state();
+    this.send({ type: 'page-state', state });
+    // The website's own window, if it has one, shows it too.
+    this.window.showState(state);
   }
 
   state(): PageState {
-    return pageState(this.view.webContents);
+    return pageState(this.view.webContents, this.window.detached);
   }
 
   /** Loads `input`. With `fresh`, what came before it is dropped from Back once it has loaded (a workspace's page). */
@@ -118,10 +122,6 @@ export class PageController {
     this.view.webContents.openDevTools({ mode: 'detach' });
   }
 
-  setBounds(rect: Rect): void {
-    this.view.setBounds(toViewBounds(rect));
-  }
-
   listResources() {
     return this.engine.listResources();
   }
@@ -130,15 +130,16 @@ export class PageController {
     return this.engine.getResourceContent(url);
   }
 
-  /** A listed script's or stylesheet's source map (SPEC §6.7). */
-  getSourceMap(request: SourceMapRequest): Promise<SourceMapFile> {
-    return loadSiteSourceMap(request, this.siteSession, (url) => this.engine.getResourceContent(url), this.view.webContents.getURL());
-  }
-
   /** Call after overrides change. Pass `patterns: false` when only content changed. */
   async overridesChanged(patterns = true): Promise<void> {
     if (patterns) await this.engine.refreshInterception();
     this.send({ type: 'overrides-changed', overrides: this.store.metas() });
+  }
+
+  /** Call after rules change. Pass `patterns: false` when only header edits or request types changed (read at pause time). */
+  async rulesChanged(patterns = true): Promise<void> {
+    if (patterns) await this.engine.refreshInterception();
+    this.send({ type: 'rules-changed', rules: this.rules.forRenderer() });
   }
 
   async settingsChanged(): Promise<void> {

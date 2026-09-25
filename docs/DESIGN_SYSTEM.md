@@ -35,12 +35,12 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 
 | Token | Meaning | Value |
 |---|---|---|
-| `--accent` | primary actions, focus ring, active rail item | ember `oklch(72% 0.19 45)` |
+| `--accent` | primary actions, focus ring, active rail item, CORS rules | ember `oklch(72% 0.19 45)` |
 | `--accent-grad` | primary button fill | `linear-gradient(135deg, oklch(78% 0.18 65), oklch(66% 0.23 30))` |
 | `--live` | override active / served, "live" dot | lime `oklch(88% 0.2 128)` |
-| `--info` | links, iframe and worker markers | sky `oklch(76% 0.12 235)` |
+| `--info` | links, iframe and worker markers, header rules | sky `oklch(76% 0.12 235)` |
 | `--warning` | upstream changed | amber `oklch(82% 0.15 80)` |
-| `--danger` | destructive, errors | `oklch(67% 0.2 25)` |
+| `--danger` | destructive, errors; block rules and blocked files | `oklch(67% 0.2 25)` |
 | `--kind-js` / `--kind-css` / `--kind-html` | file-kind glyph tints | yellow / blue / orange |
 | `--workspace-ember` … `--workspace-rose` | the colour picked for a workspace's rail tile (ember, amber, lime, teal, sky, indigo, violet, rose): the tile is the colour at 15 % with a 35 % ring, the letter in full. The console gives each frame one of them too (from the frame's key, so a service keeps its colour): its chip is the colour at 15 % with the name in full | `oklch(68–86% 0.12–0.19 …)` |
 
@@ -96,7 +96,7 @@ Rules:
 
 ## 3. Icons
 
-Hugeicons (stroke, 1.5 px) through one wrapper: `shared/ui/icon` → `<Icon icon={Search01Icon} size={16} />`. Sizes: 14 (inline), 16 (controls, default), 18 (rail). Icons inherit `currentColor`; file kinds get tinted glyphs (`JavaScriptIcon`, `CssFile01Icon`, `Html5Icon`). Original sources get their language's glyph (`SourceIcon` in `entities/source-map`): TypeScript and JSX (`TypescriptIcon`, `ReactIcon`) in `--info`, JS, CSS and HTML in the kind tints, anything else `FileCodeIcon`. Read-only is marked with a lock (the **Read-only** badge) and a locked-file tab glyph (`FileLockedIcon`) in `--info`, never by colour alone.
+Hugeicons (stroke, 1.5 px) through one wrapper: `shared/ui/icon` → `<Icon icon={Search01Icon} size={16} />`. Sizes: 14 (inline), 16 (controls, default), 18 (rail). Icons inherit `currentColor`; file kinds get tinted glyphs (`JavaScriptIcon`, `CssFile01Icon`, `Html5Icon`), and so do rule actions (`BlockIcon` in `--danger`, `HeadersIcon` in `--info`, `CorsIcon` in `--accent`; `RULE_ACTION_GLYPHS` in `entities/rule`). A blocked file's name is struck through in `--fg-subtle`: never colour alone. Original sources get their language's glyph (`SourceIcon` in `entities/source-map`): TypeScript and JSX (`TypescriptIcon`, `ReactIcon`) in `--info`, JS, CSS and HTML in the kind tints, anything else `FileCodeIcon`. Read-only is marked with a lock (the **Read-only** badge) and a locked-file tab glyph (`FileLockedIcon`) in `--info`, never by colour alone.
 
 ---
 
@@ -118,6 +118,7 @@ Each component lives in its own folder with an `index.ts` public API. Props belo
 | `CommandPalette` | `open`, `onOpenChange`, `groups: {heading, items: CommandItem[]}[]`, `placeholder` | fuzzy filter, spring panel, moving highlight |
 | `ToastStack` + `toast()` | `toast({title, description?, tone?, action?})` | stacked, swipe/auto-dismiss, bottom-left of the editor; its width is capped by `--preview-w` (published by the preview pane) so it never reaches the native page view |
 | `ConfirmDialog` + `confirm()` | `confirm({title, body, confirmLabel, tone}) => Promise<boolean>` | replaces `window.confirm` |
+| `UrlMatcherFields` | `value: UrlMatcher`, `onChange`, `onEnter?`, `testIdPrefix?`, `autoFocus?` | the match type menu, the pattern and "ignore ?query", as siblings the caller lays out in a wrapping row; shared by an override's match row and rule pages |
 | `Popover` | `open`, `onOpenChange`, `anchor: HTMLElement \| null`, `side?: 'right' \| 'bottom'`, `label` | a few controls beside an element (editing a workspace's tile); not modal: Esc (focus back on the anchor), a press or focus outside, window blur or resize close it; registers as an overlay like menus |
 | `HoverHighlight` | wraps a list; one pill follows the hovered row | port of beUI SharedLayoutBg |
 | `Collapsible` / `Section` | `title`, `count?`, `actions?`, `defaultOpen?` | height auto animation, caps header |
@@ -136,14 +137,16 @@ src/renderer/src/
   app/        bootstrap, IPC → stores bridge (model/bridge/), motion config, global styles, gallery
   pages/      editor/          — composes widgets into the workspace layout; owns the layout store, the session
                                sync and workspace switching (they reopen files through features)
+              page-window/     — the website's own window: the page-preview widget alone
   widgets/    title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel,
               command-palette, console-panel
   features/   navigate-page, open-resource (also original sources, the jumps between them and bundles,
               and which of a bundle's originals the Explorer shows open), save-override, toggle-override,
               delete-override, close-tab, edit-match-rule, format-document, compare-changes,
               filter-resources, update-settings, update-app, edit-workspace, run-in-frame, filter-console,
-              name-frame, clear-console, expand-console-value
-  entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log,
+              name-frame, clear-console, expand-console-value, detach-page, rule/ (a slice group:
+              quick-actions, edit, toggle, delete)
+  entities/   page, resource, override, editor-tab, settings, app-update, workspace, frame, console-log, rule,
               source-map
   shared/     api (typed IPC client), ui (design system), lib (cn, motion, url, format and source-map
               workers, overlays, native view rect), monaco, config (icons)
@@ -153,6 +156,7 @@ Rules (checked by `npm run lint:fsd` with [Steiger](https://github.com/feature-s
 - A layer imports only from layers **below** it: `app → pages → widgets → features → entities → shared`.
 - Slices on the same layer never import each other.
 - Every slice exposes a public API (`index.ts`); deep imports into another slice are not allowed.
+- A layer keeps at most 20 slices at its top: related ones go in a slice group, a plain folder with no public API of its own (`features/rule/`, imported as `@/features/rule/edit`).
 - Segments: `ui/` (components), `model/` (stores, actions, effects), `lib/` (pure helpers), `api/` (IPC calls).
 
 Code shared with the main process (`src/shared`: IPC types, URL matching) is imported as `@common/*`; renderer code uses `@/…`.
@@ -165,6 +169,7 @@ Code shared with the main process (`src/shared`: IPC types, URL matching) is imp
 - **Events are batched:** the bridge queues resource, navigation, iframe and worker events and applies them in order once per animation frame (every 250 ms while the window is hidden), so a page reporting thousands of files rebuilds the tree once per frame, not once per file. Console rows already come batched from the main process (every 50 ms at most), so each batch is one store update.
 - **One IPC bridge**: `startBridge()` in `app/model/bridge/` subscribes to `window.consoleEditor.onEvent` once and routes events into entity stores (and main-menu commands into features) through typed handler tables, one handler per event type and per menu command.
 - **Selectors everywhere**: components subscribe to the smallest slice (`useStore(s => s.byId[id])`), lists use `useShallow`; derived data (resource tree, filtered lists) is computed in `lib/` and memoized.
+- **Page tabs keep their own edits.** A tab that isn't a file (What's New, a rule page, a new-rule page) is a `PageTab`, a union by `page` kind. Each kind declares whether it belongs to the app or to the workspace (`PAGE_SCOPES`: workspace pages close on a switch), whether it holds edits (`PAGE_DIRTY_CHECKS`), and which view renders it (`PAGE_VIEWS` in `widgets/editor-panel`), so a new kind fails typecheck until it has all three. A rule page's unapplied edits are a draft on its tab (`{ base, value, rowKeys }`), not form state, so they survive switching tabs; the form shows them only while `base` is still the saved rule, and the rule's own Apply landing rebases what was typed meanwhile.
 - **Non-serializable objects stay out of stores**: Monaco models and editor instances live in registries (`entities/editor-tab/model/models/`, `shared/monaco/editors/`) keyed by tab id; the store only holds metadata (dirty, saved version, diff mode). Decoded source maps live in the source-map worker; `entities/source-map` keeps each bundle's state and file list.
 
 ## 7. Accessibility

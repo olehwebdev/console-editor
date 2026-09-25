@@ -1,21 +1,31 @@
 import type { HeaderEntry } from '../../transform';
 
+/** The Fetch stage a request pauses at: before it is sent, or once its response headers arrived. */
+export type RequestStage = 'Request' | 'Response';
+
 export interface FetchPattern {
   urlPattern: string;
   resourceType?: string;
-  requestStage: 'Request' | 'Response';
+  requestStage: RequestStage;
 }
 
-/** Subset of `Fetch.requestPaused` params that we use. */
+/** Subset of `Fetch.requestPaused` params that we use. At the Response stage iff it has a status or an error reason. */
 export interface RequestPausedParams {
   requestId: string;
-  request: { url: string; method: string };
+  /** `headers`: Network.Headers as sent (names in any case). */
+  request: { url: string; method: string; headers?: Record<string, string> };
   resourceType: string;
+  /** The frame that made the request; for a navigation, the frame navigating. */
+  frameId?: string;
   networkId?: string;
   responseStatusCode?: number;
+  responseStatusText?: string;
   responseErrorReason?: string;
   responseHeaders?: HeaderEntry[];
 }
+
+/** A Response-stage pause that carries a whole response head (see `hasResponseHead`). */
+export type PausedResponse = RequestPausedParams & Required<Pick<RequestPausedParams, 'responseStatusCode' | 'responseHeaders'>>;
 
 export interface FrameTree {
   frame: { id: string; url: string; parentId?: string };

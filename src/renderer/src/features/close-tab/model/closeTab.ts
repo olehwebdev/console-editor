@@ -1,17 +1,27 @@
 import { fileName } from '@/shared/lib';
 import { confirm } from '@/shared/ui/dialog';
-import { disposeTabModel, useTabStore } from '@/entities/editor-tab';
+import { disposeTabModel, isPageDirty, useTabStore } from '@/entities/editor-tab';
 
-/** Closes a tab, asking first when it has unsaved edits. */
+/** Closes a tab, an original or a page, asking first when it has unsaved edits (a rule page's unapplied ones). */
 export async function closeTab(tabId: string): Promise<void> {
-  const { tabs, sources, pages, remove } = useTabStore.getState();
-  if (pages.some((p) => p.id === tabId)) {
-    remove(tabId);
+  const { tabs, sources, pages } = useTabStore.getState();
+  const page = pages.find((p) => p.id === tabId);
+  if (page) {
+    if (isPageDirty(page)) {
+      const ok = await confirm({
+        title: `Discard your changes to ${page.title}?`,
+        body: 'They have not been applied.',
+        confirmLabel: 'Discard',
+        tone: 'danger',
+      });
+      if (!ok) return;
+    }
+    useTabStore.getState().remove(tabId);
     return;
   }
   // An original is read-only: nothing to lose.
   if (sources.some((t) => t.id === tabId)) {
-    remove(tabId);
+    useTabStore.getState().remove(tabId);
     setTimeout(() => disposeTabModel(tabId), 0);
     return;
   }

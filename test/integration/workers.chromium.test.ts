@@ -146,6 +146,7 @@ describe.skipIf(!chromiumAvailable)('workers in Chromium', () => {
     interception = new PageInterception({
       transport: engineTransport,
       getOverrides: () => overrides,
+      getRules: () => [],
       getSettings: () => settings,
       emit: (e) => events.push(e),
       fallbackFetch: async (u) => {

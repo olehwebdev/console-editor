@@ -44,7 +44,7 @@ export class InterceptionEngine {
     this.matcher = new OverrideMatcher(opts);
     this.worker = opts.worker && new WorkerScripts(opts.worker);
     this.resources = new ResourceTracker({ frames: this.frames, navigation: this.navigation, matcher: this.matcher, opts, worker: this.worker });
-    this.requests = new PausedRequestHandler({ cdp: opts.transport, opts, matcher: this.matcher, resources: this.resources, worker: this.worker });
+    this.requests = new PausedRequestHandler({ cdp: opts.transport, opts, matcher: this.matcher, frames: this.frames, resources: this.resources, worker: this.worker });
     this.workerSettings = opts.worker && new WorkerSettingsApplier(opts.transport, opts, this.matcher, WORKER_SESSIONS[opts.worker.type]);
     this.settings = this.workerSettings ?? new SettingsApplier(opts.transport, opts, this.matcher);
   }
@@ -79,7 +79,7 @@ export class InterceptionEngine {
     return this.settings.apply();
   }
 
-  /** Call after overrides were added, removed, enabled/disabled or re-matched. */
+  /** Call after overrides or rules were added, removed, enabled/disabled or re-matched. */
   refreshInterception(): Promise<void> {
     return this.settings.refresh();
   }

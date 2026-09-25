@@ -14,6 +14,8 @@ const api: ConsoleEditorApi = {
   getPageState: () => ipcRenderer.invoke(IPC_CHANNEL.getPageState),
   setPageBounds: (bounds) => ipcRenderer.send(IPC_CHANNEL.setPageBounds, bounds),
   capturePage: () => ipcRenderer.invoke(IPC_CHANNEL.capturePage),
+  detachPage: () => ipcRenderer.invoke(IPC_CHANNEL.detachPage),
+  attachPage: () => ipcRenderer.invoke(IPC_CHANNEL.attachPage),
 
   listResources: () => ipcRenderer.invoke(IPC_CHANNEL.listResources),
   getResourceContent: (url) => ipcRenderer.invoke(IPC_CHANNEL.getResourceContent, url),
@@ -26,6 +28,11 @@ const api: ConsoleEditorApi = {
   updateOverride: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateOverride, id, patch),
   deleteOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteOverride, id),
   revealOverridesFolder: () => ipcRenderer.invoke(IPC_CHANNEL.revealOverridesFolder),
+
+  listRules: () => ipcRenderer.invoke(IPC_CHANNEL.listRules),
+  createRule: (input) => ipcRenderer.invoke(IPC_CHANNEL.createRule, input),
+  updateRule: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateRule, id, patch),
+  deleteRule: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteRule, id),
 
   getSettings: () => ipcRenderer.invoke(IPC_CHANNEL.getSettings),
   updateSettings: (patch) => ipcRenderer.invoke(IPC_CHANNEL.updateSettings, patch),
