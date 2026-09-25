@@ -3,7 +3,7 @@ import { icons } from '@/shared/config';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Menu } from '@/shared/ui/menu';
 import { RULE_ACTION_GLYPHS, RULE_ACTION_TITLES } from '@/entities/rule';
-import { openNewRule, RULE_SEEDS } from '@/features/edit-rule';
+import { openNewRule, RULE_SEEDS } from '@/features/rule/edit';
 
 /** The Rules section's +: a new rule of each action, written from scratch. */
 export function NewRuleMenu() {

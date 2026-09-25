@@ -1,4 +1,4 @@
-import { applyRulePage, createRulePage } from '@/features/edit-rule';
+import { applyRulePage, createRulePage } from '@/features/rule/edit';
 import { saveTab } from '@/features/save-override';
 import type { ActiveSavers } from './types';
 

@@ -1,7 +1,7 @@
 {
   "name": "console-editor",
   "productName": "Console Editor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Desktop editor for live-patching the JS/CSS/HTML of any website (including cross-site iframes) without rebuilding it.",
   "keywords": [
@@ -41,9 +41,12 @@
     "test:packaged": "node --no-warnings test/smoke/packaged.ts",
     "test:update": "node --no-warnings test/smoke/update.ts",
     "demo-site": "node --no-warnings test/fixtures/site.ts",
-    "lint:fsd": "steiger ./src/renderer/src"
+    "lint:fsd": "steiger ./src/renderer/src",
+    "lint:structure": "node --no-warnings scripts/check-structure.ts"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.9",
+    "@babel/types": "^7.29.8",
     "@feature-sliced/steiger-plugin": "^0.7.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/js-beautify": "^1.14.3",

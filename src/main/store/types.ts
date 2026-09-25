@@ -33,6 +33,8 @@ export interface WorkspaceRecord {
   title: string;
   tabs: SessionTab[];
   activeTabId: string | null;
+  /** Names given to the page's frames in the console, by frame address. */
+  frameNames: Record<string, string>;
 }
 
 /** The session file's contents: every workspace, and the one in use. */

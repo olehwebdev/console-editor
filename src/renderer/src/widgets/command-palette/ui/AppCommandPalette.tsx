@@ -9,6 +9,7 @@ import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
 import { selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
 import { selectRuleList, useRuleStore } from '@/entities/rule';
+import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
 import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
 import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { formatTab } from '@/features/format-document';
@@ -30,10 +31,11 @@ export interface AppCommandPaletteProps {
   onFocusAddressBar(): void;
   onSwitchWorkspace(id: string): void;
   onNewWorkspace(): void;
+  onToggleConsole(): void;
 }
 
 /** Ctrl/Cmd+K: jump to any file the page loaded, an override or a rule, switch workspaces or run a command. */
-export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace }: AppCommandPaletteProps) {
+export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole }: AppCommandPaletteProps) {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
   const overrides = useOverrideStore(useShallow(selectOverrideList));
@@ -47,14 +49,18 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
     () => ({
       heading: 'Page files',
       // Every file: the list is virtualized, so a page with thousands stays fast.
-      items: resources.map((r) => ({
-        id: r.url,
-        label: fileName(r.url),
-        hint: `${hostOf(r.url)}${pathOf(r.url)}${r.frame ? ' · iframe' : ''}`,
-        icon: KIND_ICON[r.kind],
-        keywords: [r.url, ...(r.frame ? ['iframe', r.frame.url] : [])],
-        onSelect: () => void openResource(r.url),
-      })),
+      items: resources.map((r) => {
+        const workerName = r.worker && WORKER_NAME[r.worker.type];
+        const workerUrl = workerScriptUrl(r);
+        return {
+          id: r.url,
+          label: fileName(r.url),
+          hint: `${hostOf(r.url)}${pathOf(r.url)}${r.frame ? ' · iframe' : ''}${workerName ? ` · ${workerName}` : ''}`,
+          icon: KIND_ICON[r.kind],
+          keywords: [r.url, ...(r.frame ? ['iframe', r.frame.url] : []), ...(workerName ? [workerName] : []), ...(workerUrl ? [workerUrl] : [])],
+          onSelect: () => void openResource(r.url),
+        };
+      }),
     }),
     [resources],
   );
@@ -73,6 +79,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
             ]
           : []),
         { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
+        { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         ...newRuleItems(),
@@ -113,7 +120,7 @@ export function AppCommandPalette({ onShowSettings, onFocusAddressBar, onSwitchW
       ],
     };
     return [files, overrideGroup, ruleGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, overrides, rules, active, workspaces, activeWorkspaceId, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace]);
+  }, [open, files, overrides, rules, active, workspaces, activeWorkspaceId, onShowSettings, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

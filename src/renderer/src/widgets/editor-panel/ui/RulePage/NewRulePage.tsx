@@ -1,6 +1,6 @@
 import type { PageTabOf } from '@/entities/editor-tab';
 import { closeTab } from '@/features/close-tab';
-import { createRulePage, RuleForm, setRuleDraft } from '@/features/edit-rule';
+import { createRulePage, RuleForm, setRuleDraft } from '@/features/rule/edit';
 import { RulePageHeader } from './RulePageHeader';
 
 /** A rule being written: the form, with the pattern in focus, until it is created (the tab then becomes the rule's). */

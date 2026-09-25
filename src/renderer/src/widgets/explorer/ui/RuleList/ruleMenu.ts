@@ -1,9 +1,9 @@
 import type { Rule } from '@common/types';
 import { icons } from '@/shared/config';
 import type { MenuItem } from '@/shared/ui/menu';
-import { deleteRule } from '@/features/delete-rule';
-import { openRuleEditor } from '@/features/edit-rule';
-import { setRuleEnabled } from '@/features/toggle-rule';
+import { deleteRule } from '@/features/rule/delete';
+import { openRuleEditor } from '@/features/rule/edit';
+import { setRuleEnabled } from '@/features/rule/toggle';
 
 /** A rule row's context menu. */
 export function ruleMenu(rule: Rule): MenuItem[] {

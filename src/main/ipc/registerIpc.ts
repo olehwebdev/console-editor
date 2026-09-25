@@ -120,6 +120,12 @@ export function registerIpc({ win, page, store, rules, settings, session, worksp
   handle(IPC_CHANNEL.deleteWorkspace, (id: unknown) => workspaces.remove(id));
   handle(IPC_CHANNEL.switchWorkspace, (id: unknown) => workspaces.switchTo(id));
 
+  handle(IPC_CHANNEL.listFrames, () => page.console.listFrames());
+  handle(IPC_CHANNEL.getConsoleEntries, () => page.console.listEntries());
+  handle(IPC_CHANNEL.evaluateInFrame, (frameId: unknown, code: unknown) => page.console.evaluate(frameId, code));
+  handle(IPC_CHANNEL.getConsoleProperties, (handle: unknown) => page.console.properties(handle));
+  handle(IPC_CHANNEL.clearConsole, () => page.console.clear());
+
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));
   handle(IPC_CHANNEL.getDraft, (id: unknown) => session.getDraft(id));

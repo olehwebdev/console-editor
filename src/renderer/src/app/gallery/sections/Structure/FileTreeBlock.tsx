@@ -5,68 +5,18 @@ import { Icon } from '@/shared/ui/icon';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Input } from '@/shared/ui/input';
 import { Section } from '@/shared/ui/section';
-import { Tree, TreeLabel, TreeRow } from '@/shared/ui/tree';
+import { Tree } from '@/shared/ui/tree';
 import { Block } from '../../Block';
-import { ICON_SIZE, KIND } from './constants';
+import { FILES, ICON_SIZE, INITIAL_EXPANDED_FOLDERS, INITIAL_SELECTED_FILE } from './constants';
 import { countFiles } from './countFiles';
+import { FileTreeRow } from './FileTreeRow';
 import { flatten } from './flatten';
-import type { FileNode } from './types';
 
-const { DiffIcon, FolderIcon, FolderOpenIcon, GlobeIcon, ReloadIcon, SearchIcon } = icons;
-
-const FILES: FileNode[] = [
-  {
-    id: 'app',
-    name: 'app.example.com',
-    origin: true,
-    children: [
-      {
-        id: 'app/static',
-        name: 'static',
-        children: [
-          {
-            id: 'app/static/js',
-            name: 'js',
-            children: [
-              { id: 'app/static/js/main', name: 'main.3f9a1c.js', kind: 'js', live: true },
-              { id: 'app/static/js/vendor', name: 'vendor.8812aa.chunk.js', kind: 'js' },
-              { id: 'app/static/js/runtime', name: 'runtime-main.js', kind: 'js' },
-            ],
-          },
-          {
-            id: 'app/static/css',
-            name: 'css',
-            children: [
-              { id: 'app/static/css/main', name: 'main.c0ffee.css', kind: 'css', live: true },
-              { id: 'app/static/css/theme', name: 'theme.css', kind: 'css' },
-            ],
-          },
-        ],
-      },
-      { id: 'app/index', name: '(index)', kind: 'html' },
-    ],
-  },
-  {
-    id: 'cdn',
-    name: 'cdn.jsdelivr.net',
-    origin: true,
-    children: [
-      {
-        id: 'cdn/npm',
-        name: 'npm/react-dom@19',
-        children: [{ id: 'cdn/npm/react-dom', name: 'react-dom.production.min.js', kind: 'js' }],
-      },
-    ],
-  },
-];
-
-/** Open at first: the folders down to the selected file. */
-const INITIAL_EXPANDED = ['app', 'app/static', 'app/static/js'];
-const INITIAL_SELECTED = 'app/static/js/main';
+const { ReloadIcon, SearchIcon } = icons;
 
 export function FileTreeBlock() {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(INITIAL_EXPANDED));
-  const [selected, setSelected] = useState(INITIAL_SELECTED);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(INITIAL_EXPANDED_FOLDERS));
+  const [selected, setSelected] = useState(INITIAL_SELECTED_FILE);
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const rows = useMemo(() => flatten(FILES, expanded, q), [expanded, q]);
@@ -104,48 +54,9 @@ export function FileTreeBlock() {
         >
           {rows.length ? (
             <Tree label="Page resources" className="px-1.5">
-              {rows.map(({ node, depth, expanded: open, count }) => {
-                const file = !node.children;
-                const kind = node.kind ? KIND[node.kind] : null;
-                return (
-                  <TreeRow
-                    key={node.id}
-                    depth={depth}
-                    expanded={open}
-                    onToggle={file ? undefined : () => toggle(node.id)}
-                    selected={file && node.id === selected}
-                    icon={node.origin ? GlobeIcon : kind ? kind.glyph : open ? FolderOpenIcon : FolderIcon}
-                    iconClassName={node.origin ? 'text-info' : kind ? kind.tint : 'text-fg-subtle'}
-                    label={
-                      file ? (
-                        <TreeLabel text={node.name} highlight={q} className={node.live ? 'text-live' : undefined} />
-                      ) : (
-                        <span className={node.origin ? 'font-medium text-fg' : undefined}>{node.name}</span>
-                      )
-                    }
-                    meta={file ? undefined : count}
-                    title={node.name}
-                    onClick={file ? () => setSelected(node.id) : undefined}
-                    trailing={
-                      file ? (
-                        <span className="flex items-center gap-1">
-                          <IconButton
-                            icon={DiffIcon}
-                            label="Compare"
-                            size="sm"
-                            noTooltip
-                            tabIndex={-1}
-                            className="size-5 opacity-0 transition-opacity group-hover/tree-row:opacity-100"
-                          />
-                          {node.live ? (
-                            <span aria-label="Served from your override" role="img" className="size-1.5 rounded-full bg-live shadow-[0_0_8px_var(--live)]" />
-                          ) : null}
-                        </span>
-                      ) : undefined
-                    }
-                  />
-                );
-              })}
+              {rows.map((row) => (
+                <FileTreeRow key={row.node.id} row={row} selected={selected} query={q} onToggle={toggle} onSelect={setSelected} />
+              ))}
             </Tree>
           ) : (
             <p className="px-4 py-3 text-[12px] text-fg-subtle">No files match “{query}”.</p>

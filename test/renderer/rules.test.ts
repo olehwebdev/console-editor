@@ -17,14 +17,14 @@ import {
 } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
-import { deleteRule } from '@/features/delete-rule';
-import { applyRulePage, createRulePage, openNewRule, openRuleEditor, RULE_SEEDS, rulePageId, setRuleDraft } from '@/features/edit-rule';
-import { patchFor } from '@/features/edit-rule/model/patchFor';
-import { ruleNotes } from '@/features/edit-rule/ui/RuleForm/ruleNotes';
-import { withPreset } from '@/features/edit-rule/ui/RuleForm/withPreset';
-import { blockRequest, createQuickRule, removeCspFrom } from '@/features/quick-rule';
+import { deleteRule } from '@/features/rule/delete';
+import { applyRulePage, createRulePage, openNewRule, openRuleEditor, RULE_SEEDS, rulePageId, setRuleDraft } from '@/features/rule/edit';
+import { patchFor } from '@/features/rule/edit/model/patchFor';
+import { ruleNotes } from '@/features/rule/edit/ui/RuleForm/ruleNotes';
+import { withPreset } from '@/features/rule/edit/ui/RuleForm/withPreset';
+import { blockRequest, createQuickRule, removeCspFrom } from '@/features/rule/quick-actions';
 import { saveTab } from '@/features/save-override';
-import { setRuleEnabled } from '@/features/toggle-rule';
+import { setRuleEnabled } from '@/features/rule/toggle';
 import { isPageDocument } from '@/widgets/editor-panel/lib/isPageDocument';
 import { ruleMenuItems } from '@/widgets/explorer/ui/ResourceTree/ruleMenuItems';
 

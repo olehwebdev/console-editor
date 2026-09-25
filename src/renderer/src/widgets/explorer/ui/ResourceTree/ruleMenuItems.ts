@@ -2,9 +2,9 @@ import type { ResourceEntry } from '@common/types';
 import { icons } from '@/shared/config';
 import type { MenuItem } from '@/shared/ui/menu';
 import { useRuleStore } from '@/entities/rule';
-import { openNewRule, openRuleEditor, RULE_SEEDS } from '@/features/edit-rule';
-import { blockRequest, removeCspFrom } from '@/features/quick-rule';
-import { setRuleEnabled } from '@/features/toggle-rule';
+import { openNewRule, openRuleEditor, RULE_SEEDS } from '@/features/rule/edit';
+import { blockRequest, removeCspFrom } from '@/features/rule/quick-actions';
+import { setRuleEnabled } from '@/features/rule/toggle';
 
 /** A file row's rule actions: unblock or block it, drop a document's CSP, or change its headers. */
 export function ruleMenuItems(entry: ResourceEntry): MenuItem[] {

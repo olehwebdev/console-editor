@@ -8,6 +8,7 @@ import type { PageController } from '../../src/main/PageController';
 import { OverrideStore } from '../../src/main/store/OverrideStore';
 import { RuleStore } from '../../src/main/store/RuleStore';
 import { SessionStore } from '../../src/main/store/SessionStore';
+import type { WriteQueue } from '../../src/main/store/WriteQueue';
 import { WorkspaceController } from '../../src/main/WorkspaceController';
 import type { AppEvent } from '../../src/shared/types';
 
@@ -59,6 +60,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.useRealTimers();
+  // A settled title or favicon is written without being awaited: let those writes finish before their folder goes.
+  await (session as unknown as { writes: WriteQueue }).writes.idle();
   await rm(dir, { recursive: true, force: true });
 });
 
