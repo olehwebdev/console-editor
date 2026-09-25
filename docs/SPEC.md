@@ -34,6 +34,8 @@ A desktop app where you enter a website's URL, see every script, stylesheet and 
 | U14 | Use my own Chrome (existing profile, extensions) instead of the embedded browser | 🔜 M3 |
 | U15 | Browse original sources from source maps (read-only) and jump to the matching bundle code | 🔜 M4 |
 | U16 | I keep a workspace per site or task (its page, tabs, unsaved edits and overrides) and switch between them from the rail, which shows each one's favicon or a colour I pick | ✅ (§5.1) |
+| U17 | I block a request (an analytics script, a slow third-party iframe) from the file tree, and the page reloads without it | ✅ (§6.3) |
+| U18 | I change a response's headers (remove a CSP or X-Frame-Options, set Cache-Control), or let a page call an API cross-origin, without touching the server | ✅ (§6.3) |
 
 ## 3. Architecture
 
@@ -49,7 +51,7 @@ flowchart LR
     IPC["ipc/ (sender-checked handlers)"]
     PC["PageController"]
     Engine["PageInterception → one InterceptionEngine per CDP session"]
-    Store["OverrideStore / SettingsStore"]
+    Store["OverrideStore / RuleStore / SettingsStore"]
   end
   subgraph View["WebContentsView (the website)"]
     Site["Target page (no preload, sandboxed)"]
@@ -66,7 +68,7 @@ flowchart LR
 
 **Why these choices**
 - **Electron.** Ships its own Chromium, so interception works the same on every machine and needs neither a certificate nor DevTools to be open. The embedded view is a `WebContentsView` placed next to the editor.
-- **CDP `Fetch` domain at the *response* stage.** Keeps the real upstream headers (CORS, cookies, CSP) and lets us hash the upstream body to detect redeploys. The `Request` stage would skip the network but would have to invent headers.
+- **CDP `Fetch` domain at the *response* stage.** Keeps the real upstream headers (CORS, cookies, CSP) and lets us hash the upstream body to detect redeploys. The `Request` stage would skip the network but would have to invent headers; only block rules use it, since a blocked request should never reach the server.
 - **Transport-agnostic engine.** `InterceptionEngine` talks only to `CdpTransport { send, on }`. There are adapters for Electron's debugger (app) and Playwright's CDP session (tests); an external-Chrome WebSocket adapter is M3.
 - **Monaco.** It is VS Code's editor: syntax highlighting, find/replace, multi-cursor, minimap and a diff editor, running in-process with no language server needed.
 - **React 19 + Zustand + Tailwind v4 + Motion.** The UI outgrew hand-written DOM code once it gained a command palette, context menus, virtualized trees and animated panels. Zustand keeps state outside React (the app event bridge writes to it without a component tree) and lets each component subscribe to exactly the slice it renders. The design system (tokens, motion rules, components) is in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md).
@@ -78,7 +80,8 @@ flowchart LR
 src/
   shared/            types.ts (IPC + data model), constants.ts (gallery hash, env var names),
                      ipcChannels.ts (the IPC channel of each API method, for main and preload),
-                     matcher/ (URL matching), minified/, version/ (semver comparison),
+                     matcher/ (URL matching), rules/ (rule validation, shared by the form and the store),
+                     minified/, version/ (semver comparison),
                      changelog/ (CHANGELOG.md sections)
   main/
     index.ts         app bootstrap: data folder, Chromium switches, single-instance lock
@@ -91,10 +94,11 @@ src/
     favicon/         a page's favicon as a small data URL (sniffed, size-capped)
     electronTransport.ts  webContents.debugger → CdpTransport
     engine/          PageInterception/ (one engine per CDP session: page + iframes),
-                     InterceptionEngine/, transform/ (SRI/source maps/headers),
+                     InterceptionEngine/, rules/ (block, header and CORS rules: matching and header edits),
+                     transform/ (SRI/source maps/headers),
                      cdp/ (transport interface), websocketTransport/ (browser-level CDP, used by tests),
                      constants.ts (CDP command and event names, HTTP status classes)
-    store/           OverrideStore.ts, SettingsStore.ts, SessionStore.ts, writeAtomic.ts and their helpers
+    store/           OverrideStore.ts, RuleStore.ts, SettingsStore.ts, SessionStore.ts, writeAtomic.ts and their helpers
     update/          UpdateService/ (checks, downloads, installs: §10.1), electronInstaller/ (electron-updater),
                      updateEndpoints.ts (GitHub, or a local update server in tests)
     sitePermissions/ permission policy for the site view
@@ -108,18 +112,23 @@ src/
     widgets/         title-bar, activity-bar, explorer, editor-panel, page-preview, status-bar, settings-panel, command-palette
     features/        open-resource, save-override, format-document, compare-changes, toggle/delete-override,
                      edit-match-rule, navigate-page, filter-resources, update-settings, close-tab,
-                     update-app (notifications, the What's New page, the status-bar entry), edit-workspace
-    entities/        page, settings, override, editor-tab (+ Monaco model registry, page tabs), resource,
-                     app-update (updater state, the bundled CHANGELOG.md), workspace (+ its rail tile)
+                     update-app (notifications, the What's New page, the status-bar entry), edit-workspace,
+                     quick-rule (block / remove CSP in one click), edit-rule (rule pages and their form),
+                     toggle-rule, delete-rule
+    entities/        page, settings, override, editor-tab (+ Monaco model registry, page tabs and their drafts),
+                     resource, app-update (updater state, the bundled CHANGELOG.md), workspace (+ its rail tile),
+                     rule (+ hit counts and recent requests, header presets)
     shared/          api (preload bridge), ui (design system), monaco, lib (format worker, overlays, motion), config
 test/
-  unit/              matcher, transform, store, engine and PageInterception (fake CDP), minified heuristic
-  renderer/          resource tree building, palette fuzzy matching
-  integration/       engine and iframe sessions against real Chromium + fixture site
+  unit/              matcher, transform, stores, rule validation and matching, engine and PageInterception (fake CDP),
+                     minified heuristic
+  renderer/          resource tree building, palette fuzzy matching, session, workspaces, rules
+  integration/       engine, rules and iframe sessions against real Chromium + fixture site
   e2e/               the built Electron app driven by Playwright
   smoke/packaged.ts  a packaged build (installed app) driven over the remote debugging port
   smoke/update.ts    an installed app updated to a newer build from a local stand-in for GitHub
-  fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps, iframes
+  fixtures/site.ts   fixture site: gzip, SRI (static + runtime), hashed names, source maps, iframes,
+                     and pages for rules (headersPages.ts: tracking scripts, a CSP, a cross-origin API)
   helpers/           Chromium launcher with the app's flags, WebSocket CDP harness
 build/               app icon (icon.png 1024 px original, icon.icns macOS, icon.ico Windows, icons/ Linux sizes),
                      macOS entitlements, NSIS hooks (electron-builder's build resources)
@@ -166,12 +175,26 @@ interface SessionState {  // what a workspace reopens (the active one's: on star
   activeTabId: string | null;
 }
 // Each override belongs to one workspace (`workspaceId` in overrides.json).
+
+type Rule = {             // a workspace's way of blocking requests or changing their headers: see §6.3
+  id: string;             // 8 hex chars
+  match: UrlMatcher;      // as an override's
+  resourceTypes: ('Document' | 'Stylesheet' | 'Script' | 'Image' | 'Font' | 'Media' | 'XHR' | 'Ping' | 'Other')[];  // [] = every type
+  enabled: boolean;
+  createdAt: number; updatedAt: number;
+} & (
+  | { action: 'block' }                  // fails the request before it is sent
+  | { action: 'headers'; headers: { operation: 'set' | 'remove'; name: string; value: string }[] }  // 1–32, in order
+  | { action: 'cors' }                   // lets the page read the response cross-origin
+);
+// Each rule belongs to one workspace (`workspaceId` in rules.json); at most 200 per workspace.
 ```
 
 **Storage** (`<userData>/workspace/`, written atomically via temp file + rename, one write at a time):
 
 ```
 overrides.json          { version: 1, overrides: (OverrideMeta & { workspaceId })[] }   // metadata only
+rules.json              { version: 1, rules: (Rule & { workspaceId })[] }
 files/<id>.<js|css|html>        served content
 files/<id>.base.<js|css|html>   diff base (only when it differs from the content)
 settings.json (in <userData>)   Settings
@@ -181,26 +204,28 @@ session/drafts/<tab>.txt        unsaved text of a tab (tab ids are unique across
 session/drafts/<tab>.base.txt   what that tab's editing started from (tabs not yet saved as overrides)
 ```
 
-A version 1 `session.json` (one page and its tabs) becomes the first workspace, and overrides saved before workspaces existed (or whose workspace is gone) are given to the active one at start.
+A version 1 `session.json` (one page and its tabs) becomes the first workspace, and overrides and rules saved before workspaces existed (or whose workspace is gone) are given to the active one at start.
+
+**Rules on disk.** `RuleStore` writes a change to disk before it reaches memory (and so the engine); a failed write leaves the rules as they were. Entries this build can't read (a newer version's action or request type, a hand edit) are neither listed nor applied, and are written back as they were. A `rules.json` that isn't JSON of the right shape is moved to `rules.json.broken` and the app starts with no rules; one that can't be read, or moved aside, is left alone and every change is refused, so it is never written over. Either way the window says so once it opens.
 
 **Session restore.** The main process remembers the page URL on every main-frame navigation, for the active workspace. The renderer writes the tab list 300 ms after it changes and a tab's draft 800 ms after typing pauses (the base once per tab); a draft is deleted when its tab is saved, undone back to the saved text, or closed. Closing the window runs a handshake: main sends `flush-session`, the renderer writes whatever is pending and answers `sessionFlushed(ok)`, and only then does the window close (after 5 s, or if a write failed, it asks before closing). On start, the app loads the last URL (a URL on the command line wins), then reopens each tab: an override from the store, a tab with a draft entirely from disk (no network), any other tab by fetching the file again; drafts are applied as one undoable edit, so the tab shows as unsaved and undo reveals the saved text. Tab ids are unique across runs because they name the drafts. Session syncing starts only after restoring, so a fresh start never overwrites the session being restored. Each sync run is bound to one workspace: tab lists are written with its id, and one that arrives for a deleted workspace is ignored.
 
 ### 5.1 Workspaces
 
-A workspace is a saved workflow: a page (URL, title and favicon), the tabs open on it with their drafts, and its own overrides. Exactly one is active: its page is shown, its overrides are the ones the engine serves (`OverrideStore.list()`) and the Explorer lists, and new overrides are created in it. `get`/`update`/`remove` still reach any override, so a save still running when the workspace changes lands where it began.
+A workspace is a saved workflow: a page (URL, title and favicon), the tabs open on it with their drafts, and its own overrides and rules. Exactly one is active: its page is shown, its overrides and rules are the ones the engine applies (`OverrideStore.list()`, `RuleStore.list()`) and the Explorer lists, and new ones are created in it. `get`/`update`/`remove` still reach any override or rule, so a save still running when the workspace changes lands where it began, and the renderer doesn't write its result into the workspace shown since.
 
 **Switching** (a rail tile, or the palette) runs one at a time:
-1. Renderer: wait for running saves, write what is pending (as on close, and again while edits typed meanwhile keep coming in; if a write failed, ask before going on), then, in the same task, stop the session sync and close the file tabs without deleting their drafts. Pages (What's New) stay open.
-2. Main (`WorkspaceController.switchTo`): load `about:blank` and clear the history, so nothing the old page does from then on (an in-page navigation, a title, a favicon) is taken for the next workspace's; make the workspace active (in memory at once, so a failed write is reported without leaving the switch half done); point the engine at its overrides (`Fetch` patterns recomputed, `overrides-changed` sent); send `workspaces-changed`; load its last page, clearing the history again once it has loaded, so Back never leads into another workspace's pages.
-3. Renderer: reload the workspaces and overrides, reopen the tabs of whichever workspace is now active (the old one again, if switching failed) the way a start does, and sync again (not if the tabs couldn't be reopened: the next change would write over them).
+1. Renderer: if a rule page holds unapplied edits, ask first (rule pages aren't kept on disk). Wait for running saves, write what is pending (as on close, and again while edits typed meanwhile keep coming in; if a write failed, ask before going on), then, in the same task, stop the session sync and close the file tabs without deleting their drafts, and the rule pages. App pages (What's New) stay open.
+2. Main (`WorkspaceController.switchTo`): load `about:blank` and clear the history, so nothing the old page does from then on (an in-page navigation, a title, a favicon) is taken for the next workspace's; make the workspace active (in memory at once, so a failed write is reported without leaving the switch half done); point the engine at its overrides and rules (`Fetch` patterns recomputed, `overrides-changed` and `rules-changed` sent); send `workspaces-changed`; load its last page, clearing the history again once it has loaded, so Back never leads into another workspace's pages.
+3. Renderer: reload the workspaces, overrides and rules, reopen the tabs of whichever workspace is now active (the old one again, if switching failed) the way a start does, and sync again (not if the tabs couldn't be reopened: the next change would write over them).
 
 **Favicons.** On `page-favicon-updated` (the page's `<link rel="icon">`s, or `/favicon.ico`), the candidates are fetched in turn through the site's session (up to 256 KB each), recognised by their bytes (PNG, JPEG, GIF, ICO, WebP, SVG; anything else, such as an HTML error page, is skipped), and kept as a data URL: PNG and JPEG scaled down to 32 px, other types kept as they are up to 64 KB. The icon is kept for the workspace active when the page reported it, and only if that workspace is still on the same site once it has loaded; moving a workspace to another site drops its old icon. Icons travel in their own `workspace-favicon` event, so renaming (sent on every keystroke) or a new page title stays small. A title is recorded once it has stayed for a second, as some pages keep changing theirs.
 
-**Creating** adds an empty workspace (in the first colour no other has) and switches to it, with the address bar focused; if the switch doesn't happen, the new workspace is removed again. **Deleting** asks first and removes the workspace's overrides (first: were the workspace to go first and this fail, the next start would hand them to another), then the workspace with its drafts and favicon; the active one hands over to its neighbour first, and the last one can't be deleted. The site's cookies and logins (`persist:site`) are shared by all workspaces.
+**Creating** adds an empty workspace (in the first colour no other has) and switches to it, with the address bar focused; if the switch doesn't happen, the new workspace is removed again. **Deleting** asks first and removes the workspace's overrides and rules (first: were the workspace to go first and this fail, the next start would hand them to another), then the workspace with its drafts and favicon; the active one hands over to its neighbour first, and the last one can't be deleted. The site's cookies and logins (`persist:site`) are shared by all workspaces.
 
 `CONSOLE_EDITOR_USER_DATA` overrides `<userData>` (used by tests; handy for throwaway profiles).
 
-**Settings** (all booleans; defaults in brackets): reload page on save [on] · pretty-print minified files on open [on] · strip SRI [on] · strip source maps from overrides [on] · disable HTTP cache [on] · bypass service workers [on] · bypass CSP [off].
+**Settings** (all booleans; defaults in brackets): reload page after changes (saving an override; adding, changing, turning on or off, or deleting an override or a rule) [on] · pretty-print minified files on open [on] · strip SRI [on] · strip source maps from overrides [on] · disable HTTP cache [on] · bypass service workers [on] · bypass CSP [off].
 
 ## 6. Interception engine
 
@@ -212,23 +237,37 @@ A workspace is a saved workflow: a page (URL, title and favicon), the tabs open 
 5. Navigation waits for attach to finish, so the first load is never missed.
 
 ### 6.2 Which requests get paused
-Only requests that could need a change are paused (`requestStage: 'Response'`):
-- each enabled **exact/glob** override → a precise CDP URL pattern (CDP wildcards `*`/`?` escaped in literal parts; trailing `*` when ignoring the query);
+Only requests that could need a change are paused:
+- each enabled **exact/glob** override → a precise CDP URL pattern (CDP wildcards `*`/`?` escaped in literal parts; trailing `*` when ignoring the query), at the `Response` stage;
 - each enabled **regex** override → `*` restricted to the override's resource type;
-- if SRI stripping is on and any script/stylesheet override is enabled → every `Document`.
+- if SRI stripping is on and any script/stylesheet override is enabled → every `Document`;
+- each enabled **rule** → its URL pattern (a regex: `*`) at its action's stage: `Request` for block rules, `Response` for header and CORS rules. Never with a resource type: CDP's type filter names differ between Chromium versions and some types can't be filtered on, so a rule's types are checked in the handler, where they can't disagree with the pattern. A URL both blocked and overridden keeps both patterns (the stage is part of the dedupe key).
 
-Patterns are recomputed whenever overrides are created, deleted, enabled/disabled or re-matched. Content-only saves don't touch patterns (content is read at request time).
+Patterns are recomputed whenever overrides or rules are created, deleted, enabled/disabled or re-matched. Content-only saves, and rule edits that only change header edits or request types, don't touch patterns (both are read at request time).
 
 ### 6.3 On `Fetch.requestPaused`
-1. Find the override for the URL: exact beats glob beats regex, then the most recently updated wins.
+The stage is told apart by the pause itself (a response status or error means the `Response` stage).
+
+**Request stage** (block rules only; overrides are never consulted, so a URL both blocked and overridden stays blocked): the oldest enabled block rule whose pattern and request types match fails the request with `BlockedByClient`, before anything is sent. The top-level page's own document is never blocked (the page would be gone, with it the way to turn the rule off); iframe documents are. A blocked script, stylesheet or document never gets `Network.responseReceived`, so the engine lists it itself (`ResourceEntry.blockedBy`, status 0) and it stays in the tree; opening it fetches the file outside the page. Each block emits `rule-applied`. An enabled block rule whose file arrived anyway (it was in flight before the rule) emits `rule-missed` once per rule and URL until the next navigation, and the UI offers a reload.
+
+**Response stage:**
+1. Find the override for the URL: exact beats glob beats regex, then the most recently updated wins. A CORS preflight (OPTIONS with `Access-Control-Request-Method`) is never answered by an override. Find the enabled header and CORS rules that match (URL and request type); they apply oldest first, on top of whatever body is served, and each that changed something emits `rule-applied`.
 2. **Override found and the upstream response is not a redirect** (3xx + `Location`):
    - if the override has `originalHash` and upstream was 2xx: read the upstream body (`Fetch.getResponseBody`), decode it (base64 → bytes → `charset` from `Content-Type`, UTF-8 fallback), hash it, and emit `upstream-changed` if it differs;
    - body = override content; Documents get SRI stripped (if on); Scripts/Stylesheets get `sourceMappingURL` comments removed (if on);
    - headers = upstream headers **minus** `Content-Encoding`, `Content-Length`, `Transfer-Encoding`, digests, `ETag`, `Last-Modified`, `Cache-Control`/`Expires`/`Pragma` (and `SourceMap`/`X-SourceMap` when stripping), **plus** `Content-Type: <upstream type or default>; charset=utf-8` and `Cache-Control: no-store`;
+   - rules edit the headers last, so a rule's `Cache-Control` beats the forced `no-store`;
    - `Fetch.fulfillRequest` with status **200**. This also answers 404/5xx/network errors, so you can patch files that are missing or while the server is down;
    - remember `networkId → overrideId` so the resource list can mark the file "served from override"; emit `override-served`.
-3. **Document with SRI stripping on** (2xx HTML): read the body; if it has `integrity` attributes on `<script>`/`<link>`, fulfill with them removed (original status, headers minus body-specific ones).
-4. Otherwise `Fetch.continueRequest`. Any error → emit `error` and continue the request, so a bug in the engine never hangs the page.
+3. **HTML document with SRI stripping on, or whose headers rules change**: a document enforces the CSP, `X-Frame-Options` and `Content-Type` it arrived with, and `Fetch.continueResponse` can't change those (probed: Chromium ignores them), so the document is re-served with `Fetch.fulfillRequest`. The rules' result is worked out first, so a document nothing changes is never read. One body read: `integrity` attributes on `<script>`/`<link>` are removed if stripping, and the original status, the headers minus body-specific ones, then the rules' edits. If the body can't be read, the other header edits still go through step 4 and the user is told that CSP, `X-Frame-Options` and `Content-Type` stay as the server sent them.
+4. **Rules change the headers** of any other response: `Fetch.continueResponse` with the full new header list and the status, the body streaming through untouched.
+5. Otherwise `Fetch.continueRequest`. Any error → emit `error` and continue the request, so a bug in the engine never hangs the page.
+
+**Header rules** apply their edits in order: `set` replaces every header of that name (matched in any case) with one, spelled as given; `remove` drops them all. Headers the app frames itself (`Content-Encoding`, `Content-Length`, `Transfer-Encoding`) and ones a rule can't really change (`Set-Cookie`, stored before a rule runs; `Location`, followed by Chromium whatever the header says) are refused when the rule is written. Names are RFC 9110 tokens, values can't hold line breaks.
+
+**CORS rules** replace upstream's CORS headers: the requesting origin (from `Origin`, else the requesting frame's) is allowed with credentials, since a credentialed request refuses `*`, and every header the page couldn't otherwise read is exposed. A preflight is allowed the method and headers it asked for, with `Access-Control-Max-Age: 0` so turning the rule off takes effect at once, and a refused one (404, 405) becomes a 204, since a failed preflight fails whatever headers it carries. Documents are never CORS-checked, so CORS rules skip them.
+
+**Request types.** A rule's types are the names CDP's `Fetch` domain reports; `XHR` also covers `Fetch`, `Preflight`, `Prefetch` and `EventSource` (reported under either name depending on the Chromium build), `Media` covers `TextTrack`, and `Other` everything the list doesn't name.
 
 ### 6.4 Runtime SRI guard
 Injected before page scripts when SRI stripping is on. It makes the `integrity` property on `HTMLScriptElement`/`HTMLLinkElement` a no-op and drops `setAttribute('integrity', …)` on those elements. This covers loaders that set integrity on lazily created tags.
@@ -251,22 +290,22 @@ With site isolation, a cross-site iframe runs in its own renderer process and is
 | A document served via `Fetch.fulfillRequest` has no IP address space, so Chromium's Local Network Access checks treat it as public and block its requests to loopback/intranet hosts | The app disables those checks for its browser (`src/main/chromiumFlags/`) |
 | With the `RenderDocument` feature disabled (Playwright's Electron launcher does this), Electron 44 crashes (SIGSEGV) when a page with out-of-process iframe sessions reloads | `withDisabledFeatures` (`chromiumFlags/`) keeps it enabled whatever else is passed in `--disable-features` |
 
-Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session; workers are excluded for now (M2).
+Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session; workers are excluded for now (M2). Rules apply in every session the same way; an iframe's document pauses on its parent's session, so blocking an iframe happens there.
 
 **Events:** resources from cross-site iframes carry `iframeId`; `navigated` with an `iframeId` means that iframe loaded a new document (drop its entries), `iframe-detached` means the session went away (drop its entries and its descendants').
 
 ### 6.6 Resource list
-- `Network.responseReceived` with type Document/Script/Stylesheet (not `data:`/`blob:`/internal URLs) → entry `{ url, kind, mimeType, status, overrideId?, frame?, iframeId? }`. `frame` (URL and depth) marks files loaded inside an iframe; an iframe's own document is labelled with its new URL.
+- `Network.responseReceived` with type Document/Script/Stylesheet (not `data:`/`blob:`/internal URLs) → entry `{ url, kind, mimeType, status, overrideId?, blockedBy?, frame?, iframeId? }`; blocked files are listed from the pause instead (§6.3). `frame` (URL and depth) marks files loaded inside an iframe; an iframe's own document is labelled with its new URL.
 - **Navigations reset the list when they commit, not when they start.** A main-frame document request (`requestId === loaderId`) only marks a navigation as pending. Until `Page.frameNavigated` commits it, late responses of the old page are not listed, and the new document's own response is held. On commit the list is cleared, `navigated` is emitted, then the held document is listed. A navigation that never commits (a download, a 204, a cancelled load: `Page.frameStoppedLoading` with nothing committed) leaves the list as it was. A commit without a request (back/forward cache, `about:blank`) resets the list too. Each iframe session applies the same rules to its own root frame and tags its `navigated` event with its `iframeId`.
 - **Missed overrides:** an enabled override whose URL arrived without being served (it was enabled after the request, or an iframe loaded it on no session, §6.5) emits `override-missed` once per override and URL until the next navigation; the UI offers "Reload page".
-- **Content for the editor:** for files served from an override, re-fetch upstream out-of-page (session cookies included) so the edited copy is never mistaken for the original. Otherwise try `Network.getResponseBody`, then `Page.getResourceContent`, then the out-of-page fetch. The result carries a sha256 hash (becomes `originalHash`).
+- **Content for the editor:** for files served from an override, or blocked, re-fetch upstream out-of-page (session cookies included) so the edited copy is never mistaken for the original. Otherwise try `Network.getResponseBody`, then `Page.getResourceContent`, then the out-of-page fetch. The result carries a sha256 hash (becomes `originalHash`).
 
 ## 7. Editor behaviour
 
 | Action | Behaviour |
 |---|---|
 | Open a resource | If an override matches the URL, open the override instead. Otherwise fetch the live content, pretty-print it if it looks minified (longest line > 1000 chars or average > 150), and open it as an unsaved tab marked "Live file · not overridden" |
-| Save (Ctrl/Cmd+S, or **Create override**) | New tab → `createOverride({ content, base, originalHash })`. Override tab → `updateOverride({ content })` when dirty. A save requested while one runs is queued once and sends the latest text when the first finishes. Then reload the page if that setting is on |
+| Save (Ctrl/Cmd+S, or **Create override**) | New tab → `createOverride({ content, base, originalHash })`. Override tab → `updateOverride({ content })` when dirty. A save requested while one runs is queued once and sends the latest text when the first finishes. Then reload the page if that setting is on. On a rule page, Ctrl/Cmd+S applies it (or creates the rule) |
 | Pretty-print (Shift+Alt+F) | js-beautify in a Web Worker; one undoable edit |
 | Diff (Ctrl/Cmd+Shift+D) | Monaco diff: base (left, read-only) vs. current (right, editable) |
 | Compare live | Fetch today's live file (pretty-printed if minified) and diff it against the override |
@@ -277,8 +316,10 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 | Layout | Sidebar and preview are fitted to the window (the editor keeps at least 240 px; panel minimums give way below that, e.g. when zoomed in). Hiding the preview takes the native page view out of the window with it. Visibility and sizes are saved on every change |
 | Large files | Scripts, stylesheets and HTML over 1 M characters open in a lite mode: syntax colouring only (Monarch grammars, no language service or validation, folding, minimap or bracket colourization), shown as "Large file" |
 | Focus | Opening or switching tabs focuses the editor; closing a tab from the keyboard, typing in a field or arrowing through the Explorer never has focus pulled into the code |
+| Rules | The Explorer's **Rules** section lists the workspace's rules, oldest first: what each does, its pattern, a switch, and how often it applied this session. **+** starts a rule of each kind (Block requests, Change response headers, Allow cross-origin requests); right-click to edit, turn on or off, copy the pattern or delete (asked first). A file's context menu blocks it (by its exact URL, any query) or its iframe, removes a document's Content-Security-Policy, or starts a header rule for it, all but the last in one click with an Undo in the toast; a blocked file stays in the tree, struck through, and offers to unblock it (turning its rule off) or open its rule. The page's own document can't be blocked. The palette lists rules (open, turn on or off) and the new-rule actions |
+| Rule pages | A rule opens as a page tab, one per rule: the URL matcher (as an override's), request types, and the action's fields (header changes in order, with name suggestions and presets: remove CSP, allow framing, `Cache-Control: no-store`), notes on what the rule as written can't do (a regex pauses every request; the page itself is never blocked; the HTTP cache keeps the server's headers; CSP in a `<meta>` tag isn't a header; CORS needs a CORS rule), and the last 20 URLs it applied to. Edits are a draft on the tab until **Apply** (Enter, Ctrl/Cmd+S): invalid input isn't sent, only the changed fields are, and what is typed while it runs stays as a draft. A draft survives switching tabs but not a restart, so closing its tab, switching workspaces or quitting asks first. A new rule's page has **Create** instead and becomes the rule's page. Rules apply from the next request, so the page reloads after a change if that setting is on |
 | Workspaces | The rail lists them below Explorer and Search: a tile each (site favicon or the name's first letter, on the workspace's colour), the active one marked, + to add one. Clicking another tile switches to it (§5.1); clicking the active one opens a popover to rename it and pick its icon and colour, applied as you change them; right-click for the same, or to delete it. The tooltip shows the name and the page title. The palette lists them too |
-| Close with unsaved edits | Closing a tab asks first. Closing the app keeps every unsaved edit as a draft and reopens it next time, with the tabs and the last page (see §5, Session restore) |
+| Close with unsaved edits | Closing a tab asks first. Closing the app keeps every unsaved edit as a draft and reopens it next time, with the tabs and the last page (see §5, Session restore); unapplied rule edits aren't kept, so it asks first when there are some |
 | Menu | App menu replaces Electron's default, so Ctrl/Cmd+R reloads **the site**, not the editor. Undo/redo/select-all are routed to Monaco. Page DevTools: Ctrl/Cmd+Shift+J; editor DevTools: Ctrl/Cmd+Alt+I. Ctrl/Cmd+B toggles the sidebar |
 
 ## 8. Security
@@ -292,7 +333,8 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 - Packaged builds flip Electron's fuses: `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and the `--inspect` switches are ignored, the app loads only from its `app.asar`, whose integrity is checked on macOS and Windows, and the site view's cookies are encrypted with the OS keystore (not yet on macOS: an ad-hoc signed app would be asked for the Keychain password after every update). `file://` keeps its extra privileges because the editor UI and its module workers load from it.
 - Packaged builds drop `--remote-debugging-port`/`--remote-debugging-pipe` when the data folder is the default one (compared after resolving links, so pointing `CONSOLE_EDITOR_USER_DATA` at it doesn't count as another), as Chrome does for its default profile: otherwise any local program could start the app with a port and read the site view's logins.
 - One instance per data folder (`app.requestSingleInstanceLock`), so two processes never write the same overrides and session files. A second launch hands its URL to the running window and exits; if the first is still starting, that URL replaces the one it was about to open. On macOS, where Finder and `open` reopen the running app instead of starting a second process, the app also takes URLs from `open-url` the same way (following Electron's documentation; not yet checked on a Mac). Runs from source use a separate `… (dev)` data folder, so they never share one with an installed copy.
-- IPC inputs are type-checked; matchers are validated before storage; settings are filtered to known boolean keys.
+- IPC inputs are type-checked; matchers and rules are validated before storage (the same checks the form runs: header names are tokens, values hold no line breaks, protected headers are refused, at most 32 header changes and 200 rules per workspace); settings are filtered to known boolean keys.
+- Rules change only what the app's own browser sees. A CORS rule makes an API readable by the page shown, credentials included, which is what it is for; it can't change what the server allows, and cookies still follow the browser's rules.
 - The site sees a standard Chrome user agent (Electron tokens removed).
 - All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open and for the page's favicon (from the site shown, through its session; kept only if its bytes are an image, and shown as an `<img>` data URL, where SVG can't run scripts), the only network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
 - Updates are verified before they are installed: electron-updater checks the SHA-512 in the release's `latest*.yml`, and manual downloads are checked against the release's `SHA256SUMS.txt` before they are kept. Both come from the same GitHub release, so this guards against damaged downloads, not a compromised release; signed builds would add that (§11). Release notes are Markdown rendered with `marked` and sanitized with DOMPurify (no images, styles, forms or frames), and their links open in the default browser (http and https only). `CONSOLE_EDITOR_UPDATE_FEED` (a local update server, for tests) is honoured only with a data folder of its own, like the debugging port.
@@ -301,11 +343,11 @@ Auto-attach uses `filter: [{type: 'iframe'}, {exclude: true}]` on every session;
 
 | Layer | What | Command |
 |---|---|---|
-| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion), favicon loading (recognising images, size caps) | `npm test` |
-| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened) | `npm test` |
+| Unit | Matchers, header/SRI/source-map transforms, stores (persistence, atomic concurrent writes), engine logic and navigation rules with a fake CDP transport, iframe session coordination (timeouts, sessions that go away, cascading detach), minified heuristic, version comparison, CHANGELOG parsing (and that CHANGELOG.md covers `package.json`'s version), the update service with fakes (checks, quiet failures, progress, checksums, install failures, schedule), workspaces in the stores (migration, per-workspace tabs, drafts and overrides, deletion), favicon loading (recognising images, size caps), rules (validation, the store's persistence, entries it can't read, broken and unreadable files, the engine's stages, header edits, CORS and preflights, request types, patterns) | `npm test` |
+| Renderer | Resource tree building and filtering, command-palette fuzzy matching, update notifications, What's New and page tabs, session sync and workspace switching (pending drafts written, tabs closed without losing them, the other workspace's reopened), rules (quick rules and Undo, toggling with rollback, rule pages and their drafts, applying only what changed, results that arrive after a switch, hits and recent requests) | `npm test` |
 | Architecture | Feature-Sliced Design layer rules | `npm run lint:fsd` |
-| Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
-| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart). Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
+| Integration | Engine in real Chromium against the fixture site: gzip, static and runtime SRI, globs, CSS/HTML overrides, 404, redeploy detection, source maps, disable. Iframes through the session-aware WebSocket transport (`test/helpers/chromium.ts`): same-site, cross-site and nested iframes, SRI inside iframes, iframe HTML overrides, same-site navigation, removal, reload; each asserts the iframe really is a separate target. Rules (`rules.chromium.test.ts`): blocking before the server sees the request (a script, one inside a cross-site iframe, an iframe's document, a redirect's later hop), a URL both blocked and overridden, the page itself never blocked; a gzipped document's CSP removed and another's added, X-Frame-Options removed so a page can be framed, a document no rule changes never read, Cache-Control and Content-Type on streamed responses, headers back once a rule is off; CORS with credentials, a preflight the API refuses, redirects | `npm test` (skips if no Chromium; `npx playwright install chromium`) |
+| End-to-end | Built Electron app driven by Playwright: open site, edit, save, page runs it, disable/enable, edit files inside a cross-site and a nested iframe, persistence across restart, a second launch handing over its URL, workspaces (a new one starts empty and doesn't serve another's overrides, takes its site's favicon, switching back restores the page, tabs and overrides with no history from the other, renaming, all of it across a restart). Rules: block a script from the file tree, turn it off and on, undo a quick rule, remove a page's CSP, allow CORS for an API with a preflight, keep an unapplied edit on its tab and apply it from File › Save, rules per workspace, delete, and blocking from the first load after a restart. Updates against a local feed: the automatic announcement, What's New with the release's notes, a download refused for its checksum and then accepted | `npm run test:e2e` (on headless Linux: `xvfb-run npm run test:e2e`) |
 | Packaged | The installed app (asar, fuses, signature) fixes the demo store's checkout through the UI, driven over `--remote-debugging-port` since the fuses disable Node's inspector. The release workflow runs it on six runners, one per architecture: macOS (from the disk image), Windows (after a silent install; the x64 runner also checks that the ARM installer refuses it) and Linux (from the installed `.deb`, with Ubuntu's user-namespace restriction left on) | `npm run test:packaged -- <app>` |
 | Update | An installed app updates itself to a build one patch higher, served by a local stand-in for GitHub: the notification, What's New, the download, **Restart to update**, the restarted app running the new version (and What's New after it). The release workflow runs it for the Windows installers (then uninstalls, checking the updater's cache goes too) and the AppImages on their four runners. The `.deb` path (as root, through `sudo`, and with the password refused) and the AppImage installing on quit were checked by hand | `npm run test:update -- <app> <newer dist>` |
 
@@ -350,7 +392,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - Watch `workspace/files` for external edits (edit in VS Code, the app reloads the page), with an "Open in external editor" action.
 - ✅ Workspaces: a page, tabs and overrides per site or task (§5.1).
 - Export/import a workspace's overrides as a zip or JSON, so a teammate can reproduce your fix.
-- Response header overrides (CORS, CSP, cache) and request blocking (e.g. disable an analytics script).
+- ✅ Response header overrides (CORS, CSP, cache) and request blocking (e.g. disable an analytics script): rules (§6.3).
 - Search across all page resources (find which bundle defines a function).
 - Docked/undocked page view, and responsive device presets.
 
@@ -374,3 +416,5 @@ The package manager is asked rather than electron-builder's `resources/package-t
 | Self-verifying scripts detect edits | Out of scope; document it |
 | CDP behaviour changes between Chromium versions | Integration tests run the engine against real Chromium; pin and bump Electron deliberately |
 | Minified identifiers make edits hard to write | Pretty-print now; source-map explorer (M4) |
+| Header edits that CDP accepts but Chromium ignores (a document's CSP via `continueResponse`, `Set-Cookie`, `Location`) | Probed in integration tests: documents are re-served with `fulfillRequest`, and the headers that can't change are refused with the reason |
+| A broad rule pattern (a regex, `*`) pauses every request and slows the page | The form says so; exact and glob patterns pause only what they match |

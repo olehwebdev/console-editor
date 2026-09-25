@@ -8,16 +8,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - **Workspaces.** Keep one for each site or task you're working on, and switch between them from the left rail. Each has its own page, open tabs, unsaved edits and overrides, so a fix in progress on one never shows up in another, even on the same site. A workspace's tile shows the site's icon, or the first letter of its name on a colour you pick: click the current tile, or right-click any, to name it or change its icon. **+** adds a workspace, and the command palette switches between them too. Everything you had before is in the first one.
+- **Rules: block requests and change response headers.** Right-click a file in the Explorer to block it (an analytics script, a slow third-party iframe) or to remove a page's Content-Security-Policy, in one click with an Undo. Or add a rule from the new **Rules** section: block every request matching a URL pattern, set or remove response headers (with presets for CSP, framing and caching), or let the page call an API on another origin, preflights and cookies included. A blocked request never reaches the server, and the file stays in the tree, struck through. Each rule shows how often it applied and its recent requests, turns on and off with a switch, and belongs to its workspace. Edits on a rule's page stay on its tab until you apply them (**Apply**, Enter or Ctrl/⌘+S).
 - **Resize handles show a grip**: three dots in a small tab bulging out of the edges you can drag (the sidebar's and the website preview's), so it's clear which ones move. The tab lights up with the edge on hover, and you can grab it too.
 
 ### Changed
 
 - **A new app icon**, fitted to each system: it follows Apple's icon grid on the Mac, fills the frame on Windows, and comes in every size Linux desktops ask for.
 - **The website preview's toggle** in the title bar has its own icon, a browser window. It used to look like the sidebar's toggle.
+- **Reload page after changes** (formerly *Reload page on save*) also reloads after you add, change, turn on or off, or delete a rule. **File › Save** is now just *Save*, as it applies rules too.
 
 ### Fixed
 
 - **Hiding the website preview** now hides the site too. It used to stay on screen, drawn over the editor.
+- **An override whose pattern also matches an API's CORS preflight** no longer answers the preflight with the file.
 
 ## [0.2.0] - 2026-09-24
 

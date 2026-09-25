@@ -24,7 +24,7 @@ export const RULE_NOTE_CHECKS: readonly RuleNoteCheck[] = [
   {
     id: 'document-security',
     applies: (value) => editsName(value, DOCUMENT_SECURITY_HEADER_NAMES),
-    text: "Pages are re-served to apply this. A CSP in a <meta> tag isn't a header: Settings › Bypass CSP covers it.",
+    text: "Pages are re-served to apply this. A CSP in a <meta> tag isn't a header: Settings › Bypass Content-Security-Policy covers it.",
   },
   {
     id: 'allow-origin',
