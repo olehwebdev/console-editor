@@ -254,7 +254,11 @@ describe.skipIf(!built)('Console Editor app', () => {
     }, exported);
 
     await tiles().first().click();
+    await expect.poll(() => tiles().first().getAttribute('aria-current')).toBe('true');
     await expect.poll(() => overrideRows().count()).toBe(4);
+    // Once the switch has settled (its page loaded, its tabs back): a menu closes when the window blurs or its list scrolls.
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => win.locator('[role="tab"]').count()).toBeGreaterThan(0);
     await win.getByTestId('overrides-share').click();
     await menuItem('Export overrides and rules…').click();
     await expect.poll(async () => JSON.parse(await readFile(exported, 'utf8').catch(() => '{}')).overrides?.length).toBe(4);
