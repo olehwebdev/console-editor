@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-26
+
 Console Editor now shows how a site works, not just what it loaded. Pick any element to see the React, Vue, Angular or web component behind it, traced to its source file even in a production build, and record why components rendered and what the page's stores did. A new Network panel overrides API responses and pauses requests, rules block requests and change headers, and actions run code in any frame with one click.
 
 ### Added
@@ -87,7 +89,8 @@ The first release.
 - **Session restore:** closing keeps unsaved edits as drafts and reopens your tabs and the last page.
 - **Installers** for macOS (Apple silicon and Intel), Windows (x64 and ARM) and Linux (AppImage, `.deb`, `.rpm`, `.tar.gz`; x64 and arm64).
 
-[Unreleased]: https://github.com/olehwebdev/console-editor/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/olehwebdev/console-editor/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/olehwebdev/console-editor/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/olehwebdev/console-editor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/olehwebdev/console-editor/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/olehwebdev/console-editor/releases/tag/v0.1.0

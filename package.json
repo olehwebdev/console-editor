@@ -1,7 +1,7 @@
 {
   "name": "console-editor",
   "productName": "Console Editor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Desktop editor for live-patching the JS/CSS/HTML of any website (including cross-site iframes) without rebuilding it.",
   "keywords": [
