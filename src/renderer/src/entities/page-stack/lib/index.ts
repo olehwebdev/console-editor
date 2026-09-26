@@ -1,0 +1,1 @@
+export { sortHits } from './sortHits';

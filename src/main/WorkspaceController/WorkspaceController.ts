@@ -5,13 +5,14 @@ import type { ActionStore } from '../store/ActionStore';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
+import type { SourceMapFileStore } from '../store/SourceMapFileStore';
 import { PageFollower } from './PageFollower';
 
 /**
  * Workspaces: each has its own page, tabs (kept by the renderer through the
- * session store), overrides, rules and actions. Switching leaves the page,
- * makes the other workspace's overrides and rules the ones applied and its
- * actions the ones listed, and loads its last page.
+ * session store), overrides, rules, actions and source maps loaded from files.
+ * Switching leaves the page, makes the other workspace's overrides and rules the
+ * ones applied and its actions the ones listed, and loads its last page.
  */
 export class WorkspaceController {
   /** Switches and deletions run one at a time. */
@@ -25,6 +26,7 @@ export class WorkspaceController {
     private readonly rules: RuleStore,
     private readonly actions: ActionStore,
     private readonly send: (event: AppEvent) => void,
+    private readonly sourceMaps?: SourceMapFileStore,
   ) {
     this.follower = new PageFollower(page, session, send);
   }
@@ -42,6 +44,7 @@ export class WorkspaceController {
     this.store.setWorkspace(activeId);
     this.rules.setWorkspace(activeId);
     this.actions.setWorkspace(activeId);
+    this.sourceMaps?.setWorkspace(activeId);
   }
 
   /** Follows the page: remembers where the active workspace is, and its site's icon. */
@@ -83,6 +86,7 @@ export class WorkspaceController {
       // What it owns goes first: were the workspace to go first and a deletion fail, the next
       // start would hand its overrides and rules to another workspace.
       await this.actions.removeWorkspace(id as string);
+      await this.sourceMaps?.removeWorkspace(id as string);
       await this.store.removeWorkspace(id as string);
       await this.rules.removeWorkspace(id as string);
       await this.session.remove(id);
@@ -103,6 +107,7 @@ export class WorkspaceController {
       this.store.setWorkspace(this.session.activeId);
       this.rules.setWorkspace(this.session.activeId);
       this.actions.setWorkspace(this.session.activeId);
+      this.sourceMaps?.setWorkspace(this.session.activeId);
       // One pattern refresh reads both stores; the rules then only need their event.
       await this.page.overridesChanged();
       await this.page.rulesChanged(false);

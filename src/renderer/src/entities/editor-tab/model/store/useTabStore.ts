@@ -22,6 +22,7 @@ export const useTabStore = create<TabStore>()((set) => ({
       activeId: page.id,
       diff: 'off',
     })),
+  retitlePage: (id, title) => set((s) => (s.pages.some((p) => p.id === id && p.title !== title) ? { pages: s.pages.map((p) => (p.id === id ? { ...p, title } : p)) } : s)),
   activate: (id) => set((s) => (s.activeId === id ? s : { activeId: id, diff: 'off' })),
   remove: (id) =>
     set((s) => {
@@ -57,8 +58,8 @@ export const useTabStore = create<TabStore>()((set) => ({
   setPageDirty: (id, dirty) =>
     set((s) => {
       const page = s.pages.find((p) => p.id === id);
-      // What's New holds no edits; an unchanged flag keeps the store (and its subscribers) still.
-      if (!page || page.page === 'whats-new' || !!page.dirty === dirty) return s;
+      // Only rule pages hold edits; an unchanged flag keeps the store (and its subscribers) still.
+      if (!page || (page.page !== 'rule' && page.page !== 'new-rule') || !!page.dirty === dirty) return s;
       return { pages: s.pages.map((p) => (p === page ? { ...page, dirty } : p)) };
     }),
   setDiff: (diff) => set({ diff }),

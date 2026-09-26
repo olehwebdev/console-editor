@@ -10,6 +10,7 @@ export const SETTING_META: Array<{ key: SwitchSetting; label: string; help: stri
   { key: 'bypassServiceWorker', label: 'Bypass service workers', help: 'Otherwise service workers can answer from their cache, and Chromium checks them for updates after every page load, which can undo edits to their scripts.' },
   { key: 'bypassCSP', label: 'Bypass Content-Security-Policy', help: 'Allow eval/inline code in patches on sites with a strict CSP.' },
   { key: 'captureConsole', label: 'Record the console', help: 'Logs and errors from the page and all its frames. Turn it off for a site that acts differently while it is on.' },
+  { key: 'frameworkHooks', label: 'Framework hooks', help: 'Let React tell which version a frame runs, through a stand-in for its DevTools hook put in every page before its scripts. Takes effect on the next load.' },
   { key: 'checkForUpdates', label: 'Check for updates', help: 'Look for a new release on GitHub at start and every few hours.' },
 ];
 

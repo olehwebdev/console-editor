@@ -1,3 +1,4 @@
+import type { StackFrame } from './inspector';
 import type { WorkerType } from './workers';
 
 /** A header as it was sent or received. */
@@ -46,6 +47,8 @@ export interface NetworkRequest {
   hasBody: boolean;
   /** The GraphQL operation its body names. */
   operation?: string;
+  /** The stack of the script that sent it (fetch, XHR, a WebSocket…), innermost first; unset when no script did. */
+  initiator?: StackFrame[];
   /** A WebSocket's: how many messages it has sent and received so far (`getNetworkMessages` reads them). */
   messages?: number;
   /**

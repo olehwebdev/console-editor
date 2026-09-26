@@ -22,6 +22,8 @@ const INPUT: CreateRuleInput = { action: 'block', match: { type: 'glob', pattern
 /** A page whose form holds edits not applied yet. */
 const EDITED = true;
 const WHATS_NEW: PageTab = { id: 'page:whats-new', page: 'whats-new', title: "What's New" };
+const STACK: PageTab = { id: 'page:stack', page: 'stack', title: 'Page stack' };
+const COMPONENT: PageTab = { id: 'page:component', page: 'component', title: 'CartItem' };
 const rulePage = (ruleId: string, dirty?: boolean): PageTab => ({ id: `page:rule:${ruleId}`, page: 'rule', ruleId, title: ruleId, ...(dirty ? { dirty } : {}) });
 const newRulePage = (id: string, dirty?: boolean): PageTab => ({ id: `page:new-rule:${id}`, page: 'new-rule', seed: INPUT, title: 'New block requests', ...(dirty ? { dirty } : {}) });
 const file = (id: string): TabMeta => ({ id, url: `https://site.test/${id}.js`, kind: 'Script', originalHash: null, lite: false, dirty: false, saving: false });
@@ -88,13 +90,15 @@ describe('page tabs', () => {
     expect(isPageDirty(rulePage('r1', EDITED))).toBe(true);
     expect(isPageDirty(newRulePage('n1'))).toBe(false);
     expect(isPageDirty(newRulePage('n1', EDITED))).toBe(true);
-    expect(PAGE_SCOPES).toEqual({ 'whats-new': 'app', rule: 'workspace', 'new-rule': 'workspace' });
+    expect(isPageDirty(STACK)).toBe(false);
+    expect(isPageDirty(COMPONENT)).toBe(false);
+    expect(PAGE_SCOPES).toEqual({ 'whats-new': 'app', stack: 'app', rule: 'workspace', 'new-rule': 'workspace', component: 'workspace' });
   });
 
-  it("closes the workspace's rule and new-rule pages with its tabs; What's New stays", () => {
-    useTabStore.setState({ tabs: [file('a')], pages: [rulePage('r1', EDITED), WHATS_NEW, newRulePage('n1')], activeId: 'page:rule:r1' });
+  it("closes the workspace's rule and new-rule pages with its tabs; What's New and the Page stack stay", () => {
+    useTabStore.setState({ tabs: [file('a')], pages: [rulePage('r1', EDITED), WHATS_NEW, newRulePage('n1'), STACK], activeId: 'page:rule:r1' });
     closeSessionTabs();
-    expect(useTabStore.getState()).toMatchObject({ tabs: [], pages: [WHATS_NEW], activeId: WHATS_NEW.id });
+    expect(useTabStore.getState()).toMatchObject({ tabs: [], pages: [WHATS_NEW, STACK], activeId: WHATS_NEW.id });
   });
 
   it('asks before closing a rule page with unapplied edits, and not one without', async () => {

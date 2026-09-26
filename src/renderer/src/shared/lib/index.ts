@@ -1,6 +1,5 @@
 export { assignRef } from './assignRef';
-export { clamp } from './clamp';
-export { clampPosition } from './clampPosition';
+export { clamp, clampPosition } from './clamp';
 export { cn } from './cn';
 export { firstErrorMessage } from './form';
 export { DURATION, EASE_OUT, ICON_PRESS_SCALE, PRESS_SCALE, SLIDE_IN_X, SPRING_LAYOUT, SPRING_PANEL, SPRING_PRESS, SPRING_SWAP } from './motion';
@@ -8,7 +7,8 @@ export { fileName, hostOf, pathOf, pathSegments, webAddress } from './url';
 export { predicateFor } from './match';
 export { isMac, keyLabel } from './platform';
 export { formatCode, looksMinified, responseText } from './format';
-export { askSourceMapWorker, stopSourceMapWorker } from './source-map';
+export { formatTime } from './formatTime';
+export { askSourceMapWorker, isLibrarySource, stopSourceMapWorker } from './source-map';
 export type {
   AlignmentFit,
   Miss,

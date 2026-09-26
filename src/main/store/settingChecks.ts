@@ -12,5 +12,6 @@ export const SETTING_CHECKS: { [K in keyof Settings]: (value: unknown) => boolea
   autoFormatMinified: isSwitch,
   checkForUpdates: isSwitch,
   captureConsole: isSwitch,
+  frameworkHooks: isSwitch,
   throttling: (value) => THROTTLING_PRESETS.includes(value as never),
 };

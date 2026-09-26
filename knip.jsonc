@@ -3,8 +3,8 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   // Loaded by their own CLIs, which knip has no plugin for: what they import counts as used. The scripts are Claude
-  // Code's hooks (.claude/settings.json).
-  "entry": ["electron-builder.ts", "steiger.config.mjs", "scripts/lint-edited-file.ts", "scripts/check-before-stop.ts"],
+  // Code's hooks (.claude/settings.json); the apps, what test/helpers/bundleApp.ts bundles by path for the tests.
+  "entry": ["electron-builder.ts", "steiger.config.mjs", "scripts/lint-edited-file.ts", "scripts/check-before-stop.ts", "test/fixtures/apps/*.ts", "test/perf/apps/*.ts"],
   // test/smoke/update.ts mounts macOS disk images with it.
   "ignoreBinaries": ["hdiutil"],
   // secretlint loads its rules by name from .secretlintrc.json, which knip has no plugin to read.

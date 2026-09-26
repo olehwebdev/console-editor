@@ -18,3 +18,6 @@ export interface FrameLookup {
   /** A row's frame, including frames that have gone; null when the row has none or its frame isn't known. */
   resolve(frameId: string | null | undefined): FrameInfo | null;
 }
+
+/** A row's frame and its label, from the frame's id; both undefined for a frame no longer on the page. */
+export type FrameOf = (frameId: string | null) => { frame: ConsoleFrame | undefined; label: string | undefined };

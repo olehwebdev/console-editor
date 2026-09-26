@@ -5,6 +5,7 @@ import type { WindowStore } from '../store/WindowStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
 import type { SettingsStore } from '../store/SettingsStore';
+import type { SourceMapFileStore } from '../store/SourceMapFileStore';
 import type { CloseGuard } from './CloseGuard';
 
 /** The stores in the app's data folder, loaded. */
@@ -16,6 +17,7 @@ export interface AppStores {
   pageWindow: WindowStore;
   actionsWindow: WindowStore;
   actions: ActionStore;
+  sourceMaps: SourceMapFileStore;
   /** The folder held data before the stores looked (an earlier version ran). */
   hadData: boolean;
 }

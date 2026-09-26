@@ -55,6 +55,18 @@ export interface RequestWillBeSent {
   wallTime: number;
   request: { url: string; method: string; headers?: Record<string, string>; hasPostData?: boolean; postData?: string };
   redirectResponse?: ReceivedResponse;
+  initiator?: RequestInitiator;
+}
+
+/** Subset of `Network.Initiator`: a script's stack, with the async parents Chromium recorded. */
+export interface RequestInitiator {
+  type: string;
+  stack?: InitiatorStack;
+}
+
+export interface InitiatorStack {
+  callFrames: Array<{ functionName: string; url: string; lineNumber: number; columnNumber: number }>;
+  parent?: InitiatorStack;
 }
 
 /** Subset of `Network.Response` that the log reads. */

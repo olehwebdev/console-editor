@@ -36,3 +36,9 @@ export const CONTENT_ENCODING = 'content-encoding';
 
 /** How much of an invalid reference an error quotes. */
 export const MAX_SHOWN_REFERENCE = 200;
+
+/** What the file dialog of **Load a source map…** offers. */
+export const MAP_FILE_FILTERS = [
+  { name: 'Source maps', extensions: ['map', 'json'] },
+  { name: 'All files', extensions: ['*'] },
+];

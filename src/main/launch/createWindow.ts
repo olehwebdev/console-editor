@@ -1,5 +1,6 @@
 import { app } from 'electron';
 import appIcon from '../../../build/icons/512x512.png?asset&asarUnpack';
+import { encodeEvent } from '../../shared/appEventWire';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent } from '../../shared/types';
 import { REPO_URL } from '../appInfo';
@@ -31,12 +32,12 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     iconPath: appIcon,
   });
   const userData = app.getPath('userData');
-  const { store, rules, settings, session, pageWindow, actionsWindow: actionsWindowStore, actions, hadData } = await openStores(userData);
+  const { store, rules, settings, session, pageWindow, actionsWindow: actionsWindowStore, actions, sourceMaps, hadData } = await openStores(userData);
 
   const win = createEditorWindow();
 
   const send = (event: AppEvent) => {
-    if (!win.isDestroyed()) win.webContents.send(IPC_CHANNEL.onEvent, event);
+    if (!win.isDestroyed()) win.webContents.send(IPC_CHANNEL.onEvent, encodeEvent(event));
     // The Actions panel's own window, if it has one, shows what its panel needs.
     actionsWindow.forward(event);
   };
@@ -50,7 +51,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const page = new PageController(win, { store, rules, settings, send, windowStore: pageWindow, breakpoints: () => activeBreakpoints(session) });
   launchState.running = { win, page };
   // Before the engine attaches: it serves the active workspace's overrides and rules from the start.
-  const workspaces = new WorkspaceController(page, session, store, rules, actions, send);
+  const workspaces = new WorkspaceController(page, session, store, rules, actions, send, sourceMaps);
   await workspaces.start();
   const attached = page.attach();
   installMenu(win, page, store, actionsWindow, send);
@@ -66,7 +67,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     page.window.dispose();
     actionsWindow.dispose();
   });
-  registerIpc({ win, page, store, rules, settings, session, actions, actionsWindow, workspaces, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
+  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
 

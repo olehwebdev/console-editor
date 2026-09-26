@@ -1,6 +1,6 @@
+import { formatTime } from '@/shared/lib';
 import type { ConsoleEntry } from '@common/types';
 import { entryText } from '@/entities/console-log';
-import { formatTime } from './formatTime';
 import type { ResolveFrame } from './types';
 
 /** A row as one line of plain text (Copy): time, frame, level, message and where it came from. */

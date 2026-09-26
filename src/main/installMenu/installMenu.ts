@@ -3,6 +3,7 @@ import { SHORTCUT } from '../../shared/constants';
 import type { AppEvent, MenuCommand } from '../../shared/types';
 import { ACTIONS_WINDOW_MENU_ID, type ActionsWindow } from '../ActionsWindow';
 import { REPO_URL } from '../appInfo';
+import { PICK_MENU_ID } from '../inspector';
 import type { PageController } from '../PageController';
 import { PAGE_WINDOW_MENU_ID } from '../PageWindow';
 import type { OverrideStore } from '../store/OverrideStore';
@@ -81,6 +82,7 @@ export function installMenu(win: BrowserWindow, page: PageController, store: Ove
         { type: 'separator' },
         // Not F12 / Ctrl+Shift+I: Monaco uses those (go to definition / format on Linux).
         { label: 'Page DevTools', accelerator: toAccelerator(SHORTCUT.pageDevTools), click: () => page.openDevTools() },
+        { id: PICK_MENU_ID, label: 'Pick an Element', accelerator: toAccelerator(SHORTCUT.pickElement), click: () => void page.frames.inspector.togglePicking() },
         { label: 'Editor DevTools', accelerator: toAccelerator(SHORTCUT.editorDevTools), click: () => win.webContents.toggleDevTools() },
         { type: 'separator' },
         { role: 'resetZoom' },

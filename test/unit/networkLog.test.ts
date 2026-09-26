@@ -155,6 +155,24 @@ describe('NetworkLog', () => {
     expect(log.list()[0]).toMatchObject({ hasBody: true, operation: 'GetCart' });
   });
 
+  it("keeps the stack of the script that sent a request, through its async parents, in files the page loaded", () => {
+    const call = (functionName: string, url: string, lineNumber: number) => ({ functionName, scriptId: '1', url, lineNumber, columnNumber: 4 });
+    sent('s', 'https://a.com/api/cart', {
+      initiator: {
+        type: 'script',
+        stack: { callFrames: [call('loadCart', 'https://a.com/app.js', 3), call('', '', 0)], parent: { description: 'await', callFrames: [call('onClick', 'https://a.com/app.js', 9)] } },
+      },
+    });
+    sent('p', 'https://a.com/logo.png', { initiator: { type: 'parser', url: 'https://a.com/' } });
+    expect(log.list().map((r) => r.initiator)).toEqual([
+      [
+        { name: 'loadCart', url: 'https://a.com/app.js', line: 3, column: 4 },
+        { name: 'onClick', url: 'https://a.com/app.js', line: 9, column: 4 },
+      ],
+      undefined,
+    ]);
+  });
+
   it('marks the request an override answered, whichever session reported it', () => {
     sent('n1', 'https://a.com/api', {}, 'WORKER');
     log.engineEvent({ type: 'override-served', overrideId: 'o1', url: 'https://a.com/api', requestId: 'n1' });

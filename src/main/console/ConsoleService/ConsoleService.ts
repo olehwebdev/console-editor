@@ -4,6 +4,7 @@ import { CDP } from '../../engine/constants';
 import { SETUP_TIMEOUT_MS, withTimeout, type SessionObserver } from '../../engine/PageInterception';
 import { ConsoleFrames, type SessionKey } from '../ConsoleFrames';
 import { ACCESSOR_VALUE, MAX_PROPERTIES } from '../constants';
+import { dropSessions } from '../dropSessions';
 import type { ConsoleSession, PageFrameTree } from '../types';
 import { BatchSender } from './BatchSender';
 import { discardEntries } from './discardEntries';
@@ -29,7 +30,8 @@ import type { ConsoleServiceOptions, RowDraft } from './types';
 export class ConsoleService implements SessionObserver {
   private readonly sessions = new Map<SessionKey, ConsoleSession>();
   private readonly batch = new BatchSender((event) => this.opts.send(event), () => this.listFrames());
-  private readonly frames = new ConsoleFrames(() => this.batch.framesChanged());
+  /** The page's frames and where their code runs, which the inspector runs its own code by. */
+  readonly frames = new ConsoleFrames(() => this.batch.framesChanged());
   private readonly log = new EntryLog();
   private recording: boolean;
 
@@ -49,13 +51,7 @@ export class ConsoleService implements SessionObserver {
   }
 
   detached(id: SessionKey): void {
-    // The page's own session: interception stopped, and every session with it.
-    const gone = id === undefined ? [...this.sessions.keys()] : [id];
-    for (const key of gone) {
-      for (const dispose of this.sessions.get(key)?.dispose.splice(0) ?? []) dispose();
-      this.sessions.delete(key);
-      this.frames.sessionGone(key);
-    }
+    for (const key of dropSessions(this.sessions, id)) this.frames.sessionGone(key);
   }
 
   /** Starts or stops recording, as the setting now says. */

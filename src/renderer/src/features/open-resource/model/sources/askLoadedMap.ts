@@ -1,7 +1,7 @@
 import type { SourceMapKind } from '@common/types';
 import { askSourceMapWorker, type SourceMapRequestOf, type SourceMapRequestType, type SourceMapWorkerReplies, type ViewRef } from '@/shared/lib';
 import type { monaco } from '@/shared/monaco';
-import { ensureSourceMap } from './ensureSourceMap';
+import { reloadLostMap } from './reloadLostMap';
 import { isMiss } from './isMiss';
 
 type Lookup = Exclude<SourceMapRequestType, 'load'>;
@@ -19,7 +19,7 @@ export async function askLoadedMap<T extends Lookup>(
   const { bundleUrl } = request as { bundleUrl: string };
   let reply = await askSourceMapWorker<T>(request);
   if (isMiss(reply, 'unloaded')) {
-    const state = await ensureSourceMap(bundleUrl, context.kind, { reload: true });
+    const state = await reloadLostMap(bundleUrl, context.kind);
     if (state.status !== 'ready') return reply;
     reply = await askSourceMapWorker<T>(request);
   }

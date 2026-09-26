@@ -1,6 +1,7 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
 import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
+import type { FrameStack, InspectedComponent, InspectHover, RenderCommit, StoreAction } from './inspector';
 import type { MenuCommand } from './menu';
 import type { NetworkRequest } from './network';
 import type { OverrideMeta, UnpatchedReason } from './overrides';
@@ -55,6 +56,22 @@ export type AppEvent =
   /** New console rows, oldest first. */
   | { type: 'console-entries'; entries: ConsoleEntry[] }
   | { type: 'console-cleared' }
+  /** A frame's stack was found, or went with its document: every frame's, the top page first. */
+  | { type: 'stack-changed'; stacks: FrameStack[] }
+  /** Picking an element in the page started or stopped. */
+  | { type: 'inspect-picking'; picking: boolean }
+  /** What is under the pointer while picking; null when nothing is. */
+  | { type: 'inspect-hover'; hover: InspectHover | null }
+  /** An element was picked: the component that rendered it. */
+  | { type: 'inspect-picked'; component: InspectedComponent }
+  /** Renders started or stopped being recorded. */
+  | { type: 'renders-recording'; recording: boolean }
+  /** React commits recorded in the page's frames, in order, as they arrive (batched). */
+  | { type: 'renders-recorded'; commits: RenderCommit[] }
+  /** Store actions started or stopped being recorded. */
+  | { type: 'stores-recording'; recording: boolean }
+  /** Actions the page's stores handled, in order, as they arrive (batched). */
+  | { type: 'stores-recorded'; actions: StoreAction[] }
   /** The active workspace's actions: one was added, changed or deleted, or another workspace became active. */
   | { type: 'actions-changed'; actions: ConsoleAction[] }
   /** Requests new to the log, or changed (a response arrived, it finished or failed), oldest first. */
@@ -69,3 +86,6 @@ export type AppEvent =
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };
+
+/** An event as it crosses to a window: itself, or its JSON when it is one of `JSON_EVENTS` (`encodeEvent`). */
+export type WireEvent = AppEvent | string;

@@ -1,8 +1,7 @@
 import { SOURCE_MAP_KINDS, type SourceMapKind, type SourceMapRequest } from '../../shared/types';
-import { HTTP_URL } from '../constants';
+import { assertBundleUrl } from './assertBundleUrl';
+import { MAX_URL_CHARS } from './constants';
 
-/** Longer URLs aren't a bundle the page listed. */
-const MAX_URL_CHARS = 8192;
 /** A content hash as the engine writes it (sha256, hex). */
 const CONTENT_HASH = /^[0-9a-f]{64}$/;
 
@@ -13,8 +12,7 @@ const CONTENT_HASH = /^[0-9a-f]{64}$/;
 export function assertSourceMapRequest(value: unknown): asserts value is SourceMapRequest {
   const request = value as Partial<SourceMapRequest> | null;
   if (typeof request !== 'object' || request === null) throw new Error('request must be an object');
-  const { bundleUrl } = request;
-  if (typeof bundleUrl !== 'string' || bundleUrl.length > MAX_URL_CHARS || !HTTP_URL.test(bundleUrl)) throw new Error('bundleUrl must be an http(s) URL');
+  assertBundleUrl(request.bundleUrl);
   if (!SOURCE_MAP_KINDS.includes(request.kind as SourceMapKind)) throw new Error('kind must be a script or a stylesheet');
   const { known } = request;
   if (known === undefined) return;

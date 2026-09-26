@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { IPC_CHANNEL } from '../shared/ipcChannels';
-import type { AppEvent, ConsoleEditorApi } from '../shared/types';
+import type { ConsoleEditorApi, WireEvent } from '../shared/types';
 
 /** The global the renderer reaches the API through (`window.consoleEditor`, declared in its shared/api). */
 const API_GLOBAL = 'consoleEditor';
@@ -20,6 +20,9 @@ const api: ConsoleEditorApi = {
   listResources: () => ipcRenderer.invoke(IPC_CHANNEL.listResources),
   getResourceContent: (url) => ipcRenderer.invoke(IPC_CHANNEL.getResourceContent, url),
   getSourceMap: (request) => ipcRenderer.invoke(IPC_CHANNEL.getSourceMap, request),
+  listSourceMapFiles: () => ipcRenderer.invoke(IPC_CHANNEL.listSourceMapFiles),
+  loadSourceMapFile: (bundleUrl) => ipcRenderer.invoke(IPC_CHANNEL.loadSourceMapFile, bundleUrl),
+  forgetSourceMapFile: (bundleUrl) => ipcRenderer.invoke(IPC_CHANNEL.forgetSourceMapFile, bundleUrl),
 
   listOverrides: () => ipcRenderer.invoke(IPC_CHANNEL.listOverrides),
   getOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.getOverride, id),
@@ -49,6 +52,20 @@ const api: ConsoleEditorApi = {
   evaluateInFrame: (frameId, code) => ipcRenderer.invoke(IPC_CHANNEL.evaluateInFrame, frameId, code),
   getConsoleProperties: (handle) => ipcRenderer.invoke(IPC_CHANNEL.getConsoleProperties, handle),
   clearConsole: () => ipcRenderer.invoke(IPC_CHANNEL.clearConsole),
+  listStacks: () => ipcRenderer.invoke(IPC_CHANNEL.listStacks),
+  scanStacks: () => ipcRenderer.invoke(IPC_CHANNEL.scanStacks),
+  startPicking: () => ipcRenderer.invoke(IPC_CHANNEL.startPicking),
+  stopPicking: () => ipcRenderer.invoke(IPC_CHANNEL.stopPicking),
+  inspectComponent: (pickId, depth) => ipcRenderer.invoke(IPC_CHANNEL.inspectComponent, pickId, depth),
+  setComponentState: (pickId, depth, edit) => ipcRenderer.invoke(IPC_CHANNEL.setComponentState, pickId, depth, edit),
+  componentTree: (frameId, path) => ipcRenderer.invoke(IPC_CHANNEL.componentTree, frameId, path),
+  recordRenders: (on) => ipcRenderer.invoke(IPC_CHANNEL.recordRenders, on),
+  isRecordingRenders: () => ipcRenderer.invoke(IPC_CHANNEL.isRecordingRenders),
+  recordStores: (on) => ipcRenderer.invoke(IPC_CHANNEL.recordStores, on),
+  isRecordingStores: () => ipcRenderer.invoke(IPC_CHANNEL.isRecordingStores),
+  openTreeNode: (frameId, path) => ipcRenderer.invoke(IPC_CHANNEL.openTreeNode, frameId, path),
+  highlightTreeNode: (frameId, path) => ipcRenderer.invoke(IPC_CHANNEL.highlightTreeNode, frameId, path),
+  highlightPick: (pickId) => ipcRenderer.invoke(IPC_CHANNEL.highlightPick, pickId),
   listActions: () => ipcRenderer.invoke(IPC_CHANNEL.listActions),
   createAction: (input) => ipcRenderer.invoke(IPC_CHANNEL.createAction, input),
   updateAction: (id, patch) => ipcRenderer.invoke(IPC_CHANNEL.updateAction, id, patch),
@@ -84,7 +101,7 @@ const api: ConsoleEditorApi = {
   openExternal: (url) => ipcRenderer.invoke(IPC_CHANNEL.openExternal, url),
 
   onEvent(listener) {
-    const handler = (_event: IpcRendererEvent, payload: AppEvent) => listener(payload);
+    const handler = (_event: IpcRendererEvent, payload: WireEvent) => listener(payload);
     ipcRenderer.on(IPC_CHANNEL.onEvent, handler);
     return () => ipcRenderer.off(IPC_CHANNEL.onEvent, handler);
   },

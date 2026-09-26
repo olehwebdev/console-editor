@@ -12,6 +12,7 @@ import { useOverrideStore } from '@/entities/override';
 import { closeTab } from '@/features/close-tab';
 import { closeDiff, useDiffSource } from '@/features/compare-changes';
 import { ResponseTree, useResponseViews } from '@/features/network/response-tree';
+import { SaveAsActionContext, type SaveAsAction } from '../../model/SaveAsActionContext';
 import { SourceHeader } from '../SourceHeader';
 import { SourceMissing } from '../SourceMissing';
 import { TabHeader } from '../TabHeader';
@@ -33,10 +34,12 @@ const EMPTY_FADE_DURATION = DURATION.medium3;
 export interface EditorPanelProps {
   /** Shows the Explorer sidebar, filter cleared (an original's "Show in the Explorer"). */
   onShowExplorer(): void;
+  /** Keeps code as an action (the Component page's Save as action). */
+  onSaveAsAction: SaveAsAction;
 }
 
 /** Tabs, file header and the Monaco editor (or diff) for the active file or original. */
-export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
+export function EditorPanel({ onShowExplorer, onSaveAsAction }: EditorPanelProps) {
   // Select the store's own array (a stable reference); new objects from a selector would re-render forever.
   const tabs = useTabStore((s) => s.tabs);
   const sources = useTabStore((s) => s.sources);
@@ -99,7 +102,9 @@ export function EditorPanel({ onShowExplorer }: EditorPanelProps) {
 
         {activePage ? (
           <div className="absolute inset-0">
-            <PageView key={activePage.id} page={activePage} />
+            <SaveAsActionContext value={onSaveAsAction}>
+              <PageView key={activePage.id} page={activePage} />
+            </SaveAsActionContext>
           </div>
         ) : null}
 
