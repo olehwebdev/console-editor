@@ -277,9 +277,14 @@ jobs:
       - name: Install the .deb and test the app
         if: runner.os == 'Linux'
         run: |
+          deb="./dist/console-editor_$(jq -r .version package.json)_$(dpkg --print-architecture).deb"
           sudo apt-get update
-          sudo apt-get install -y xvfb "./dist/console-editor_$(jq -r .version package.json)_$(dpkg --print-architecture).deb"
+          sudo apt-get install -y xvfb "$deb"
           xvfb-run -a npm run test:packaged -- "/opt/Console Editor/console-editor"
+          # Remove it again: the AppImage below leaves the desktop to an installed package's entry, and is tested
+          # as a user who has only the AppImage.
+          sudo apt-get remove -y "$(dpkg-deb -f "$deb" Package)"
+          if [ -e /usr/share/applications/console-editor.desktop ]; then echo "::error::Removing the .deb left its desktop entry"; exit 1; fi
 
       # The AppImage runs where the user put it, with FUSE 2, and has no AppArmor profile: like any
       # AppImage on Ubuntu 24.04, its sandbox needs the user-namespace restriction lifted.
