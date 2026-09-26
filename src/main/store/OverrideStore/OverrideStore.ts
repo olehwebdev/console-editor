@@ -9,7 +9,9 @@ import { FILES_DIR, INDEX_FILE } from './constants';
 import { ContentFiles } from './ContentFiles';
 import { newOverride } from './newOverride';
 import { patchOverride } from './patchOverride';
+import { removeWorkspaceOverrides } from './removeWorkspaceOverrides';
 import { responseFieldsOf } from './responseFieldsOf';
+import { takeFileEdit } from './takeFileEdit';
 
 /**
  * Persists overrides on disk:
@@ -78,6 +80,16 @@ export class OverrideStore {
     return this.files.base(this.get(id));
   }
 
+  /** The file an override's served content is kept in, for another editor to open. */
+  contentPath(id: string): string {
+    return this.files.path(this.get(id), 'content');
+  }
+
+  /** Takes an override's file as it is on disk when another editor changed it: true when it did. */
+  takeFileEdit(id: string): Promise<boolean> {
+    return takeFileEdit(this.committed, this.files, id);
+  }
+
   async create(input: CreateOverrideInput): Promise<Override> {
     const match = input.match ?? defaultMatcherFor(input.sourceUrl);
     assertMatcher(match);
@@ -118,14 +130,8 @@ export class OverrideStore {
   }
 
   /** Deletes every override of a workspace. */
-  async removeWorkspace(workspaceId: string): Promise<void> {
-    if (!this.committed.all().some((o) => o.workspaceId === workspaceId)) return;
-    const gone = await this.committed.mutate(async (overrides) => {
-      const gone = [...overrides.values()].filter((o) => o.workspaceId === workspaceId);
-      for (const o of gone) overrides.delete(o.id);
-      return gone;
-    });
-    for (const o of gone) await this.files.remove(o);
+  removeWorkspace(workspaceId: string): Promise<void> {
+    return removeWorkspaceOverrides(this.committed, this.files, workspaceId);
   }
 
   /**

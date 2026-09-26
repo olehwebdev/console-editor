@@ -12,6 +12,7 @@ import { KindIcon } from '@/entities/resource';
 import { isMappableKind, useSourceMapStore } from '@/entities/source-map';
 import { closeDiff, compareWithLive, showBaseDiff } from '@/features/compare-changes';
 import { ResponseRule } from '@/features/edit-response-rule';
+import { openInEditor } from '@/features/override/external-editor';
 import { TreeViewToggle } from '@/features/network/response-tree';
 import { formatTab } from '@/features/format-document';
 import { bundleUrlOf, goToOriginal } from '@/features/open-resource';
@@ -78,6 +79,7 @@ export function FileHeader({ tab }: { tab: TabMeta }) {
               onClick={() => (diff === 'live' ? closeDiff() : void compareWithLive(tab.id))}
             />
           ) : null}
+          {override ? <IconButton icon={icons.ExternalLinkIcon} label="Open in VS Code" data-testid="open-in-editor" onClick={() => void openInEditor(override.id)} /> : null}
         </div>
         <Button
           size="sm"

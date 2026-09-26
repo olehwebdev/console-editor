@@ -11,6 +11,7 @@ import { Tooltip } from '@/shared/ui/tooltip';
 import { overrideLabel, useOverrideStore } from '@/entities/override';
 import { KindIcon } from '@/entities/resource';
 import { deleteOverride } from '@/features/delete-override';
+import { openInEditor, showOverrideFile } from '@/features/override/external-editor';
 import { openOverride } from '@/features/open-resource';
 import { setOverrideEnabled } from '@/features/toggle-override';
 import { ROW_ICON_SIZE } from '../constants';
@@ -24,6 +25,8 @@ export function OverrideRow({ override, active }: { override: OverrideMeta; acti
 
   const items: MenuItem[] = [
     { label: 'Open', icon: icons.FileIcon, onSelect: () => void openOverride(override.id) },
+    { label: 'Open in VS Code', icon: icons.ExternalLinkIcon, onSelect: () => void openInEditor(override.id) },
+    { label: 'Show in folder', icon: icons.FolderOpenIcon, onSelect: () => void showOverrideFile(override.id) },
     { label: override.enabled ? 'Turn off' : 'Turn on', icon: icons.LiveIcon, onSelect: () => void setOverrideEnabled(override.id, !override.enabled) },
     { label: 'Copy URL', icon: icons.CopyIcon, onSelect: () => void navigator.clipboard.writeText(override.sourceUrl) },
     { separator: true },

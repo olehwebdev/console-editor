@@ -22,6 +22,7 @@ export {
   getTabBase,
   setTabBase,
   markTabSaved,
+  setTabSavedText,
   replaceTabText,
   editTabText,
   disposeTabModel,

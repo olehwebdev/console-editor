@@ -7,6 +7,7 @@ import { useNetworkStore } from '@/entities/network-request';
 import { usePageStackStore } from '@/entities/page-stack';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
+import { takeOutsideEdits } from '@/features/override/external-editor';
 import { receiveEntries } from '@/features/filter-console';
 import { receiveHeld } from '@/features/network/held';
 import { handleUpdateState } from '@/features/update-app';
@@ -46,6 +47,7 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   error: showAppError,
   'page-state': applyPageState,
   'overrides-changed': syncOverrides,
+  'overrides-edited': (event) => void takeOutsideEdits(event.overrideIds),
   'rules-changed': syncRules,
   'workspaces-changed': (event) => useWorkspaceStore.getState().setAll(event.state),
   'workspace-favicon': (event) => useWorkspaceStore.getState().setFavicon(event.id, event.favicon),

@@ -9,3 +9,4 @@ export { newTabId } from './newTabId';
 export { onTabEdited } from './onTabEdited';
 export { replaceTabText } from './replaceTabText';
 export { setTabBase } from './setTabBase';
+export { setTabSavedText } from './setTabSavedText';
