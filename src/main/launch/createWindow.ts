@@ -6,6 +6,7 @@ import type { AppEvent } from '../../shared/types';
 import { REPO_URL } from '../appInfo';
 import { ActionsWindow } from '../ActionsWindow';
 import { installMenu } from '../installMenu';
+import { watchOverrideFiles } from '../overrideFiles';
 import { registerIpc } from '../ipc';
 import { PageController } from '../PageController';
 import { WorkspaceController } from '../WorkspaceController';
@@ -55,6 +56,8 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   await workspaces.start();
   const attached = page.attach();
   installMenu(win, page, store, actionsWindow, send);
+  // Edits saved in another editor (VS Code) are served as the app's own.
+  const fileEdits = watchOverrideFiles(store, page, send);
 
   // Remember the page shown and its icon, so the next start (or switching back) reopens it.
   workspaces.watch(page.view.webContents);
@@ -63,6 +66,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const updates = createUpdater({ updateFeed, userData, hadData, settings, send, closing });
   win.on('closed', () => {
     updates.dispose();
+    fileEdits.stop();
     // The website's and the Actions panel's own windows go with the editor (and open again next time).
     page.window.dispose();
     actionsWindow.dispose();

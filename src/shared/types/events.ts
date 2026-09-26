@@ -45,6 +45,8 @@ export type AppEvent =
   | { type: 'page-state'; state: PageState }
   /** The active workspace's overrides. */
   | { type: 'overrides-changed'; overrides: OverrideMeta[] }
+  /** Another editor changed these overrides' files, and they are served as saved there (after `overrides-changed`). */
+  | { type: 'overrides-edited'; overrideIds: string[] }
   /** The active workspace's rules, oldest first. */
   | { type: 'rules-changed'; rules: Rule[] }
   | { type: 'workspaces-changed'; state: WorkspacesState }

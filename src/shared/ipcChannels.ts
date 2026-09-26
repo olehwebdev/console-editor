@@ -32,6 +32,8 @@ export const IPC_CHANNEL = {
   updateOverride: 'overrides:update',
   deleteOverride: 'overrides:delete',
   revealOverridesFolder: 'overrides:reveal',
+  openOverrideInEditor: 'overrides:open-in-editor',
+  showOverrideFile: 'overrides:show-file',
 
   listRules: 'rules:list',
   createRule: 'rules:create',

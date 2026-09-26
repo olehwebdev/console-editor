@@ -4,9 +4,10 @@
  * code.
  */
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -86,6 +87,40 @@ describe.skipIf(!built)('Console Editor app', () => {
     await expect.poll(() => inSite('typeof window.patchedByEditor'), { timeout: 15_000 }).toBe('undefined');
     await expect.poll(() => inSite('window.appValue')).toBe('original');
     await row.getByRole('switch').click();
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+  });
+
+  it('serves an edit saved in another editor: the page reloads with it, and its tab shows it', async () => {
+    const row = win.locator('[data-override-id]', { hasText: 'app.js' });
+    const file = join(userData, 'workspace', 'files', `${await row.getAttribute('data-override-id')}.js`);
+    // Open in VS Code hands VS Code the file's URL (VS Code itself isn't installed here).
+    await app.evaluate(({ shell }) => {
+      shell.openExternal = async (url) => void ((globalThis as { openedUrl?: string }).openedUrl = url);
+    });
+    await row.click();
+    await win.getByTestId('open-in-editor').click();
+    await expect.poll(() => app.evaluate(() => (globalThis as { openedUrl?: string }).openedUrl)).toBe(`vscode://file${pathToFileURL(file).pathname}`);
+
+    const saved = await readFile(file, 'utf8');
+    await writeFile(file, saved.replace('window.patchedByEditor = true;', "window.patchedByEditor = 'elsewhere';"));
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe('elsewhere');
+    await win.locator('.monaco-editor .view-line', { hasText: "window.patchedByEditor = 'elsewhere';" }).waitFor();
+    await expect.poll(() => win.getByTestId('save-button').textContent()).toContain('Saved');
+
+    // Unsaved edits in the tab are kept, and it says the file changed under them.
+    await typeAtEndOfEditor(win, '// mine');
+    await writeFile(file, saved.replace('window.patchedByEditor = true;', "window.patchedByEditor = 'again';"));
+    await win.getByTestId('edited-outside-banner').waitFor();
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe('again');
+    // Monaco draws spaces as non-breaking ones.
+    expect((await win.locator('.monaco-editor .view-lines').first().innerText()).replace(/\u00a0/g, ' ')).toContain('// mine');
+    await win.getByRole('button', { name: 'Use that version' }).click();
+    await win.locator('.monaco-editor .view-line', { hasText: "window.patchedByEditor = 'again';" }).waitFor();
+    await expect.poll(() => win.getByTestId('edited-outside-banner').count()).toBe(0);
+    await expect.poll(() => win.getByTestId('save-button').textContent()).toContain('Saved');
+
+    // Back to the text the next tests expect.
+    await writeFile(file, saved);
     await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
   });
 

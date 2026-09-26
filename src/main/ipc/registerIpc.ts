@@ -1,13 +1,6 @@
 import { ipcMain, shell, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
-import {
-  RESOURCE_KINDS,
-  type CreateOverrideInput,
-  type OverridePatch,
-  type Rect,
-  type SessionDraft,
-  type WorkspacePatch,
-} from '../../shared/types';
+import type { Rect, SessionDraft, WorkspacePatch } from '../../shared/types';
 import { HTTP_URL } from '../constants';
 import { assertString } from './assertString';
 import { registerActionIpc } from './registerActionIpc';
@@ -16,6 +9,7 @@ import { registerConsoleIpc } from './registerConsoleIpc';
 import { registerHarIpc } from './registerHarIpc';
 import { registerInspectorIpc } from './registerInspectorIpc';
 import { registerNetworkIpc } from './registerNetworkIpc';
+import { registerOverrideIpc } from './registerOverrideIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import { registerSettingsIpc } from './registerSettingsIpc';
 import { registerSourceMapIpc } from './registerSourceMapIpc';
@@ -65,40 +59,7 @@ export function registerIpc({ win, page, store, rules, settings, session, action
     return page.getResourceContent(url);
   });
 
-  handle(IPC_CHANNEL.listOverrides, () => store.metas());
-  handle(IPC_CHANNEL.getOverride, (id: unknown) => {
-    assertString(id, 'id');
-    return store.get(id);
-  });
-  handle(IPC_CHANNEL.getOverrideBase, (id: unknown) => {
-    assertString(id, 'id');
-    return store.base(id);
-  });
-  handle(IPC_CHANNEL.createOverride, async (input: CreateOverrideInput) => {
-    assertString(input?.sourceUrl, 'sourceUrl');
-    assertString(input.content, 'content');
-    if (input.base !== undefined) assertString(input.base, 'base');
-    if (!RESOURCE_KINDS.includes(input.kind)) throw new Error(`Unsupported kind ${String(input.kind)}`);
-    const created = await store.create(input);
-    await page.overridesChanged();
-    return store.meta(created.id);
-  });
-  handle(IPC_CHANNEL.updateOverride, async (id: unknown, patch: OverridePatch) => {
-    assertString(id, 'id');
-    await store.update(id, patch);
-    // Patterns follow the match, the switch and Send request (which stage a response override pauses at).
-    await page.overridesChanged(patch.match !== undefined || patch.enabled !== undefined || patch.response !== undefined);
-    return store.meta(id);
-  });
-  handle(IPC_CHANNEL.deleteOverride, async (id: unknown) => {
-    assertString(id, 'id');
-    await store.remove(id);
-    await page.overridesChanged();
-  });
-  handle(IPC_CHANNEL.revealOverridesFolder, async () => {
-    await shell.openPath(store.filesDir);
-  });
-
+  registerOverrideIpc(handle, store, page);
   registerRuleIpc(handle, rules, page);
 
   registerSettingsIpc(handleActions, { settings, page, updates, send });

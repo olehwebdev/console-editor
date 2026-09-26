@@ -47,6 +47,7 @@ Each workspace keeps its own page, tabs, overrides, rules and actions, so a fix 
 
 - **Edit what the page actually loaded.** Scripts, stylesheets and HTML appear under **Page resources** as they load, grouped by origin, iframes and workers included. Minified bundles are pretty-printed when you open them.
 - **Save to serve it.** <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> reloads the page with your version, before the page runs anything, on every load, until you switch the override off.
+- **Or edit in VS Code.** **Open in VS Code** opens an override's file there: what you save is served, and the page reloads with it.
 - **Survives deploys.** A hashed bundle name such as `main.3f9a1c2b.js` can be matched as `main.*.js` in one click, and you're warned when the live file changes under your override. **Diff** (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd>) shows what you changed.
 - **Handles the hard cases:** compressed responses, Subresource Integrity (static and set at runtime), the HTTP cache, service workers and worklets, stale source maps.
 - **Reads the original sources.** When the site publishes source maps, expand a bundle to open the TypeScript, JSX or SCSS it was built from, and jump between a line of it and the bundle code it became (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>).

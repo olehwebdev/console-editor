@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Edit overrides in VS Code.** **Open in VS Code**, on an override's tab, its right-click menu in the Explorer or the command palette, opens its file there. Save it in VS Code, or any other editor, and the page reloads with your version, just as if you had saved in the app. A tab left open shows the new text; if it has edits you haven't saved, it keeps them and offers the saved file's version instead. **Show in folder** finds the file for any other editor.
+
 ## [0.4.0] - 2026-09-26
 
 Console Editor now shows how a site works, not just what it loaded. Pick any element to see the React, Vue, Angular or web component behind it, traced to its source file even in a production build, and record why components rendered and what the page's stores did. A new Network panel overrides API responses and pauses requests, rules block requests and change headers, and actions run code in any frame with one click.
