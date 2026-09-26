@@ -11,7 +11,7 @@ The rules live in `CLAUDE.md › Code structure`; `npm run lint:structure` (`scr
 
 1. Find where the code belongs by layer and concern: main process (`src/main/<area>/`), shared contract (`src/shared/`), renderer slice (`app → pages → widgets → features → entities → shared`, see `docs/DESIGN_SYSTEM.md`).
 2. Open the target folder. If the file you'd edit is near 150 lines, or your change adds a second concern to it, split first (below), then add your code in its own file.
-3. Name the new file after the one thing it holds: `sinceInput.ts`, `useDragCursor.ts`, `ResourceTracker.ts`, `EntryRow.tsx`.
+3. Name the new file after the one thing it holds: `sinceInput.ts`, `useDragCursor.ts`, `ResourceTracker.ts`, `EntryRow.tsx`. Never a name a sibling has in another case (`actionFields.ts` beside `ActionFields.tsx`): macOS and Windows ignore case, so an import can load the wrong one there. Say what sets it apart instead (`ruleActionFields.ts`).
 
 ## How to split
 

@@ -9,7 +9,7 @@ Before pushing:
 ```bash
 npm run typecheck
 npm run lint:fsd
-npm run lint:structure         # the Code structure rules below: thin files, one function each, no switch
+npm run lint:structure         # the Code structure rules below: thin files, one function each, no switch, no case clashes
 npm run lint                   # oxlint, type-aware: React's rules (hooks, refs, purity) and misused promises
 npm run lint:unused            # knip: no unused file, dependency or export (knip.jsonc says what counts)
 npm run lint:duplicates        # jscpd: no copy of code that isn't in .jscpd-baseline.json
@@ -56,6 +56,7 @@ Agents: when the environment assigns a generated branch (`claude/…`) and says 
 - **No magic values.** Name every literal that drives logic: ids, keys and prefixes, the app's own channel and event names (IPC channels, `AppEvent` types), durations (a step of `DURATION` in `shared/lib/motion.ts`), sizes used in more than one place, and any value that has to match another system (Monaco command ids, `execCommand` names, `KeyboardEvent.key`, env vars). The platform's own event names (`'keydown'`, `'did-navigate'`), which its typed listeners check, stay inline. A constant goes at the top of the file that uses it, or in the folder's `constants.ts` when several files do; app-wide ones go in `shared/config` (renderer) or `src/shared/constants.ts` (both processes). Display copy, Tailwind classes and identity values (`0`, `1`, `''`, `true`) stay inline.
 - **No copies.** `npm run lint:duplicates` refuses code copied from elsewhere in `src` or `scripts` (jscpd, 50 tokens or more): move it to a function both use. `.jscpd-baseline.json` lists the copies there were when the check came in; it only shrinks. After removing one, run `npm run lint:duplicates -- --update-baseline` and commit the smaller file; never add a copy to it to get a commit through.
 - **No `switch`.** Dispatch through a typed table (`Record<Union, Handler>`, or a mapped type when each handler takes its own member), so a new union member fails typecheck until it's handled (see `app/model/bridge/`). An if/else chain or nested ternary over one value counts as a switch.
+- **No names that differ only in case** in one folder of `src`, `scripts` or `test` (`ActionFields.tsx` beside `actionFields.ts`, or a folder `foo/` beside `Foo.ts`). macOS and Windows ignore case, so `import './ActionFields'` can load the other file there, which no Linux build shows. Name the helper after what it holds (`ruleActionFields.ts`). Files imported with their extension (`Markdown.tsx` beside `markdown.css`) are fine.
 
 ## Commits and pull requests
 
