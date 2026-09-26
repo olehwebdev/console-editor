@@ -1,4 +1,5 @@
-import { MAX_ROOT_SCAN, MAX_TREE_NODES } from '../constants';
+import { MAX_TREE_NODES } from '../constants';
+import { REACT_TREE_JS } from './reactTreeSource';
 
 /**
  * Page-side Components tree for the adapter (`ADAPTER_SOURCE`), from the top:
@@ -11,41 +12,7 @@ import { MAX_ROOT_SCAN, MAX_TREE_NODES } from '../constants';
 export const TREE_JS = `
   // What an element belongs to, trying each framework in turn.
   const findAt = (el) => [reactFind, vueFind, vue2Find, angularFind, elementFind].reduce((hit, find) => hit || attempt(find, el), null);
-  const reactRoots = () => {
-    const roots = new Set();
-    const hook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-    if (hook && hook.renderers && typeof hook.getFiberRoots === 'function') {
-      for (const id of hook.renderers.keys()) for (const root of hook.getFiberRoots(id)) roots.add(root);
-    }
-    const elements = roots.size ? [] : document.querySelectorAll('*');
-    for (let i = 0; i < elements.length && i < ${MAX_ROOT_SCAN}; i++) {
-      const container = elements[i];
-      const key = Object.keys(container).find((k) => k.startsWith('__reactContainer$'));
-      const legacy = container._reactRootContainer && container._reactRootContainer._internalRoot;
-      if (key && container[key] && container[key].stateNode) roots.add(container[key].stateNode);
-      else if (legacy) roots.add(legacy);
-    }
-    return [...roots].filter((root) => root.current);
-  };
-  const reactKids = (fiber) => {
-    const out = [];
-    const walk = (parent) => {
-      for (let child = parent.child; child; child = child.sibling) {
-        if (isComponent(child)) out.push(child);
-        else walk(child);
-      }
-    };
-    walk(fiber);
-    return out;
-  };
-  const reactElement = (fiber) => {
-    if (fiber.stateNode instanceof Element) return fiber.stateNode;
-    for (let child = fiber.child; child; child = child.sibling) {
-      const found = reactElement(child);
-      if (found) return found;
-    }
-    return null;
-  };
+  ${REACT_TREE_JS}
   const vueKids = (instance) => {
     const out = [];
     const visit = (vnode) => {
@@ -68,13 +35,7 @@ export const TREE_JS = `
     return null;
   };
   const TREE = {
-    react: {
-      top: () => reactRoots().flatMap((root) => reactKids(root.current)),
-      kids: reactKids,
-      element: reactElement,
-      node: (f, fn) => ({ name: componentName(f.type), key: f.key == null ? null : String(f.key), fn: fn(renderFunction(f.type)) }),
-      same: (a, b) => a === b || a === b.alternate,
-    },
+    react: REACT_TREE,
     vue: {
       top: () =>
         Array.from(document.querySelectorAll('[data-v-app]'))
@@ -98,16 +59,27 @@ export const TREE_JS = `
     }
   };
   const treeTop = () => Object.keys(TREE).flatMap((framework) => topOf(framework).map((ref) => ({ framework, ref })));
+  // A top node by its index, reading each framework's top only as far as it: one found in React's reads no other's.
+  const topEntry = (index) => {
+    let offset = 0;
+    for (const framework of Object.keys(TREE)) {
+      const top = topOf(framework);
+      if (index < offset + top.length) return { framework, ref: top[index - offset] };
+      offset += top.length;
+    }
+    return null;
+  };
   const treeKids = (entry) => TREE[entry.framework].kids(entry.ref).map((ref) => ({ framework: entry.framework, ref }));
   const treeAt = (path) => {
-    let level = treeTop();
-    let entry = null;
-    for (const index of path) {
+    if (!path.length) return { entry: null, level: treeTop() };
+    let entry = topEntry(path[0]);
+    let level = entry ? treeKids(entry) : [];
+    for (const index of path.slice(1)) {
       entry = level[index];
       if (!entry) return null;
       level = treeKids(entry);
     }
-    return { entry, level };
+    return entry ? { entry, level } : null;
   };
   const treeLevel = (path, fn) => {
     const at = treeAt(path);
@@ -130,7 +102,16 @@ export const TREE_JS = `
       if (index < 0) return null;
       path.unshift(index);
     }
-    const top = treeTop().findIndex((entry) => entry.framework === found.framework && same(entry.ref, found.refs[found.refs.length - 1]));
-    return top < 0 ? null : [top, ...path];
+    // Its top's index: the frameworks before its own count, the ones after aren't read.
+    let offset = 0;
+    for (const framework of Object.keys(TREE)) {
+      const top = topOf(framework);
+      if (framework === found.framework) {
+        const index = top.findIndex((ref) => same(ref, found.refs[found.refs.length - 1]));
+        return index < 0 ? null : [offset + index, ...path];
+      }
+      offset += top.length;
+    }
+    return null;
   };
 `;

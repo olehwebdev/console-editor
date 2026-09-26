@@ -35,6 +35,11 @@ export const PREVIEW_LENGTH = 80;
 export const TEXT_DEPTH = 3;
 /** A React commit this soon after a store action names that action as what led to it. */
 export const ACTION_TRIGGER_MS = 250;
+/**
+ * How long a Pinia action whose promise hasn't settled counts as running: while one runs, the store's other
+ * changes are taken as its own (its record shows them); one that never settles stops counting after this.
+ */
+export const ACTION_SETTLE_MS = 10_000;
 /** How long after a document loads its Vue apps are looked for again (one that mounts late). */
 export const VUE_ATTACH_DELAY_MS = 1000;
 /** Elements looked through for a Vue 2 root instance. */

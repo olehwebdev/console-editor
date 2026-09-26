@@ -29,4 +29,5 @@ export const useInspectorStore = create<InspectorStore>()((set, get) => ({
     set({ origins: keep(origins), hookNames: keep(hookNames) });
     return [...gone].flatMap((key) => keyLocation(key) ?? []);
   },
+  forgetOrigins: () => set({ origins: {}, hookNames: {} }),
 }));

@@ -179,17 +179,20 @@ describe.skipIf(!chromiumAvailable)('inspector performance on large apps', () =>
       const frameId = services.inspector.list()[0]!.frameId;
       const levels: number[] = [];
       let path: number[] = [];
-      // Down the first child until a level lists the rows (the most a level lists).
+      let widest = 0;
+      // Down the node with the most children (names are minified) until a level lists the rows.
       for (let depth = 0; depth < 8; depth++) {
         const started = Date.now();
         const level = await services.inspector.componentTree(frameId, path);
         levels.push(Date.now() - started);
-        if (!level || level.nodes.length + level.more >= 2000) break;
-        const next = level.nodes.findIndex((node) => node.children > 0 && node.name !== 'Nest');
+        widest = Math.max(widest, level ? level.nodes.length + level.more : 0);
+        if (!level || widest >= 2000) break;
+        const next = level.nodes.reduce((best, node, index) => (node.children > (level.nodes[best]?.children ?? 0) ? index : best), -1);
         if (next < 0) break;
         path = [...path, next];
       }
-      record(`${framework}: a level of the Components tree (slowest)`, [Math.max(...levels)], 2000);
+      expect(widest, 'the level of the rows reached').toBeGreaterThanOrEqual(2000);
+      record(`${framework}: a level of the Components tree (slowest)`, [Math.max(...levels)], 500);
     });
   }
 

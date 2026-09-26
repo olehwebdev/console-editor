@@ -46,4 +46,6 @@ export interface InspectorStore {
   setLastEdit(edit: LastStateEdit | null): void;
   /** Forgets the originals and hook names of every place in a bundle (its map changed). Returns the places forgotten. */
   forgetBundle(bundleUrl: string): CodeLocation[];
+  /** Forgets every original and hook name (the maps were forgotten: another workspace). */
+  forgetOrigins(): void;
 }

@@ -40,8 +40,14 @@ export const ADAPTER_SOURCE = `function (mode, arg, edit, registry) {
   ${ANGULAR_JS}
   ${ELEMENT_JS}
   ${TREE_JS}
+  // Each function once (a level of 500 rows of one component names it 500 times): main places each with a call.
   const fns = [];
-  const fn = (value) => (typeof value === 'function' ? fns.push(value) - 1 : -1);
+  const fnIndex = new Map();
+  const fn = (value) => {
+    if (typeof value !== 'function') return -1;
+    if (!fnIndex.has(value)) fnIndex.set(value, fns.push(value) - 1);
+    return fnIndex.get(value);
+  };
   const attempt = (find, el) => {
     try {
       return find(el);

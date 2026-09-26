@@ -243,6 +243,16 @@ describe.skipIf(!chromiumAvailable)('component inspector in Chromium', () => {
     expect(component.path).toEqual([0, 0, 1]);
     expect(shape(await treeAt([]))).toEqual([['App', null, 1]]);
     expect(shape(await treeAt([0, 0]))).toEqual([['CartItem', 'A1', 0], ['CartItem', 'B2', 0]]);
+    // Both items are one function, placed once (the array read, then the function), not once an item.
+    const sent: string[] = [];
+    const send = transport.send.bind(transport);
+    transport.send = ((method: string, params?: Record<string, unknown>) => {
+      sent.push(method);
+      return send(method, params);
+    }) as typeof transport.send;
+    await treeAt([0, 0]);
+    transport.send = send;
+    expect(sent.filter((method) => method === 'Runtime.getProperties')).toHaveLength(2);
     const item = await services.inspector.openTreeNode(component.frameId!, [0, 0, 0]);
     expect(item).toMatchObject({ framework: 'vue', element: { tag: 'li' }, chain: [{ name: 'CartItem', key: 'A1' }, { name: 'CartList' }, { name: 'App' }] });
   });

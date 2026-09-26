@@ -1,4 +1,4 @@
-import { MAX_VUE2_SCAN, STATE_DEPTH } from './constants';
+import { ACTION_SETTLE_MS, MAX_VUE2_SCAN, STATE_DEPTH } from './constants';
 
 /**
  * Page-side, in the store stand-in (`STORE_HOOK_JS`): Pinia's and Vuex's stores,
@@ -6,10 +6,11 @@ import { MAX_VUE2_SCAN, STATE_DEPTH } from './constants';
  * properties hold `$pinia` and `$store` (production builds too), a Vue 2 root
  * instance its own. A Pinia store's actions are heard through `$onAction` (the
  * state written out before, and again once the action returns or its promise
- * settles); changes outside an action through a synchronous `$subscribe`, which
- * is a deep watcher (Vue walks the state on every change): it is on only while
- * recording (`detach` takes it off), and only `STATE_DEPTH` levels deep, what the
- * diff shows. A store created later is caught by a Pinia plugin. Vuex's
+ * settles; one that never does stops counting as running after
+ * `ACTION_SETTLE_MS`, so the store's other changes are heard again); changes
+ * outside an action through a synchronous `$subscribe`, which is a deep watcher
+ * (Vue walks the state on every change): it is on only while recording (`detach`
+ * takes it off), and only `STATE_DEPTH` levels deep, what the diff shows. A store created later is caught by a Pinia plugin. Vuex's
  * mutations are heard through `subscribe`, after they ran. The other listeners
  * do nothing while nothing records; the states kept are written out again when
  * recording starts.
@@ -23,7 +24,9 @@ export const VUE_STORES_JS = String.raw`
     attached.add(store);
     const name = String(store.$id);
     let snapshot = snap(store.$state);
-    let running = 0;
+    // The actions running, by when each started: the store's changes meanwhile are theirs.
+    const running = new Map();
+    let runs = 0;
     let unwatch = null;
     const stopWatching = () => {
       if (unwatch) unwatch();
@@ -31,7 +34,9 @@ export const VUE_STORES_JS = String.raw`
     };
     const onDirect = (mutation) => {
       if (!recording()) return stopWatching();
-      if (running) return;
+      const stale = performance.now() - ${ACTION_SETTLE_MS};
+      running.forEach((started, run) => started < stale && running.delete(run));
+      if (running.size) return;
       const next = snap(store.$state);
       const changes = diffSnaps(snapshot, next);
       snapshot = next;
@@ -53,9 +58,10 @@ export const VUE_STORES_JS = String.raw`
       const before = snap(store.$state);
       const at = now();
       const started = performance.now();
-      running += 1;
+      const run = ++runs;
+      running.set(run, started);
       const done = () => {
-        running -= 1;
+        running.delete(run);
         snapshot = snap(store.$state);
         const payload = args.length ? preview(args.length === 1 ? args[0] : args) : null;
         record({ at, store: name, library: 'pinia', type: String(type), payload, changes: diffSnaps(before, snapshot), duration: performance.now() - started, stack });

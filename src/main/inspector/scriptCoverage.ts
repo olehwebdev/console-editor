@@ -7,7 +7,7 @@ export function scriptCoverage(scripts: readonly ScriptRecord[], documentUrl: st
   const byUrl = new Map<string, boolean>();
   for (const script of scripts) {
     if (!LOADED_SCRIPT.test(script.url) || script.url === documentUrl) continue;
-    byUrl.set(script.url, (byUrl.get(script.url) ?? false) || !!script.sourceMap);
+    byUrl.set(script.url, (byUrl.get(script.url) ?? false) || script.mapped);
   }
   const unmapped = [...byUrl].filter(([, mapped]) => !mapped).map(([url]) => url);
   return { scripts: byUrl.size, mapped: byUrl.size - unmapped.length, unmapped: unmapped.slice(0, MAX_UNMAPPED) };
