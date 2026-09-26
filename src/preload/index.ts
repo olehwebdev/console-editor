@@ -25,6 +25,8 @@ const api: ConsoleEditorApi = {
   forgetSourceMapFile: (bundleUrl) => ipcRenderer.invoke(IPC_CHANNEL.forgetSourceMapFile, bundleUrl),
 
   listOverrides: () => ipcRenderer.invoke(IPC_CHANNEL.listOverrides),
+  exportOverrides: () => ipcRenderer.invoke(IPC_CHANNEL.exportOverrides),
+  importOverrides: () => ipcRenderer.invoke(IPC_CHANNEL.importOverrides),
   getOverride: (id) => ipcRenderer.invoke(IPC_CHANNEL.getOverride, id),
   getOverrideBase: (id) => ipcRenderer.invoke(IPC_CHANNEL.getOverrideBase, id),
   createOverride: (input) => ipcRenderer.invoke(IPC_CHANNEL.createOverride, input),

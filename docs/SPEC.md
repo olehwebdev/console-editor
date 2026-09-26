@@ -30,7 +30,7 @@ A desktop app where you enter a website's URL, see every script, stylesheet and 
 | U11 | I can edit override files in my own editor (VS Code) and the app picks up changes | 🔜 M2 |
 | U12 | Overrides and file listing inside iframes, including cross-site (out-of-process) and nested ones | ✅ |
 | U12b | Overrides and file listing for what workers load: dedicated, shared and service workers, and worklets | ✅ (except a nested worker's first script, §6.6) |
-| U13 | Export/import a workspace's overrides to share them with teammates | 🔜 M2 |
+| U13 | Export/import a workspace's overrides to share them with teammates | ✅ (§5, Sharing) |
 | U14 | Use my own Chrome (existing profile, extensions) instead of the embedded browser | 🔜 M3 |
 | U15 | Browse original sources from source maps (read-only) and jump to the matching bundle code | ✅ (§6.8) |
 | U16 | I keep a workspace per site or task (its page, tabs, unsaved edits and overrides) and switch between them from the rail, which shows each one's favicon or a colour I pick | ✅ (§5.1) |
@@ -337,6 +337,16 @@ session/drafts/<tab>.base.txt   what that tab's editing started from (tabs not y
 ```
 
 A version 1 `session.json` (one page and its tabs) becomes the first workspace, and overrides and rules saved before workspaces existed (or whose workspace is gone) are given to the active one at start.
+
+**Sharing.** **Export overrides and rules…** (the Explorer's Overrides menu, the palette) writes the active workspace's overrides and rules to one JSON file where the user picks (a native dialog, named after the page's host: `shop.test-overrides.json`); **Import overrides and rules…** adds a file's to the active workspace (`src/main/overridesFile/`):
+
+```
+{ format: 'console-editor-overrides', version: 1,
+  overrides: { kind, sourceUrl, match, enabled, originalHash, request?, response?, content, base? }[],   // base only when it differs
+  rules: (CreateRuleInput & { enabled })[] }                                                              // no ids or times: the importing store sets them
+```
+
+An import reads a file of at most 200 MB listing at most 500 overrides (a newer `version` is refused, with a word to update), and checks each entry as the app's own input: an override's shapes (`exportedOverrideSchema`: a known kind, an http(s) source URL, a usable matcher, a SHA-256 or null) and then what a response override matches and answers (`responseFieldsOf`); a rule with `ruleInputSchema`. An entry that fails is left out and counted. So is one the workspace already has, which keeps its own: an override answering the same requests (kind, matcher and, for a response override, method and GraphQL operation), or a rule doing the same (`sameRuleInput`). The rest are created in order, turned off when they were off, and `overrides-changed` and `rules-changed` follow, even when a later one fails (a full workspace refuses a rule). The renderer says what was added and left out, and reloads the page if that setting is on.
 
 **Rules on disk.** `RuleStore` writes a change to disk before it reaches memory (and so the engine); a failed write leaves the rules as they were. Entries this build can't read (a newer version's action or request type, a hand edit) are neither listed nor applied, and are written back as they were. A `rules.json` that isn't JSON of the right shape is moved to `rules.json.broken` and the app starts with no rules; one that can't be read, or moved aside, is left alone and every change is refused, so it is never written over. Either way the window says so once it opens.
 
@@ -717,6 +727,7 @@ The site's `WebContentsView` can move to a window of its own (`PageWindow`), e.g
 - Packaged builds drop `--remote-debugging-port`/`--remote-debugging-pipe` when the data folder is the default one (compared after resolving links, so pointing `CONSOLE_EDITOR_USER_DATA` at it doesn't count as another), as Chrome does for its default profile: otherwise any local program could start the app with a port and read the site view's logins.
 - One instance per data folder (`app.requestSingleInstanceLock`), so two processes never write the same overrides and session files. A second launch hands its URL to the running window and exits; if the first is still starting, that URL replaces the one it was about to open. On macOS, where Finder and `open` reopen the running app instead of starting a second process, the app also takes URLs from `open-url` the same way (following Electron's documentation; not yet checked on a Mac). Runs from source use a separate `… (dev)` data folder, so they never share one with an installed copy.
 - IPC inputs are type-checked; rules, rule edits, matchers and actions are parsed with the Zod schemas the forms use (`src/shared/rules`, `src/shared/actions`) before storage: unknown keys are dropped, a field of the wrong shape is refused by name (`Invalid rule: match`), and a value by what is wrong with it (header names are tokens, values hold no line breaks, protected headers are refused, at most 32 header changes and 200 rules per workspace). Files are read with the same schemas. Settings are filtered to known boolean keys. Source-map calls take only an http(s) bundle URL: main derives the map URL itself.
+- An imported file of overrides is code the page will run, as a HAR import's responses are: only what the user picks is read, every entry is checked as the app's own input before it is stored, and nothing a workspace already has is replaced.
 - Original sources are only ever shown as editor text, and their names (which the page chooses) as plain labels with control characters removed.
 - The page stack's detector runs in each frame's main world, where the page can change what it answers: only known ids and signals are kept, versions only when they look like one, and everything shown besides a version is the app's own text (§6.12). The React hook stand-in is a global the page can see; **Framework hooks** turns it off.
 - The component inspector's adapter runs in the main world of the frame picked in, where the page could change what it answers: the answer is checked the same way (§6.13), and names, previews and keys are only ever shown as plain labels. Reading where a function is defined turns the page's Debugger domain on for a moment, with pauses skipped, and off again. Setting state runs in the page with a value the renderer wrote as JSON, parsed by main and passed as an argument, never as code.
@@ -782,7 +793,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - ✅ Workers: dedicated, shared and service workers, and worklets (§6.6).
 - Watch `workspace/files` for external edits (edit in VS Code, the app reloads the page), with an "Open in external editor" action.
 - ✅ Workspaces: a page, tabs and overrides per site or task (§5.1).
-- Export/import a workspace's overrides as a zip or JSON, so a teammate can reproduce your fix.
+- ✅ Export/import a workspace's overrides and rules as one JSON file, so a teammate can reproduce your fix (§5, Sharing).
 - ✅ Response header overrides (CORS, CSP, cache) and request blocking (e.g. disable an analytics script): rules (§6.3).
 - Network panel ([NETWORK_PANEL.md](NETWORK_PANEL.md)): ✅ the page's requests (§6.10), response overrides for fetch/XHR with a JSON editor (§6.3, §7), answering without sending the request and patching the live response (§6.3), breakpoints and Copy as fetch (§6.11), quick edits for UI states (§7), network speed, WebSocket messages (read-only) and HAR export and import (§6.10), and a response's JSON as a tree with in-place edits (§7).
 - Search across all page resources (find which bundle defines a function).

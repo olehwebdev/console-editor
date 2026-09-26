@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHORTCUT } from '@common/constants';
-import { api } from '@/shared/api';
 import { icons } from '@/shared/config';
 import { fileName, hostOf, pathOf } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
@@ -26,6 +25,7 @@ import { sourceActions, useOriginalSources } from '../model/sources';
 import { KIND_ICON, OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
 import { inspectItems, type InspectLog } from './inspectItems';
 import { newRuleItems } from './newRuleItems';
+import { overrideFileItems } from './overrideFileItems';
 import { ruleItems } from './ruleItems';
 import { saveItem } from './saveItem';
 
@@ -106,7 +106,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         ...inspectItems({ renders: recordingRenders, stores: recordingStores }, onShowLog),
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         ...newRuleItems(),
-        { id: 'folder', label: 'Open the overrides folder', icon: icons.FolderIcon, onSelect: () => void api.revealOverridesFolder() },
+        ...overrideFileItems(overrides.length + rules.length > 0),
         { id: 'settings', label: 'Settings', icon: icons.SettingsIcon, onSelect: onShowSettings },
         { id: 'whats-new', label: "What's New", icon: icons.WhatsNewIcon, keywords: ['release notes', 'changelog', 'version'], onSelect: openWhatsNew },
         { id: 'check-updates', label: 'Check for updates', icon: icons.DownloadIcon, keywords: ['update', 'upgrade', 'version'], onSelect: () => void checkForUpdatesNow() },

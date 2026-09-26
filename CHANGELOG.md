@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Share your overrides.** The new menu on the Explorer's **Overrides** section (or the command palette) exports a workspace's overrides and rules as one file, and imports one: send it to a teammate and they see the page with your fix, or copy your changes to another workspace. An import adds only what the workspace doesn't have yet, so your own versions are kept, and tells you what it left out.
+
 ## [0.4.0] - 2026-09-26
 
 Console Editor now shows how a site works, not just what it loaded. Pick any element to see the React, Vue, Angular or web component behind it, traced to its source file even in a production build, and record why components rendered and what the page's stores did. A new Network panel overrides API responses and pauses requests, rules block requests and change headers, and actions run code in any frame with one click.

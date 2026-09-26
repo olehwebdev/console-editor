@@ -79,6 +79,8 @@ export const IPC_CHANNEL = {
   getNetworkMessages: 'network:messages',
   exportHar: 'har:export',
   importHar: 'har:import',
+  exportOverrides: 'overrides:export',
+  importOverrides: 'overrides:import',
   clearNetworkLog: 'network:clear',
   listHeldRequests: 'network:held',
   resumeHeldRequest: 'network:resume',
