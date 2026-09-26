@@ -190,6 +190,21 @@ describe('RuleStore', () => {
     expect((await readIndex()).rules).toEqual([{ ...rule, enabled: false, updatedAt: expect.any(Number) }, added, unknownAction, unknownType, malformed, duplicate]);
   });
 
+  it('keeps the order rules were made in, even within one millisecond', async () => {
+    const store = await open();
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    // Ids that would sort the other way round (queued one at a time: each write's temp file takes random bytes too).
+    queuedIds.push('ffffffff');
+    const first = await store.create(block('https://a.com/first.js'));
+    queuedIds.push('00000000');
+    const second = await store.create(removeCsp);
+    expect(second.createdAt).toBeGreaterThan(first.createdAt);
+    expect(store.forRenderer().map((r) => r.id)).toEqual(['ffffffff', '00000000']);
+    // Another workspace's rules don't push its times on.
+    store.setWorkspace('bbbbbbbb');
+    expect((await store.create(block())).createdAt).toBe(1_000);
+  });
+
   it('gives new rules ids that no rule and no unreadable entry has', async () => {
     const store = await open();
     queuedIds.push('00000001');

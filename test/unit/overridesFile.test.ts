@@ -5,7 +5,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildOverridesFile, importOverrides, importRules, overridesFileName, readOverridesFile } from '../../src/main/overridesFile';
 import { OverrideStore } from '../../src/main/store/OverrideStore';
 import { RuleStore } from '../../src/main/store/RuleStore';
@@ -47,6 +47,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -97,6 +98,8 @@ describe('import', () => {
     store.setWorkspace('ws2');
     rules.setWorkspace('ws2');
 
+    // All in one millisecond, as a fast import is: the rules still apply in the order they were exported in.
+    vi.spyOn(Date, 'now').mockReturnValue(5_000);
     expect(await importFile(file)).toEqual({ overrides: 3, rules: 2, present: 0, unreadable: 0 });
     const [first, second, third] = store.list();
     expect(first).toMatchObject({ kind: 'Script', content: 'mine();', enabled: true, originalHash: HASH });
