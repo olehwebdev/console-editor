@@ -4,10 +4,10 @@
 
 # Console Editor
 
-**Fix a live website's JavaScript, CSS and HTML in a real editor. No rebuild, no deploy.**
+**Change, test and understand a live website in a real editor. No rebuild, no deploy.**
 
-Open any site, pick a file it loaded, edit it in VS Code's editor and press <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd>.<br>
-The page reloads running your version. Nothing changes on the server; your edit lives only in the app.
+Open any site, pick a file it loaded, edit it and press <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd>: the page reloads running your version.<br>
+Swap its API responses, find the component behind any element, and see why it rendered. Nothing changes on the server.
 
 [![Download](https://img.shields.io/badge/download-macOS%20·%20Windows%20·%20Linux-f97316)](https://github.com/olehwebdev/console-editor/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-f97316)](LICENSE)
@@ -16,75 +16,100 @@ The page reloads running your version. Nothing changes on the server; your edit 
 [![React 19](https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white)](https://react.dev/)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-84cc16)](CONTRIBUTING.md)
 
-<img src="docs/demo.gif" width="880" alt="Fixing a shop checkout that shows a total of $NaN: one expression in the site's minified bundle is edited, saved, and the page immediately shows $138.00">
+<img src="docs/demo.gif" width="880" alt="A shop checkout shows a total of $NaN. The site's minified bundle is opened pretty-printed, one expression is fixed and saved, and the page reloads showing $138.00">
 
-<sub>The demo store's checkout shows <b>$NaN</b>. Its bundle adds prices as strings. One edit, one save, and the live page shows <b>$138.00</b>.</sub>
+<sub>The demo store's checkout shows <b>$NaN</b> because its bundle adds prices as strings. One edit, one save, and the live page shows <b>$138.00</b>.</sub>
 
 </div>
 
 ---
 
-## Why
+## Use it when…
 
-You found a bug on staging (or production). The fix is one line, but building the service locally takes an hour, or can't be done at all. So you paste code into the DevTools console, lose it on every reload, and edit a minified bundle with no highlighting.
+Console Editor is a browser with an editor built in. It serves the page your edits through the Chrome DevTools Protocol, so it works on any site you can open: staging, production, a teammate's preview, `localhost`.
 
-Console Editor makes that workflow first-class. It embeds a browser, intercepts the files the page loads through the Chrome DevTools Protocol, and serves your edited copy instead: before the page runs it, on every load, until you turn it off.
+| You want to… | Reach for |
+|---|---|
+| **Fix or try a change on a live site** when building the project takes an hour, or can't be done at all | [Overrides](#fix-a-live-site-without-a-rebuild): edit a script, stylesheet or HTML file and save |
+| **See how the UI copes with other data**: an empty list, a long name, an error, a slow network | [The Network panel](#test-ui-states-against-real-api-data): override a response, pause a request, slow the page down |
+| **Find which component and file render something** on a site you don't know, production builds included | [Pick an element](#find-the-component-behind-an-element): its component, source file, props, state and context |
+| **Find out why the page updated**: which click, which store action, why each component rendered | [Renders and Stores](#see-why-it-rendered-and-what-the-store-did) |
+| **Debug micro-frontends**: iframes from other sites that talk to each other | [One console for every frame](#debug-iframes-and-micro-frontends), and actions that run code in a frame with one click |
+| **Get something out of the way**: an analytics script, a Content-Security-Policy, a CORS error | [Rules](#block-requests-and-change-headers) |
 
-## Features
+Each workspace keeps its own page, tabs, overrides, rules and actions, so a fix for one site or task never leaks into another.
+
+## What you can do
+
+### Fix a live site without a rebuild
+
+<img src="docs/screenshots/editor.png" width="880" alt="The store's minified bundle, pretty-printed, with the fixed line; the override is live and the page beside it shows the corrected total">
+
+- **Edit what the page actually loaded.** Scripts, stylesheets and HTML appear under **Page resources** as they load, grouped by origin, iframes and workers included. Minified bundles are pretty-printed when you open them.
+- **Save to serve it.** <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> reloads the page with your version, before the page runs anything, on every load, until you switch the override off.
+- **Survives deploys.** A hashed bundle name such as `main.3f9a1c2b.js` can be matched as `main.*.js` in one click, and you're warned when the live file changes under your override. **Diff** (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd>) shows what you changed.
+- **Handles the hard cases:** compressed responses, Subresource Integrity (static and set at runtime), the HTTP cache, service workers and worklets, stale source maps.
+- **Reads the original sources.** When the site publishes source maps, expand a bundle to open the TypeScript, JSX or SCSS it was built from, and jump between a line of it and the bundle code it became (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>).
+
+### Test UI states against real API data
+
+<img src="docs/screenshots/network.png" width="880" alt="The Network panel's products response opened as an override: the first product gets a very long name and a price of zero, and the shop shows both">
+
+- **Override a response.** The **Network** tab lists the requests of the page, its iframes and its workers. **Override response** opens one as formatted JSON (or as a tree you edit in place): empty a list, lengthen a name, drop a field, save, and the page gets your version. Match a GraphQL call by its operation, answer with another status, headers or a delay.
+- **Never touch the server.** Turn off **Send request** and the server never sees the call, so a POST creates nothing. **Patch live** applies your edits to each live response instead of freezing it.
+- **Quick edits** empty every list, lengthen every text or null a value in one click; the speed menu slows the page to 3G or takes it offline.
+- **Pause a request.** A breakpoint stops a fetch or XHR before it goes out or before the page gets the answer: change it, send it, fail it with a network error, or keep your version as an override.
+- WebSocket messages are listed as they come; a HAR file exports your requests or replays a teammate's session as overrides; **Copy as fetch** gives any request as a `fetch()` call.
+
+### Find the component behind an element
+
+<img src="docs/inspect.gif" width="880" alt="Picking the Add to cart button in a production React shop shows the ProductCard component, its source file through the source map, its props and named state; recording renders then shows each click and why each component rendered">
+
+- **Pick anything in the page** (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>), in any frame, cross-site iframes included. The **Component** page shows the React, Vue (3 and 2), Angular or web component that rendered it: its file and line, props, state, the contexts it reads and who provides them, the element's handlers and listeners, and the components above it.
+- **Production builds too.** Minified names and places are traced back through the site's source map (or one you load from a file), hooks are named after their variables, and **Open original** shows the source.
+- **Set a value** of its state and see the page with it, then **Save as action** to set it again after a reload.
+- **Browse the Components tree** of any frame, and read the **Page stack**: each frame's UI library, framework, state library and bundler, their versions and whether it's a production build.
+
+### See why it rendered and what the store did
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-**Edit what the page actually loaded.** Scripts, stylesheets and HTML appear as they load, grouped by origin in a fast tree. Minified bundles are pretty-printed on open.
+**Renders.** Record, use the page, and see every React commit: what triggered it (a click on `button#add-kb`, a store action) and why each component rendered, its props, state, a store, a context or its parent, or that a memo component was skipped. **By component** sums it up: how often each rendered and how long it took.
 
-<img src="docs/screenshots/editor.png" alt="A pretty-printed bundle with the fixed line, next to the live page showing the corrected total">
-
-</td>
-<td width="50%" valign="top">
-
-**See exactly what you changed.** Diff your version against where you started, or against today's live file, to spot a redeploy.
-
-<img src="docs/screenshots/diff.png" alt="Side-by-side diff showing the single changed line">
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-**Jump anywhere.** <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd> fuzzy-searches every file the page loaded, your overrides and all actions.
-
-<img src="docs/screenshots/palette.png" alt="Command palette listing page files and overrides that match 'store'">
+<img src="docs/screenshots/renders.png" alt="The Renders log: each click on Add to cart, the cart/added action it dispatched, and the Header, ProductCard and CartSummary components that rendered, each with why">
 
 </td>
 <td width="50%" valign="top">
 
-**Iframes and workers too.** Same-site, cross-site (out-of-process) and nested iframes, each set up before it is allowed to load anything. What Web Workers, shared workers, service workers and worklets load gets your overrides too, a service worker's own script included. The console (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>J</kbd>) shows every frame's logs in one list, each row tagged with its frame, and runs code in the frame you pick. **Actions** keep that code, such as an event sent to one service, to run again in its frame with one click.
+**Stores.** Each action of the page's Redux, Redux Toolkit, NgRx, Zustand, Pinia or Vuex stores, with its payload, what it changed in the state (`cart.count 1 → 2`) and a link to the line of your code that dispatched it. **Sent by** in the Network panel shows the code that sent each request.
 
-<img src="docs/screenshots/iframes.png" alt="Explorer grouping files by iframe origin, with a cross-site iframe running the edited script">
+<img src="docs/screenshots/stores.png" alt="The Stores log: three cart/added actions, each with the state paths it changed and a link to ProductCard.ts, the line that dispatched it">
 
 </td>
 </tr>
 </table>
 
-**And the details that usually break this approach:**
+### Debug iframes and micro-frontends
 
-- **Survives deploys.** Hashed bundle names such as `main.3f9a1c2b.js` can be matched as `main.*.js` in one click, and you're warned when the live file changes under your override.
-- **Handles the hard cases.** Compressed responses, Subresource Integrity (static and set at runtime), the HTTP cache, service workers, stale source maps, and Chromium's local-network checks on patched pages.
-- **Never loses work.** Overrides persist and can be switched on and off one by one. Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page next time.
-- **Block requests and change headers.** Right-click a file to block it (an analytics script, a slow third-party iframe) before it reaches the server, or to remove a page's Content-Security-Policy. Rules can also set or remove any response header, or let the page call an API on another origin, preflights and cookies included. Each rule shows how often it applied and to which URLs, and switches on and off like an override.
-- **Try UI states on real API data.** The **Network** tab beside the console lists the requests of the page, its iframes and its workers, the page's fetch and XHR calls first, with their headers, payload and response. **Override response** opens one as formatted JSON, with its keys suggested as you type: empty a list, lengthen a name, drop a field, save, and the page gets your version. Answer with another status (a 500, a 503), changed headers or a delay to see the loading state, and match a GraphQL call by its operation. Turn off **Send request** and the server never sees the call: a POST changes nothing.
-- **Pause a request and change it.** Breakpoints stop a fetch or XHR before it goes out or before the page gets its response: edit its URL, method, headers and body, or the answer, then send it on, send it as it was, fail it with a network error, or keep your version as an override. **Copy as fetch** gives any request as a `fetch()` call.
-- **Test UI states quickly.** **Patch live** applies your edit to each live response instead of freezing it; **Quick edits** empty every list, lengthen every text or null a value in one click; the network speed menu slows the page to 3G or takes it offline; WebSocket messages are listed as they come; a HAR file (yours or a teammate's) exports your requests or imports its responses as overrides; and a response can be browsed and edited as a tree.
-- **One workspace per task.** Keep a workspace for each site or fix you're working on, each with its own page, tabs, unsaved edits, overrides and rules, and switch between them from the left rail. A tile shows the site's icon, or a letter on a colour you pick.
-- **Tells what each frame runs.** The status bar names the page's UI libraries, and the Page stack lists every frame, cross-site iframes included, with its UI library (React, Vue, Angular, Svelte…), framework (Next.js, Nuxt…), state library and bundler, their versions and whether each is a production build.
-- **Shows the component behind an element.** Pick anything in the page, in any frame, to see the React, Vue, Angular or web component that rendered it (or, on a plain page, its listeners): its file and line (a minified production build's too, through its source map, or one you load from a file), props, state (and set it), context, the element's handlers and the components above it, with the original file or the bundle code a click away. Browse each frame's components as a tree.
-- **Tells why React rendered.** Record renders to see, commit by commit, what triggered it and why each component rendered: its props, its state, a store, a context or its parent.
-- **Reads the original sources.** When the site publishes source maps, expand a bundle to see the TypeScript, JSX or SCSS it was built from, open any file read-only, and jump between a line of it and the bundle code it became (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd>), pretty-printed, edited or overridden.
-- **Works across screens.** Move the website into a window of its own and put it on another monitor, next to the code; it keeps running as it was, and goes back into the editor with one click or by closing its window.
-- **Stays fast on big bundles.** Multi-megabyte files open in a lighter highlight-only mode, and the file tree is virtualized.
-- **Keeps the site contained.** A site gets no permissions silently: camera, clipboard, location and similar ones prompt, the rest are denied. Its pop-ups stay under the editor's control, and a "Leave site?" guard can't block a reload.
-- **Keeps itself up to date.** A new release shows up as a notification with its notes on a **What's New** page, like VS Code's. On Windows and Linux (AppImage, `.deb`, `.rpm`) one click downloads it and **Restart to update** installs it (on Windows and with the AppImage, quitting does too), keeping your unsaved edits as drafts. On macOS and with the `.tar.gz` it downloads and checks the new version for you to install.
+<img src="docs/screenshots/console.png" width="880" alt="One console for a page and its three iframes from other sites, each row tagged with its frame; code run in the cart frame makes the billing frame react, and two saved actions run in their frames">
+
+- **One console for every frame.** The logs of the page and every iframe, even from other sites, arrive in one list, each row tagged with its frame. Pick a frame and run code in it, and see how long the others took to react.
+- **Actions** keep that code, such as an event sent to one service, to run again in its frame with one click. The Actions panel can move into a window of its own, kept on top of the page, and the website into one of its own, onto another screen.
+- Overrides work in same-site, cross-site and nested iframes, and in what Web Workers, shared workers, service workers and worklets load.
+
+### Block requests and change headers
+
+Right-click a file to block it (an analytics script, a slow third-party iframe) before it reaches the server, or to remove a page's Content-Security-Policy, with an Undo. Rules can also set or remove any response header, or let the page call an API on another origin, preflights and cookies included. Each rule shows how often it applied and to which URLs.
+
+### And
+
+- **Never lose work.** Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page; overrides switch on and off one by one.
+- **Jump anywhere** with the command palette (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd>): every file the page loaded, your overrides, actions and commands.
+- **Fast on big pages.** Multi-megabyte files open in a lighter mode, long lists are virtualized, and the inspector keeps up with apps of thousands of components.
+- **Keeps the site contained.** A site gets no permissions silently, its pop-ups stay under the editor's control, and a "Leave site?" guard can't block a reload.
+- **Keeps itself up to date**, with the release notes on a **What's New** page.
 
 ## Install
 
@@ -117,32 +142,13 @@ Console Editor checks GitHub for a new release when it starts and every six hour
 
 Downloads are verified before anything is installed (SHA-512 for automatic updates, SHA-256 for the others). Turn the checks off under **Settings › Check for updates**, and check any time from **Help › Check for Updates…**. Version 0.1.0 has no updater: install the next release by hand once.
 
-## Run from source
+## Get started
 
-Requires [Node.js](https://nodejs.org/) 22.18 or newer.
+1. Type a URL in the preview's address bar (`https://…` or `localhost:3000`). Log in as you would in a browser; the session is kept.
+2. Pick a file under **Page resources**, edit it and press <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd>. Or open the **Network** tab in the bottom panel (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>J</kbd>), or pick an element in the page (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>).
+3. Switch an override or rule off in the Explorer to get the live site back.
 
-```bash
-git clone https://github.com/olehwebdev/console-editor.git
-cd console-editor
-npm install
-npm run dev
-```
-
-Type a URL in the preview's address bar (`https://…` or `localhost:3000`), pick a file under **Page resources**, edit it and press <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd>.
-
-**Try it on the demo site.** Run `npm run demo-site` in a second terminal and open:
-
-| URL | What's there |
-|---|---|
-| `http://127.0.0.1:5174/store/` | The shop from the GIF: a checkout with a bug to fix |
-| `http://127.0.0.1:5174/` | Files built to be awkward: gzip, SRI, a hashed bundle, source maps |
-| `http://127.0.0.1:5174/frames.html` | Cross-site and nested iframes |
-| `http://127.0.0.1:5174/services.html` | Services in iframes that log and message each other (try the console, and an action running `addItem('A1')` in `cart`) |
-| `http://127.0.0.1:5174/workers/` | Dedicated, shared and service workers, and a worklet |
-| `http://127.0.0.1:5174/maps.html` | Source maps named every way: a header, `X-SourceMap`, an inline map, a stylesheet's, a missing one, an HTML page instead |
-| `http://127.0.0.1:5174/network/` | A page that talks to a JSON API, GraphQL and an event stream (open the Network tab and override the cart's response) |
-
-To open a URL on start, pass it to the app (`console-editor https://example.com` after installing the Linux package) or set `CONSOLE_EDITOR_URL`: `CONSOLE_EDITOR_URL=https://example.com npm run dev`. On Linux and Windows, starting the app again with a URL opens it in the window that's already running.
+To open a URL on start, pass it to the app (`console-editor https://example.com` after installing the Linux package) or set `CONSOLE_EDITOR_URL`. On Linux and Windows, starting the app again with a URL opens it in the window that's already running.
 
 <details>
 <summary><b>Keyboard shortcuts</b></summary>
@@ -160,7 +166,7 @@ To open a URL on start, pass it to the app (`console-editor https://example.com`
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>R</kbd> | Reload the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>L</kbd> | Focus the address bar |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>B</kbd> | Show or hide the sidebar |
-| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>J</kbd> | Show or hide the console or the network panel (whichever you used last) |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>J</kbd> | Show or hide the bottom panel: console, network, renders and stores |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>J</kbd> | DevTools for the page |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Alt</kbd> + <kbd>I</kbd> | DevTools for the editor itself |
 
@@ -170,30 +176,7 @@ Shortcuts also work while the page has focus, unless the page handles the same k
 
 ## How it works
 
-```mermaid
-flowchart LR
-  subgraph App["Console Editor (Electron)"]
-    UI["Editor UI<br/>React · Monaco"]
-    Engine["Interception engine<br/>one per CDP session"]
-    Store[("Overrides<br/>on disk")]
-  end
-  Page["Website<br/>(embedded Chromium)"]
-  Frames["Cross-site iframes<br/>and workers<br/>(own CDP targets)"]
-  Server["The real server"]
-
-  UI -- "save" --> Store
-  Engine -- reads --> Store
-  Page -- "requests app.js" --> Server
-  Server -- "original app.js" --> Engine
-  Engine -- "Fetch.fulfillRequest:<br/>your app.js" --> Page
-  Engine -. attaches .-> Frames
-```
-
-1. The site runs in an embedded Chromium view; the editor talks to it through the **Chrome DevTools Protocol**, the same channel DevTools uses.
-2. Requests an override applies to are paused at the **response** stage (`Fetch` domain). The real response arrives with its headers and cookies intact. Its body is hashed to detect redeploys, then replaced with your file.
-3. Documents are rewritten to drop `integrity` attributes, and a small guard does the same for ones set at runtime, so the browser accepts edited scripts.
-4. Rules pause only what they match: a blocked request fails before it is sent, and header changes are applied to the real response on its way to the page (a page's own document is re-served, since Chromium enforces the CSP it arrived with).
-5. Every cross-site iframe is its own CDP target, and so is every worker. The app attaches to each one (and to theirs, recursively) and sets it up before it runs. A Web Worker's or worklet's requests are paused on the session of the frame that started it, a service or shared worker's mostly on its own.
+The site runs in an embedded Chromium, and the editor talks to it through the **Chrome DevTools Protocol**, the channel DevTools uses. A file an override applies to is paused as its response arrives, its headers and cookies intact, and your version is served in its place; `integrity` attributes are dropped so the browser accepts it. Every cross-site iframe and every worker is its own target: the app attaches to each one and sets it up before it runs. The component inspector reads the page's own framework internals (React's fibers, Vue's instances, Angular's views) and traces each function to its source through the source map.
 
 The details, including facts about Chromium verified in tests, are in **[docs/SPEC.md](docs/SPEC.md)**.
 
@@ -204,7 +187,8 @@ The details, including facts about Chromium verified in tests, are in **[docs/SP
 | **DevTools Local Overrides** | CDP, while DevTools is open | Sources panel | Exact URLs only (a new build hash breaks it); no SRI handling; loose files, no overview |
 | **MITM proxy** (Charles, mitmproxy, Proxyman…) | A proxy for the whole machine | Your own, mapped by hand | Installing a root certificate; no list of what the page loaded |
 | **Extensions** (Requestly, Resource Override…) | Redirects; rewriting needs the debugger API | Popup or panel | Manifest V3 limits; SRI still blocks edits |
-| **Console Editor** | CDP, always, in its own browser | Monaco, with the page's file list, diff and pretty-print | You log in to sites once inside the app (sessions persist) |
+| **React / Vue DevTools** | None: they change a component's state in memory, not the files | Their own panel | One framework each; a production build shows minified names |
+| **Console Editor** | CDP, always, in its own browser | Monaco, with the page's file list, diff, source maps and a component inspector for React, Vue, Angular and web components | You log in to sites once inside the app (sessions persist) |
 
 Is the idea sound? The trade-offs are in **[docs/RESEARCH.md](docs/RESEARCH.md)**.
 
@@ -227,6 +211,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 
 - You edit the **built output** (bundled JS), not the original TypeScript or JSX. It's readable after pretty-printing, but identifiers stay minified. When the site publishes source maps with their sources, you can read the originals and jump between them and the bundle, but not edit them.
 - Edits exist only in the app's browser. The real fix still goes through your normal build and deploy.
+- The component inspector reads frameworks' internals, which production builds don't document: it's tested against React 19, Vue 3.5 and 2.7, and Angular 17 to 22. Renders are recorded for React only.
 - A worker started by another worker runs its own first script unchanged: Chromium gives the app no way to change it (what that worker loads still gets your overrides). The app tells you when this happens.
 - A service worker keeps the scripts it installed, so an edit to one takes effect when the app reloads the page: it unregisters the old worker and the page installs your version. That needs the page to register its service worker on every load, and the worker's push subscriptions are lost. After you restart the app, it doesn't know which of your edits a site's service worker installed: if the site has any script override (even one that's off, or for a file the worker doesn't load), the app's first reload with that worker running reinstalls it, and its push subscriptions are lost. Leaving the site and coming back doesn't do this.
 - Chromium's update checks fetch a service worker's scripts where the app can't change them, and can put the live ones back: when the page calls `registration.update()`, whatever your settings, and with **Settings › Bypass service workers** off, after page loads too. The app tells you when it sees this, and its next reload puts your version back. With that setting off, what a service worker answers from its own cache isn't overridden, and a copy it cached while an override was on keeps your edit until the site caches it again. With it on, after you restart the app, a page reaches a service worker it installed earlier only from its second load (a Chromium quirk).
@@ -238,53 +223,59 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 
 ## Roadmap
 
-- [x] Overrides for scripts, stylesheets and HTML; SRI, gzip, hashed names, redeploy detection
-- [x] Cross-site and nested iframes
-- [x] A console for the page and every iframe: each frame's logs in one list, and code run in the frame you pick
-- [x] Actions: code kept to run in a frame with one click
-- [x] Actions in a window of their own, kept on top of the page or on another screen
+What shipped, release by release, is in the **[CHANGELOG](CHANGELOG.md)**. Next:
+
 - [ ] Parameters and scenarios for actions
-- [x] Session restore with unsaved drafts
-- [x] Workspaces: a page, tabs and overrides per site or task, switched from the rail
-- [x] Rules: request blocking, response header changes, and CORS for APIs
-- [x] Installers for macOS, Windows and Linux
-- [x] Workers and service workers
 - [ ] Edit in your own editor (watch the overrides folder), and export/import patch sets for teammates
 - [ ] Search across every file the page loaded
 - [ ] Drive your own Chrome over CDP
-- [x] Update notifications, What's New, and installing updates on Windows and with the AppImage, `.deb` and `.rpm`
+- [ ] Vue's renders and a data-flow view in the component inspector ([research](docs/INSPECTOR_RESEARCH.md))
 - [ ] Signed and notarized builds (and with them, installing updates in place on macOS)
-- [x] Source-map explorer: open the original sources behind a bundle
-- [x] Network panel: the page's requests, and response overrides for fetch and XHR with a JSON editor
-- [x] Network breakpoints, and answering a request without sending it
-- [x] Patch mode, quick edits for UI states, network speed, WebSocket messages, HAR export and import
-- [x] A response's JSON as a tree with in-place edits
-- [x] Page stack: the UI library, framework, state library and bundler of each frame
-- [x] Component inspector: pick an element to see the React or Vue component that rendered it, its source file, props, state, context and handlers
-- [x] Components tree, setting state, and why each React component rendered (Renders)
-- [x] Angular, Vue 2 and web components, an element's listeners, and loading a source map from a file
-- [x] Store actions (Redux, NgRx, Zustand, Pinia, Vuex), who sent a request, state kept as an action, and renders by component
-- [ ] Component inspector, next: Vue's renders and a data-flow view ([research](docs/INSPECTOR_RESEARCH.md))
 
 ## Development
 
+Requires [Node.js](https://nodejs.org/) 22.18 or newer.
+
+```bash
+git clone https://github.com/olehwebdev/console-editor.git
+cd console-editor
+npm install
+npm run dev
+```
+
+**Try it on the demo site.** Run `npm run demo-site` in a second terminal and open:
+
+| URL | What's there |
+|---|---|
+| `http://127.0.0.1:5174/store/` | The shop from the GIF: a checkout with a bug to fix |
+| `http://127.0.0.1:5174/` | Files built to be awkward: gzip, SRI, a hashed bundle, source maps |
+| `http://127.0.0.1:5174/frames.html` | Cross-site and nested iframes |
+| `http://127.0.0.1:5174/services.html` | Services in iframes that log and message each other (try the console, and an action running `addItem('A1')` in `cart`) |
+| `http://127.0.0.1:5174/workers/` | Dedicated, shared and service workers, and a worklet |
+| `http://127.0.0.1:5174/maps.html` | Source maps named every way: a header, `X-SourceMap`, an inline map, a stylesheet's, a missing one, an HTML page instead |
+| `http://127.0.0.1:5174/network/` | A page that talks to a JSON API, GraphQL and an event stream (open the Network tab and override the cart's response) |
+| `http://127.0.0.1:5174/stack.html` | What Vue, Angular, Next.js and webpack leave in a page (the Page stack) |
+
 | Command | What it does |
 |---|---|
-| `npm run dev` | Run the app with hot reload |
+| `npm run dev` | Run the app with hot reload (`CONSOLE_EDITOR_URL=https://example.com npm run dev` opens a URL) |
 | `npm run build` / `npm start` | Production build / run the build |
 | `npm run typecheck` | TypeScript, main process and renderer |
+| `npm run lint` | oxlint, type-aware: React's rules (hooks, refs, purity) and misused promises |
 | `npm run lint:fsd` | [Feature-Sliced Design](https://feature-sliced.design) architecture check ([Steiger](https://github.com/feature-sliced/steiger)) |
 | `npm run lint:structure` | Code-structure check: files of at most 150 lines, one function or component each, no `switch` ([CLAUDE.md › Code structure](CLAUDE.md#code-structure)) |
-| `npm test` | Unit and renderer tests, plus the interception engine, iframes and workers against real Chromium (skipped without it: `npx playwright install chromium`) |
+| `npm run lint:unused` / `lint:duplicates` / `lint:secrets` | No unused code (knip), no new copies (jscpd), no secrets in the tree (secretlint) |
+| `npm test` | Unit and renderer tests, plus the interception engine, iframes, workers and the component inspector against real Chromium (skipped without it: `npx playwright install chromium`) |
 | `npm run test:e2e` | Builds the app and drives it end to end with Playwright (headless Linux: `xvfb-run npm run test:e2e`) |
+| `npm run test:perf` | The inspector and its UI on large apps (some 14,000 components, stores of 20,000 items), against time budgets |
 | `npm run dist` | Builds the installers for your system into `dist/` (`npm run dist -- --dir` for just the app) |
 | `npm run test:packaged` | Drives the packaged app end to end: pass the app's executable, or run it after `npm run dist` |
 | `npm run test:update` | Updates an installed app (or an AppImage) to a newer build served locally: pass its executable and the newer build's `dist` folder |
 | `npm run demo-site` | Serves the demo site on port 5174 |
 
-- **Main process** (`src/main`): the interception engine (`engine/InterceptionEngine/`, one per CDP session) and its coordinator for iframe and worker sessions (`engine/PageInterception/`), the embedded page, persistence and IPC.
+- **Main process** (`src/main`): the interception engine (`engine/InterceptionEngine/`, one per CDP session) and its coordinator for iframe and worker sessions (`engine/PageInterception/`), the component inspector (`inspector/`), the embedded page, persistence and IPC.
 - **Renderer** (`src/renderer/src`): React 19 organized with Feature-Sliced Design (`app → pages → widgets → features → entities → shared`), Zustand stores per entity, and a design system with Motion animations and [Hugeicons](https://hugeicons.com). Tokens, motion rules and components are in **[docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)**; `CONSOLE_EDITOR_GALLERY=1 npm run dev` opens the component gallery.
-- **Shared** (`src/shared`): IPC types and URL matching used by both.
+- **Shared** (`src/shared`): IPC types, validation schemas and URL matching used by both.
 
 When running as root on Linux (containers, CI), Electron needs its sandbox off: `npm run dev -- --noSandbox`.
 
