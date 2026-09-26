@@ -13,7 +13,7 @@ import { originalPositionFor, TraceMap } from '@jridgewell/trace-mapping';
 import type { Locator, Page } from 'playwright-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { PageInterception } from '../../src/main/engine/PageInterception';
-import { NOT_SETTABLE } from '../../src/main/inspector/constants';
+import { ANGULAR_REGISTRY_GLOBAL, NOT_SETTABLE } from '../../src/main/inspector/constants';
 import { FrameServices } from '../../src/main/PageController/FrameServices';
 import { DEFAULT_SETTINGS, type AppEvent, type CodeLocation, type ComponentTreeLevel, type InspectedComponent, type InspectHover } from '../../src/shared/types';
 import { bundleApp } from '../helpers/bundleApp';
@@ -164,7 +164,14 @@ describe.skipIf(!chromiumAvailable)('component inspector on Angular, Vue 2, web 
     await page.locator('#add-A1').waitFor();
     const top = await treeAt([]);
     expect(top.nodes.map((n) => lineIn(n.location))).toEqual([lineOf('angularCart.ts', 'class App')]);
+    // Found once, the registry is kept on the page's window: the next read doesn't walk the heap for it.
+    const sent: string[] = [];
+    const send = transport.send.bind(transport);
+    transport.send = ((method: string, params?: Record<string, unknown>) => (sent.push(method), send(method, params))) as typeof transport.send;
     expect((await treeAt([0])).nodes).toHaveLength(2);
+    transport.send = send;
+    expect(sent).not.toContain('Runtime.queryObjects');
+    expect(await page.evaluate((key) => [key in window, Object.keys(window).includes(key)], ANGULAR_REGISTRY_GLOBAL)).toEqual([true, false]);
   });
 
   it('reads a Vue 2 component: props, data it can set, what the app provides, the chain and the tree', async () => {

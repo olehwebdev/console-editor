@@ -89,6 +89,11 @@ export const LOADED_SCRIPT = /^https?:/;
  * component's own view), its context (the component instance) and its id (the registry's key).
  */
 export const ANGULAR_VIEW = { tView: 1, context: 8, id: 19, componentType: 1 } as const;
+/**
+ * Where a page keeps Angular's view registry once it was found (a non-enumerable global of its window): the
+ * next read takes it from there instead of walking the heap, and it goes with the document.
+ */
+export const ANGULAR_REGISTRY_GLOBAL = '__consoleEditorNgRegistry';
 /** The most steps a selector for a picked element takes up from it (to an ancestor with an id, or body). */
 export const MAX_SELECTOR_STEPS = 16;
 /** The most shadow roots a picked element's selectors go in through (the document's is one), and the longest selector taken. */

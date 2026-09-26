@@ -1,9 +1,19 @@
-import { ANGULAR_VIEW } from '../constants';
+import { ANGULAR_REGISTRY_GLOBAL, ANGULAR_VIEW } from '../constants';
 
-/** On an element or document: whether its page runs a production Angular build, whose components only its view registry leads to. */
-export const NEEDS_REGISTRY_SOURCE = `function () {
+/**
+ * On an element or document, for a page running a production Angular build (whose components only its view
+ * registry leads to): the registry, when it was found before and kept on the window (and still holds views);
+ * else null. Undefined for a page that needs none (no Angular, or a development build, with `window.ng`).
+ */
+export const KEPT_REGISTRY_SOURCE = `function () {
   const ng = window.ng;
-  return !!document.querySelector('[ng-version]') && !(ng && typeof ng.getComponent === 'function');
+  if (!document.querySelector('[ng-version]') || (ng && typeof ng.getComponent === 'function')) return undefined;
+  const kept = Object.prototype.hasOwnProperty.call(window, '${ANGULAR_REGISTRY_GLOBAL}') ? window['${ANGULAR_REGISTRY_GLOBAL}'] : null;
+  return kept instanceof Map && kept.size ? kept : null;
+}`;
+/** On the registry found: kept on its page's window (`ANGULAR_REGISTRY_GLOBAL`), not enumerable. */
+export const KEEP_REGISTRY_SOURCE = `function () {
+  Object.defineProperty(window, '${ANGULAR_REGISTRY_GLOBAL}', { configurable: true, value: this });
 }`;
 /** On an element or document: the Map prototype of its world, for `Runtime.queryObjects`. */
 export const MAP_PROTOTYPE_SOURCE = 'function () { return Map.prototype; }';

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
 import { ADAPTER_SOURCE, DATA_OF_SOURCE, FNS_OF_SOURCE, OWNER_DOCUMENT_SOURCE } from '../../src/main/inspector/adapter/adapterSource';
 import { LISTENERS_SOURCE } from '../../src/main/inspector/adapter/listenersSource';
-import { FIND_REGISTRY_SOURCE, MAP_PROTOTYPE_SOURCE, NEEDS_REGISTRY_SOURCE } from '../../src/main/inspector/adapter/registrySource';
+import { FIND_REGISTRY_SOURCE, KEEP_REGISTRY_SOURCE, KEPT_REGISTRY_SOURCE, MAP_PROTOTYPE_SOURCE } from '../../src/main/inspector/adapter/registrySource';
 import { HOVER_INTERVAL_MS, MAX_PICKS, PICK_GONE } from '../../src/main/inspector/constants';
 import { toInspectedComponent } from '../../src/main/inspector/reading/toInspectedComponent';
 import { FrameServices } from '../../src/main/PageController/FrameServices';
@@ -84,6 +84,8 @@ describe('component inspector (picking and reading)', () => {
     );
     cdp.replies.set('Runtime.callFunctionOn', (p: { functionDeclaration: string; arguments?: Array<{ value: unknown }>; objectId: string }) => {
       if (p.functionDeclaration === OWNER_DOCUMENT_SOURCE) return { result: { type: 'object', objectId: 'doc' } };
+      // Not a production Angular page: no registry needed.
+      if (p.functionDeclaration === KEPT_REGISTRY_SOURCE) return { result: { type: 'undefined' } };
       if (p.functionDeclaration === DATA_OF_SOURCE) return { result: { type: 'object', value: { ...DESCRIBED, depth: 0 } } };
       if (p.functionDeclaration === FNS_OF_SOURCE) return { result: { type: 'object', objectId: 'fns' } };
       if (p.arguments?.[0]?.value === 'summary') return { result: { type: 'object', value: { element: { tag: 'li', id: '', classes: [] }, framework: 'react', chain: [`at-${p.objectId}`] } } };
@@ -191,8 +193,14 @@ describe('component inspector (picking and reading)', () => {
 
   it("finds a production Angular page's view registry for the read, and reads the element's own listeners", async () => {
     const answer = cdp.replies.get('Runtime.callFunctionOn') as (p: { functionDeclaration: string; objectId: string }) => unknown;
+    // The page keeps the registry once it is handed back to it.
+    let kept = false;
     cdp.replies.set('Runtime.callFunctionOn', (p: { functionDeclaration: string; objectId: string }) => {
-      if (p.functionDeclaration === NEEDS_REGISTRY_SOURCE) return { result: { type: 'boolean', value: true } };
+      if (p.functionDeclaration === KEPT_REGISTRY_SOURCE) return { result: kept ? { type: 'object', subtype: 'map', objectId: 'registry' } : { type: 'object', subtype: 'null', value: null } };
+      if (p.functionDeclaration === KEEP_REGISTRY_SOURCE) {
+        kept = p.objectId === 'registry';
+        return { result: { type: 'undefined' } };
+      }
       if (p.functionDeclaration === MAP_PROTOTYPE_SOURCE) return { result: { type: 'object', objectId: 'map-prototype' } };
       if (p.functionDeclaration === FIND_REGISTRY_SOURCE) return { result: { type: 'object', objectId: 'registry' } };
       if (p.functionDeclaration === LISTENERS_SOURCE) return { result: { type: 'object', objectId: 'listeners' } };
@@ -209,6 +217,11 @@ describe('component inspector (picking and reading)', () => {
     expect(cdp.sent('Runtime.queryObjects', undefined)[0]!.params).toMatchObject({ prototypeObjectId: 'map-prototype' });
     const adapter = cdp.sent('Runtime.callFunctionOn', undefined).find((c) => c.params?.functionDeclaration === ADAPTER_SOURCE)!;
     expect(adapter.params?.arguments[3]).toEqual({ objectId: 'registry' });
+    // Kept on the page's window: the next read takes it from there, without walking the heap again.
+    await services.inspector.inspectComponent(picked()!.pickId, 0);
+    expect(cdp.sent('Runtime.queryObjects', undefined)).toHaveLength(1);
+    const again = cdp.sent('Runtime.callFunctionOn', undefined).filter((c) => c.params?.functionDeclaration === ADAPTER_SOURCE).at(-1)!;
+    expect(again.params?.arguments[3]).toEqual({ objectId: 'registry' });
     // The DOM hands the handlers over, and the page says which function each runs.
     expect(cdp.sent('Runtime.callFunctionOn', undefined).find((c) => c.params?.functionDeclaration === LISTENERS_SOURCE)!.params).toMatchObject({ objectId: 'el-5', arguments: [{ objectId: 'h1' }] });
     expect(picked()!.listeners).toEqual([{ type: 'click', name: 'onBuy', location: { url: APP_JS, line: 0, column: 120 }, capture: true, once: true, passive: false }]);
