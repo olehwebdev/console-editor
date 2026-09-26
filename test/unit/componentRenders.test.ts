@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '../../src/main/engine/cdp';
 import { ADAPTER_SOURCE, DATA_OF_SOURCE, ELEMENT_OF_SOURCE, FNS_OF_SOURCE } from '../../src/main/inspector/adapter/adapterSource';
+import { KEPT_REGISTRY_SOURCE } from '../../src/main/inspector/adapter/registrySource';
 import { FRAME_GONE, MAX_RENDERED, NO_ELEMENT, NOT_JSON, NOT_SETTABLE, RENDERED_TYPES, RENDERS_BINDING } from '../../src/main/inspector/constants';
 import { toStateEdit } from '../../src/main/inspector/reading/toStateEdit';
 import { toRenderCommits } from '../../src/main/inspector/renders/toRenderCommits';
@@ -180,6 +181,8 @@ describe('recording renders, the Components tree and setting state (main)', () =
           return { result: { type: 'object', value: { nodes: [{ framework: 'react', name: 'App', key: null, fn: 0, children: 2 }, { framework: 'svelte', name: 'X', fn: 1, children: 0 }], more: 3 } } };
         if (p.functionDeclaration === FNS_OF_SOURCE) return { result: { type: 'object', objectId: 'fns' } };
         if (p.functionDeclaration === ELEMENT_OF_SOURCE) return { result: { type: 'object', objectId: 'el-9' } };
+        // Not a production Angular page: no registry needed.
+        if (p.functionDeclaration === KEPT_REGISTRY_SOURCE) return { result: { type: 'undefined' } };
         if (p.functionDeclaration.includes('this.depth')) return { result: { type: 'number', value: 1 } };
         return { result: { type: 'object', objectId: 'holder' } };
       });
