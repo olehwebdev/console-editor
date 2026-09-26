@@ -1,6 +1,6 @@
 import { SOURCE_MAP_KINDS, type SourceMapKind, type SourceMapRequest } from '../../shared/types';
 import { assertBundleUrl } from './assertBundleUrl';
-import { MAX_URL_CHARS } from './constants';
+import { MAX_URL_CHARS } from '../../shared/constants';
 
 /** A content hash as the engine writes it (sha256, hex). */
 const CONTENT_HASH = /^[0-9a-f]{64}$/;

@@ -1,8 +1,9 @@
+import { OVERRIDES_FILE_FORMAT, OVERRIDES_FILE_VERSION } from '../../shared/overrides';
+import type { ExportedOverride, OverridesFile } from '../../shared/types';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
-import { OVERRIDES_FILE_FORMAT, OVERRIDES_FILE_VERSION } from './constants';
 import { exportedRuleOf } from './exportedRuleOf';
-import type { ExportedOverride, OverridesFile } from './types';
+
 
 /** The active workspace's overrides and rules, as an export file holds them. */
 export async function buildOverridesFile(store: OverrideStore, rules: RuleStore): Promise<OverridesFile> {

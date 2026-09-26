@@ -95,23 +95,6 @@ export interface CreateOverrideInput {
   response?: ResponseSettings;
 }
 
-/** What exporting the active workspace's overrides and rules wrote. */
-export interface OverridesExport {
-  path: string;
-  overrides: number;
-  rules: number;
-}
-
-/** What importing an export of overrides and rules did to the active workspace. */
-export interface OverridesImport {
-  overrides: number;
-  rules: number;
-  /** Left out: the workspace already has an override answering the same requests, or a rule doing the same. */
-  present: number;
-  /** Left out: not an override or rule this version can read (a hand edit, a newer version's). */
-  unreadable: number;
-}
-
 export interface OverridePatch {
   content?: string;
   match?: UrlMatcher;

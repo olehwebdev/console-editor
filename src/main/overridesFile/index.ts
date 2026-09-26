@@ -4,4 +4,3 @@ export { importOverrides } from './importOverrides';
 export { importRules } from './importRules';
 export { overridesFileName } from './overridesFileName';
 export { readOverridesFile } from './readOverridesFile';
-export type { OverridesFile } from './types';

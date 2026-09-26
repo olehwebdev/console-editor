@@ -1,6 +1,6 @@
+import { exportedOverrideSchema } from '../../shared/overrides';
 import type { CreateOverrideInput } from '../../shared/types';
 import { responseFieldsOf } from '../store/OverrideStore/responseFieldsOf';
-import { exportedOverrideSchema } from './exportedOverrideSchema';
 
 /**
  * What recreates an override an export file lists, checked as the app's own input is, with whether

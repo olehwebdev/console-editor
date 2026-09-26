@@ -6,10 +6,10 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildOverridesFile, importOverrides, importRules, overridesFileName, readOverridesFile, type OverridesFile } from '../../src/main/overridesFile';
+import { buildOverridesFile, importOverrides, importRules, overridesFileName, readOverridesFile } from '../../src/main/overridesFile';
 import { OverrideStore } from '../../src/main/store/OverrideStore';
 import { RuleStore } from '../../src/main/store/RuleStore';
-import type { OverridesImport } from '../../src/shared/types';
+import type { OverridesFile, OverridesImport } from '../../src/shared/types';
 
 let dir: string;
 let store: OverrideStore;
@@ -156,7 +156,7 @@ describe('reading a file', () => {
   };
 
   it('takes an export, with a missing list read as empty', async () => {
-    expect(await readOverridesFile(await write({ format: 'console-editor-overrides', version: 1, overrides: [{ a: 1 }] }))).toEqual({ overrides: [{ a: 1 }], rules: [] });
+    expect(await readOverridesFile(await write({ format: 'console-editor-overrides', version: 1, overrides: [{ a: 1 }] }))).toEqual({ format: 'console-editor-overrides', version: 1, overrides: [{ a: 1 }], rules: [] });
   });
 
   it('refuses a file that is not JSON, not an export, from a newer version, or too long', async () => {
