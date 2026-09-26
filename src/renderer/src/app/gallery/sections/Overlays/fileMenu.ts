@@ -29,15 +29,13 @@ export function fileMenu({ wordWrap, setWordWrap, setAnswer }: FileMenuState): M
       label: 'Delete override',
       icon: DeleteIcon,
       danger: true,
-      onSelect: async () => {
-        const ok = await confirm({
+      onSelect: () =>
+        void confirm({
           title: 'Delete override?',
           body: 'main.js will be served from the network again. This cannot be undone.',
           confirmLabel: 'Delete',
           tone: 'danger',
-        });
-        setAnswer(ok ? 'Deleted' : 'Kept');
-      },
+        }).then((ok) => setAnswer(ok ? 'Deleted' : 'Kept')),
     },
   ];
 }

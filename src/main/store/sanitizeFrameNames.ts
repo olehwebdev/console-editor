@@ -1,5 +1,5 @@
-import { MAX_FRAME_NAME } from '../../shared/constants';
-import { MAX_FRAME_ADDRESS, MAX_FRAME_NAMES } from './constants';
+import { MAX_FRAME_ADDRESS, MAX_FRAME_NAME } from '../../shared/constants';
+import { MAX_FRAME_NAMES } from './constants';
 
 /** Keeps well-formed frame names (address -> name, trimmed, not empty), so a corrupt file or a bad message can't inject junk. */
 export function sanitizeFrameNames(input: unknown): Record<string, string> {

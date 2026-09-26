@@ -74,7 +74,12 @@ export class ComponentReader {
     const { pick, session, at } = this.find(pickId, depth);
     const group = `${READ_GROUP_PREFIX}${++this.count}`;
     const registry = await angularRegistry(session.transport, pick.objectId, group);
-    const written = await writeState(session.transport, pick.objectId, at, edit, registry).finally(() => session.transport.send(CDP.Runtime.releaseObjectGroup, { objectGroup: group }).catch(() => undefined));
+    let written: boolean;
+    try {
+      written = await writeState(session.transport, pick.objectId, at, edit, registry);
+    } finally {
+      session.transport.send(CDP.Runtime.releaseObjectGroup, { objectGroup: group }).catch(() => undefined);
+    }
     if (!written) throw new Error(NOT_SETTABLE);
     return this.describe(pick.id, at);
   }

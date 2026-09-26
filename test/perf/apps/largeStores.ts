@@ -41,6 +41,7 @@ const useItems = defineStore('items', {
 let next = 0;
 createApp({
   setup() {
+    // oxlint-disable-next-line react/rules-of-hooks -- Pinia's store in Vue's setup(), not a React hook
     const pinia = useItems();
     return () =>
       h('div', null, [

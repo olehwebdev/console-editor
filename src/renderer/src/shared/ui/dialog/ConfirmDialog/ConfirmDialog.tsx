@@ -14,7 +14,7 @@ export interface ConfirmDialogProps {
  * Focus is trapped inside, Esc/backdrop cancels, Enter confirms (unless Cancel
  * has focus; held or repeated Enter is ignored), focus returns to where it was.
  * Global hotkeys registered on `window` run before the dialog sees the key, so
- * they should bail while `isConfirmOpen()` (or `useConfirmOpen()`) is true.
+ * they should bail while `isConfirmOpen()` is true.
  */
 export function ConfirmDialog({ className }: ConfirmDialogProps) {
   const primary = usePrimaryHost();

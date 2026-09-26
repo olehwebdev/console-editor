@@ -100,6 +100,3 @@ export function Section({
     </section>
   );
 }
-
-/** Alias of <Section> (the design-system contract names both). */
-export const Collapsible = Section;

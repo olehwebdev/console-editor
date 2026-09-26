@@ -1,7 +1,8 @@
-import type { ConsoleFrame, RenderCommit } from '@common/types';
+import type { RenderCommit } from '@common/types';
+import type { FrameOf } from '@/entities/frame';
 
 /** A commit's frame, and its label, by frame id. */
-export type ResolveFrame = (frameId: string | null) => { frame: ConsoleFrame | undefined; label: string | undefined };
+export type ResolveFrame = FrameOf;
 
 /** The rows of a commit in the Renders log: its heading, a row per component listed, then the count of the rest. */
 export type LogRowKind = 'heading' | 'component' | 'more';

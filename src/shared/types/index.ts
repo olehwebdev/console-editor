@@ -46,9 +46,8 @@ export type {
 export { INSPECT_FRAMEWORKS, RENDER_KINDS, RENDER_REASONS, STATE_KINDS, STORE_LIBRARIES } from './inspector';
 export type { MenuCommand } from './menu';
 export type { HarImport, HttpHeader, NetworkBody, NetworkBodyGap, NetworkRequest, NetworkRequestDetail, NetworkRequestState, SocketDirection, SocketMessage, SocketMessages } from './network';
-export { NETWORK_BODY_GAPS, NETWORK_REQUEST_STATES } from './network';
 export type { CreateOverrideInput, MatchType, Override, OverrideMeta, OverridePatch, OverrideWithContent, RequestMatch, ResponseSettings, UnpatchedReason, UrlMatcher } from './overrides';
-export { MATCH_TYPES, UNPATCHED_REASONS } from './overrides';
+export { MATCH_TYPES } from './overrides';
 export type { PageState, Rect } from './page';
 export type { FileKind, ResourceContent, ResourceEntry, ResourceKind } from './resources';
 export { FILE_KINDS, RESOURCE_KINDS } from './resources';

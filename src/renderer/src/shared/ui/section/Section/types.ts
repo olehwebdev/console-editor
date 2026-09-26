@@ -26,5 +26,3 @@ export interface SectionProps extends Omit<ComponentPropsWithRef<'section'>, 'ti
   /** Classes for the animated body (e.g. `min-h-0 flex-1` for a body that fills a flex column). */
   contentClassName?: string;
 }
-
-export type CollapsibleProps = SectionProps;

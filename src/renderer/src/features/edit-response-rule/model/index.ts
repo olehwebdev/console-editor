@@ -2,7 +2,6 @@ export { applyResponse } from './applyResponse';
 export { DIGITS, METHOD_CHOICES } from './constants';
 export { fromForm } from './fromForm';
 export { invalidFields } from './invalidFields';
-export { responseRuleProblem } from './responseRuleProblem';
 export { ruleOf } from './ruleOf';
 export { sameResponseRule } from './sameResponseRule';
 export { setPendingRule } from './setPendingRule';

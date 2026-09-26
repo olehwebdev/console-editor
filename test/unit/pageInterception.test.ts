@@ -1041,7 +1041,7 @@ describe('PageInterception', () => {
 
   describe('rules', () => {
     const requestPatterns = (c: { params?: Record<string, unknown> }) =>
-      (c.params?.patterns as Array<{ requestStage: string }>).filter((p) => p.requestStage === 'Request');
+      (c.params!.patterns as Array<{ requestStage: string }>).filter((p) => p.requestStage === 'Request');
 
     it("blocks a request paused on an iframe's session, on that session (every engine reads the rules)", async () => {
       const { cdp, events } = await setup([], { rules: [blockWidget] });

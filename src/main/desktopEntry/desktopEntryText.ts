@@ -7,6 +7,7 @@ import { quoteExecArgument } from './quoteExecArgument';
 const URLS_FIELD_CODE = '%U';
 
 /** Characters no desktop entry value can hold as they are (a line break would end the key). */
+// oxlint-disable-next-line no-control-regex -- matching control characters is the point
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
 /**

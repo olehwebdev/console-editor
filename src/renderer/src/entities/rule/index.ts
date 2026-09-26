@@ -8,11 +8,10 @@ export {
   type RuleHitState,
   type RuleStore,
 } from './model/store';
-export { blockingRuleFor, isNewRowKey, nextRowKey, ruleLabel, savedRowKeys, toRuleInput } from './lib';
-export { ALLOW_FRAMING_PRESET, HEADER_PRESETS, NO_STORE_PRESET, REMOVE_CSP_PRESET, type HeaderPreset } from './config';
+export { blockingRuleFor, nextRowKey, ruleLabel, savedRowKeys, toRuleInput } from './lib';
+export { HEADER_PRESETS, NO_STORE_PRESET, REMOVE_CSP_PRESET, type HeaderPreset } from './config';
 export {
   BLANK_HEADER_EDIT,
-  HEADER_OPERATION_FIELDS,
   HeaderEditList,
   HeaderEditRow,
   HeaderNameList,

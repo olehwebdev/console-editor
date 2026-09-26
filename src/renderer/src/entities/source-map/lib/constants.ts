@@ -10,4 +10,5 @@ export const SOURCE_KEY_SEPARATOR = '\u0000';
 export const BUNDLE_KEY_PREFIX = '\u0001';
 
 /** C0 control characters and DEL, which a page could put in a source's name. */
+// oxlint-disable-next-line no-control-regex -- matching control characters is the point
 export const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/g;

@@ -1,3 +1,4 @@
+import { useForm } from 'react-hook-form';
 import { MAX_FRAME_NAME } from '@common/constants';
 import { KEY } from '@/shared/config';
 import { Input } from '@/shared/ui/input';
@@ -18,26 +19,24 @@ export interface FrameNameFormProps {
 
 /**
  * Names a frame for this workspace's console: "billing" instead of
- * `billing.example.com/embed`. Give it `key={frameKey}`: it starts from the name it opens on.
+ * `billing.example.com/embed`. Any name will do (it is trimmed, and none is the automatic one), so
+ * nothing is checked. Give it `key={frameKey}`: it starts from the name it opens on.
  */
 export function FrameNameForm({ frameKey, name, automatic, address, onDone }: FrameNameFormProps) {
+  const { register, handleSubmit } = useForm({ defaultValues: { name } });
+  const save = handleSubmit((values) => {
+    void nameFrame(frameKey, values.name);
+    onDone();
+  });
+
   return (
-    <form
-      className="flex w-[260px] flex-col gap-2"
-      data-testid="frame-name-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void nameFrame(frameKey, String(new FormData(event.currentTarget).get('name') ?? ''));
-        onDone();
-      }}
-    >
+    <form className="flex w-[260px] flex-col gap-2" data-testid="frame-name-form" onSubmit={(event) => void save(event)}>
       <span className="label-caps">Frame name</span>
       <Input
+        {...register('name')}
         autoFocus
-        name="name"
         aria-label="Frame name"
         data-testid="frame-name"
-        defaultValue={name}
         maxLength={MAX_FRAME_NAME}
         placeholder={automatic}
         onKeyDown={(event) => {

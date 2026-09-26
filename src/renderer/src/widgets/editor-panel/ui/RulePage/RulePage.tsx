@@ -5,9 +5,9 @@ import { IconButton } from '@/shared/ui/icon-button';
 import { Switch } from '@/shared/ui/switch';
 import { Tooltip } from '@/shared/ui/tooltip';
 import type { PageTabOf } from '@/entities/editor-tab';
-import { RULE_HIT_TOOLTIPS, ruleLabel, toRuleInput, useRuleStore } from '@/entities/rule';
+import { RULE_HIT_TOOLTIPS, ruleLabel, useRuleStore } from '@/entities/rule';
 import { deleteRule } from '@/features/rule/delete';
-import { applyRulePage, RuleForm, setRuleDraft } from '@/features/rule/edit';
+import { applyRulePage, RuleForm } from '@/features/rule/edit';
 import { setRuleEnabled } from '@/features/rule/toggle';
 import { RecentRequests } from './RecentRequests';
 import { RulePageHeader } from './RulePageHeader';
@@ -37,9 +37,7 @@ export function RulePage({ page }: { page: PageTabOf<'rule'> }) {
             <IconButton icon={icons.DeleteIcon} label="Delete rule" danger onClick={() => void deleteRule(rule.id)} />
           </RulePageHeader>
           <RuleForm
-            saved={toRuleInput(rule)}
-            draft={page.draft}
-            onDraft={(draft) => setRuleDraft(page.id, draft)}
+            pageId={page.id}
             onSubmit={() => void applyRulePage(page.id)}
             submitLabel="Apply"
           />

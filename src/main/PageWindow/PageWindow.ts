@@ -1,10 +1,10 @@
-import { app, screen, type BrowserWindow, type WebContents } from 'electron';
+import { screen, type BrowserWindow, type WebContents } from 'electron';
 import { PAGE_WINDOW_HASH } from '../../shared/constants';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent, PageState, Rect } from '../../shared/types';
 import { loadEditor } from '../launch/loadEditor';
 import { AddressBarFocus } from './AddressBarFocus';
-import { createAppWindow, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
+import { createAppWindow, DockOnClose, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
 import { DEFAULT_WINDOW_SIZE, MIN_WINDOW_SIZE, PAGE_WINDOW_MENU_ID, UNTITLED } from './constants';
 import { toViewBounds } from './toViewBounds';
 import type { PageWindowDeps } from './types';
@@ -24,12 +24,10 @@ export class PageWindow {
   /** Saves the website window's bounds at once (they are also saved as it moves). */
   private savePlacement: (() => void) | undefined;
   private focus: AddressBarFocus | undefined;
-  /** The app is quitting, and hasn't asked the website window to close yet. */
-  private quitting = false;
+  /** Closing the website window puts the website back. */
+  private readonly close = new DockOnClose(() => this.detached, () => this.attach());
 
-  constructor(private readonly deps: PageWindowDeps) {
-    app.on('before-quit', () => (this.quitting = this.detached));
-  }
+  constructor(private readonly deps: PageWindowDeps) {}
 
   get detached(): boolean {
     return this.win !== undefined;
@@ -64,7 +62,7 @@ export class PageWindow {
     this.win = win;
     this.focus = new AddressBarFocus(win);
     this.savePlacement = trackPlacement(win, store);
-    setUpWindow(win, { closing: () => this.closing(), maximized: !!saved.maximized });
+    setUpWindow(win, { closing: () => this.close.closing(), maximized: !!saved.maximized });
     this.moveView(editor, win);
     void store.update({ detached: true });
     this.announce();
@@ -106,17 +104,6 @@ export class PageWindow {
     this.win = undefined;
     this.focus = undefined;
     if (win && !win.isDestroyed()) win.destroy();
-  }
-
-  /** The website window is asked to close: it puts the website back instead (once the close event is over). */
-  private closing(): void {
-    // By the quit: it stays as it is, to go with the editor's window (`dispose`) and open again next time. Should
-    // the editor stay (its drafts couldn't be written), nothing has moved.
-    if (this.quitting) {
-      this.quitting = false;
-      return;
-    }
-    queueMicrotask(() => this.attach());
   }
 
   /** Moves the view back into the editor and destroys the website window. Returns whether there was one. */

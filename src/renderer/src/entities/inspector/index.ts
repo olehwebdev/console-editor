@@ -3,3 +3,4 @@ export { useInspectorStore, useOrigin, type InspectorStore, type LastStateEdit, 
 export { useRenderLog, type RenderLogStore } from './model/renders';
 export { useStoreLog, type StoreLogStore } from './model/stores';
 export { useTreeStore, type TreeStore } from './model/tree';
+export { RecordingToolbar } from './ui/RecordingToolbar';

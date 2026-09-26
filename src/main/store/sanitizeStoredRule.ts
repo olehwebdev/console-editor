@@ -1,8 +1,6 @@
-import { validateRuleInput } from '../../shared/rules';
-import type { CreateRuleInput } from '../../shared/types';
+import { ruleInputSchema } from '../../shared/rules';
 import { RULE_ID } from './constants';
 import { isRecord } from './isRecord';
-import { sanitizeRuleInput } from './sanitizeRuleInput';
 import type { StoredRule } from './types';
 
 /**
@@ -15,12 +13,7 @@ export function sanitizeStoredRule(input: unknown): StoredRule | null {
   const { id, workspaceId, enabled, createdAt, updatedAt } = input;
   if (typeof enabled !== 'boolean' || typeof createdAt !== 'number' || typeof updatedAt !== 'number') return null;
   if (!Number.isFinite(createdAt) || !Number.isFinite(updatedAt)) return null;
-  let rule: CreateRuleInput;
-  try {
-    rule = sanitizeRuleInput(input);
-  } catch {
-    return null;
-  }
-  if (validateRuleInput(rule)) return null;
-  return { workspaceId, id, ...rule, enabled, createdAt, updatedAt };
+  const rule = ruleInputSchema.safeParse(input);
+  if (!rule.success) return null;
+  return { workspaceId, id, ...rule.data, enabled, createdAt, updatedAt };
 }

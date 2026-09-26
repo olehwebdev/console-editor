@@ -12,6 +12,8 @@ import { useOverrideStore } from '@/entities/override';
 import { usePageStore } from '@/entities/page';
 import { useResourceStore } from '@/entities/resource';
 import { toRuleInput, useRuleStore } from '@/entities/rule';
+import { openRuleEditor } from '@/features/rule/edit';
+import { ruleForms } from '@/features/rule/edit/model/ruleForms';
 import { useSourceMapStore } from '@/entities/source-map';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { toggleBaseDiff } from '@/features/compare-changes';
@@ -257,16 +259,19 @@ describe('app event bridge', () => {
   it("takes the new rule list: a deleted rule's page closes, and an applied rule keeps only the edits typed since", () => {
     const [r1, r2, r3, r4] = [rule('r1'), rule('r2'), rule('r3'), rule('r4')];
     useRuleStore.getState().setAll([r1, r2, r3, r4]);
-    const tabs = useTabStore.getState();
+    for (const r of [r1, r2, r3, r4]) openRuleEditor(r);
+    const formOf = (id: string) => ruleForms.get(`page:rule:${id}`)!.form;
+    const edit = (id: string, value: CreateRuleInput) => {
+      formOf(id).setValue('match', value.match, { shouldDirty: true });
+      formOf(id).setValue('resourceTypes', value.resourceTypes, { shouldDirty: true });
+    };
     const scripts = (input: CreateRuleInput): CreateRuleInput => ({ ...input, resourceTypes: ['Script'] });
-    const draftOf = (base: CreateRuleInput, value = scripts(base)) => ({ base, value, rowKeys: [] });
     // r1's edits were all applied; r2's pattern was applied while its types were still being edited.
+    edit('r1', { ...scripts(toRuleInput(r1)), match: { ...r1.match, pattern: ' https://b.com/* ' } });
     const r2Typed = { ...scripts(toRuleInput(r2)), match: { ...r2.match, pattern: 'https://b.com/*' } };
-    tabs.openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1', draft: draftOf(toRuleInput(r1), { ...scripts(toRuleInput(r1)), match: { ...r1.match, pattern: ' https://b.com/* ' } }) });
-    tabs.openPage({ id: 'page:rule:r2', page: 'rule', ruleId: 'r2', title: 'r2', draft: draftOf(toRuleInput(r2), r2Typed) });
-    tabs.openPage({ id: 'page:rule:r3', page: 'rule', ruleId: 'r3', title: 'r3' });
-    const r4Draft = draftOf(toRuleInput(r4));
-    tabs.openPage({ id: 'page:rule:r4', page: 'rule', ruleId: 'r4', title: 'r4', draft: r4Draft });
+    edit('r2', r2Typed);
+    edit('r4', scripts(toRuleInput(r4)));
+    const r4Form = ruleForms.get('page:rule:r4');
 
     // r4 was only turned off (not part of the input), r3 deleted.
     const r1Applied: Rule = { ...rule('r1', 'https://b.com/*'), resourceTypes: ['Script'] };
@@ -276,10 +281,14 @@ describe('app event bridge', () => {
     expect(useRuleStore.getState().byId).toEqual({ r1: r1Applied, r2: r2Applied, r4: { ...r4, enabled: false } });
     const pages = useTabStore.getState().pages;
     expect(pages.map((p) => p.id)).toEqual(['page:rule:r1', 'page:rule:r2', 'page:rule:r4']);
-    const drafts = pages.map((p) => ('draft' in p ? p.draft : null));
-    expect(drafts[0]).toBeUndefined();
-    expect(drafts[1]).toEqual({ base: toRuleInput(r2Applied), value: r2Typed, rowKeys: [] });
-    expect(drafts[2]).toBe(r4Draft);
+    expect(pages.map((p) => 'dirty' in p && p.dirty)).toEqual([false, true, true]);
+    expect(formOf('r1').getValues()).toEqual(toRuleInput(r1Applied));
+    expect(formOf('r2').getValues()).toEqual(r2Typed);
+    expect(ruleForms.get('page:rule:r4')).toBe(r4Form);
+    expect(formOf('r4').getValues()).toEqual(scripts(toRuleInput(r4)));
+    // r2's edits are now made to the version applied.
+    formOf('r2').reset();
+    expect(formOf('r2').getValues()).toEqual(toRuleInput(r2Applied));
     expect(useTabStore.getState().activeId).toBe('page:rule:r4');
   });
 

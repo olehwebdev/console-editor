@@ -10,5 +10,4 @@ export { pageSession } from './pageSession';
 export { restoreSession } from './restoreSession';
 export { sessionPending } from './sessionPending';
 export { startSessionSync } from './startSessionSync';
-export { stopSessionSync } from './stopSessionSync';
 export type { PageSession } from './types';

@@ -12,7 +12,7 @@ export { keyPath } from './keyPath';
 export { nodeLocations } from './nodeLocations';
 export { lastRendered } from './lastRendered';
 export { pathKey } from './pathKey';
-export { profileCommits, profileComponents, sortProfiles, type ComponentProfile, type Profiles } from './profile';
+export { profileComponents, sortProfiles, type ComponentProfile, type Profiles } from './profile';
 export { reasonCounts } from './reasonCounts';
 export { renderedWhy } from './renderedWhy';
 export { renderKey } from './renderKey';

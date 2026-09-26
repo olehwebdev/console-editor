@@ -59,7 +59,7 @@ export function encodeVlq(values: number[]): string {
 }
 
 /** A version 3 source map of `generated` with one segment per anchor, as JSON. */
-export function buildSourceMap(generated: string, sources: MapSource[], anchors: MapAnchor[], extra: Record<string, unknown> = {}): string {
+function buildSourceMap(generated: string, sources: MapSource[], anchors: MapAnchor[], extra: Record<string, unknown> = {}): string {
   const segments = anchors
     .map((anchor) => {
       const offset = generated.indexOf(anchor.snippet);
@@ -316,7 +316,7 @@ export const THEME_CSS =
   `a{color:#2563eb;text-decoration:none}a:hover{text-decoration:underline}code{font-family:ui-monospace,monospace}\n` +
   `/*# sourceMappingURL=theme.css.map */\n`;
 
-export const THEME_CSS_SOURCES: MapSource[] = [{ url: '../scss/theme.scss', content: THEME_SCSS }];
+const THEME_CSS_SOURCES: MapSource[] = [{ url: '../scss/theme.scss', content: THEME_SCSS }];
 
 export const THEME_CSS_MAP = buildSourceMap(THEME_CSS, THEME_CSS_SOURCES, [
   { snippet: '.title{', source: 0, line: 3, column: 0 },

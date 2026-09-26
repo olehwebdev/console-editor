@@ -1,0 +1,46 @@
+# Git hooks (https://lefthook.dev). `npm install` installs them (lefthook's own postinstall; not when CI is set).
+# CI runs the same checks again (but for the commit message's), as a hook can be skipped (`git commit --no-verify`,
+# `LEFTHOOK=0`) or not installed.
+
+# Before each commit, the fast checks. Linting and secret scanning read the staged files; finding unused and
+# duplicated code covers the whole project, as the answer depends on every file, and runs only when a staged file
+# could change it.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint
+      glob: "*.{ts,tsx,mts,mjs,js,cjs}"
+      run: npm run lint -- {staged_files}
+      fail_text: "Lint: fix what oxlint found (.oxlintrc.json says why each rule is on)."
+    - name: secrets
+      run: npx secretlint --no-glob {staged_files}
+      fail_text: "A secret is about to be committed: remove it, and revoke it if it was ever pushed."
+    - name: unused code
+      glob: "*.{ts,tsx,mts,mjs,json,jsonc}"
+      run: npm run lint:unused
+      fail_text: "Unused code: remove it (or, if it is public API, see knip.jsonc)."
+    - name: duplicated code
+      glob: "*.{ts,tsx}"
+      run: npm run lint:duplicates
+      fail_text: "Duplicated code: share it instead of copying it (CLAUDE.md › Code structure)."
+
+# Commits go out as the author's work: no agent in the message or as author (CLAUDE.md › Commits and pull requests).
+commit-msg:
+  jobs:
+    - name: agent credits
+      run: node --no-warnings scripts/check-commit-message.ts {1}
+
+# Before each push, the checks that take longer or read the whole project (the end-to-end tests are left to CI).
+pre-push:
+  parallel: true
+  jobs:
+    - name: types
+      run: npm run typecheck
+    - name: slices
+      run: npm run lint:fsd
+    - name: code structure
+      run: npm run lint:structure
+    - name: lint
+      run: npm run lint
+    - name: unit tests
+      run: npm test

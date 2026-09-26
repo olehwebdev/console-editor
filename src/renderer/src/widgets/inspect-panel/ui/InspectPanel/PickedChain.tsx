@@ -1,7 +1,7 @@
 import type { InspectedComponent } from '@common/types';
 import { cn } from '@/shared/lib';
 import { elementLabel, linkName, useInspectorStore } from '@/entities/inspector';
-import { readComponentAt } from './readComponentAt';
+import { readComponentAt } from '@/features/inspect/pick';
 
 /** The element picked last and what rendered it, the nearest first; pressing a component shows it on the Component page. */
 export function PickedChain({ component }: { component: InspectedComponent }) {

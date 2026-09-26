@@ -95,7 +95,7 @@ describe('WorkspaceController', () => {
     await override('https://a.com/a.js');
     const second = await workspaces.create();
     vi.spyOn(session, 'setActive').mockImplementationOnce(function (this: SessionStore, id: unknown) {
-      SessionStore.prototype.setActive.call(this, id);
+      void SessionStore.prototype.setActive.call(this, id);
       return Promise.reject(new Error('disk full'));
     });
     await expect(workspaces.switchTo(second.id)).rejects.toThrow('disk full');

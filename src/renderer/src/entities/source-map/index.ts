@@ -1,7 +1,6 @@
 export {
   useSourceMapStore,
   selectLoadedSources,
-  MAX_KNOWN_BUNDLES,
   type LoadedSource,
   type SourceMapFailure,
   type SourceMapState,
@@ -13,7 +12,6 @@ export {
   cleanLabel,
   describeFailure,
   isMappableKind,
-  MAPPABLE_KINDS,
   matchesSource,
   parseSourceUrl,
   sourceKey,

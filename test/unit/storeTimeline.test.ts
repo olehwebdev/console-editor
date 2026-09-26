@@ -86,7 +86,8 @@ describe('recording store actions (main)', () => {
     expect(install!.params).toEqual({ source: HOOKS_SOURCE });
     expect(HOOKS_SOURCE).toContain('__REDUX_DEVTOOLS_EXTENSION_COMPOSE__');
     expect(HOOKS_SOURCE).toContain('__REACT_DEVTOOLS_GLOBAL_HOOK__');
-    // The script is valid JavaScript.
+    // The script is valid JavaScript: compiled, not run.
+    // oxlint-disable-next-line typescript/no-implied-eval -- compiling the script is the check
     expect(() => new Function(HOOKS_SOURCE)).not.toThrow();
   });
 

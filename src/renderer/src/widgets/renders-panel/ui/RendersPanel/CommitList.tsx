@@ -1,6 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMemo, useRef } from 'react';
-import { frameLabels, useFrameStore } from '@/entities/frame';
+import { useFrameOf } from '@/entities/frame';
 import { useRenderLog } from '@/entities/inspector';
 import { selectActiveWorkspace, useWorkspaceStore } from '@/entities/workspace';
 import { LOG_OVERSCAN, LOG_ROW_HEIGHT, MAX_SHOWN, NO_NAMES } from './constants';
@@ -9,7 +9,6 @@ import { logLayout } from './logLayout';
 import { LOG_ROW_VIEWS } from './logRowViews';
 import { rowAt } from './rowAt';
 import { rowKind } from './rowKind';
-import type { ResolveFrame } from './types';
 
 /**
  * The commits recorded, the newest first (the last `MAX_SHOWN`), each with its frame; or what recording
@@ -19,15 +18,10 @@ import type { ResolveFrame } from './types';
 export function CommitList() {
   const recording = useRenderLog((s) => s.recording);
   const commits = useRenderLog((s) => s.commits);
-  const frames = useFrameStore((s) => s.frames);
   const names = useWorkspaceStore((s) => selectActiveWorkspace(s)?.frameNames ?? NO_NAMES);
+  const resolve = useFrameOf(names);
   const shown = useMemo(() => commits.slice(-MAX_SHOWN).reverse(), [commits]);
   const layout = useMemo(() => logLayout(shown), [shown]);
-  // One function while the frames stay: the rows drawn don't re-render for a new batch.
-  const resolve = useMemo<ResolveFrame>(() => {
-    const labels = frameLabels(frames, names);
-    return (frameId) => ({ frame: frames.find((f) => f.id === frameId), label: frameId ? labels.get(frameId) : undefined });
-  }, [frames, names]);
   const scroller = useRef<HTMLDivElement | null>(null);
   const virtual = useVirtualizer({
     count: layout.count,

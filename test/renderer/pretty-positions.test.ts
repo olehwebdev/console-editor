@@ -7,7 +7,7 @@ import type { LoadedMap } from '@/shared/lib/source-map/host/types';
 import { ESBUILD_APP_CSS, ESBUILD_APP_CSS_MAP, ESBUILD_APP_JS, ESBUILD_APP_JS_MAP } from '../fixtures/esbuildApp';
 import { MAIN_JS, MAIN_JS_ANCHORS, STYLE_CSS, THEME_CSS } from '../fixtures/sourceMaps';
 
-const code = (text: string) => [...text].filter((c) => !isAlignWhitespace(c.charCodeAt(0))).join('');
+const code = (text: string) => text.split('').filter((c) => !isAlignWhitespace(c.charCodeAt(0))).join('');
 const lineOf = (text: string, offset: number) => text.slice(0, offset).split('\n').length;
 
 /** A map entry holding `raw`, as the worker keeps one, lined up with `view`. */
@@ -125,7 +125,7 @@ describe('lining a pretty-printed tab up with the text its map describes', () =>
     for (let round = 0; round < 50; round++) {
       const raw = Array.from({ length: 200 }, () => tokens[random(tokens.length)]).join('');
       // Add or drop whitespace between code characters, as pretty-printing does.
-      const view = [...raw].map((c) => (isAlignWhitespace(c.charCodeAt(0)) ? ['', ' ', '\n  '][random(3)] : c + ['', ' ', '\n'][random(3)])).join('');
+      const view = raw.split('').map((c) => (isAlignWhitespace(c.charCodeAt(0)) ? ['', ' ', '\n  '][random(3)] : c + ['', ' ', '\n'][random(3)])).join('');
       const { toView, toRaw } = lineUp(raw, view);
       const rawCode = codeOffsets(raw);
       const viewCode = codeOffsets(view);

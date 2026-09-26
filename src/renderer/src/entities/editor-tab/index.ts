@@ -3,10 +3,7 @@ export {
   selectActiveTab,
   selectActivePage,
   selectActiveSource,
-  selectTabById,
-  selectHasDirtyTabs,
   isPageDirty,
-  PAGE_DIRTY_CHECKS,
   PAGE_SCOPES,
   type TabMeta,
   type SourceTab,
@@ -14,7 +11,6 @@ export {
   type PageKind,
   type PageTabOf,
   type PageScope,
-  type RulePageDraft,
   type DiffMode,
 } from './model/store';
 export {

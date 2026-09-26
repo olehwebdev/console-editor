@@ -1,11 +1,10 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMemo, useRef } from 'react';
-import { frameLabels, useFrameStore } from '@/entities/frame';
+import { useFrameOf } from '@/entities/frame';
 import { useStoreLog } from '@/entities/inspector';
 import { selectActiveWorkspace, useWorkspaceStore } from '@/entities/workspace';
 import { ActionRow } from './ActionRow';
 import { ACTION_FRAME_HEIGHT, ACTION_HEADING_HEIGHT, CHANGE_ROW_HEIGHT, LOG_OVERSCAN, MAX_SHOWN, NO_NAMES } from './constants';
-import type { ResolveFrame } from './types';
 
 /**
  * The actions recorded, the newest first (the last `MAX_SHOWN`), each with its frame; or what recording
@@ -15,14 +14,9 @@ import type { ResolveFrame } from './types';
 export function ActionList() {
   const actions = useStoreLog((s) => s.actions);
   const recording = useStoreLog((s) => s.recording);
-  const frames = useFrameStore((s) => s.frames);
   const names = useWorkspaceStore((s) => selectActiveWorkspace(s)?.frameNames ?? NO_NAMES);
+  const resolve = useFrameOf(names);
   const shown = useMemo(() => actions.slice(-MAX_SHOWN).reverse(), [actions]);
-  // One function while the frames stay: the actions drawn don't re-render for a new batch.
-  const resolve = useMemo<ResolveFrame>(() => {
-    const labels = frameLabels(frames, names);
-    return (frameId) => ({ frame: frames.find((f) => f.id === frameId), label: frameId ? labels.get(frameId) : undefined });
-  }, [frames, names]);
   const scroller = useRef<HTMLDivElement | null>(null);
   const virtual = useVirtualizer({
     count: shown.length,

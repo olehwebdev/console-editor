@@ -6,8 +6,9 @@ import {
   stripQuery,
   suggestHashGlob,
   toCdpUrlPattern,
-  validateMatcher,
+  urlMatcherSchema,
 } from '../../src/shared/matcher';
+import { firstIssue } from '../../src/shared/validation';
 
 describe('a match type this build does not know', () => {
   // A newer version's type, or a hand edit of overrides.json, must not take down interception.
@@ -80,11 +81,11 @@ describe('compileMatcher', () => {
   });
 });
 
-describe('validateMatcher', () => {
+describe('urlMatcherSchema', () => {
   it('rejects empty patterns and bad regexes', () => {
-    expect(validateMatcher({ type: 'exact', pattern: ' ', ignoreQuery: true })).toMatch(/empty/);
-    expect(validateMatcher({ type: 'regex', pattern: '([', ignoreQuery: true })).toMatch(/Invalid regular expression/);
-    expect(validateMatcher({ type: 'glob', pattern: 'https://a.com/*.js', ignoreQuery: true })).toBeNull();
+    expect(firstIssue(urlMatcherSchema, { type: 'exact', pattern: ' ', ignoreQuery: true })).toMatch(/empty/);
+    expect(firstIssue(urlMatcherSchema, { type: 'regex', pattern: '([', ignoreQuery: true })).toMatch(/Invalid regular expression/);
+    expect(firstIssue(urlMatcherSchema, { type: 'glob', pattern: 'https://a.com/*.js', ignoreQuery: true })).toBeNull();
   });
 });
 
