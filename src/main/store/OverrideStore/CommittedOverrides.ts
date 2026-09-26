@@ -43,4 +43,15 @@ export class CommittedOverrides {
       return result;
     });
   }
+
+  /** As `mutate`, but when `change` answers false nothing is written and the overrides stay as they were. */
+  mutateIf(change: (overrides: Map<string, StoredOverride>) => Promise<boolean>): Promise<boolean> {
+    return this.writes.run(async () => {
+      const next = new Map(this.current);
+      if (!(await change(next))) return false;
+      await writeIndex(this.indexPath, next);
+      this.current = next;
+      return true;
+    });
+  }
 }

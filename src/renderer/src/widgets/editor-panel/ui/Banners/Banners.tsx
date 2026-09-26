@@ -9,12 +9,13 @@ import { usePageStore } from '@/entities/page';
 import { blockingRuleFor, useRuleStore } from '@/entities/rule';
 import { compareWithLive } from '@/features/compare-changes';
 import { applyMatch, buildHashGlob } from '@/features/edit-match-rule';
+import { takeFileVersion } from '@/features/override/external-editor';
 import { openRuleEditor } from '@/features/rule/edit';
 import { setRuleEnabled } from '@/features/rule/toggle';
 import { isPageDocument } from '../../lib/isPageDocument';
 import { Banner } from './Banner';
 
-/** Contextual hints under the file header: a rule blocking the file, build-hash names, upstream changes, large files. */
+/** Contextual hints under the file header: a rule blocking the file, build-hash names, edits made elsewhere, upstream changes, large files. */
 export function Banners({ override, tab }: { override?: OverrideMeta; tab: TabMeta }) {
   const changed = useOverrideStore((s) => (override ? !!s.upstreamChanged[override.id] : false));
   // The page's own document is never blocked, whatever the rules say.
@@ -57,6 +58,21 @@ export function Banners({ override, tab }: { override?: OverrideMeta; tab: TabMe
           }
         >
           This file name has a build hash, so the override stops matching after the next deploy.
+        </Banner>
+      ) : null}
+      {tab.editedOutside ? (
+        <Banner
+          key="edited"
+          tone="warning"
+          icon={icons.WarningIcon}
+          data-testid="edited-outside-banner"
+          action={
+            <Button size="sm" variant="secondary" onClick={() => void takeFileVersion(tab.id)}>
+              Use that version
+            </Button>
+          }
+        >
+          This file was changed in another editor, and that version is served. Saving here replaces it with yours.
         </Banner>
       ) : null}
       {changed ? (

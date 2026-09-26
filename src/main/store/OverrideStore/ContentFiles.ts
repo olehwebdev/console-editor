@@ -15,7 +15,8 @@ import type { ContentFile, FileOwner } from './types';
 export class ContentFiles {
   constructor(readonly dir: string) {}
 
-  private path(meta: FileOwner, which: ContentFile): string {
+  /** Where an override's file is: its served content, or the text editing started from. */
+  path(meta: FileOwner, which: ContentFile): string {
     const ext = EXTENSIONS[meta.kind];
     return join(this.dir, which === 'content' ? `${meta.id}.${ext}` : `${meta.id}.${BASE_MARK}.${ext}`);
   }
@@ -28,14 +29,19 @@ export class ContentFiles {
     return readFile(this.path(meta, which), 'utf8');
   }
 
-  /** The content editing started from (for diffs): the content itself unless a separate base was saved. */
-  async base(o: Override): Promise<string> {
+  /** An override's file, or null when it isn't there (another editor may be replacing it). */
+  async readIfThere(meta: FileOwner, which: ContentFile): Promise<string | null> {
     try {
-      return await this.read(o, 'base');
+      return await this.read(meta, which);
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === FILE_NOT_FOUND) return o.content;
+      if ((err as NodeJS.ErrnoException).code === FILE_NOT_FOUND) return null;
       throw err;
     }
+  }
+
+  /** The content editing started from (for diffs): the content itself unless a separate base was saved. */
+  async base(o: Override): Promise<string> {
+    return (await this.readIfThere(o, 'base')) ?? o.content;
   }
 
   write(meta: FileOwner, which: ContentFile, text: string): Promise<void> {

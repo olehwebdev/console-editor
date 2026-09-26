@@ -24,6 +24,11 @@ export interface TabMeta {
   held?: string;
   /** Opened in highlight-only mode because the file is huge. */
   lite: boolean;
+  /**
+   * Another editor changed its override's file while it held unsaved edits: that file is served, and
+   * the tab stays unsaved until it is saved over it or takes it. Not kept between runs.
+   */
+  editedOutside?: boolean;
   dirty: boolean;
   saving: boolean;
 }

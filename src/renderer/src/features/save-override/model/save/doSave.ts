@@ -37,6 +37,8 @@ export async function doSave(tabId: string): Promise<void> {
       patch(tabId, { overrideId: created.id, request: undefined, response: undefined });
     }
     markTabSaved(tabId, version);
+    // Saved over what another editor wrote, if it had.
+    patch(tabId, { editedOutside: undefined });
     const reload = useSettingsStore.getState().settings.autoReloadOnSave;
     toast({ title: `Saved ${fileName(tab.url)}`, description: reload ? 'Reloading the page with your version.' : undefined, tone: 'success', duration: TOAST_DURATION.confirm });
     if (reload) await api.reload();

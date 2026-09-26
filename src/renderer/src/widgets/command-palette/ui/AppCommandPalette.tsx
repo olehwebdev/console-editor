@@ -12,9 +12,7 @@ import { usePageStore } from '@/entities/page';
 import { selectRuleList, useRuleStore } from '@/entities/rule';
 import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
 import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
-import { compareWithLive, toggleBaseDiff } from '@/features/compare-changes';
 import { attachPage, detachPage } from '@/features/detach-page';
-import { formatTab } from '@/features/format-document';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
 import { setOverrideEnabled } from '@/features/toggle-override';
@@ -24,10 +22,10 @@ import { usePalette } from '../model/palette';
 import { useActionGroup } from '../model/useActionGroup';
 import { sourceActions, useOriginalSources } from '../model/sources';
 import { KIND_ICON, OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
+import { fileTabItems } from './fileTabItems';
 import { inspectItems, type InspectLog } from './inspectItems';
 import { newRuleItems } from './newRuleItems';
 import { ruleItems } from './ruleItems';
-import { saveItem } from './saveItem';
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
@@ -89,14 +87,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
     const actions: CommandGroup = {
       heading: 'Actions',
       items: [
-        ...(active
-          ? [
-              saveItem(active),
-              { id: 'format', label: 'Pretty-print this file', icon: icons.PrettifyIcon, shortcut: SHORTCUT.format, onSelect: () => void formatTab() },
-              { id: 'diff', label: 'Diff with where you started', icon: icons.DiffIcon, shortcut: SHORTCUT.diff, onSelect: toggleBaseDiff },
-              ...(active.overrideId ? [{ id: 'live', label: 'Compare with the live file', icon: icons.GlobeIcon, onSelect: () => void compareWithLive() }] : []),
-            ]
-          : []),
+        ...fileTabItems(active),
         ...sourceActions(active, activeSource, onShowExplorer),
         { id: 'reload', label: 'Reload page', icon: icons.ReloadIcon, shortcut: SHORTCUT.reload, onSelect: () => void reloadPage() },
         { id: 'console', label: 'Toggle console', icon: icons.ConsoleIcon, shortcut: SHORTCUT.console, keywords: ['logs', 'iframe', 'frame', 'run'], onSelect: onToggleConsole },

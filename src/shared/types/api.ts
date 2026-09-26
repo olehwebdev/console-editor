@@ -57,6 +57,10 @@ export interface ConsoleEditorApi extends InspectorApi, NetworkApi {
   updateOverride(id: string, patch: OverridePatch): Promise<OverrideMeta>;
   deleteOverride(id: string): Promise<void>;
   revealOverridesFolder(): Promise<void>;
+  /** Opens an override's file in VS Code, where edits saved are served as the app's own (SPEC §7). */
+  openOverrideInEditor(id: string): Promise<void>;
+  /** Shows an override's file in the system's file manager. */
+  showOverrideFile(id: string): Promise<void>;
 
   /** The active workspace's rules, oldest first. */
   listRules(): Promise<Rule[]>;
