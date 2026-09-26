@@ -11,7 +11,7 @@ import { selectOverrideList, useOverrideStore } from '@/entities/override';
 import { selectResourceCount, useResourceStore } from '@/entities/resource';
 import { useRuleStore } from '@/entities/rule';
 import { useResourceFilter } from '@/features/filter-resources';
-import { OverrideList } from './OverrideList';
+import { OverrideList, ShareOverridesMenu } from './OverrideList';
 import { ResourceTree } from './ResourceTree';
 import { NewRuleMenu, RuleList } from './RuleList';
 
@@ -47,7 +47,7 @@ export function Explorer() {
         />
       </div>
       <div className="flex min-h-0 max-h-[42%] shrink-0 flex-col overflow-y-auto">
-        <Section title="Overrides" count={overrideCount} defaultOpen>
+        <Section title="Overrides" count={overrideCount} actions={<ShareOverridesMenu />} actionsVisible="always" defaultOpen>
           <OverrideList />
         </Section>
         <Section title="Rules" count={ruleCount} actions={<NewRuleMenu />} actionsVisible="always" defaultOpen>

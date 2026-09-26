@@ -101,3 +101,6 @@ export const SHORTCUT = {
   pickElement: ['mod', 'shift', 'C'],
   editorDevTools: ['mod', 'alt', 'I'],
 } satisfies Record<string, string[]>;
+
+/** The longest URL the app takes from outside (IPC, a file): longer ones aren't a file a page loaded. */
+export const MAX_URL_CHARS = 8192;

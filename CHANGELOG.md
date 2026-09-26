@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - **Edit overrides in VS Code.** **Open in VS Code**, on an override's tab, its right-click menu in the Explorer or the command palette, opens its file there. Save it in VS Code, or any other editor, and the page reloads with your version, just as if you had saved in the app. A tab left open shows the new text; if it has edits you haven't saved, it keeps them and offers the saved file's version instead. **Show in folder** finds the file for any other editor.
+- **Share your overrides.** The new menu on the Explorer's **Overrides** section (or the command palette) exports a workspace's overrides and rules as one file, and imports one: send it to a teammate and they see the page with your fix, or copy your changes to another workspace. An import adds only what the workspace doesn't have yet, so your own versions are kept, and tells you what it left out.
 
 ## [0.4.0] - 2026-09-26
 

@@ -48,6 +48,7 @@ export type { MenuCommand } from './menu';
 export type { HarImport, HttpHeader, NetworkBody, NetworkBodyGap, NetworkRequest, NetworkRequestDetail, NetworkRequestState, SocketDirection, SocketMessage, SocketMessages } from './network';
 export type { CreateOverrideInput, MatchType, Override, OverrideMeta, OverridePatch, OverrideWithContent, RequestMatch, ResponseSettings, UnpatchedReason, UrlMatcher } from './overrides';
 export { MATCH_TYPES } from './overrides';
+export type { ExportedOverride, ExportedRule, OverridesExport, OverridesFile, OverridesFileEntries, OverridesImport } from './overridesFile';
 export type { PageState, Rect } from './page';
 export type { FileKind, ResourceContent, ResourceEntry, ResourceKind } from './resources';
 export { FILE_KINDS, RESOURCE_KINDS } from './resources';

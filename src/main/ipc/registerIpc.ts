@@ -10,6 +10,7 @@ import { registerHarIpc } from './registerHarIpc';
 import { registerInspectorIpc } from './registerInspectorIpc';
 import { registerNetworkIpc } from './registerNetworkIpc';
 import { registerOverrideIpc } from './registerOverrideIpc';
+import { registerOverridesFileIpc } from './registerOverridesFileIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import { registerSettingsIpc } from './registerSettingsIpc';
 import { registerSourceMapIpc } from './registerSourceMapIpc';
@@ -78,6 +79,7 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   registerActionsWindowIpc(handle, handleActions, actionsWindow);
   registerNetworkIpc(handle, page.network);
   registerHarIpc(handle, { win, page, store });
+  registerOverridesFileIpc(handle, { win, page, store, rules });
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

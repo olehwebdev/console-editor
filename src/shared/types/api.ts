@@ -4,6 +4,7 @@ import type { InspectorApi } from './inspector';
 import type { WireEvent } from './events';
 import type { NetworkApi } from './networkApi';
 import type { CreateOverrideInput, OverrideMeta, OverridePatch, OverrideWithContent } from './overrides';
+import type { OverridesExport, OverridesImport } from './overridesFile';
 import type { PageState, Rect } from './page';
 import type { ResourceContent, ResourceEntry } from './resources';
 import type { CreateRuleInput, Rule, RulePatch } from './rules';
@@ -48,6 +49,10 @@ export interface ConsoleEditorApi extends InspectorApi, NetworkApi {
 
   /** The active workspace's overrides. */
   listOverrides(): Promise<OverrideMeta[]>;
+  /** Saves the active workspace's overrides and rules as one file where the user picks; null when cancelled. */
+  exportOverrides(): Promise<OverridesExport | null>;
+  /** Adds the overrides and rules of an export the user picks to the active workspace; null when cancelled. */
+  importOverrides(): Promise<OverridesImport | null>;
   /** Metadata + served content. Large files cross IPC once, when a tab opens. */
   getOverride(id: string): Promise<OverrideWithContent>;
   /** The diff base, fetched only when a diff is actually shown. */

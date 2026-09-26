@@ -33,3 +33,18 @@ export const DEFAULT_RESPONSE: Readonly<ResponseSettings> = { status: 200, delay
 
 /** Where a GraphQL document names its operation: `query GetCart(…)`, `mutation ApplyCoupon`… */
 export const OPERATION_IN_QUERY = /(?:^|[\s}])(?:query|mutation|subscription)\s+([_A-Za-z][_0-9A-Za-z]*)/;
+
+/** What an export of overrides says it is (SPEC §5, Sharing), so an import can tell it from any other JSON. */
+export const OVERRIDES_FILE_FORMAT = 'console-editor-overrides';
+
+/** The version of the export written; an import refuses a newer one. */
+export const OVERRIDES_FILE_VERSION = 1;
+
+/** The most overrides one export may list. */
+export const MAX_IMPORTED_OVERRIDES = 500;
+
+/** A SHA-256 as the engine writes it: what an override's `originalHash` holds. */
+export const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+/** The URLs an override is made from: web addresses. */
+export const SOURCE_URL = /^https?:\/\//i;

@@ -276,4 +276,47 @@ describe.skipIf(!built)('Console Editor app', () => {
     await expect.poll(() => inSite('location.pathname'), { timeout: 15_000 }).toBe('/store/');
     await expect.poll(() => win.locator('[data-override-id]').count()).toBe(0);
   });
+
+  it("shares a workspace's overrides as a file: another workspace imports them, and keeps its own", async () => {
+    const tiles = () => win.getByTestId('workspace-tile');
+    const overrideRows = () => win.locator('[data-override-id]');
+    const menuItem = (name: string) => win.getByRole('menuitem', { name });
+    const exported = join(userData, 'shared-overrides.json');
+    // Stand-ins for the native file dialogs, which Playwright can't drive.
+    await app.evaluate(({ dialog }, path) => {
+      dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as unknown as typeof dialog.showSaveDialog;
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as unknown as typeof dialog.showOpenDialog;
+    }, exported);
+
+    await tiles().first().click();
+    await expect.poll(() => tiles().first().getAttribute('aria-current')).toBe('true');
+    await expect.poll(() => overrideRows().count()).toBe(4);
+    // Once the switch has settled (its page loaded, its tabs back): a menu closes when the window blurs or its list scrolls.
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => win.locator('[role="tab"]').count()).toBeGreaterThan(0);
+    await win.getByTestId('overrides-share').click();
+    await menuItem('Export overrides and rules…').click();
+    await expect.poll(async () => JSON.parse(await readFile(exported, 'utf8').catch(() => '{}')).overrides?.length).toBe(4);
+    expect(JSON.parse(await readFile(exported, 'utf8'))).toMatchObject({ format: 'console-editor-overrides', version: 1 });
+
+    // The second workspace has none of them, until it imports the file.
+    await tiles().nth(1).click();
+    await expect.poll(() => tiles().nth(1).getAttribute('aria-current')).toBe('true');
+    await expect.poll(() => overrideRows().count()).toBe(0);
+    await goTo(win, site.url);
+    await expect.poll(() => inSite('window.appValue'), { timeout: 15_000 }).toBe('original');
+    expect(await inSite('typeof window.patchedByEditor')).toBe('undefined');
+    await expect.poll(() => win.getByRole('menu').count()).toBe(0);
+    await win.getByTestId('overrides-share').click();
+    await menuItem('Import overrides and rules…').click();
+    await expect.poll(() => overrideRows().count()).toBe(4);
+    await expect.poll(() => inSite('window.patchedByEditor'), { timeout: 15_000 }).toBe(true);
+
+    // Importing it again adds nothing: the workspace has them all.
+    await expect.poll(() => win.getByRole('menu').count()).toBe(0);
+    await win.getByTestId('overrides-share').click();
+    await menuItem('Import overrides and rules…').click();
+    await win.getByText('Nothing to import').waitFor();
+    expect(await overrideRows().count()).toBe(4);
+  });
 });
