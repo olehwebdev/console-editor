@@ -24,3 +24,12 @@ export const EQUALITY_OPERATORS = ['===', '=='];
 
 /** A value compared with literals this many times in one if/else chain or nested ternary makes it a switch. */
 export const SWITCH_LIKE_COMPARISONS = 2;
+
+/**
+ * Folders checked for names that macOS and Windows, whose file systems ignore case, can't tell apart. Tests too:
+ * they are built and run there.
+ */
+export const CASE_CHECKED_ROOTS = ['src', 'scripts', 'test'];
+
+/** What an import without an extension may find (Vite's `resolve.extensions`): `./Foo` reaches `foo.ts` there. */
+export const MODULE_EXTENSIONS = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'];

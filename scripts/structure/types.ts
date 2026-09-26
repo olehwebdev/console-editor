@@ -13,3 +13,9 @@ export interface TopLevelFunction {
   name: string;
   line: number;
 }
+
+/** An entry of a folder, as the case check reads it. */
+export interface FolderEntry {
+  name: string;
+  directory: boolean;
+}
