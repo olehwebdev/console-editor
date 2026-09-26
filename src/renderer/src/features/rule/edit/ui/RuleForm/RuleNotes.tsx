@@ -1,12 +1,12 @@
 import { useWatch } from 'react-hook-form';
 import { icons } from '@/shared/config';
 import { Icon } from '@/shared/ui/icon';
-import { ruleNotes } from './ruleNotes';
+import { ruleNotesFor } from './ruleNotesFor';
 import type { RuleActionFieldsProps } from './types';
 
 /** What is worth knowing about the rule as written: its cost, and what it can't change. */
 export function RuleNotes({ control, pageUrl }: RuleActionFieldsProps & { pageUrl: string }) {
-  const notes = useWatch({ control, compute: (value) => ruleNotes(value, pageUrl) });
+  const notes = useWatch({ control, compute: (value) => ruleNotesFor(value, pageUrl) });
   if (!notes.length) return null;
   return (
     <ul className="flex flex-col gap-1.5" aria-label="Notes">

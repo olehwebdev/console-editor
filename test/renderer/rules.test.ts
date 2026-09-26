@@ -21,7 +21,7 @@ import { deleteRule } from '@/features/rule/delete';
 import { applyRulePage, createRulePage, openNewRule, openRuleEditor, RULE_SEEDS, rulePageId } from '@/features/rule/edit';
 import { ruleForms } from '@/features/rule/edit/model/ruleForms';
 import { patchFor } from '@/features/rule/edit/model/patchFor';
-import { ruleNotes } from '@/features/rule/edit/ui/RuleForm/ruleNotes';
+import { ruleNotesFor } from '@/features/rule/edit/ui/RuleForm/ruleNotesFor';
 import { withPreset } from '@/features/rule/edit/ui/RuleForm/withPreset';
 import { blockRequest, createQuickRule, removeCspFrom } from '@/features/rule/quick-actions';
 import { saveTab } from '@/features/save-override';
@@ -406,7 +406,7 @@ describe('saving what is in front', () => {
 });
 
 describe('rule notes', () => {
-  const notes = (value: CreateRuleInput, pageUrl = 'https://site.test/') => ruleNotes(value, pageUrl).map((n) => n.id);
+  const notes = (value: CreateRuleInput, pageUrl = 'https://site.test/') => ruleNotesFor(value, pageUrl).map((n) => n.id);
   const headers = (...names: string[]): CreateRuleInput => ({
     action: 'headers',
     match: { type: 'exact', pattern: 'https://site.test/', ignoreQuery: true },
