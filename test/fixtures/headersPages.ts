@@ -13,9 +13,9 @@ import type { FixtureRoute } from './site.ts';
 export const TRACK_PATH = '/headers/track.html';
 export const ANALYTICS_JS_PATH = '/headers/analytics.js';
 export const TRACK_APP_JS_PATH = '/headers/track-app.js';
-export const ANALYTICS_JS = `window.analyticsRan = true;\n`;
-export const TRACK_APP_JS = `window.trackAppRan = true;\n`;
-export const TRACK_HTML = `<!doctype html>
+const ANALYTICS_JS = `window.analyticsRan = true;\n`;
+const TRACK_APP_JS = `window.trackAppRan = true;\n`;
+const TRACK_HTML = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -33,18 +33,18 @@ export const TRACK_HTML = `<!doctype html>
 /** A script that redirects to another: every hop pauses on its own. */
 export const REDIRECT_JS_PATH = '/headers/redirect.js';
 export const FINAL_JS_PATH = '/headers/final.js';
-export const FINAL_JS = `window.finalRan = true;\n`;
+const FINAL_JS = `window.finalRan = true;\n`;
 
 // --- Response headers -----------------------------------------------------------
 
 /** Only the page's own scripts may run: an inline script needs the policy gone. */
-export const SELF_ONLY_CSP = "script-src 'self'";
+const SELF_ONLY_CSP = "script-src 'self'";
 
 /** Served gzipped (as every fixture file is) with SELF_ONLY_CSP: its external script runs, its inline one doesn't. */
 export const CSP_PATH = '/headers/csp.html';
-export const ALLOWED_JS_PATH = '/headers/allowed.js';
-export const ALLOWED_JS = `window.extRan = true;\n`;
-export const CSP_HTML = `<!doctype html>
+const ALLOWED_JS_PATH = '/headers/allowed.js';
+const ALLOWED_JS = `window.extRan = true;\n`;
+const CSP_HTML = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -62,8 +62,8 @@ export const CSP_HTML = `<!doctype html>
  */
 export const PLAIN_PATH = '/headers/plain.html';
 export const PLAIN_SCRIPT_PATH = '/headers/plain-script.js';
-export const PLAIN_SCRIPT = `window.plainScriptRan = true;\n`;
-export const PLAIN_HTML = `<!doctype html>
+const PLAIN_SCRIPT = `window.plainScriptRan = true;\n`;
+const PLAIN_HTML = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -77,16 +77,16 @@ export const PLAIN_HTML = `<!doctype html>
 
 /** Same-origin JSON the HTTP cache may keep for ten minutes. */
 export const SAME_JSON_PATH = '/headers/same.json';
-export const SAME_JSON = `{"same":true}`;
+const SAME_JSON = `{"same":true}`;
 export const SAME_JSON_CACHE_CONTROL = 'max-age=600';
 
 /** A page on 127.0.0.1 framing a cross-site page that refuses to be framed; the frame posts 'xfo-loaded' once it runs. */
 export const XFO_HOST_PATH = '/headers/xfo-host.html';
 export const XFO_FRAME_PATH = '/headers/xfo-frame.html';
 export const XFO_LOADED = 'xfo-loaded';
-export const XFO_FRAME_HTML = `<!doctype html><meta charset="utf-8"><script>parent.postMessage('${XFO_LOADED}', '*');</script><p>framed</p>\n`;
+const XFO_FRAME_HTML = `<!doctype html><meta charset="utf-8"><script>parent.postMessage('${XFO_LOADED}', '*');</script><p>framed</p>\n`;
 
-export function xfoHostHtml(port: number): string {
+function xfoHostHtml(port: number): string {
   return `<!doctype html>
 <html>
 <head>
@@ -110,7 +110,7 @@ export const API_JSON = `{"ok":true,"api":"json"}`;
 export const API_PUT_PATH = '/headers/api-put.json';
 export const API_PUT = `{"ok":true,"api":"put"}`;
 /** Redirects to API_JSON_PATH on the same site. */
-export const API_REDIRECT_PATH = '/headers/api-redirect.json';
+const API_REDIRECT_PATH = '/headers/api-redirect.json';
 
 /**
  * A page on 127.0.0.1 reading the `localhost` API with credentials. Each call
@@ -119,7 +119,7 @@ export const API_REDIRECT_PATH = '/headers/api-redirect.json';
  */
 export const CORS_PATH = '/headers/cors.html';
 
-export function corsHtml(port: number): string {
+function corsHtml(port: number): string {
   const api = `http://localhost:${port}`;
   return `<!doctype html>
 <html>

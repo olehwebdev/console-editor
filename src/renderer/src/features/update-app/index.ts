@@ -2,8 +2,6 @@ export {
   WHATS_NEW_TAB,
   openWhatsNew,
   checkForUpdatesNow,
-  downloadUpdate,
-  installUpdate,
   handleUpdateState,
   startUpdates,
 } from './model/update';

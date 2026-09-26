@@ -24,7 +24,7 @@ export function abortableTransport(base: CdpTransport): AbortableTransport {
             inFlight.add(reject);
             base.send(method, params).then(resolve, reject).finally(() => inFlight.delete(reject));
           }),
-    on: base.on,
+    on: (event, handler) => base.on(event, handler),
   };
   return { transport, gone };
 }

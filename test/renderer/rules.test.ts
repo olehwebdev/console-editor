@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, type CreateRuleInput, type HeaderEdit, type ResourceEntry, type Rule, type RulePatch } from '../../src/shared/types';
 import { saveActive } from '@/app/model/bridge/commands/saveActive';
 import type { MenuAction } from '@/shared/ui/menu';
-import { type RulePageDraft, useTabStore } from '@/entities/editor-tab';
+import { isPageDirty, useTabStore } from '@/entities/editor-tab';
 import {
   blockingRuleFor,
   HEADER_PRESETS,
@@ -18,7 +18,8 @@ import {
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { deleteRule } from '@/features/rule/delete';
-import { applyRulePage, createRulePage, openNewRule, openRuleEditor, RULE_SEEDS, rulePageId, setRuleDraft } from '@/features/rule/edit';
+import { applyRulePage, createRulePage, openNewRule, openRuleEditor, RULE_SEEDS, rulePageId } from '@/features/rule/edit';
+import { ruleForms } from '@/features/rule/edit/model/ruleForms';
 import { patchFor } from '@/features/rule/edit/model/patchFor';
 import { ruleNotes } from '@/features/rule/edit/ui/RuleForm/ruleNotes';
 import { withPreset } from '@/features/rule/edit/ui/RuleForm/withPreset';
@@ -59,7 +60,15 @@ function rule(overrides: Partial<Rule> & Pick<Rule, 'action'> = { action: 'block
   return { ...base, ...(overrides.action === 'headers' ? { headers: [{ operation: 'set', name: 'X-A', value: '1' }] } : {}), ...overrides } as Rule;
 }
 const blockInput = (pattern = 'https://ads.test/*'): CreateRuleInput => ({ action: 'block', match: { type: 'glob', pattern, ignoreQuery: true }, resourceTypes: [] });
-const draftOf = (base: CreateRuleInput, value: CreateRuleInput, rowKeys: string[] = []): RulePageDraft => ({ base, value, rowKeys });
+const formOf = (pageId: string) => ruleForms.get(pageId)!.form;
+const pageOf = (pageId: string) => useTabStore.getState().pages.find((p) => p.id === pageId);
+/** Types `value` into a rule page's form, as its fields do. */
+function edit(pageId: string, value: CreateRuleInput): void {
+  const form = formOf(pageId);
+  form.setValue('match', value.match, { shouldDirty: true });
+  form.setValue('resourceTypes', value.resourceTypes, { shouldDirty: true });
+  if ('headers' in value) form.setValue('headers', value.headers, { shouldDirty: true });
+}
 const entry = (url: string, extra: Partial<ResourceEntry> = {}): ResourceEntry => ({ url, kind: 'Script', mimeType: 'text/javascript', status: 200, ...extra });
 const setReload = (on: boolean) => useSettingsStore.setState({ settings: { ...DEFAULT_SETTINGS, autoReloadOnSave: on } });
 
@@ -176,14 +185,24 @@ describe('toggling and deleting rules', () => {
 });
 
 describe('rule pages', () => {
-  it('keeps edits as a draft, and none once they lead back to where they started', () => {
-    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1' });
-    const base = blockInput();
-    const edited = draftOf(base, { ...base, resourceTypes: ['Script'] });
-    setRuleDraft('page:rule:r1', edited);
-    expect(useTabStore.getState().pages[0]).toMatchObject({ draft: edited });
-    setRuleDraft('page:rule:r1', draftOf(base, { ...base, match: { ...base.match } }));
-    expect(useTabStore.getState().pages[0]).not.toHaveProperty('draft', expect.anything());
+  it('marks the tab while its form holds edits, and not once they lead back to where they started', () => {
+    const r = rule({ id: 'r1', action: 'block' });
+    openRuleEditor(r);
+    const saved = toRuleInput(r);
+    edit('page:rule:r1', { ...saved, resourceTypes: ['Script'] });
+    expect(pageOf('page:rule:r1')).toMatchObject({ dirty: true });
+    edit('page:rule:r1', { ...saved, match: { ...saved.match } });
+    expect(isPageDirty(pageOf('page:rule:r1')!)).toBe(false);
+  });
+
+  it('starts a page closed and opened again from the rule as saved', () => {
+    const r = rule({ id: 'r2', action: 'block' });
+    openRuleEditor(r);
+    edit(rulePageId('r2'), { ...toRuleInput(r), resourceTypes: ['Image'] });
+    useTabStore.getState().remove(rulePageId('r2'));
+    openRuleEditor(r);
+    expect(formOf(rulePageId('r2')).getValues()).toEqual(toRuleInput(r));
+    expect(isPageDirty(pageOf(rulePageId('r2'))!)).toBe(false);
   });
 
   it('sends only the fields that changed', () => {
@@ -203,7 +222,7 @@ describe('rule pages', () => {
     expect(RULE_SEEDS.block().match).not.toBe(RULE_SEEDS.block().match);
   });
 
-  it('opens one page per rule, and new-rule pages titled by what they do', () => {
+  it('opens one page per rule, and new-rule pages titled by what they do, each with its form', () => {
     const r = rule({ id: 'r9', action: 'block', match: { type: 'glob', pattern: 'https://ads.test/*', ignoreQuery: true } });
     openRuleEditor(r);
     openRuleEditor(r);
@@ -212,18 +231,20 @@ describe('rule pages', () => {
     expect(pages.map((p) => p.title)).toEqual(['https://ads.test/*', 'New allow cross-origin requests']);
     expect(pages[0]).toMatchObject({ id: rulePageId('r9'), page: 'rule', ruleId: 'r9' });
     expect(pages[1]!.id).toMatch(/^page:new-rule:/);
+    expect(formOf(pages[0]!.id).getValues()).toEqual(toRuleInput(r));
+    expect(formOf(pages[1]!.id).getValues()).toEqual(RULE_SEEDS.cors());
 
     useWorkspaceStore.setState({ switchingTo: 'w2' });
     openNewRule(RULE_SEEDS.block());
     expect(useTabStore.getState().pages).toHaveLength(2);
   });
 
-  it('applies valid edits: only what changed is sent, the draft goes and the tab is retitled', async () => {
+  it('applies valid edits: only what changed is sent, the edits go and the tab is retitled', async () => {
     const r = rule({ id: 'r1', action: 'block', resourceTypes: ['Script'] });
     useRuleStore.getState().setAll([r]);
+    openRuleEditor(r);
     const saved = toRuleInput(r);
-    const value: CreateRuleInput = { ...saved, match: { type: 'glob', pattern: '  https://ads.test/*  ', ignoreQuery: true } };
-    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1.js · site.test', draft: draftOf(saved, value) });
+    edit('page:rule:r1', { ...saved, match: { type: 'glob', pattern: '  https://ads.test/*  ', ignoreQuery: true } });
     const updated = { ...r, match: { type: 'glob' as const, pattern: 'https://ads.test/*', ignoreQuery: true } };
     api.updateRule.mockResolvedValueOnce(updated);
 
@@ -231,7 +252,9 @@ describe('rule pages', () => {
 
     expect(api.updateRule).toHaveBeenCalledExactlyOnceWith('r1', { match: updated.match } satisfies RulePatch);
     expect(useRuleStore.getState().byId.r1).toEqual(updated);
-    expect(useTabStore.getState().pages).toEqual([{ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'https://ads.test/*' }]);
+    expect(useTabStore.getState().pages).toEqual([{ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'https://ads.test/*', dirty: false }]);
+    // The form shows the rule as saved: the spaces around the pattern are gone.
+    expect(formOf('page:rule:r1').getValues()).toEqual(toRuleInput(updated));
     expect(toasts()[0]).toMatchObject({ title: 'Rule updated' });
     expect(api.reload).toHaveBeenCalledTimes(1);
   });
@@ -239,48 +262,56 @@ describe('rule pages', () => {
   it('keeps what is typed while an Apply runs, as edits to the version it saved', async () => {
     const r = rule({ id: 'r1', action: 'block' });
     useRuleStore.getState().setAll([r]);
+    openRuleEditor(r);
     const saved = toRuleInput(r);
-    const sent: CreateRuleInput = { ...saved, resourceTypes: ['Script'] };
-    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1', draft: draftOf(saved, sent) });
+    edit('page:rule:r1', { ...saved, resourceTypes: ['Script'] });
     let resolve!: (value: Rule) => void;
     api.updateRule.mockReturnValueOnce(new Promise<Rule>((res) => (resolve = res)));
 
     const done = applyRulePage('page:rule:r1');
-    const typed: CreateRuleInput = { ...sent, match: { ...sent.match, pattern: 'https://site.test/r1.mjs' } };
-    setRuleDraft('page:rule:r1', draftOf(saved, typed));
+    // The form is checked first; typing goes on while the edits are on their way.
+    await vi.waitFor(() => expect(api.updateRule).toHaveBeenCalled());
+    formOf('page:rule:r1').setValue('match.pattern', 'https://site.test/r1.mjs', { shouldDirty: true });
     const updated = { ...r, resourceTypes: ['Script' as const] };
     resolve(updated);
     await done;
 
-    expect(useTabStore.getState().pages[0]).toMatchObject({ draft: draftOf(toRuleInput(updated), typed) });
+    const typed: CreateRuleInput = { ...toRuleInput(updated), match: { ...saved.match, pattern: 'https://site.test/r1.mjs' } };
+    expect(formOf('page:rule:r1').getValues()).toEqual(typed);
+    expect(pageOf('page:rule:r1')).toMatchObject({ dirty: true });
+    // Revert goes back to the version the Apply saved.
+    formOf('page:rule:r1').reset();
+    expect(formOf('page:rule:r1').getValues()).toEqual(toRuleInput(updated));
   });
 
   it('does not send invalid edits, nor edits made to an older version of the rule', async () => {
     const r = rule({ id: 'r1', action: 'headers' });
     useRuleStore.getState().setAll([r]);
+    openRuleEditor(r);
     const saved = toRuleInput(r);
-    const invalid = { ...saved, headers: [{ operation: 'set' as const, name: 'Set-Cookie', value: 'a=1' }] };
-    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1', draft: draftOf(saved, invalid) });
+    edit('page:rule:r1', { action: 'headers', match: saved.match, resourceTypes: saved.resourceTypes, headers: [{ operation: 'set', name: 'Set-Cookie', value: 'a=1' }] });
 
     await applyRulePage('page:rule:r1');
     expect(api.updateRule).not.toHaveBeenCalled();
     expect(toasts()[0]).toMatchObject({ title: 'Rule not applied', tone: 'danger', description: expect.stringContaining('Set-Cookie') });
 
-    const stale = { ...saved, resourceTypes: ['XHR' as const] };
-    useTabStore.getState().setPageDraft('page:rule:r1', draftOf(stale, { ...stale, resourceTypes: [] }));
+    // The rule changed without the page hearing of it: its edits were made to the version before.
+    edit('page:rule:r1', { ...saved, resourceTypes: ['Image'] });
+    useRuleStore.getState().setAll([{ ...r, resourceTypes: ['XHR'] }]);
     await applyRulePage('page:rule:r1');
     expect(api.updateRule).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledTimes(1);
   });
 
   it('creates the rule a new-rule page describes, and swaps the page for the rule’s own', async () => {
-    const seed = RULE_SEEDS.block();
+    openNewRule(RULE_SEEDS.block());
+    const pageId = useTabStore.getState().pages[0]!.id;
     const value = blockInput('https://www.google-analytics.com/*');
-    useTabStore.getState().openPage({ id: 'page:new-rule:n1', page: 'new-rule', seed, title: 'New block requests', draft: draftOf(seed, value) });
+    edit(pageId, value);
     const created = rule({ id: 'c1', action: 'block', match: value.match });
     api.createRule.mockResolvedValueOnce(created);
 
-    await createRulePage('page:new-rule:n1');
+    await createRulePage(pageId);
 
     expect(api.createRule).toHaveBeenCalledExactlyOnceWith(value);
     expect(useTabStore.getState().pages).toEqual([{ id: 'page:rule:c1', page: 'rule', ruleId: 'c1', title: 'https://www.google-analytics.com/*' }]);
@@ -290,8 +321,9 @@ describe('rule pages', () => {
   });
 
   it('does not create an invalid rule', async () => {
-    useTabStore.getState().openPage({ id: 'page:new-rule:n1', page: 'new-rule', seed: RULE_SEEDS.headers(), title: 'New' });
-    await createRulePage('page:new-rule:n1');
+    openNewRule(RULE_SEEDS.headers());
+    const pageId = useTabStore.getState().pages[0]!.id;
+    await createRulePage(pageId);
     expect(api.createRule).not.toHaveBeenCalled();
     expect(toasts()[0]).toMatchObject({ title: 'Rule not added', tone: 'danger' });
     expect(useTabStore.getState().pages).toHaveLength(1);
@@ -324,15 +356,17 @@ describe('results that arrive after a workspace switch', () => {
     expect(toasts().at(-1)).toMatchObject({ title: 'Blocked', description: undefined });
 
     useWorkspaceStore.setState({ activeId: 'w1' });
-    useTabStore.getState().openPage({ id: 'page:new-rule:n1', page: 'new-rule', seed: blockInput(), title: 'New' });
+    openNewRule(blockInput());
+    const newPageId = useTabStore.getState().pages[0]!.id;
     afterSwitch(api.createRule, rule({ id: 'c1', action: 'block' }));
-    await createRulePage('page:new-rule:n1');
+    await createRulePage(newPageId);
     expect(useRuleStore.getState().byId).toEqual({});
-    expect(useTabStore.getState().pages.map((p) => p.id)).toEqual(['page:new-rule:n1']);
+    expect(useTabStore.getState().pages.map((p) => p.id)).toEqual([newPageId]);
 
     useWorkspaceStore.setState({ activeId: 'w1' });
     useRuleStore.getState().setAll([r]);
-    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1', draft: draftOf(toRuleInput(r), { ...toRuleInput(r), resourceTypes: ['Script'] }) });
+    openRuleEditor(r);
+    edit('page:rule:r1', { ...toRuleInput(r), resourceTypes: ['Script'] });
     afterSwitch(api.updateRule, { ...r, resourceTypes: ['Script'] });
     await applyRulePage('page:rule:r1');
     expect(useRuleStore.getState().byId.r1).toEqual(r);
@@ -350,14 +384,15 @@ describe('saving what is in front', () => {
 
     const r = rule({ id: 'r1', action: 'block' });
     useRuleStore.getState().setAll([r]);
-    const saved = toRuleInput(r);
-    useTabStore.getState().openPage({ id: 'page:rule:r1', page: 'rule', ruleId: 'r1', title: 'r1', draft: draftOf(saved, { ...saved, resourceTypes: ['Script'] }) });
+    openRuleEditor(r);
+    edit('page:rule:r1', { ...toRuleInput(r), resourceTypes: ['Script'] });
     api.updateRule.mockResolvedValueOnce({ ...r, resourceTypes: ['Script'] });
     saveActive();
     await vi.waitFor(() => expect(api.updateRule).toHaveBeenCalledExactlyOnceWith('r1', { resourceTypes: ['Script'] }));
 
     const seed = RULE_SEEDS.cors();
-    useTabStore.getState().openPage({ id: 'page:new-rule:n1', page: 'new-rule', seed, title: 'New', draft: draftOf(seed, { ...seed, match: { ...seed.match, pattern: 'https://api.test/*' } }) });
+    openNewRule(seed);
+    edit(useTabStore.getState().activeId!, { ...seed, match: { ...seed.match, pattern: 'https://api.test/*' } });
     api.createRule.mockResolvedValueOnce(rule({ id: 'c1', action: 'cors' }));
     saveActive();
     await vi.waitFor(() => expect(api.createRule).toHaveBeenCalledTimes(1));
@@ -458,13 +493,10 @@ describe('rule entity', () => {
 });
 
 describe('header presets', () => {
-  it('adds a preset’s changes, in place of blank rows, with new row keys', () => {
+  it('adds a preset’s changes, in place of blank rows', () => {
     const blank: HeaderEdit = { operation: 'set', name: '', value: '' };
     const kept: HeaderEdit = { operation: 'set', name: 'X-A', value: '1' };
-    const next = withPreset([blank, kept], ['saved-0', 'saved-1'], NO_STORE_PRESET);
-    expect(next.headers).toEqual([kept, { operation: 'set', name: 'Cache-Control', value: 'no-store' }]);
-    expect(next.rowKeys[0]).toBe('saved-1');
-    expect(next.rowKeys[1]).toMatch(/^row-/);
+    expect(withPreset([blank, kept], NO_STORE_PRESET)).toEqual([kept, { operation: 'set', name: 'Cache-Control', value: 'no-store' }]);
     expect(HEADER_PRESETS.map((p) => p.label)).toContain(REMOVE_CSP_PRESET.label);
     expect(REMOVE_CSP_PRESET.edits.map((e) => e.name)).toEqual(['Content-Security-Policy', 'Content-Security-Policy-Report-Only']);
   });

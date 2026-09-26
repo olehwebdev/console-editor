@@ -1,5 +1,6 @@
-import { MAX_HEADER_EDITS, validateHeaderEdit } from '../rules';
+import { headerEditSchema, MAX_HEADER_EDITS } from '../rules';
 import type { ResponseSettings } from '../types';
+import { firstIssue } from '../validation';
 import { MAX_DELAY_MS, MAX_STATUS, MIN_STATUS } from './constants';
 
 /** A response override's answer's problem, or null. Header changes are checked as a header rule's. */
@@ -14,7 +15,7 @@ export function validateResponseSettings(settings: ResponseSettings): string | n
   if (headers.length > MAX_HEADER_EDITS) return `At most ${MAX_HEADER_EDITS} header changes`;
   for (const edit of headers) {
     if (!edit || typeof edit !== 'object') return 'A header change is an operation, a name and a value';
-    const problem = validateHeaderEdit(edit);
+    const problem = firstIssue(headerEditSchema, edit);
     if (problem) return problem;
   }
   return null;

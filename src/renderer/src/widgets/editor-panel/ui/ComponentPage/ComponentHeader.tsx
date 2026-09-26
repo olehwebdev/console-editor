@@ -4,11 +4,10 @@ import { icons } from '@/shared/config';
 import { Badge } from '@/shared/ui/badge';
 import { IconButton } from '@/shared/ui/icon-button';
 import { componentTitle, elementLabel, useInspectorStore } from '@/entities/inspector';
-import { highlightPick, togglePicking } from '@/features/inspect/pick';
+import { highlightPick, readComponentAt, togglePicking } from '@/features/inspect/pick';
 import { BUILD_TONE } from '../StackPage/constants';
 import { ComponentFrame } from './ComponentFrame';
 import { FRAMEWORK_NAME } from './constants';
-import { readComponentAt } from './readComponentAt';
 
 /** The component's name (its original's when the page's is minified), framework, build and frame, and the element it rendered; hovering it highlights the element. */
 export function ComponentHeader({ component }: { component: InspectedComponent }) {

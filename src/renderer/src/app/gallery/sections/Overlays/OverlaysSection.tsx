@@ -30,5 +30,3 @@ export function OverlaysSection() {
     </section>
   );
 }
-
-export { OverlaysSection as Overlays };

@@ -24,12 +24,12 @@ export function RequestDetails({ request }: { request: NetworkRequest }) {
     <aside aria-label="Request details" data-testid="network-details" className="flex min-h-0 min-w-0 flex-1 flex-col border-line @min-[44rem]:border-l">
       <div className="flex h-8 shrink-0 items-center gap-2 border-b border-line pl-1.5 pr-1">
         <PaneTabs tabs={tabs} value={tab} onChange={setTab} label="Request details" className="min-w-0 flex-1" />
-        <DetailActions request={request} detail={result?.detail} />
+        <DetailActions request={request} detail={result?.value} />
         <IconButton icon={icons.CloseIcon} label="Close the details" size="sm" onClick={() => select(null)} />
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-3 py-2.5">
         {result?.error ? <p className="mb-3 text-[12px] text-danger">{result.error}</p> : null}
-        <View key={request.id} request={request} detail={result?.detail} />
+        <View key={request.id} request={request} detail={result?.value} />
       </div>
     </aside>
   );

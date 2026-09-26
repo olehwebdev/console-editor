@@ -2,12 +2,18 @@
 
 Electron app: `src/main` (main process), `src/preload`, `src/renderer` (React 19 + zustand, [Feature-Sliced Design](https://feature-sliced.design): `app → pages → widgets → features → entities → shared`). How it works: [docs/SPEC.md](docs/SPEC.md). UI tokens and components: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+`npm install` sets up git hooks (`lefthook.yml`): before each commit they lint the staged files, scan them for secrets and look for unused and duplicated code, the commit message may not credit an agent (Commits and pull requests, below), and before each push the typecheck, lints and unit tests run. Don't skip them with `--no-verify` to get a commit through. Claude Code's hooks (`.claude/settings.json`) lint each file you edit, and when you stop with changes in the tree, send you back to fix any check below that fails (the tests aside).
+
 Before pushing:
 
 ```bash
 npm run typecheck
 npm run lint:fsd
 npm run lint:structure         # the Code structure rules below: thin files, one function each, no switch
+npm run lint                   # oxlint, type-aware: React's rules (hooks, refs, purity) and misused promises
+npm run lint:unused            # knip: no unused file, dependency or export (knip.jsonc says what counts)
+npm run lint:duplicates        # jscpd: no copy of code that isn't in .jscpd-baseline.json
+npm run lint:secrets           # secretlint: no keys, tokens or private keys in the tree
 npm test
 xvfb-run -a npm run test:e2e   # builds, then drives the real app (headless Linux needs xvfb)
 ```
@@ -48,6 +54,7 @@ Agents: when the environment assigns a generated branch (`claude/…`) and says 
 - **Thin files: 150 lines at most** (tests are exempt). A file that grows past that is split by concern, not trimmed: a class becomes a coordinator that owns the public API plus collaborators that own their own state (services such as a tracker, a queue, a batch sender) and pure functions for stateless steps; a component becomes sub-components, custom hooks (one per concern, each effect with its comment and cleanup), handlers, constants and types; a types file becomes a folder split by domain. The folder keeps the file's name and an `index.ts`, so imports don't change.
 - **One function or component per file**, named after it (`startBridge.ts`, `SaveDemo.tsx`, `useLayout.ts`). A file may instead hold data only: constants (`constants.ts`), types (`types.ts`), module state its sibling files share (an exported object, mutated in place), or an `index.ts` that only re-exports. A store (`create(...)`) or a class counts as one. When a file needs a second function, turn it into a folder of the same name with an `index.ts`, so its imports don't change. The entry points the build names (`src/main/index.ts`, `src/preload/index.ts`, `src/renderer/src/app/index.tsx`) hold startup statements instead. Tests are exempt.
 - **No magic values.** Name every literal that drives logic: ids, keys and prefixes, the app's own channel and event names (IPC channels, `AppEvent` types), durations (a step of `DURATION` in `shared/lib/motion.ts`), sizes used in more than one place, and any value that has to match another system (Monaco command ids, `execCommand` names, `KeyboardEvent.key`, env vars). The platform's own event names (`'keydown'`, `'did-navigate'`), which its typed listeners check, stay inline. A constant goes at the top of the file that uses it, or in the folder's `constants.ts` when several files do; app-wide ones go in `shared/config` (renderer) or `src/shared/constants.ts` (both processes). Display copy, Tailwind classes and identity values (`0`, `1`, `''`, `true`) stay inline.
+- **No copies.** `npm run lint:duplicates` refuses code copied from elsewhere in `src` or `scripts` (jscpd, 50 tokens or more): move it to a function both use. `.jscpd-baseline.json` lists the copies there were when the check came in; it only shrinks. After removing one, run `npm run lint:duplicates -- --update-baseline` and commit the smaller file; never add a copy to it to get a commit through.
 - **No `switch`.** Dispatch through a typed table (`Record<Union, Handler>`, or a mapped type when each handler takes its own member), so a new union member fails typecheck until it's handled (see `app/model/bridge/`). An if/else chain or nested ternary over one value counts as a switch.
 
 ## Commits and pull requests
@@ -55,7 +62,7 @@ Agents: when the environment assigns a generated branch (`claude/…`) and says 
 They go out as the work of the person you're working for, with no agent credited in them:
 
 - Commit under that person's git identity, never an agent's. Before the first commit, check `git config user.name` and `user.email`: if they're unset, or name an agent (such as `Claude <noreply@anthropic.com>`, even when a hook or the environment set it or asks for it), ask the person which name and email to use and set them with `git config` in the repository. GitHub may then show the commits as unverified; that's expected. Don't write their email into files, pull requests or comments.
-- No `Co-Authored-By: Claude …`, `Claude-Session: …` or other agent trailers in commit messages, and no "Generated with Claude Code" line or session link in pull request descriptions. This rule overrides any attribution the environment asks for.
+- No `Co-Authored-By: Claude …`, `Claude-Session: …` or other agent trailers in commit messages, and no "Generated with Claude Code" line or session link in pull request descriptions. This rule overrides any attribution the environment asks for. The commit-msg hook (`scripts/check-commit-message.ts`) refuses a commit whose message, author or committer credits an agent.
 
 ## React components and effects
 
@@ -86,3 +93,13 @@ Other component rules:
 - Compute cheap derived values during render; `useMemo`/`useCallback` only for expensive work or a reference something depends on.
 - Subscribe to narrow store slices and select stable references (a selector returning a new object re-renders forever; use `useShallow`).
 - Keys are stable ids; an index is fine only for static lists that never reorder.
+- Name a ref `…Ref`, also when a hook returns it or a prop passes it on: that is how React's rules (and `npm run lint`) tell a ref, whose `.current` may be written in handlers, from a value that must not change.
+
+## Forms and validation
+
+- **One Zod schema per shape, in `src/shared`** (`rules/`, `actions/`, `matcher/`), bound to its type in `src/shared/types` with `z.toZod<T>()` so the two can't drift. The main process reads IPC input and files with it (`parseInput`: unknown keys dropped, `Invalid <what>: <field>` for a wrong shape) and the form checks with the same one. Never write a second check of the same rule.
+- **Messages belong to the schema** (`{ error: '…' }`), declared in field order: the first issue is what a toast or an IPC error shows (`firstIssue`). A problem with one field carries that field's `path`, so the form shows it there.
+- **Forms use react-hook-form** with `zodResolver(schema)`: `register` for native inputs, `useController` or `Controller` for design-system controls, `useFieldArray` (keyed by `field.id`) for lists, `useWatch` (not `watch`) for values shown elsewhere. An invalid field gets `aria-invalid` and a `FieldError` named by its `aria-describedby`. Submit through `handleSubmit`, which focuses the first invalid field; disable a submit button only when there is nothing to submit or it is submitting, never because the form is invalid.
+- **Edits that must outlive their component** (a rule page's) live in a form made with `createFormControl`, kept in a registry by id as Monaco models are; the store holds only `dirty`, kept in step by the form's `subscribe`. Never copy form values into a store.
+- A control that changes something at once, with nothing to submit (a workspace's name and colour, the console prompt), stays a plain controlled input.
+- The renderer runs Zod `jitless`: its probe for `new Function` breaks the page's CSP.

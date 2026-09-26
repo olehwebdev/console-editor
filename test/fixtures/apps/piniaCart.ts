@@ -34,6 +34,7 @@ const settings = createStore({
 const CartItem = {
   props: { sku: { type: String, required: true } },
   setup(props: { sku: string }) {
+    // oxlint-disable-next-line react/rules-of-hooks -- Pinia's store in Vue's setup(), not a React hook
     const cart = useCart();
     function handleAdd() {
       cart.add(props.sku);

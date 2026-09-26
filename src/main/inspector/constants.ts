@@ -19,6 +19,7 @@ export const MAX_TEXT_LENGTH = 160;
 /** The most chain links, values, contexts, handlers or names taken from the page. */
 export const MAX_LIST_ITEMS = 60;
 /** Characters never shown from what the page says. */
+// oxlint-disable-next-line no-control-regex -- matching control characters is the point
 export const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/g;
 /** How Chromium draws the element under the pointer: in DevTools' colours. */
 export const HIGHLIGHT_CONFIG = {

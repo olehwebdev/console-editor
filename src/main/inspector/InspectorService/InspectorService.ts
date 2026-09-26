@@ -1,5 +1,6 @@
 import type { ComponentTreeLevel, FrameStack, InspectedComponent } from '../../../shared/types';
 import type { SessionKey } from '../../console/ConsoleFrames';
+import { dropSessions } from '../../console/dropSessions';
 import type { CdpTransport } from '../../engine/cdp';
 import type { SessionObserver } from '../../engine/PageInterception';
 import { HookScript } from '../HookScript';
@@ -49,11 +50,7 @@ export class InspectorService implements SessionObserver {
   }
 
   detached(id: SessionKey): void {
-    // The page's own session: interception stopped, and every session with it.
-    const gone = id === undefined ? [...this.sessions.keys()] : [id];
-    for (const key of gone) {
-      for (const dispose of this.sessions.get(key)?.dispose.splice(0) ?? []) dispose();
-      this.sessions.delete(key);
+    for (const key of dropSessions(this.sessions, id)) {
       this.reader.dropSession(key);
       this.renders.forget(key);
     }

@@ -60,7 +60,7 @@ export interface ConsoleEditorApi extends InspectorApi, NetworkApi {
 
   /** The active workspace's rules, oldest first. */
   listRules(): Promise<Rule[]>;
-  /** Adds an enabled rule to the active workspace. Rejects input validateRuleInput refuses; 'rules-changed' is sent before this resolves. */
+  /** Adds an enabled rule to the active workspace. Rejects input the rule's schema (ruleInputSchema) refuses; 'rules-changed' is sent before this resolves. */
   createRule(input: CreateRuleInput): Promise<Rule>;
   /** Reaches a rule of any workspace, so an edit in flight during a switch lands where it began. */
   updateRule(id: string, patch: RulePatch): Promise<Rule>;

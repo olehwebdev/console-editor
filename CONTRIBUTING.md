@@ -22,7 +22,7 @@ npm run dev            # the app, with hot reload
 npm run demo-site      # in another terminal: pages to try it on (port 5174)
 ```
 
-Node.js 22.18 or newer is required. Runs from source keep their data in a `Console Editor (dev)` folder, apart from an installed copy's, so both can run at once. On Linux as root (containers), start Electron without its sandbox: `npm run dev -- --noSandbox`.
+`npm install` also sets up git hooks (`lefthook.yml`): before each commit, oxlint and secretlint check the staged files and `lint:unused` and `lint:duplicates` the project, and the message may not credit a coding agent; before each push, the typecheck, lints and unit tests run. CI runs the same checks again, but for the commit message's. With Claude Code, `.claude/settings.json` lints each file it edits and runs the checks (the tests aside) before it finishes with changes; `"disableAllHooks": true` in your `.claude/settings.local.json` turns that off for you. Node.js 22.18 or newer is required. Runs from source keep their data in a `Console Editor (dev)` folder, apart from an installed copy's, so both can run at once. On Linux as root (containers), start Electron without its sandbox: `npm run dev -- --noSandbox`.
 
 ## Before opening a pull request
 
@@ -30,6 +30,10 @@ Node.js 22.18 or newer is required. Runs from source keep their data in a `Conso
 npm run typecheck
 npm run lint:fsd
 npm run lint:structure # files of at most 150 lines, one function each, no switch (CLAUDE.md › Code structure)
+npm run lint           # oxlint with type information: React's rules and misused promises (.oxlintrc.json)
+npm run lint:unused    # no unused files, dependencies or exports (knip; types in a slice's index.ts are its public API)
+npm run lint:duplicates # no new copies of code (jscpd; .jscpd-baseline.json lists the older ones, and only shrinks)
+npm run lint:secrets   # no keys, tokens or private keys (secretlint, .secretlintrc.json)
 npm test               # unit, renderer, and engine tests in real Chromium (npx playwright install chromium)
 npm run test:e2e       # the built app end to end (headless Linux: xvfb-run npm run test:e2e)
 npm run test:perf      # the inspector and its UI on large apps, against budgets (headless Linux: xvfb-run -a); not in CI

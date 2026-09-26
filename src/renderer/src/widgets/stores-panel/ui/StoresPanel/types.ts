@@ -1,4 +1,4 @@
-import type { ConsoleFrame } from '@common/types';
+import type { FrameOf } from '@/entities/frame';
 
 /** An action's frame, and its label, by frame id. */
-export type ResolveFrame = (frameId: string | null) => { frame: ConsoleFrame | undefined; label: string | undefined };
+export type ResolveFrame = FrameOf;

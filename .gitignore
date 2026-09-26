@@ -6,3 +6,5 @@ dist-next/
 .DS_Store
 test-results/
 *.tsbuildinfo
+# Personal Claude Code settings (.claude/settings.json holds the shared ones)
+.claude/settings.local.json

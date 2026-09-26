@@ -110,6 +110,7 @@ export function Menu({
 
   return (
     <>
+      {/* oxlint-disable-next-line react/refs -- its handlers write triggerRef when the trigger is used, not while rendering */}
       {cloneElement(child, triggerProps)}
       {createPortal(
         <AnimatePresence>

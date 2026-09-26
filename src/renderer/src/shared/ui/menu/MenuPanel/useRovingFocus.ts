@@ -7,7 +7,7 @@ const SCROLL_MARGIN = 4;
 /** Keeps DOM focus on the highlighted row (the panel itself with none), scrolled into view. */
 export function useRovingFocus(
   panelRef: RefObject<HTMLDivElement | null>,
-  itemRefs: RefObject<(HTMLDivElement | null)[]>,
+  itemsRef: RefObject<(HTMLDivElement | null)[]>,
   active: number,
   isPresent: boolean,
 ) {
@@ -16,12 +16,12 @@ export function useRovingFocus(
   useEffect(() => {
     if (!isPresent) return;
     const panel = panelRef.current;
-    const item = active >= 0 ? itemRefs.current[active] : null;
+    const item = active >= 0 ? itemsRef.current[active] : null;
     (item ?? panel)?.focus({ preventScroll: true });
     if (!panel || !item) return;
     const top = item.offsetTop;
     const bottom = top + item.offsetHeight;
     if (top < panel.scrollTop) panel.scrollTop = top - SCROLL_MARGIN;
     else if (bottom > panel.scrollTop + panel.clientHeight) panel.scrollTop = bottom - panel.clientHeight + SCROLL_MARGIN;
-  }, [panelRef, itemRefs, active, isPresent]);
+  }, [panelRef, itemsRef, active, isPresent]);
 }

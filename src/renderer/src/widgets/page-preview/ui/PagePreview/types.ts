@@ -1,5 +1,3 @@
-import type { CAPTURE_FAILED } from './constants';
-
 /** Where the preview is shown: in the editor's window, or as the website's own window. */
 export type PreviewPlacement = 'editor' | 'window';
 
@@ -18,4 +16,4 @@ export interface PagePreviewProps {
 }
 
 /** The still shown while frozen: an image, CAPTURE_FAILED if capturing failed, or null while pending. */
-export type Snapshot = string | typeof CAPTURE_FAILED | null;
+export type Snapshot = string | null;

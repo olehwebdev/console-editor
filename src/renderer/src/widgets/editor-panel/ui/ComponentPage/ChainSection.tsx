@@ -1,7 +1,7 @@
 import type { InspectedComponent } from '@common/types';
 import { cn } from '@/shared/lib';
 import { linkName, useInspectorStore } from '@/entities/inspector';
-import { readComponentAt } from './readComponentAt';
+import { readComponentAt } from '@/features/inspect/pick';
 
 /** What rendered the element, from the root down to it: pressing a component shows it. */
 export function ChainSection({ component }: { component: InspectedComponent }) {

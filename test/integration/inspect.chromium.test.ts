@@ -246,7 +246,10 @@ describe.skipIf(!chromiumAvailable)('component inspector in Chromium', () => {
     // Both items are one function, placed once (the array read, then the function), not once an item.
     const sent: string[] = [];
     const send = transport.send.bind(transport);
-    transport.send = ((method: string, params?: Record<string, unknown>) => (sent.push(method), send(method, params))) as typeof transport.send;
+    transport.send = ((method: string, params?: Record<string, unknown>) => {
+      sent.push(method);
+      return send(method, params);
+    }) as typeof transport.send;
     await treeAt([0, 0]);
     transport.send = send;
     expect(sent.filter((method) => method === 'Runtime.getProperties')).toHaveLength(2);

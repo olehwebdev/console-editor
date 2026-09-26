@@ -58,10 +58,10 @@ export class BindingRecording {
   async inEveryFrame(expression: string): Promise<void> {
     const { frames, sessions } = this.opts;
     await Promise.all(
-      frames.list().map((frame) => {
+      frames.list().map(async (frame) => {
         const target = frames.target(frame.id);
         const session = target && sessions.get(target.sessionId);
-        return session?.transport.send(CDP.Runtime.evaluate, { expression, uniqueContextId: target!.uniqueId, silent: true }).catch(() => undefined);
+        await session?.transport.send(CDP.Runtime.evaluate, { expression, uniqueContextId: target!.uniqueId, silent: true }).catch(() => undefined);
       }),
     );
   }

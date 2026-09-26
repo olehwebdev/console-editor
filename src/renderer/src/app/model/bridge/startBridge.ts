@@ -9,10 +9,12 @@ import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { receiveEntries } from '@/features/filter-console';
+import { followUp } from '@/features/inspect/pick';
 import { receiveHeld } from '@/features/network/held';
 import { startUpdates } from '@/features/update-app';
 import type { PageCommands, PageSession } from '@/pages/editor';
 import { pageCommands } from './commands/pageCommands';
+import { followComponent } from './events/followComponent';
 import { handleAppEvent } from './handleAppEvent';
 import { pageSession } from './pageSession';
 import { receiveNetworkRequests } from './events/receiveNetworkRequests';
@@ -25,6 +27,7 @@ import { applyResourceSnapshot } from './resources/applyResourceSnapshot';
 export async function startBridge(commands: PageCommands, session: PageSession): Promise<() => void> {
   pageCommands.current = commands;
   pageSession.current = session;
+  followUp.component = followComponent;
   // Stays subscribed even if loading fails: the main process still needs its flush-session answered to close.
   const off = onAppEvent(handleAppEvent);
   // Each snapshot is applied as its reply arrives, in order with the events around it:

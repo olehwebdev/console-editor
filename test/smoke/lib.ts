@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
 import { chromium, type Browser, type Page } from 'playwright-core';
 
-export async function freePort(): Promise<number> {
+async function freePort(): Promise<number> {
   const server = createServer();
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
   const { port } = server.address() as { port: number };

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { compareRuleAge, sameRuleInput, validateHeaderEdit, validateRuleInput } from '../../src/shared/rules';
+import { compareRuleAge, headerEditSchema, ruleInputSchema, sameRuleInput } from '../../src/shared/rules';
 import type { CreateRuleInput, HeaderEdit } from '../../src/shared/types';
+import { firstIssue } from '../../src/shared/validation';
+
+// What the form, the IPC handlers and the stores show: the first problem, in field order.
+const validateRuleInput = (input: CreateRuleInput) => firstIssue(ruleInputSchema, input);
+const validateHeaderEdit = (edit: HeaderEdit) => firstIssue(headerEditSchema, edit);
 
 const match = { type: 'exact' as const, pattern: 'https://a.com/app.js', ignoreQuery: true };
 const block: CreateRuleInput = { action: 'block', match, resourceTypes: [] };

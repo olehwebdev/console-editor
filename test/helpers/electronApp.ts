@@ -14,7 +14,7 @@ export const built = existsSync(join(root, 'out/main/index.js'));
 export const sandboxArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 
 /** Polls until `fn` returns a truthy value (usable outside tests, unlike expect.poll). */
-export async function waitFor<T>(fn: () => T | undefined, timeout = 30_000): Promise<T> {
+async function waitFor<T>(fn: () => T | undefined, timeout = 30_000): Promise<T> {
   const deadline = Date.now() + timeout;
   for (;;) {
     const value = fn();

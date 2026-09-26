@@ -1,9 +1,7 @@
 export { alignmentFor } from './alignmentFor';
 export { codeOffsets } from './codeOffsets';
-export { EDITED } from './constants';
 export { isAlignWhitespace } from './isAlignWhitespace';
 export { lineStarts } from './lineStarts';
 export { lowerBound } from './lowerBound';
 export { rawToView } from './rawToView';
-export { translateIndex } from './translateIndex';
 export { viewToRaw } from './viewToRaw';

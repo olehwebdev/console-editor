@@ -20,7 +20,7 @@ interface FunctionPlace {
 export async function functionLocations(transport: CdpTransport, arrayId: string, scripts: ScriptUrls): Promise<Array<CodeLocation | null>> {
   const { result } = await transport.send<GetPropertiesReply>(CDP.Runtime.getProperties, { objectId: arrayId, ownProperties: true });
   const items = result.filter((p) => /^\d+$/.test(p.name));
-  const locations: Array<CodeLocation | null> = new Array(items.length).fill(null);
+  const locations = items.map((): CodeLocation | null => null);
   await Promise.all(
     items.slice(0, MAX_PLACED_FUNCTIONS).map(async (item) => {
       if (!item.value?.objectId) return;

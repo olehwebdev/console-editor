@@ -1,4 +1,4 @@
-import type { InspectFramework, SourceMapKind, StateKind } from '@common/types';
+import type { InspectFramework, StateKind } from '@common/types';
 
 export const FRAMEWORK_NAME: Record<InspectFramework, string> = { react: 'React', vue: 'Vue', vue2: 'Vue 2', angular: 'Angular', element: 'Web component' };
 
@@ -15,9 +15,6 @@ export const STATE_KIND_LABEL: Record<StateKind, string> = {
   field: 'field',
   other: 'hook',
 };
-
-/** Where V8 places functions: in scripts. */
-export const SCRIPT_KIND: SourceMapKind = 'Script';
 
 /** What a component shows when it holds no state the inspector can list, by framework. */
 export const NO_STATE: Record<InspectFramework, string> = {

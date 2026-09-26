@@ -2,7 +2,7 @@ export { buildOverrideHeaders } from './buildOverrideHeaders';
 export { buildRefulfilledHeaders } from './buildRefulfilledHeaders';
 export { buildRewrittenHeaders } from './buildRewrittenHeaders';
 export { charsetOf } from './charsetOf';
-export { ENCODING_HEADERS, SRI_GUARD_SOURCE } from './constants';
+export { SRI_GUARD_SOURCE } from './constants';
 export { decodeBody } from './decodeBody';
 export { defaultContentType } from './defaultContentType';
 export { headerEntries } from './headerEntries';

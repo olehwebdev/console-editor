@@ -22,6 +22,9 @@ const sandboxArgs = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 const EDITOR_URL = /\/renderer\/index\.html$/;
 const PAGE_WINDOW_URL = /\/renderer\/index\.html#page-window$/;
 
+/** A window opening or closing, and Playwright hearing of it: past expect.poll's default second on a busy machine. */
+const WINDOW_TIMEOUT = { timeout: 10_000 };
+
 /** Polls until `fn` returns a truthy value (usable outside tests, unlike expect.poll). */
 async function waitFor<T>(fn: () => T | undefined, timeout = 30_000): Promise<T> {
   const deadline = Date.now() + timeout;
@@ -163,7 +166,7 @@ describe.skipIf(!built)('The website in a window of its own', () => {
     const own = await pageWindow(app);
     await inSite('window.marker = 43');
     await putBack(own);
-    await expect.poll(openWindows).toBe(0);
+    await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
     await expect.poll(async () => (await host())?.hash).toBe('');
     await expect.poll(async () => (await host())?.view.width).toBeGreaterThan(0);
     expect(await inSite('window.marker')).toBe(43);
@@ -180,7 +183,7 @@ describe.skipIf(!built)('The website in a window of its own', () => {
       BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('#page-window'))!.setBounds(bounds);
     }, moved);
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('#page-window'))!.close());
-    await expect.poll(openWindows).toBe(0);
+    await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
     await expect.poll(async () => (await host())?.hash).toBe('');
     await expect.poll(async () => (await savedPlacement()).bounds).toEqual(moved);
 
@@ -197,7 +200,7 @@ describe.skipIf(!built)('The website in a window of its own', () => {
 
   it("brings it back from the editor's title bar, and the View menu moves it either way", async () => {
     await win.getByRole('button', { name: 'Show website preview' }).click();
-    await expect.poll(openWindows).toBe(0);
+    await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
     await expect.poll(async () => (await host())?.hash).toBe('');
 
     const menu = (action: 'click' | 'checked') =>
@@ -213,7 +216,7 @@ describe.skipIf(!built)('The website in a window of its own', () => {
     await pageWindow(app);
     await expect.poll(() => menu('checked')).toBe(true);
     await menu('click');
-    await expect.poll(openWindows).toBe(0);
+    await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
     await expect.poll(() => menu('checked')).toBe(false);
     await expect.poll(() => win.getByRole('region', { name: 'Website preview' }).count()).toBe(1);
     await expect.poll(async () => (await host())?.view.width).toBeGreaterThan(0);
@@ -229,13 +232,13 @@ describe.skipIf(!built)('The website in a window of its own', () => {
         const popup = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL() === url);
         return popup ? (popup.getParentWindow()?.webContents.getURL() ?? null) : undefined;
       }, `${site.url}/frames.html?popup`);
-    await expect.poll(popupParent).toMatch(PAGE_WINDOW_URL);
+    await expect.poll(popupParent, WINDOW_TIMEOUT).toMatch(PAGE_WINDOW_URL);
 
     await putBack(await pageWindow(app));
-    await expect.poll(openWindows).toBe(0);
+    await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
     await expect.poll(popupParent).toMatch(EDITOR_URL);
     await app.evaluate(({ BrowserWindow }, url) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL() === url)?.close(), `${site.url}/frames.html?popup`);
-    await expect.poll(popupParent).toBeUndefined();
+    await expect.poll(popupParent, WINDOW_TIMEOUT).toBeUndefined();
   });
 
   it('copes with being put back, or asked for its address bar, while its window still loads', async () => {
@@ -262,7 +265,7 @@ describe.skipIf(!built)('The website in a window of its own', () => {
     const own = await pageWindow(app);
     await expect.poll(() => own.getByTestId('address-bar').evaluate((el) => el === el.ownerDocument.activeElement)).toBe(true);
     await putBack(own);
-    await expect.poll(openWindows).toBe(0);
+    await expect.poll(openWindows, WINDOW_TIMEOUT).toBe(0);
   });
 
   it('opens in its own window again after a restart, if it was there when the app quit', async () => {

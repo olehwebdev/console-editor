@@ -12,7 +12,7 @@ export const CART_PATH = '/network/api/cart';
 export const GRAPHQL_PATH = '/network/graphql';
 export const EVENTS_PATH = '/network/events';
 export const BROKEN_PATH = '/network/api/broken';
-export const NETWORK_WORKER_PATH = '/network/worker.js';
+const NETWORK_WORKER_PATH = '/network/worker.js';
 export const WORKER_DATA_PATH = '/network/api/worker';
 /** A WebSocket that greets, then echoes (socketServer.ts). */
 export const SOCKET_PATH = '/network/socket';
@@ -25,9 +25,9 @@ export const CART_JSON = JSON.stringify({ items: [{ id: 1, name: 'Alpha', price:
 /** What the GraphQL endpoint answers, whatever the operation. */
 export const GRAPHQL_JSON = JSON.stringify({ data: { user: { name: 'Ada', id: 7 } } });
 
-export const WORKER_DATA_JSON = JSON.stringify({ source: 'upstream' });
-export const BROKEN_JSON = JSON.stringify({ error: 'boom' });
-export const ORDERS_JSON = JSON.stringify({ id: 1, state: 'created' });
+const WORKER_DATA_JSON = JSON.stringify({ source: 'upstream' });
+const BROKEN_JSON = JSON.stringify({ error: 'boom' });
+const ORDERS_JSON = JSON.stringify({ id: 1, state: 'created' });
 
 /** How often the event stream sends, in ms. */
 export const EVENT_INTERVAL_MS = 200;

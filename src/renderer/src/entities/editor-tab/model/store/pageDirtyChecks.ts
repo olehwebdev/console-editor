@@ -5,6 +5,6 @@ export const PAGE_DIRTY_CHECKS: { [K in PageKind]: (page: PageTabOf<K>) => boole
   'whats-new': () => false,
   stack: () => false,
   component: () => false,
-  rule: (page) => !!page.draft,
-  'new-rule': (page) => !!page.draft,
+  rule: (page) => !!page.dirty,
+  'new-rule': (page) => !!page.dirty,
 };

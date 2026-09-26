@@ -3,7 +3,7 @@ import { motion, useIsPresent, useReducedMotion } from 'motion/react';
 import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { cn, DURATION, EASE_OUT, SPRING_PANEL, useRegisterOverlay } from '@/shared/lib';
 import { isMenuSeparator } from '../isMenuSeparator';
-import { createMenuBlurHandler } from './createMenuBlurHandler';
+import { handleMenuBlur } from './handleMenuBlur';
 import { INITIAL_ACTIVE } from './initialActive';
 import { MENU_KEY_HANDLERS } from './menuKeyHandlers';
 import { MenuRow } from './MenuRow';
@@ -31,7 +31,7 @@ export function MenuPanel({ id, items, anchor, initialFocus, onClose, ignoreRef,
   // must not share (and glide in from) the old panel's highlight.
   const highlightId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const itemsRef = useRef<(HTMLDivElement | null)[]>([]);
   const typeahead = useRef<TypeaheadState>({ buffer: '', timer: 0 });
   const blurCheck = useRef<BlurCheck>({ timer: 0, pending: false });
 
@@ -47,7 +47,7 @@ export function MenuPanel({ id, items, anchor, initialFocus, onClose, ignoreRef,
   );
   const [active, setActive] = useState(() => INITIAL_ACTIVE[initialFocus](enabled));
   const placement = useMenuPlacement(panelRef, anchor, items.length);
-  useRovingFocus(panelRef, itemRefs, active, isPresent);
+  useRovingFocus(panelRef, itemsRef, active, isPresent);
   useMenuDismiss({ panelRef, ignoreRef, live, typeahead, blurCheck });
 
   const choose = (index: number) => {
@@ -113,7 +113,7 @@ export function MenuPanel({ id, items, anchor, initialFocus, onClose, ignoreRef,
         transformOrigin: `${placement.originX}px ${placement.originY}px`,
       }}
       onKeyDown={onKeyDown}
-      onBlur={createMenuBlurHandler({ isPresent, panelRef, ignoreRef, onClose, live, blurCheck })}
+      onBlur={(event) => handleMenuBlur(event, { isPresent, panelRef, ignoreRef, onClose, live, blurCheck })}
       onPointerLeave={(event) => {
         if (event.pointerType !== 'touch') setActive(-1);
       }}
@@ -137,7 +137,7 @@ export function MenuPanel({ id, items, anchor, initialFocus, onClose, ignoreRef,
             reduce={reduce}
             hasChecks={hasChecks}
             hasIcons={hasIcons}
-            itemRefs={itemRefs}
+            itemsRef={itemsRef}
             setActive={setActive}
             choose={choose}
           />

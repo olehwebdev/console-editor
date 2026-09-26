@@ -1,9 +1,9 @@
-import { app, screen, type BrowserWindow, type WebContents } from 'electron';
+import { screen, type BrowserWindow, type WebContents } from 'electron';
 import { ACTIONS_WINDOW_HASH } from '../../shared/constants';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { ActionsWindowState, AppEvent } from '../../shared/types';
 import { loadEditor } from '../launch/loadEditor';
-import { createAppWindow, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
+import { createAppWindow, DockOnClose, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
 import { ACTIONS_WINDOW_MENU_ID, ACTIONS_WINDOW_SIZE, ACTIONS_WINDOW_TITLE, FORWARDED_EVENTS, MIN_ACTIONS_WINDOW_SIZE } from './constants';
 import type { ActionsWindowDeps } from './types';
 
@@ -17,12 +17,10 @@ export class ActionsWindow {
   private win: BrowserWindow | undefined;
   /** Saves the window's bounds at once (they are also saved as it moves). */
   private savePlacement: (() => void) | undefined;
-  /** The app is quitting, and hasn't asked the window to close yet. */
-  private quitting = false;
+  /** Closing the window docks the panel. */
+  private readonly close = new DockOnClose(() => this.detached, () => this.attach());
 
-  constructor(private readonly deps: ActionsWindowDeps) {
-    app.on('before-quit', () => (this.quitting = this.detached));
-  }
+  constructor(private readonly deps: ActionsWindowDeps) {}
 
   get detached(): boolean {
     return this.win !== undefined;
@@ -47,7 +45,7 @@ export class ActionsWindow {
     const win = createAppWindow(bounds, { title: ACTIONS_WINDOW_TITLE, minSize: MIN_ACTIONS_WINDOW_SIZE });
     this.win = win;
     this.savePlacement = trackPlacement(win, store);
-    setUpWindow(win, { closing: () => this.closing(), maximized: !!saved.maximized });
+    setUpWindow(win, { closing: () => this.close.closing(), maximized: !!saved.maximized });
     win.setAlwaysOnTop(!!saved.onTop);
     void store.update({ detached: true });
     this.announce();
@@ -88,15 +86,6 @@ export class ActionsWindow {
     const win = this.win;
     this.win = undefined;
     if (win && !win.isDestroyed()) win.destroy();
-  }
-
-  /** The window is asked to close: it docks the panel instead (once the close event is over), unless the app quits. */
-  private closing(): void {
-    if (this.quitting) {
-      this.quitting = false;
-      return;
-    }
-    queueMicrotask(() => this.attach());
   }
 
   private show(win: BrowserWindow): void {

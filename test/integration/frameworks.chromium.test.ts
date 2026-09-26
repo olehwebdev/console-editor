@@ -167,7 +167,10 @@ describe.skipIf(!chromiumAvailable)('component inspector on Angular, Vue 2, web 
     // Found once, the registry is kept on the page's window: the next read doesn't walk the heap for it.
     const sent: string[] = [];
     const send = transport.send.bind(transport);
-    transport.send = ((method: string, params?: Record<string, unknown>) => (sent.push(method), send(method, params))) as typeof transport.send;
+    transport.send = ((method: string, params?: Record<string, unknown>) => {
+      sent.push(method);
+      return send(method, params);
+    }) as typeof transport.send;
     expect((await treeAt([0])).nodes).toHaveLength(2);
     transport.send = send;
     expect(sent).not.toContain('Runtime.queryObjects');
