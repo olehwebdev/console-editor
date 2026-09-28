@@ -3,6 +3,11 @@ export const BROWSER_ENGINES = ['chromium', 'gecko', 'webkit', 'unknown'] as con
 
 export type BrowserEngine = (typeof BROWSER_ENGINES)[number];
 
+/** The engines whose browsers the app can drive with the workspace's changes: Chromium's over CDP, Firefox over WebDriver BiDi. */
+export const DRIVEN_ENGINES = ['chromium', 'gecko'] as const satisfies readonly BrowserEngine[];
+
+export type DrivenEngine = (typeof DRIVEN_ENGINES)[number];
+
 /** A browser installed on this computer, or one the user added. */
 export interface BrowserInfo {
   /** Stable across scans: the desktop entry's, the app's or the registry key's name, or `added:<8 hex>`. */

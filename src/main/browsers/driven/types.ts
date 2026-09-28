@@ -1,6 +1,5 @@
-import type { AppEvent, DrivenTab } from '../../../shared/types';
-import type { PageInterception } from '../../engine/PageInterception';
-import type { PageTransport } from '../../engine/websocketTransport';
+import type { AppEvent, CaptureArea, DrivenBrowser, DrivenTab } from '../../../shared/types';
+import type { CapturedImage, Viewport } from '../../shots/capture';
 import type { OverrideStore } from '../../store/OverrideStore';
 import type { RuleStore } from '../../store/RuleStore';
 import type { SettingsStore } from '../../store/SettingsStore';
@@ -13,35 +12,67 @@ export interface InterceptionSources {
   settings: SettingsStore;
 }
 
-/** A tab of a driven browser, with the interception serving it. */
-export interface DrivenTabState {
-  info: DrivenTab;
-  sessionId: string;
-  transport: PageTransport;
-  interception: PageInterception;
-  /** Settles once its interception is set up (or couldn't be) and the tab runs. */
-  ready: Promise<void>;
-}
-
-/** What `Target.attachedToTarget` and `Target.targetInfoChanged` say of a target, as far as a tab needs. */
-export interface PageTargetInfo {
-  targetId: string;
-  type: string;
+/** A capture of a driven browser's tab, with the address it showed. */
+export interface TabCapture {
+  image: CapturedImage;
   url: string;
-  title: string;
 }
 
-export interface AttachedPage {
-  sessionId: string;
-  targetInfo: PageTargetInfo;
+/** A tab's address and title as read again, each when it could be. */
+export interface TabRead {
+  id: string;
+  url?: string;
+  title?: string;
 }
 
-export interface DrivenChromiumDeps {
+/** A tab as a driven browser keeps it: what is listed of it, and whatever its driver needs besides. */
+export interface KeptTab {
+  info: DrivenTab;
+}
+
+/** A browser the app drives, over whichever protocol its engine speaks (CDP for Chromium, WebDriver BiDi for Firefox). */
+export interface Driver {
+  readonly browser: FoundBrowser;
+  /** Attaches to its tabs, the ones open now and every one opened later. */
+  start(): Promise<void>;
+  list(): DrivenBrowser;
+  /** Reads each tab's title and address again. */
+  readTabs(): Promise<void>;
+  /** Opens an address in its blank tab, or a new one, and brings it to the front. */
+  open(url: string): Promise<KeptTab>;
+  activate(tabId: string): Promise<void>;
+  capture(tabId: string, area: Exclude<CaptureArea, 'element'>): Promise<TabCapture>;
+  /** Captures the whole page at `url` (in the tab showing it, or one opened there) laid out in `viewport`. */
+  captureAt(url: string, viewport: Viewport): Promise<TabCapture>;
+  /** After overrides or rules changed. */
+  refresh(): Promise<void>;
+  /** After the settings changed. */
+  applySettings(): Promise<void>;
+  /** Reloads its tabs showing a website. */
+  reload(): Promise<void>;
+  /** Stops serving the workspace's changes; the browser stays open. */
+  stop(): void;
+}
+
+export interface DriverDeps {
   sources: InterceptionSources;
+  /** The app's data folder, where driven browsers keep their profiles. */
+  userData: string;
   /** A tab opened, closed, or changed its address or title. */
   changed(): void;
   /** The browser went away (it was quit). */
   closed(): void;
+}
+
+/** Launches (or reaches again) a browser to drive, and starts driving it. */
+export type ConnectDriver = (browser: FoundBrowser, deps: DriverDeps) => Promise<Driver>;
+
+/** How a browser is launched to be driven: its flags, and the file in its profile it writes its address in. */
+export interface LaunchSpec {
+  flags: string[];
+  portFile: string;
+  /** The address from that file, once written. */
+  read(dir: string): Promise<string | null>;
 }
 
 export interface DrivenBrowsersDeps {

@@ -1,7 +1,8 @@
-import { CDP } from '../../engine/constants';
-import { PageInterception } from '../../engine/PageInterception';
-import { pageTransport, type CdpConnection } from '../../engine/websocketTransport';
-import type { AttachedPage, DrivenTabState, InterceptionSources } from './types';
+import { CDP } from '../../../engine/constants';
+import { PageInterception } from '../../../engine/PageInterception';
+import { pageTransport, type CdpConnection } from '../../../engine/websocketTransport';
+import type { InterceptionSources } from '../types';
+import type { AttachedPage, DrivenTabState } from './types';
 
 /**
  * Serves the workspace's changes in a tab just attached: an interception of its own on its session, set up before

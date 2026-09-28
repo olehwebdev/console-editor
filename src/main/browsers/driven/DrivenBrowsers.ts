@@ -1,27 +1,28 @@
-import type { AppEvent, CaptureArea, DrivenBrowser, ShotBrowser } from '../../../shared/types';
+import type { AppEvent, CaptureArea, DrivenBrowser, DrivenEngine, ShotBrowser } from '../../../shared/types';
 import { HTTP_URL } from '../../constants';
-import { CDP } from '../../engine/constants';
 import type { BrowserCapture, CapturedImage, Viewport } from '../../shots/capture';
 import { PAGE_AREAS } from '../../shots/constants';
 import type { FoundBrowser } from '../types';
-import { PRODUCT_VERSION, RELOAD_DEBOUNCE_MS } from './constants';
-import { DrivenChromium } from './DrivenChromium';
-import { profileDir } from './profileDir';
-import { reachOrLaunch } from './reachOrLaunch';
+import { connectChromium } from './chromium/connectChromium';
+import { RELOAD_DEBOUNCE_MS } from './constants';
+import { connectFirefox } from './firefox/connectFirefox';
 import { shotBrowser } from './shotBrowser';
-import type { DrivenBrowsersDeps } from './types';
+import type { ConnectDriver, DrivenBrowsersDeps, Driver } from './types';
+
+/** How a browser of each engine is driven (the UI offers what `DRIVEN_ENGINES` lists); another can't be served the workspace's changes. */
+const DRIVERS: Readonly<Record<DrivenEngine, ConnectDriver>> = { chromium: connectChromium, gecko: connectFirefox };
 
 /** What each app event means for the driven browsers; the rest mean nothing to them. */
 type AppEventReactions = Partial<Record<AppEvent['type'], () => void>>;
 
 /**
- * The Chromium browsers the app drives, one per installed browser, each with a profile of the app's own: launched (or
- * reached again) when an address is first opened in one with the workspace's changes, and kept in step with them.
- * Every change is announced as `driven-browsers-changed`.
+ * The browsers the app drives (Chromium ones and Firefox), one per installed browser, each with a profile of the app's
+ * own: launched (or reached again) when an address is first opened in one with the workspace's changes, and kept in
+ * step with them. Every change is announced as `driven-browsers-changed`.
  */
 export class DrivenBrowsers {
-  private readonly driven = new Map<string, DrivenChromium>();
-  private readonly starting = new Map<string, Promise<DrivenChromium>>();
+  private readonly driven = new Map<string, Driver>();
+  private readonly starting = new Map<string, Promise<Driver>>();
   private reloadTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly reactions: AppEventReactions = {
     'overrides-changed': () => this.served(),
@@ -45,8 +46,9 @@ export class DrivenBrowsers {
   async open(id: string, url: string): Promise<void> {
     if (!HTTP_URL.test(url)) throw new Error('Only http(s) pages open in another browser');
     const browser = await this.deps.registry.get(id);
-    if (browser.engine !== 'chromium') throw new Error(`${browser.name} can't be served your changes: only Chromium browsers can, for now`);
-    await (await this.reach(browser)).open(url);
+    const connect = Object.hasOwn(DRIVERS, browser.engine) ? DRIVERS[browser.engine as DrivenEngine] : undefined;
+    if (!connect) throw new Error(`${browser.name} can't be served your changes: only Chromium browsers and Firefox can`);
+    await (await this.reach(browser, connect)).open(url);
   }
 
   activate(browserId: string, tabId: string): Promise<void> {
@@ -91,38 +93,32 @@ export class DrivenBrowsers {
     this.driven.clear();
   }
 
-  private all(): DrivenChromium[] {
+  private all(): Driver[] {
     return [...this.driven.values()];
   }
 
-  private get(id: string): DrivenChromium {
+  private get(id: string): Driver {
     const driven = this.driven.get(id);
     if (!driven) throw new Error("That browser isn't open with your changes any more");
     return driven;
   }
 
   /** The driven browser for an installed one: already connected, connecting, or launched now. */
-  private reach(browser: FoundBrowser): Promise<DrivenChromium> {
+  private reach(browser: FoundBrowser, connect: ConnectDriver): Promise<Driver> {
     const driven = this.driven.get(browser.id);
     if (driven) return Promise.resolve(driven);
-    const starting = this.starting.get(browser.id) ?? this.connect(browser).finally(() => this.starting.delete(browser.id));
+    const starting = this.starting.get(browser.id) ?? this.connect(browser, connect).finally(() => this.starting.delete(browser.id));
     this.starting.set(browser.id, starting);
     return starting;
   }
 
-  private async connect(browser: FoundBrowser): Promise<DrivenChromium> {
-    const connection = await reachOrLaunch(browser, profileDir(browser, this.deps.userData));
-    const { product } = await connection.send<{ product: string }>(CDP.Browser.getVersion);
-    const driven = new DrivenChromium(browser, PRODUCT_VERSION.exec(product)?.[1] ?? null, connection, {
-      sources: this.deps.sources,
-      changed: () => this.changed(),
-      closed: () => {
-        this.driven.delete(browser.id);
-        this.changed();
-      },
-    });
+  private async connect(browser: FoundBrowser, connect: ConnectDriver): Promise<Driver> {
+    const closed = () => {
+      this.driven.delete(browser.id);
+      this.changed();
+    };
+    const driven = await connect(browser, { sources: this.deps.sources, userData: this.deps.userData, changed: () => this.changed(), closed });
     this.driven.set(browser.id, driven);
-    await driven.start();
     this.changed();
     return driven;
   }

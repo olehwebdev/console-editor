@@ -32,9 +32,9 @@ const { launchEnv } = await import('../../src/main/browsers/launchEnv');
 const { BrowserRegistry } = await import('../../src/main/browsers');
 const { driveCommand } = await import('../../src/main/browsers/driven/driveCommand');
 const { profileDir } = await import('../../src/main/browsers/driven/profileDir');
-const { readActivePort } = await import('../../src/main/browsers/driven/readActivePort');
+const { readActivePort } = await import('../../src/main/browsers/driven/chromium/readActivePort');
 const { DrivenTabs } = await import('../../src/main/browsers/driven/DrivenTabs');
-type DrivenTabState = import('../../src/main/browsers/driven/types').DrivenTabState;
+type DrivenTabState = import('../../src/main/browsers/driven/chromium/types').DrivenTabState;
 const { BrowserStore } = await import('../../src/main/store/BrowserStore');
 type FoundBrowser = import('../../src/main/browsers').FoundBrowser;
 
@@ -323,20 +323,22 @@ describe('Driving a Chromium browser', () => {
     expect(await readActivePort(dir)).toBeNull();
   });
 
-  it('keeps its tabs: by target and session, their changes, a blank one to reuse, and the one a new target becomes', async () => {
-    const tabs = new DrivenTabs();
+  it('keeps its tabs: their changes, the one showing an address, a blank one to reuse, and the one a new target becomes', async () => {
+    const tabs = new DrivenTabs<DrivenTabState>();
     const tab = (id: string, url: string) => ({ info: { id, title: '', url }, sessionId: `s-${id}` }) as DrivenTabState;
     tabs.add(tab('a', 'about:blank'));
     expect(tabs.blank()?.info.id).toBe('a');
-    expect(tabs.update({ targetId: 'a', type: 'page', url: 'https://shop.test/', title: 'Shop' })).toBe(true);
-    expect(tabs.update({ targetId: 'a', type: 'page', url: 'https://shop.test/', title: 'Shop' })).toBe(false);
-    expect(tabs.update({ targetId: 'gone', type: 'page', url: 'x', title: 'y' })).toBe(false);
+    expect(tabs.update('a', { url: 'https://shop.test/', title: 'Shop' })).toBe(true);
+    expect(tabs.update('a', { url: 'https://shop.test/', title: 'Shop' })).toBe(false);
+    expect(tabs.update('a', { title: 'Shop' })).toBe(false);
+    expect(tabs.update('gone', { url: 'x', title: 'y' })).toBe(false);
     expect(tabs.blank()).toBeUndefined();
     const arriving = tabs.arrival('b');
     tabs.add(tab('b', 'about:blank'));
     expect((await arriving).info.id).toBe('b');
     expect(tabs.list()).toEqual([{ id: 'a', title: 'Shop', url: 'https://shop.test/' }, { id: 'b', title: '', url: 'about:blank' }]);
-    expect(tabs.remove('s-a')?.info.id).toBe('a');
+    expect(tabs.showing('https://shop.test/')?.info.id).toBe('a');
+    expect(tabs.remove('a')?.info.id).toBe('a');
     expect(() => tabs.get('a')).toThrow('That tab is closed');
     expect(tabs.clear().map((t) => t.info.id)).toEqual(['b']);
   });

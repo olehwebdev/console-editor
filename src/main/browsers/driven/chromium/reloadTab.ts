@@ -1,4 +1,4 @@
-import { CDP } from '../../engine/constants';
+import { CDP } from '../../../engine/constants';
 import type { DrivenTabState } from './types';
 
 /** Reloads a tab from the network, first asking service workers that run outdated code to unregister. */

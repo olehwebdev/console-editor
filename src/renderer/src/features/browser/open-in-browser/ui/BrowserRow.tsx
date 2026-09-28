@@ -1,7 +1,7 @@
 import type { BrowserInfo } from '@common/types';
 import { icons } from '@/shared/config';
 import { IconButton } from '@/shared/ui/icon-button';
-import { BrowserIcon } from '@/entities/browser';
+import { BrowserIcon, canDrive } from '@/entities/browser';
 
 export interface BrowserRowProps {
   browser: BrowserInfo;
@@ -14,8 +14,8 @@ export interface BrowserRowProps {
 }
 
 /**
- * A browser in the menu: its icon, name and version; choosing it opens the page there. A Chromium browser also offers
- * opening it with the workspace's changes, in a profile of the app's own.
+ * A browser in the menu: its icon, name and version; choosing it opens the page there. A Chromium browser or Firefox
+ * also offers opening it with the workspace's changes, in a profile of the app's own.
  */
 export function BrowserRow({ browser, disabled, driven, onOpen, onOpenWithChanges }: BrowserRowProps) {
   return (
@@ -31,7 +31,7 @@ export function BrowserRow({ browser, disabled, driven, onOpen, onOpenWithChange
         {driven ? <span className="size-1.5 shrink-0 rounded-full bg-accent" title="Open with your changes" data-testid="browser-driven" /> : null}
         {browser.version ? <span className="shrink-0 font-mono text-[11px] text-fg-subtle">{browser.version}</span> : null}
       </button>
-      {browser.engine === 'chromium' ? (
+      {canDrive(browser) ? (
         <IconButton
           icon={icons.OverridesIcon}
           label={`Open in ${browser.name} with your changes`}

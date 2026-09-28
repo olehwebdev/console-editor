@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DrivenBrowsers } from '../../src/main/browsers';
-import { readActivePort } from '../../src/main/browsers/driven/readActivePort';
+import { readActivePort } from '../../src/main/browsers/driven/chromium/readActivePort';
 import type { InterceptionSources } from '../../src/main/browsers/driven/types';
 import type { FoundBrowser } from '../../src/main/browsers';
 import { CdpConnection } from '../../src/main/engine/websocketTransport';
@@ -139,9 +139,9 @@ describe.skipIf(!chromiumAvailable)('a Chromium browser driven with your changes
     expect(tabs()).toHaveLength(3);
   });
 
-  it('refuses a browser other than Chromium, and an address not on the web', async () => {
-    const other = new DrivenBrowsers({ registry: { get: async () => ({ ...browser, name: 'Firefox', engine: 'gecko' }) }, sources, userData, send: () => undefined });
-    await expect(other.open(browser.id, `${origin}/page.html`)).rejects.toThrow("Firefox can't be served your changes");
+  it('refuses a browser it can\'t drive (Safari), and an address not on the web', async () => {
+    const other = new DrivenBrowsers({ registry: { get: async () => ({ ...browser, name: 'Safari', engine: 'webkit' }) }, sources, userData, send: () => undefined });
+    await expect(other.open(browser.id, `${origin}/page.html`)).rejects.toThrow("Safari can't be served your changes");
     await expect(driven.open(browser.id, 'file:///etc/passwd')).rejects.toThrow('Only http(s) pages');
   });
 

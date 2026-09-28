@@ -1,8 +1,8 @@
-import { CDP } from '../../engine/constants';
-import { withTimeout } from '../../engine/PageInterception';
-import { atViewport, captureOverCdp, type CapturedImage, type Viewport } from '../../shots/capture';
-import { LOADED_EXPRESSION } from '../../shots/constants';
-import { LOAD_TIMEOUT_MS } from './constants';
+import { CDP } from '../../../engine/constants';
+import { withTimeout } from '../../../engine/PageInterception';
+import { atViewport, captureOverCdp, type CapturedImage, type Viewport } from '../../../shots/capture';
+import { LOADED_EXPRESSION } from '../../../shots/constants';
+import { LOAD_TIMEOUT_MS } from '../constants';
 import type { DrivenTabState } from './types';
 
 /** Captures the whole page a tab shows, laid out in `viewport`, once it has loaded and been quiet a moment. */

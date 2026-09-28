@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium, _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { readActivePort } from '../../src/main/browsers/driven/readActivePort';
+import { readActivePort } from '../../src/main/browsers/driven/chromium/readActivePort';
 import { CdpConnection } from '../../src/main/engine/websocketTransport';
 import type { DrivenBrowser, Shot } from '../../src/shared/types';
 

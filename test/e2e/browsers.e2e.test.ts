@@ -104,7 +104,7 @@ describe.skipIf(!built || process.platform !== 'linux')('Other browsers', () => 
     await rm(openedFile, { force: true });
     await win.keyboard.press('Control+K');
     await win.keyboard.type('Open in Fake');
-    await win.getByRole('option', { name: /Open in Fake Chromium/ }).click();
+    await win.getByRole('option', { name: 'Open in Fake Chromium', exact: true }).click();
     await expect.poll(() => opened(openedFile), { timeout: 10_000 }).toBe(`${site.url}/`);
   });
 
