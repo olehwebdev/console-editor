@@ -105,6 +105,12 @@ Each workspace keeps its own page, tabs, overrides, rules and actions, so a fix 
 
 Right-click a file to block it (an analytics script, a slow third-party iframe) before it reaches the server, or to remove a page's Content-Security-Policy, with an Undo. Rules can also set or remove any response header, or let the page call an API on another origin, preflights and cookies included. Each rule shows how often it applied and to which URLs.
 
+### Check it in other browsers and against designs
+
+- **Your other browsers** (Chrome, Firefox, Safari, Edge…) are a click away beside the address bar. Chromium browsers and Firefox can also open the page **with your changes**: the app serves your overrides and rules in their tabs too, and lists those tabs.
+- **Capture** what the page shows, the whole page or one element, here or in those browsers; **Capture in every browser** takes them all at once, at the same size, and shows where they differ.
+- **Compare with a design** pixel by pixel: side by side, swiped, faded, or as their difference with how much differs and where, or lay the design over the live page at its width.
+
 ### And
 
 - **Never lose work.** Closing the app keeps unsaved edits as drafts and reopens your tabs and the last page; overrides switch on and off one by one.
@@ -205,7 +211,12 @@ Everything stays on your machine: no telemetry, no uploads. Besides the sites yo
 | Settings | `settings.json` |
 | The last version run, to know when to show What's New | `update.json` |
 | Workspaces: each one's name and tile, last page, open tabs, unsaved drafts and site icon | `session/` |
+| Captures and designs, with their thumbnails | `workspace/shots.json`, `workspace/shots/` |
+| Browsers you added or hid | `browsers.json` |
+| The profiles of browsers opened with your changes (their logins stay there) | `browsers/` |
 | The site's cookies, logins, storage | A persistent browser profile used only by the site view |
+
+Your everyday Firefox's session file is read only when you ask the browser menu for its tabs, and only their addresses and titles are shown.
 
 The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application Support/Console Editor` on macOS and `%APPDATA%\Console Editor` on Windows. Uninstalling the app keeps it. Running from source uses a separate `Console Editor (dev)` folder next to it, so a dev build never touches your real data. Set `CONSOLE_EDITOR_USER_DATA` to use another folder.
 
@@ -221,6 +232,8 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - A response override with **Send request** on (the default for a GET) answers after the server has: the request is still sent, so a POST would still create what it creates, which is why overrides made from anything but a GET start with it off. An event stream an override matches is replaced as a whole, which ends it.
 - A paused request waits only as long as the page does: if the page gives up on it (a timeout, leaving the page), its tab closes with a note.
 - WebSocket messages are shown, not changed: Chromium reports them but can't hold or edit them. A HAR import makes overrides for fetch and XHR responses only, not for documents or scripts.
+- In Firefox opened with your changes, an override answers before the request is sent (Firefox can only replace a response then): its headers are its file type's rather than the server's, patch mode serves your saved text, an override for one GraphQL operation doesn't apply, and a script behind an `integrity` attribute needs the page's HTML overridden too. Breakpoints, the console and the Network panel stay with the app's own page. Safari is opened as it is.
+- A full-page capture stops at 16 384 device pixels tall (Chromium's limit).
 - Chromium's local-network checks are off in the app's browser, so a patched localhost or intranet page can still reach its own servers. Browse only sites you're working on (see [SPEC §8](docs/SPEC.md#8-security)).
 
 ## Roadmap
@@ -229,8 +242,8 @@ What shipped, release by release, is in the **[CHANGELOG](CHANGELOG.md)**. Next:
 
 - [ ] Parameters and scenarios for actions
 - [ ] Search across every file the page loaded
-- [ ] Drive your own Chrome over CDP
-- [ ] Open the page in your other browsers (with your changes in Chromium browsers and Firefox), capture it, and check it against designs pixel by pixel ([research](docs/BROWSERS_RESEARCH.md))
+- [ ] Drive your everyday Chrome over CDP (a Chromium browser with a profile of the app's own already works)
+- [ ] WebKit with your changes through Playwright's build, the design over another browser's tab, and tabs of your other everyday browsers ([research](docs/BROWSERS_RESEARCH.md))
 - [ ] Vue's renders and a data-flow view in the component inspector ([research](docs/INSPECTOR_RESEARCH.md))
 - [ ] Signed and notarized builds (and with them, installing updates in place on macOS)
 
