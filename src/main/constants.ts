@@ -16,5 +16,11 @@ export const IMAGE_DATA_URL = /^data:image\/[\w.+-]+[;,]/i;
 /** Matches the --canvas token, so nothing flashes before a window's UI paints. */
 export const CANVAS_COLOR = '#08080a';
 
+/** Matches the --fg-muted token: the window buttons drawn over the title bar, as quiet as its other icons. */
+export const TITLE_BAR_SYMBOL_COLOR = '#9d9ea5';
+
+/** The editor's title bar (--titlebar-h, 44 px) less its bottom border, which runs on under the window buttons. */
+export const TITLE_BAR_HEIGHT = 43;
+
 /** Where electron-vite puts the preload script, relative to the main bundle. */
 export const PRELOAD_SCRIPT = '../preload/index.js';

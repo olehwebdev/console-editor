@@ -56,7 +56,7 @@ All colors are CSS custom properties in `src/renderer/src/app/styles/tokens.css`
 
 ### Spacing and density
 
-4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px, status bar 26 px, activity rail 48 px wide. The rail holds the views (Explorer, Actions, Inspect, Search), a hairline, the workspaces (28 px tiles in 36 px hit areas; the active one gets a `--fg` bar on the left, gliding with `SPRING_LAYOUT`, the others sit at 65 % opacity), +, and Settings at the bottom.
+4 px grid. Rows are 26 px (tree) / 28 px (lists), controls 28 px (`h-7`), title bar 44 px (on Linux also the window's: it is dragged to move it, and the window buttons sit over its right end, past `--titlebar-controls-w` of padding), status bar 26 px, activity rail 48 px wide. The rail holds the views (Explorer, Actions, Inspect, Search), a hairline, the workspaces (28 px tiles in 36 px hit areas; the active one gets a `--fg` bar on the left, gliding with `SPRING_LAYOUT`, the others sit at 65 % opacity), +, and Settings at the bottom.
 
 ---
 

@@ -58,6 +58,9 @@
 
   /* Layout */
   --titlebar-h: 44px;
+  /* What the window buttons drawn over the title bar's right end take (Linux, where the system's title bar
+     gives way to the app's): the width Window Controls Overlay leaves out of the title bar; 0 without one. */
+  --titlebar-controls-w: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
   --statusbar-h: 26px;
   --rail-w: 48px;
   /* Width of the website preview; set by the editor page while it is shown. */

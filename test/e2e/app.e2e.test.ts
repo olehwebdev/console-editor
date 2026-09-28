@@ -33,6 +33,28 @@ describe.skipIf(!built)('Console Editor app', () => {
     await rm(userData, { recursive: true, force: true, maxRetries: 5 });
   });
 
+  it.skipIf(process.platform !== 'linux')("takes the system's title bar's place on Linux, with room for the window buttons", async () => {
+    const bar = await win.evaluate(() => {
+      // Window Controls Overlay: not in TypeScript's DOM types yet.
+      const { windowControlsOverlay } = navigator as Navigator & { windowControlsOverlay: { visible: boolean; getTitlebarAreaRect(): DOMRect } };
+      const area = windowControlsOverlay.getTitlebarAreaRect();
+      const region = (testId: string) => getComputedStyle(document.querySelector(`[data-testid="${testId}"]`)!).getPropertyValue('app-region');
+      return {
+        overlay: windowControlsOverlay.visible,
+        areaRight: area.x + area.width,
+        togglesRight: document.querySelector('[data-testid="layout-toggles"]')!.getBoundingClientRect().right,
+        bar: region('title-bar'),
+        toggles: region('layout-toggles'),
+        palette: region('palette-trigger'),
+      };
+    });
+    // Electron draws the window buttons over the bar's right end; the bar's own controls end before them.
+    expect(bar.overlay).toBe(true);
+    expect(bar.togglesRight).toBeLessThanOrEqual(bar.areaRight);
+    // Dragging the bar moves the window; its controls are clicked, not dragged.
+    expect(bar).toMatchObject({ bar: 'drag', toggles: 'no-drag', palette: 'no-drag' });
+  });
+
   it('opens a website and lists its scripts, stylesheets and document', async () => {
     await goTo(win, site.url);
     await fileRow(win, `${site.url}/app.js`).waitFor();
