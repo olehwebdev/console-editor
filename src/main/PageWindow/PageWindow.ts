@@ -5,7 +5,7 @@ import type { AppEvent, PageState, Rect } from '../../shared/types';
 import { loadEditor } from '../launch/loadEditor';
 import { AddressBarFocus } from './AddressBarFocus';
 import { createAppWindow, DockOnClose, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
-import { DEFAULT_WINDOW_SIZE, MIN_WINDOW_SIZE, PAGE_WINDOW_MENU_ID, UNTITLED } from './constants';
+import { DEFAULT_WINDOW_SIZE, MIN_WINDOW_SIZE, PAGE_WINDOW_MENU_ID, PAGE_WINDOW_TITLE_BAR, UNTITLED } from './constants';
 import { toViewBounds } from './toViewBounds';
 import type { PageWindowDeps } from './types';
 
@@ -58,7 +58,7 @@ export class PageWindow {
     if (editor.isDestroyed()) return;
     const saved = store.get();
     const bounds = placeWindow(saved.bounds, screen.getAllDisplays().map((d) => d.workArea), editor.getBounds(), DEFAULT_WINDOW_SIZE);
-    const win = createAppWindow(bounds, { title: UNTITLED, minSize: MIN_WINDOW_SIZE });
+    const win = createAppWindow(bounds, { title: UNTITLED, minSize: MIN_WINDOW_SIZE, titleBar: PAGE_WINDOW_TITLE_BAR });
     this.win = win;
     this.focus = new AddressBarFocus(win);
     this.savePlacement = trackPlacement(win, store);

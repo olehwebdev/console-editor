@@ -4,7 +4,7 @@ import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { ActionsWindowState, AppEvent } from '../../shared/types';
 import { loadEditor } from '../launch/loadEditor';
 import { createAppWindow, DockOnClose, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
-import { ACTIONS_WINDOW_MENU_ID, ACTIONS_WINDOW_SIZE, ACTIONS_WINDOW_TITLE, FORWARDED_EVENTS, MIN_ACTIONS_WINDOW_SIZE } from './constants';
+import { ACTIONS_WINDOW_MENU_ID, ACTIONS_WINDOW_SIZE, ACTIONS_WINDOW_TITLE, ACTIONS_WINDOW_TITLE_BAR, FORWARDED_EVENTS, MIN_ACTIONS_WINDOW_SIZE } from './constants';
 import type { ActionsWindowDeps } from './types';
 
 /**
@@ -42,7 +42,7 @@ export class ActionsWindow {
     if (editor.isDestroyed()) return;
     const saved = store.get();
     const bounds = placeWindow(saved.bounds, screen.getAllDisplays().map((d) => d.workArea), editor.getBounds(), ACTIONS_WINDOW_SIZE);
-    const win = createAppWindow(bounds, { title: ACTIONS_WINDOW_TITLE, minSize: MIN_ACTIONS_WINDOW_SIZE });
+    const win = createAppWindow(bounds, { title: ACTIONS_WINDOW_TITLE, minSize: MIN_ACTIONS_WINDOW_SIZE, titleBar: ACTIONS_WINDOW_TITLE_BAR });
     this.win = win;
     this.savePlacement = trackPlacement(win, store);
     setUpWindow(win, { closing: () => this.close.closing(), maximized: !!saved.maximized });

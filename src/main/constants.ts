@@ -16,6 +16,9 @@ export const IMAGE_DATA_URL = /^data:image\/[\w.+-]+[;,]/i;
 /** Matches the --canvas token, so nothing flashes before a window's UI paints. */
 export const CANVAS_COLOR = '#08080a';
 
+/** Matches the --surface token: panels' background (the Actions window's). */
+export const SURFACE_COLOR = '#0d0d0f';
+
 /** Matches the --fg-muted token: the window buttons drawn over the title bar, as quiet as its other icons. */
 export const TITLE_BAR_SYMBOL_COLOR = '#9d9ea5';
 

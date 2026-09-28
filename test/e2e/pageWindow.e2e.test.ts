@@ -88,6 +88,25 @@ async function typeAtEndOfEditor(win: Page, text: string): Promise<void> {
   await win.keyboard.press('Escape');
 }
 
+/**
+ * A window's top bar where it takes Linux's title bar's place: whether the window buttons are drawn over it (Window
+ * Controls Overlay, not in TypeScript's DOM types yet), where the room they leave ends, whether the bar drags the
+ * window, and each of its controls' region and right edge.
+ */
+const topBar = (page: Page, testId: string) =>
+  page.evaluate((id) => {
+    const { windowControlsOverlay } = navigator as Navigator & { windowControlsOverlay: { visible: boolean; getTitlebarAreaRect(): DOMRect } };
+    const area = windowControlsOverlay.getTitlebarAreaRect();
+    const bar = document.querySelector(`[data-testid="${id}"]`)!;
+    const region = (el: Element) => getComputedStyle(el).getPropertyValue('app-region');
+    return {
+      overlay: windowControlsOverlay.visible,
+      roomRight: area.x + area.width,
+      region: region(bar),
+      controls: [...bar.querySelectorAll('button, label')].map((el) => ({ region: region(el), right: el.getBoundingClientRect().right })),
+    };
+  }, testId);
+
 async function goTo(win: Page, url: string): Promise<void> {
   const bar = win.getByTestId('address-bar');
   await bar.fill(url);
@@ -126,6 +145,8 @@ describe.skipIf(!built)('The website in a window of its own', () => {
     await goTo(win, site.url);
     await expect.poll(() => inSite('window.appValue')).toBe('original');
     await inSite('window.marker = 42');
+    // Docked in the editor, the toolbar is only the preview's: nothing in it drags the window.
+    expect((await topBar(win, 'preview-toolbar')).region).not.toBe('drag');
 
     await win.getByRole('region', { name: 'Website preview' }).getByRole('button', { name: 'Open in its own window' }).click();
     const own = await pageWindow(app);
@@ -140,6 +161,15 @@ describe.skipIf(!built)('The website in a window of its own', () => {
     // The editor gives the preview's room to the editor.
     await expect.poll(() => win.getByRole('region', { name: 'Website preview' }).count()).toBe(0);
     await expect(win.getByRole('button', { name: 'Show website preview' }).isVisible()).resolves.toBe(true);
+  });
+
+  it.skipIf(process.platform !== 'linux')("takes the system's title bar's place with its toolbar on Linux, which in the editor stays the preview's", async () => {
+    const own = await pageWindow(app);
+    const bar = await topBar(own, 'preview-toolbar');
+    // The window buttons are drawn over the toolbar's right end, past its controls; the toolbar drags the window, its controls don't.
+    expect(bar).toMatchObject({ overlay: true, region: 'drag' });
+    for (const control of bar.controls) expect(control.region).toBe('no-drag');
+    expect(Math.max(...bar.controls.map((c) => c.right))).toBeLessThanOrEqual(bar.roomRight);
   });
 
   it('serves the edits saved in the editor to the website in its own window', async () => {

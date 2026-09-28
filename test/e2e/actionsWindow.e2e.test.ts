@@ -63,6 +63,25 @@ const menu = (app: ElectronApplication, action: 'click' | 'checked') =>
     return item.checked;
   }, action);
 
+/**
+ * A window's top bar where it takes Linux's title bar's place: whether the window buttons are drawn over it (Window
+ * Controls Overlay, not in TypeScript's DOM types yet), where the room they leave ends, whether the bar drags the
+ * window, and each of its controls' region and right edge.
+ */
+const topBar = (page: Page, testId: string) =>
+  page.evaluate((id) => {
+    const { windowControlsOverlay } = navigator as Navigator & { windowControlsOverlay: { visible: boolean; getTitlebarAreaRect(): DOMRect } };
+    const area = windowControlsOverlay.getTitlebarAreaRect();
+    const bar = document.querySelector(`[data-testid="${id}"]`)!;
+    const region = (el: Element) => getComputedStyle(el).getPropertyValue('app-region');
+    return {
+      overlay: windowControlsOverlay.visible,
+      roomRight: area.x + area.width,
+      region: region(bar),
+      controls: [...bar.querySelectorAll('button, label')].map((el) => ({ region: region(el), right: el.getBoundingClientRect().right })),
+    };
+  }, testId);
+
 /** How many rows the page logged (not code you ran) say `words`. */
 const logged = (win: Page, words: string) =>
   win.$$eval('[data-testid=console-row][data-source=console]', (els, w) => els.filter((el) => (el as unknown as { innerText: string }).innerText.includes(w)).length, words);
@@ -105,6 +124,8 @@ describe.skipIf(!built)('The Actions panel in a window of its own', () => {
 
   it('moves the panel into its own window, and runs actions from there in their frame', async () => {
     await makeAction(win, 'Add A1', 'cart', "addItem('A1')");
+    // In the sidebar the header is only the panel's: nothing in it drags the window.
+    expect((await topBar(win, 'actions-header')).region).not.toBe('drag');
     await win.getByTestId('actions-move').click();
     const panel = await actionsWindow(app);
     await expect.poll(async () => (await windows(app)).map((w) => w.title).sort()).toEqual(['Actions', 'Console Editor']);
@@ -116,6 +137,14 @@ describe.skipIf(!built)('The Actions panel in a window of its own', () => {
     await row(panel, 'Add A1').getByTestId('action-run').click();
     await expect.poll(() => logged(win, 'billing got'), { timeout: 20_000 }).toBe(1);
     await expect.poll(() => row(panel, 'Add A1').getByTestId('action-result').innerText()).toBe('undefined');
+  });
+
+  it.skipIf(process.platform !== 'linux')("takes the system's title bar's place with the panel's header on Linux", async () => {
+    const bar = await topBar(await actionsWindow(app), 'actions-header');
+    // The window buttons are drawn over the header's right end, past its buttons; the header drags the window, its buttons don't.
+    expect(bar).toMatchObject({ overlay: true, region: 'drag' });
+    for (const control of bar.controls) expect(control.region).toBe('no-drag');
+    expect(Math.max(...bar.controls.map((c) => c.right))).toBeLessThanOrEqual(bar.roomRight);
   });
 
   it('makes actions in the window, and follows the workspace shown', async () => {

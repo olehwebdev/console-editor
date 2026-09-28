@@ -1,9 +1,10 @@
 import { icons } from '@/shared/config';
+import { cn } from '@/shared/lib';
 import { IconButton } from '@/shared/ui/icon-button';
 import { useActionStore } from '@/entities/action';
 import { setActionsOnTop } from '@/features/action/detach';
 import { useActionEditor } from '@/features/action/edit';
-import { MOVE_BUTTON } from './constants';
+import { HEADER_PLACEMENT_CLASS, MOVE_BUTTON } from './constants';
 import type { ActionsPlacement } from './types';
 
 const { startNew } = useActionEditor.getState();
@@ -13,7 +14,7 @@ export function PanelHeader({ placement }: { placement: ActionsPlacement }) {
   const onTop = useActionStore((s) => s.window.onTop);
   const move = MOVE_BUTTON[placement];
   return (
-    <header className="flex h-10 shrink-0 items-center gap-0.5 pl-4 pr-2">
+    <header className={cn('flex h-10 shrink-0 items-center gap-0.5', HEADER_PLACEMENT_CLASS[placement])} data-testid="actions-header">
       <span className="label-caps min-w-0 flex-1 truncate">Actions</span>
       <IconButton icon={icons.AddIcon} label="New action" size="sm" data-testid="action-new" onClick={() => startNew()} />
       {placement === 'window' ? (

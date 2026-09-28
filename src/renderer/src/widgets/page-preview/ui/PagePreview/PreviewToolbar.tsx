@@ -1,10 +1,11 @@
 import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
+import { cn } from '@/shared/lib';
 import { IconButton } from '@/shared/ui/icon-button';
 import { usePageStore } from '@/entities/page';
 import { goBack, goForward, openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { AddressBar } from '../AddressBar';
-import { MOVE_BUTTON } from './constants';
+import { MOVE_BUTTON, TOOLBAR_PLACEMENT_CLASS } from './constants';
 import { PickButton } from './PickButton';
 import type { PagePreviewProps, PreviewPlacement } from './types';
 
@@ -25,7 +26,7 @@ export function PreviewToolbar({ hasPage, placement, addressBarRef }: PreviewToo
   const loading = usePageStore((s) => s.page.loading);
 
   return (
-    <header className="flex h-10 shrink-0 items-center gap-1 border-b border-line px-2">
+    <header className={cn('flex h-10 shrink-0 items-center gap-1 border-b border-line', TOOLBAR_PLACEMENT_CLASS[placement])} data-testid="preview-toolbar">
       <IconButton icon={icons.BackIcon} label="Back" size="sm" disabled={!canGoBack} onClick={() => void goBack()} />
       <IconButton icon={icons.ForwardIcon} label="Forward" size="sm" disabled={!canGoForward} onClick={() => void goForward()} />
       <IconButton

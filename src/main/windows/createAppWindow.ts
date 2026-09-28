@@ -2,6 +2,7 @@ import { BrowserWindow, type Rectangle } from 'electron';
 import { join } from 'node:path';
 import appIcon from '../../../build/icons/512x512.png?asset&asarUnpack';
 import { CANVAS_COLOR, PRELOAD_SCRIPT } from '../constants';
+import { linuxTitleBar } from './linuxTitleBar';
 import type { AppWindowOptions } from './types';
 
 /**
@@ -9,13 +10,14 @@ import type { AppWindowOptions } from './types';
  * until its UI is ready. No parent: a child window would follow the editor (moving with it on macOS, staying
  * above it on Windows), and these go to another screen.
  */
-export function createAppWindow(bounds: Rectangle, { title, minSize }: AppWindowOptions): BrowserWindow {
+export function createAppWindow(bounds: Rectangle, { title, minSize, titleBar }: AppWindowOptions): BrowserWindow {
   return new BrowserWindow({
     ...bounds,
     minWidth: minSize.width,
     minHeight: minSize.height,
     title,
     ...(process.platform === 'linux' ? { icon: appIcon } : {}),
+    ...linuxTitleBar(titleBar),
     backgroundColor: CANVAS_COLOR,
     autoHideMenuBar: true,
     show: false,

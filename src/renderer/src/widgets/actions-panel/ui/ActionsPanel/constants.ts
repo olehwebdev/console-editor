@@ -17,3 +17,13 @@ export const MOVE_BUTTON: Record<ActionsPlacement, { icon: IconGlyph; label: str
   sidebar: { icon: icons.PopOutIcon, label: 'Open in its own window', move: detachActions },
   window: { icon: icons.DockIcon, label: 'Put back in the sidebar', move: attachActions },
 };
+
+/**
+ * The header's spacing and role, by where it is. As the Actions window's top bar it also takes the place of Linux's
+ * title bar: dragged to move the window (its buttons still clicked), with room at its right end for the window buttons
+ * drawn over it (--titlebar-controls-w, 0 elsewhere). In the sidebar it is only the panel's.
+ */
+export const HEADER_PLACEMENT_CLASS: Record<ActionsPlacement, string> = {
+  sidebar: 'pl-4 pr-2',
+  window: 'pl-4 pr-[calc(0.5rem+var(--titlebar-controls-w))] [app-region:drag] [&_button]:[app-region:no-drag]',
+};

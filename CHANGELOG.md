@@ -12,7 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
-- **No more white title bar on Linux.** The editor's window no longer has the system's light title bar above its own. The app's dark title bar is now the top of the window: drag it to move the window, and the minimize, maximize and close buttons sit at its right end, in its colours.
+- **No more white title bar on Linux.** The app's windows (the editor, and the website and the Actions panel when they have windows of their own) no longer have the system's light title bar above their own. Each window's dark top bar is now the top of the window: drag it to move the window, and the minimize, maximize and close buttons sit at its right end, in its colours.
 
 ## [0.4.0] - 2026-09-26
 
