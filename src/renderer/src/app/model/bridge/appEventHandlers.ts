@@ -10,6 +10,7 @@ import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { takeOutsideEdits } from '@/features/override/external-editor';
 import { receiveEntries } from '@/features/filter-console';
+import { receiveShots, showShotById } from '@/features/shot/open-shot';
 import { receiveHeld } from '@/features/network/held';
 import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
@@ -70,6 +71,8 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'actions-window': (event) => useActionStore.getState().setWindow(event.state),
   'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),
   'browsers-changed': (event) => useBrowserStore.getState().setAll(event.browsers),
+  'shots-changed': (event) => receiveShots(event.shots),
+  'show-shot': (event) => showShotById(event.id),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),

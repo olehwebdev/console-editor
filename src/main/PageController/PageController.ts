@@ -1,5 +1,6 @@
 import type { BrowserWindow, Session, WebContentsView } from 'electron';
 import type { PageState } from '../../shared/types';
+import type { CdpTransport } from '../engine/cdp';
 import type { PageInterception } from '../engine/PageInterception';
 import type { NetworkLog } from '../network';
 import { PageWindow } from '../PageWindow';
@@ -29,6 +30,8 @@ export class PageController {
   /** The requests the page, its frames and their workers send. */
   readonly network: NetworkLog;
   private readonly engine: PageInterception;
+  /** The page's own CDP session (captures go through it). */
+  readonly cdp: CdpTransport;
   /** The site's session (cookies, logins): reads out of the page go through it, like its favicon and source maps. */
   readonly siteSession: Session;
   private readonly loader: PageLoader;
@@ -41,13 +44,13 @@ export class PageController {
     this.window = new PageWindow({ editor: win, view: this.view, store: windowStore, moved: () => this.pushState() });
 
     const wc = this.view.webContents;
-    const transport = attachDebugger(wc, (reason) => {
+    this.cdp = attachDebugger(wc, (reason) => {
       // Settle everything the engine is waiting on; nothing can be sent any more.
       this.engine.detach();
       this.deps.send({ type: 'error', message: `Interception stopped: debugger detached (${reason})` });
     });
 
-    ({ frames: this.frames, network: this.network, engine: this.engine } = wirePage(transport, { store, rules, settings, send, siteSession: this.siteSession, breakpoints }));
+    ({ frames: this.frames, network: this.network, engine: this.engine } = wirePage(this.cdp, { store, rules, settings, send, siteSession: this.siteSession, breakpoints }));
     this.loader = new PageLoader(wc, this.engine, () => this.pushState());
 
     // A page's "Leave site?" guard would silently cancel reloads after a save,

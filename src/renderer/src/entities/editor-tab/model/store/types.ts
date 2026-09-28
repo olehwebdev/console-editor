@@ -70,7 +70,11 @@ export type PageTab =
   /** A saved rule's editor. */
   | (PageTabBase & EditablePage & { page: 'rule'; ruleId: string })
   /** A rule being written, not created yet. */
-  | (PageTabBase & EditablePage & { page: 'new-rule'; seed: CreateRuleInput });
+  | (PageTabBase & EditablePage & { page: 'new-rule'; seed: CreateRuleInput })
+  /** A capture or design of the workspace. */
+  | (PageTabBase & { page: 'shot'; shotId: string })
+  /** Two captures or designs compared: `baseId` below (a design, usually), `otherId` over it. */
+  | (PageTabBase & { page: 'compare'; baseId: string; otherId: string });
 
 export type PageKind = PageTab['page'];
 

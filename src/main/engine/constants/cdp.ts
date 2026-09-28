@@ -14,6 +14,10 @@ export const CDP = {
     // Events
     requestPaused: 'Fetch.requestPaused',
   },
+  Emulation: {
+    clearDeviceMetricsOverride: 'Emulation.clearDeviceMetricsOverride',
+    setDeviceMetricsOverride: 'Emulation.setDeviceMetricsOverride',
+  },
   DOMDebugger: {
     getEventListeners: 'DOMDebugger.getEventListeners',
   },
@@ -27,6 +31,7 @@ export const CDP = {
   DOM: {
     describeNode: 'DOM.describeNode',
     enable: 'DOM.enable',
+    getBoxModel: 'DOM.getBoxModel',
     getDocument: 'DOM.getDocument',
     getFrameOwner: 'DOM.getFrameOwner',
     pushNodesByBackendIdsToFrontend: 'DOM.pushNodesByBackendIdsToFrontend',
@@ -76,8 +81,10 @@ export const CDP = {
   },
   Page: {
     addScriptToEvaluateOnNewDocument: 'Page.addScriptToEvaluateOnNewDocument',
+    captureScreenshot: 'Page.captureScreenshot',
     enable: 'Page.enable',
     getFrameTree: 'Page.getFrameTree',
+    getLayoutMetrics: 'Page.getLayoutMetrics',
     getResourceContent: 'Page.getResourceContent',
     removeScriptToEvaluateOnNewDocument: 'Page.removeScriptToEvaluateOnNewDocument',
     setBypassCSP: 'Page.setBypassCSP',

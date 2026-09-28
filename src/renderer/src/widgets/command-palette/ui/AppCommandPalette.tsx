@@ -11,7 +11,8 @@ import { useRenderLog, useStoreLog } from '@/entities/inspector';
 import { usePageStore } from '@/entities/page';
 import { selectRuleList, useRuleStore } from '@/entities/rule';
 import { workerScriptUrl, WORKER_NAME } from '@/entities/resource';
-import { useWorkspaceStore, workspaceDetail, workspaceLabel } from '@/entities/workspace';
+import { useShotStore } from '@/entities/shot';
+import { useWorkspaceStore } from '@/entities/workspace';
 import { attachPage, detachPage } from '@/features/detach-page';
 import { openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { openOverride, openResource } from '@/features/open-resource';
@@ -22,12 +23,15 @@ import { usePalette } from '../model/palette';
 import { useActionGroup } from '../model/useActionGroup';
 import { sourceActions, useOriginalSources } from '../model/sources';
 import { browserItems } from './browserItems';
-import { KIND_ICON, OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
+import { KIND_ICON, OVERRIDE_ITEM_PREFIX } from './constants';
 import { fileTabItems } from './fileTabItems';
 import { inspectItems, type InspectLog } from './inspectItems';
 import { newRuleItems } from './newRuleItems';
 import { overrideFileItems } from './overrideFileItems';
 import { ruleItems } from './ruleItems';
+import { shotItems } from './shotItems';
+import { shotGroup } from './shotGroup';
+import { workspaceGroup } from './workspaceGroup';
 
 export interface AppCommandPaletteProps {
   onShowSettings(): void;
@@ -56,6 +60,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
   const detached = usePageStore((s) => s.page.detached);
   const onWeb = usePageStore((s) => webAddress(s.page.url) !== '');
   const browsers = useBrowserStore(useShallow(selectShownBrowsers));
+  const shots = useShotStore((s) => s.shots);
   const recordingRenders = useRenderLog((s) => s.recording);
   const recordingStores = useStoreLog((s) => s.recording);
   const runGroup = useActionGroup(onNewAction);
@@ -99,6 +104,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
         { id: 'page-window', label: move.label, icon: move.icon, keywords: ['window', 'screen', 'monitor', 'detach', 'pop out', 'attach'], onSelect: () => void move.run() },
         ...browserItems(browsers, onWeb),
+        ...shotItems(onWeb),
         ...inspectItems({ renders: recordingRenders, stores: recordingStores }, onShowLog),
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         ...newRuleItems(),
@@ -122,24 +128,9 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
       ]),
     };
     const ruleGroup: CommandGroup = { heading: 'Rules', items: ruleItems(rules) };
-    const workspaceGroup: CommandGroup = {
-      heading: 'Workspaces',
-      items: [
-        ...workspaces
-          .filter((w) => w.id !== activeWorkspaceId)
-          .map((w) => ({
-            id: `${WORKSPACE_ITEM_PREFIX}${w.id}`,
-            label: `Switch to ${workspaceLabel(w)}`,
-            hint: workspaceDetail(w) || undefined,
-            icon: icons.BrowserIcon,
-            keywords: ['workspace', w.host, w.title],
-            onSelect: () => onSwitchWorkspace(w.id),
-          })),
-        { id: 'workspace-new', label: 'New workspace', icon: icons.AddIcon, keywords: ['workspace', 'site', 'project'], onSelect: onNewWorkspace },
-      ],
-    };
-    return [files, sources, overrideGroup, ruleGroup, runGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, sources, overrides, rules, runGroup, active, activeSource, workspaces, activeWorkspaceId, detached, browsers, onWeb, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onShowNetwork, recordingRenders, recordingStores, onShowLog]);
+    const workspaceItems = workspaceGroup(workspaces, activeWorkspaceId, onSwitchWorkspace, onNewWorkspace);
+    return [files, sources, overrideGroup, ruleGroup, shotGroup(shots), runGroup, workspaceItems, actions].filter((g) => g.items.length);
+  }, [open, files, sources, overrides, rules, runGroup, active, activeSource, workspaces, activeWorkspaceId, detached, browsers, onWeb, shots, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onShowNetwork, recordingRenders, recordingStores, onShowLog]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

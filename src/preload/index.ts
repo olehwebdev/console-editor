@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { IPC_CHANNEL } from '../shared/ipcChannels';
 import type { ConsoleEditorApi, WireEvent } from '../shared/types';
+import { browsersApi } from './browsersApi';
+import { shotsApi } from './shotsApi';
 
 /** The global the renderer reaches the API through (`window.consoleEditor`, declared in its shared/api). */
 const API_GLOBAL = 'consoleEditor';
@@ -85,11 +87,8 @@ const api: ConsoleEditorApi = {
   listHeldRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listHeldRequests),
   resumeHeldRequest: (id, action) => ipcRenderer.invoke(IPC_CHANNEL.resumeHeldRequest, id, action),
 
-  listBrowsers: () => ipcRenderer.invoke(IPC_CHANNEL.listBrowsers),
-  openInBrowser: (id, url) => ipcRenderer.invoke(IPC_CHANNEL.openInBrowser, id, url),
-  addBrowser: () => ipcRenderer.invoke(IPC_CHANNEL.addBrowser),
-  removeBrowser: (id) => ipcRenderer.invoke(IPC_CHANNEL.removeBrowser, id),
-  setBrowserHidden: (id, hidden) => ipcRenderer.invoke(IPC_CHANNEL.setBrowserHidden, id, hidden),
+  ...browsersApi,
+  ...shotsApi,
 
   getActionsWindow: () => ipcRenderer.invoke(IPC_CHANNEL.getActionsWindow),
   detachActions: () => ipcRenderer.invoke(IPC_CHANNEL.detachActions),

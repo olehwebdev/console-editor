@@ -24,7 +24,7 @@ export const ACTIONS_WINDOW_EVENTS = ['actions-changed', 'actions-window', 'fram
  * The events the website's own window is sent besides its page's state and its shortcut: what its toolbar's menus
  * show. Its UI has a handler for each, so one added here fails typecheck until it is handled there.
  */
-export const PAGE_WINDOW_EVENTS = ['browsers-changed'] as const satisfies readonly AppEvent['type'][];
+export const PAGE_WINDOW_EVENTS = ['browsers-changed', 'shots-changed'] as const satisfies readonly AppEvent['type'][];
 
 /**
  * The events that can carry megabytes (a batch of commits of hundreds of components, of requests with their
@@ -110,3 +110,12 @@ export const SHORTCUT = {
 
 /** The longest URL the app takes from outside (IPC, a file): longer ones aren't a file a page loaded. */
 export const MAX_URL_CHARS = 8192;
+
+/**
+ * The scheme the app's windows load captures and designs by (`console-editor-shot://image/<id>`, `…//thumb/<id>`),
+ * served by the main process from the workspace folder. Only the app's own session has it: the website can't.
+ */
+export const SHOT_SCHEME = 'console-editor-shot';
+
+/** A shot URL's host: the image itself, or its thumbnail. */
+export const SHOT_URL_HOST = { image: 'image', thumb: 'thumb' } as const;

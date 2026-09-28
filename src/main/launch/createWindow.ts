@@ -10,6 +10,7 @@ import { installMenu } from '../installMenu';
 import { watchOverrideFiles } from '../overrideFiles';
 import { registerIpc } from '../ipc';
 import { PageController } from '../PageController';
+import { PageShots, registerShotProtocol } from '../shots';
 import { WorkspaceController } from '../WorkspaceController';
 import { CloseGuard } from './CloseGuard';
 import { createEditorWindow } from './createEditorWindow';
@@ -34,7 +35,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     iconPath: appIcon,
   });
   const userData = app.getPath('userData');
-  const { store, rules, settings, session, pageWindow, actionsWindow: actionsWindowStore, actions, sourceMaps, browsers: browserPrefs, hadData } = await openStores(userData);
+  const { store, rules, settings, session, pageWindow, actionsWindow: actionsWindowStore, actions, sourceMaps, browsers: browserPrefs, shots: shotStore, hadData } = await openStores(userData);
 
   const win = createEditorWindow();
 
@@ -55,7 +56,9 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const page = new PageController(win, { store, rules, settings, send, windowStore: pageWindow, breakpoints: () => activeBreakpoints(session) });
   launchState.running = { win, page };
   // Before the engine attaches: it serves the active workspace's overrides and rules from the start.
-  const workspaces = new WorkspaceController(page, session, store, rules, actions, send, sourceMaps);
+  const shots = new PageShots({ store: shotStore, page, send });
+  registerShotProtocol(shotStore);
+  const workspaces = new WorkspaceController(page, session, store, rules, actions, send, sourceMaps, shots);
   await workspaces.start();
   const attached = page.attach();
   installMenu(win, page, store, actionsWindow, send);
@@ -74,7 +77,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     page.window.dispose();
     actionsWindow.dispose();
   });
-  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
+  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, shots, shotStore, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
 

@@ -1,0 +1,1 @@
+export { PageShots } from './PageShots';

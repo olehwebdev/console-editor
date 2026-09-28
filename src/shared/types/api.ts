@@ -1,5 +1,6 @@
 import type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from './actions';
 import type { BrowsersApi } from './browsersApi';
+import type { ShotsApi } from './shotsApi';
 import type { ConsoleEntry, ConsoleFrame, ConsoleProperty } from './console';
 import type { InspectorApi } from './inspector';
 import type { WireEvent } from './events';
@@ -16,7 +17,7 @@ import type { AppInfo, UpdateState } from './updates';
 import type { Workspace, WorkspacePatch, WorkspacesState } from './workspaces';
 
 /** The API exposed to the renderer as `window.consoleEditor`. */
-export interface ConsoleEditorApi extends InspectorApi, NetworkApi, BrowsersApi {
+export interface ConsoleEditorApi extends InspectorApi, NetworkApi, BrowsersApi, ShotsApi {
   navigate(url: string): Promise<void>;
   reload(): Promise<void>;
   goBack(): Promise<void>;

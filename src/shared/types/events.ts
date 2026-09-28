@@ -10,6 +10,7 @@ import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
 import type { Rule } from './rules';
 import type { Settings } from './settings';
+import type { Shot } from './shots';
 import type { UpdateState } from './updates';
 import type { MissedReason } from './workers';
 import type { WorkspacesState } from './workspaces';
@@ -88,6 +89,10 @@ export type AppEvent =
   | { type: 'settings-changed'; settings: Settings }
   /** The browsers on this computer were looked for again, a version was read, or one was added, removed, hidden or shown. */
   | { type: 'browsers-changed'; browsers: BrowserInfo[] }
+  /** The active workspace's shots, newest first: one was taken, imported, renamed or deleted, or another workspace became active. */
+  | { type: 'shots-changed'; shots: Shot[] }
+  /** Show a shot's page (asked for from the website's own window). */
+  | { type: 'show-shot'; id: string }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };

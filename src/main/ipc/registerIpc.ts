@@ -14,10 +14,11 @@ import { registerOverrideIpc } from './registerOverrideIpc';
 import { registerOverridesFileIpc } from './registerOverridesFileIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import { registerSettingsIpc } from './registerSettingsIpc';
+import { registerShotIpc } from './registerShotIpc';
 import { registerSourceMapIpc } from './registerSourceMapIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, updates, send, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, shots, shotStore, updates, send, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -82,6 +83,7 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   registerHarIpc(handle, { win, page, store });
   registerOverridesFileIpc(handle, { win, page, store, rules });
   registerBrowserIpc(handle, handlePage, { win, browsers });
+  registerShotIpc(handle, handlePage, { win, shots, store: shotStore, send });
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

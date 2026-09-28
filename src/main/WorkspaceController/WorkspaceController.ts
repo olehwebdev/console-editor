@@ -1,6 +1,7 @@
 import type { WebContents } from 'electron';
 import type { AppEvent, Workspace, WorkspacePatch } from '../../shared/types';
 import type { PageController } from '../PageController';
+import type { PageShots } from '../shots';
 import type { ActionStore } from '../store/ActionStore';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
@@ -10,7 +11,7 @@ import { PageFollower } from './PageFollower';
 
 /**
  * Workspaces: each has its own page, tabs (kept by the renderer through the
- * session store), overrides, rules, actions and source maps loaded from files.
+ * session store), overrides, rules, actions, source maps loaded from files, and captures and designs.
  * Switching leaves the page, makes the other workspace's overrides and rules the
  * ones applied and its actions the ones listed, and loads its last page.
  */
@@ -27,6 +28,7 @@ export class WorkspaceController {
     private readonly actions: ActionStore,
     private readonly send: (event: AppEvent) => void,
     private readonly sourceMaps?: SourceMapFileStore,
+    private readonly shots?: PageShots,
   ) {
     this.follower = new PageFollower(page, session, send);
   }
@@ -45,6 +47,7 @@ export class WorkspaceController {
     this.rules.setWorkspace(activeId);
     this.actions.setWorkspace(activeId);
     this.sourceMaps?.setWorkspace(activeId);
+    this.shots?.setWorkspace(activeId);
   }
 
   /** Follows the page: remembers where the active workspace is, and its site's icon. */
@@ -87,6 +90,7 @@ export class WorkspaceController {
       // start would hand its overrides and rules to another workspace.
       await this.actions.removeWorkspace(id as string);
       await this.sourceMaps?.removeWorkspace(id as string);
+      await this.shots?.removeWorkspace(id as string);
       await this.store.removeWorkspace(id as string);
       await this.rules.removeWorkspace(id as string);
       await this.session.remove(id);
@@ -108,10 +112,12 @@ export class WorkspaceController {
       this.rules.setWorkspace(this.session.activeId);
       this.actions.setWorkspace(this.session.activeId);
       this.sourceMaps?.setWorkspace(this.session.activeId);
+      this.shots?.setWorkspace(this.session.activeId);
       // One pattern refresh reads both stores; the rules then only need their event.
       await this.page.overridesChanged();
       await this.page.rulesChanged(false);
       this.send({ type: 'actions-changed', actions: this.actions.list() });
+      this.shots?.changed();
       this.pushState();
       const { url } = this.session.get();
       if (url) void this.page.navigate(url, { fresh: true });

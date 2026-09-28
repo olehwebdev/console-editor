@@ -2,12 +2,14 @@ import type { BrowserWindow } from 'electron';
 import type { AppEvent } from '../../shared/types';
 import type { ActionsWindow } from '../ActionsWindow';
 import type { BrowserRegistry } from '../browsers';
+import type { PageShots } from '../shots';
 import type { PageController } from '../PageController';
 import type { ActionStore } from '../store/ActionStore';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
 import type { SettingsStore } from '../store/SettingsStore';
+import type { ShotStore } from '../store/ShotStore';
 import type { SourceMapFileStore } from '../store/SourceMapFileStore';
 import type { UpdateService } from '../update/UpdateService';
 import type { WorkspaceController } from '../WorkspaceController';
@@ -29,6 +31,9 @@ export interface IpcDeps {
   workspaces: WorkspaceController;
   /** The other browsers on this computer. */
   browsers: BrowserRegistry;
+  /** The workspace's captures and designs, and where they are kept. */
+  shots: PageShots;
+  shotStore: ShotStore;
   updates: UpdateService;
   /** Pushes an event to the editor's UI. */
   send(event: AppEvent): void;

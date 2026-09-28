@@ -1,6 +1,7 @@
 import type { MenuCommand } from '@common/types';
 import { useBrowserStore } from '@/entities/browser';
 import { usePageStore } from '@/entities/page';
+import { useShotStore } from '@/entities/shot';
 import { focusAddressBar } from '@/pages/page-window';
 import type { PageWindowEventHandlers } from './types';
 
@@ -12,4 +13,5 @@ export const PAGE_WINDOW_EVENT_HANDLERS: PageWindowEventHandlers = {
   'page-state': (event) => usePageStore.getState().setPage(event.state),
   command: (event) => PAGE_WINDOW_COMMANDS[event.command]?.(),
   'browsers-changed': (event) => useBrowserStore.getState().setAll(event.browsers),
+  'shots-changed': (event) => useShotStore.getState().setAll(event.shots),
 };

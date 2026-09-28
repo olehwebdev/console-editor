@@ -1,4 +1,4 @@
-import type { InspectedComponent } from '../../../shared/types';
+import type { InspectedComponent, Rect } from '../../../shared/types';
 import type { SessionKey } from '../../console/ConsoleFrames';
 import type { RemoteObject } from '../../console/types';
 import { CDP } from '../../engine/constants';
@@ -7,6 +7,7 @@ import { hideHighlights } from '../picking/hideHighlights';
 import { showHighlight } from '../picking/showHighlight';
 import type { InspectedSessions, Pick } from '../types';
 import { angularRegistry } from './angularRegistry';
+import { elementBox } from './elementBox';
 import { frameOfNode } from './frameOfNode';
 import { inspectNode } from './inspectNode';
 import { readComponent } from './readComponent';
@@ -90,6 +91,11 @@ export class ComponentReader {
     const session = pick && this.sessions.get(pick.sessionId);
     if (pick && session) return showHighlight(session.transport, { backendNodeId: pick.backendNodeId }).catch(() => undefined);
     await hideHighlights(this.sessions, this.picking());
+  }
+
+  /** Where a pick's element is, in the top page's viewport (CSS pixels): what capturing it clips to. */
+  box(pickId: unknown): Promise<Rect> {
+    return elementBox(this.sessions, this.find(pickId, 0).pick);
   }
 
   /** A session went away: its picks' handles went with it. */
