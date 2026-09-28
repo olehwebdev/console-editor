@@ -24,6 +24,21 @@ export interface BrowserInfo {
   hidden: boolean;
 }
 
+/** A tab of your everyday browser (one the app didn't launch), as its session has it. */
+export interface EverydayTab {
+  title: string;
+  url: string;
+}
+
+/** Your everyday browser's tabs, for one of its profiles. */
+export interface EverydayBrowser {
+  /** The profile's folder. */
+  id: string;
+  name: string;
+  profile: string;
+  tabs: EverydayTab[];
+}
+
 /** A tab of a browser the app drives. */
 export interface DrivenTab {
   /** Its target id. */

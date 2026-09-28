@@ -6,6 +6,8 @@ export const useBrowserStore = create<BrowserStore>()((set) => ({
   browsers: [],
   loaded: false,
   driven: [],
+  everyday: null,
   setAll: (browsers) => set({ browsers, loaded: true }),
   setDriven: (driven) => set({ driven }),
+  setEveryday: (everyday) => set({ everyday }),
 }));

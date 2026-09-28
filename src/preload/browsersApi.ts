@@ -13,4 +13,5 @@ export const browsersApi: BrowsersApi = {
   listDriven: () => ipcRenderer.invoke(IPC_CHANNEL.listDriven),
   activateTab: (browserId, tabId) => ipcRenderer.invoke(IPC_CHANNEL.activateTab, browserId, tabId),
   stopDriving: (browserId) => ipcRenderer.invoke(IPC_CHANNEL.stopDriving, browserId),
+  listEverydayTabs: () => ipcRenderer.invoke(IPC_CHANNEL.listEverydayTabs),
 };

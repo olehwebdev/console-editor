@@ -1,6 +1,7 @@
 export { activateTab } from './activateTab';
 export { captureTab } from './captureTab';
 export { loadBrowsers } from './loadBrowsers';
+export { loadEverydayTabs } from './loadEverydayTabs';
 export { matchesBrowser } from './matchesBrowser';
 export { matchesTab } from './matchesTab';
 export { openInBrowser } from './openInBrowser';

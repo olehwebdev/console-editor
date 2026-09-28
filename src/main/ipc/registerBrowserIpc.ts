@@ -1,6 +1,7 @@
 import { dialog, type BrowserWindow, type OpenDialogOptions } from 'electron';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { BrowserRegistry, DrivenBrowsers } from '../browsers';
+import { listEverydayTabs } from '../browsers/everyday';
 import { assertString } from './assertString';
 import type { IpcHandle } from './types';
 
@@ -34,6 +35,7 @@ export function registerBrowserIpc(handle: IpcHandle, handlePage: IpcHandle, { w
     return driven.open(id, url);
   });
   handlePage(IPC_CHANNEL.listDriven, () => driven.read());
+  handlePage(IPC_CHANNEL.listEverydayTabs, () => listEverydayTabs());
   handlePage(IPC_CHANNEL.activateTab, (browserId: unknown, tabId: unknown) => {
     assertString(browserId, 'browserId');
     assertString(tabId, 'tabId');

@@ -8,7 +8,7 @@ export type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from
 export type { Breakpoint, BreakpointStage, FailReason, HeldAction, HeldActionType, HeldRequest, HeldResponse } from './breakpoints';
 export { BREAKPOINT_STAGES, FAIL_REASONS } from './breakpoints';
 export type { ConsoleEditorApi } from './api';
-export type { BrowserEngine, BrowserInfo, DrivenBrowser, DrivenEngine, DrivenTab } from './browsers';
+export type { BrowserEngine, BrowserInfo, DrivenBrowser, DrivenEngine, DrivenTab, EverydayBrowser, EverydayTab } from './browsers';
 export { BROWSER_ENGINES, DRIVEN_ENGINES } from './browsers';
 export type { BrowsersApi } from './browsersApi';
 export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, ConsoleProperty, ConsoleSource, ConsoleValue, ConsoleValueKind } from './console';

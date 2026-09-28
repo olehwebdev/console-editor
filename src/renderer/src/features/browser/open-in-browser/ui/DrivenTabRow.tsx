@@ -3,6 +3,7 @@ import { icons } from '@/shared/config';
 import { webAddress } from '@/shared/lib';
 import { IconButton } from '@/shared/ui/icon-button';
 import { activateTab, captureTab, openTabHere } from '../model';
+import { TabText } from './TabText';
 
 export interface DrivenTabRowProps {
   browser: DrivenBrowser;
@@ -23,8 +24,7 @@ export function DrivenTabRow({ browser, tab, onClose }: DrivenTabRowProps) {
         }}
         className="flex min-w-0 flex-1 flex-col rounded-lg px-2 py-1 text-left outline-none focus-visible:bg-hover"
       >
-        <span className="truncate text-[13px] text-fg">{tab.title || tab.url}</span>
-        <span className="truncate font-mono text-[11px] text-fg-subtle">{tab.url}</span>
+        <TabText tab={tab} />
       </button>
       <IconButton
         icon={icons.PreviewIcon}

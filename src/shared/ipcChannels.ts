@@ -96,6 +96,7 @@ export const IPC_CHANNEL = {
   listDriven: 'browsers:driven',
   activateTab: 'browsers:activate-tab',
   stopDriving: 'browsers:stop-driving',
+  listEverydayTabs: 'browsers:everyday-tabs',
 
   listShots: 'shots:list',
   captureShot: 'shots:capture',

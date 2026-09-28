@@ -12,6 +12,7 @@ import { usePageStore } from '@/entities/page';
 import { matchesBrowser, openInBrowser, openWithChanges } from '../model';
 import { BrowserRow } from './BrowserRow';
 import { DrivenSection } from './DrivenSection';
+import { EverydaySection } from './EverydaySection';
 
 export interface BrowserMenuProps {
   onClose(): void;
@@ -67,6 +68,7 @@ export function BrowserMenu({ onClose, onShowSettings }: BrowserMenuProps) {
         ) : null}
       </div>
       <DrivenSection query={query.trim()} onClose={onClose} />
+      <EverydaySection query={query.trim()} onClose={onClose} />
     </div>
   );
 }
