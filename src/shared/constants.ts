@@ -24,7 +24,7 @@ export const ACTIONS_WINDOW_EVENTS = ['actions-changed', 'actions-window', 'fram
  * The events the website's own window is sent besides its page's state and its shortcut: what its toolbar's menus
  * show. Its UI has a handler for each, so one added here fails typecheck until it is handled there.
  */
-export const PAGE_WINDOW_EVENTS = ['browsers-changed', 'shots-changed'] as const satisfies readonly AppEvent['type'][];
+export const PAGE_WINDOW_EVENTS = ['browsers-changed', 'shots-changed', 'overlay-changed'] as const satisfies readonly AppEvent['type'][];
 
 /**
  * The events that can carry megabytes (a batch of commits of hundreds of components, of requests with their

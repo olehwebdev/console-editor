@@ -5,6 +5,7 @@ import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { FrameStack, InspectedComponent, InspectHover, RenderCommit, StoreAction } from './inspector';
 import type { MenuCommand } from './menu';
 import type { NetworkRequest } from './network';
+import type { OverlayState } from './overlay';
 import type { OverrideMeta, UnpatchedReason } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
@@ -91,6 +92,8 @@ export type AppEvent =
   | { type: 'browsers-changed'; browsers: BrowserInfo[] }
   /** The active workspace's shots, newest first: one was taken, imported, renamed or deleted, or another workspace became active. */
   | { type: 'shots-changed'; shots: Shot[] }
+  /** A design was laid over the page, its settings changed, or it was taken off (null). */
+  | { type: 'overlay-changed'; overlay: OverlayState | null }
   /** Show a shot's page (asked for from the website's own window). */
   | { type: 'show-shot'; id: string }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */

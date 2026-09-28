@@ -14,4 +14,5 @@ export const PAGE_WINDOW_EVENT_HANDLERS: PageWindowEventHandlers = {
   command: (event) => PAGE_WINDOW_COMMANDS[event.command]?.(),
   'browsers-changed': (event) => useBrowserStore.getState().setAll(event.browsers),
   'shots-changed': (event) => useShotStore.getState().setAll(event.shots),
+  'overlay-changed': (event) => useShotStore.getState().setOverlay(event.overlay),
 };

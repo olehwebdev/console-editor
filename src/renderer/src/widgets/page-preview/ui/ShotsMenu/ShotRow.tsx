@@ -5,6 +5,7 @@ import { Icon } from '@/shared/ui/icon';
 import { ContextMenu, type MenuItem } from '@/shared/ui/menu';
 import { shotDetail, ShotThumb } from '@/entities/shot';
 import { copyShot, deleteShot, saveShotAs } from '@/features/shot/manage';
+import { showOverlay } from '@/features/shot/overlay';
 import { ROW_THUMB } from './constants';
 
 export interface ShotRowProps {
@@ -19,6 +20,7 @@ export interface ShotRowProps {
 export function ShotRow({ shot, now, canDelete, onOpen }: ShotRowProps) {
   const items: MenuItem[] = [
     { label: 'Open', icon: icons.ShotIcon, onSelect: () => onOpen(shot) },
+    { label: 'Put over the page', icon: icons.OverlayIcon, onSelect: () => void showOverlay(shot) },
     { label: 'Copy image', icon: icons.CopyIcon, onSelect: () => void copyShot(shot) },
     { label: 'Save a copy…', icon: icons.DownloadIcon, onSelect: () => void saveShotAs(shot) },
     { label: 'Show in folder', icon: icons.FolderOpenIcon, onSelect: () => void api.showShotFile(shot.id) },

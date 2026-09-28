@@ -7,6 +7,7 @@ import { useRenderLog, useStoreLog } from '@/entities/inspector';
 import { usePageStackStore } from '@/entities/page-stack';
 import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
+import { useShotStore } from '@/entities/shot';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { loadBrowsers } from '@/features/browser/open-in-browser';
 import { receiveEntries } from '@/features/filter-console';
@@ -55,6 +56,7 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     api.listNetworkRequests().then((requests) => receiveNetworkRequests(requests, true)),
     api.listHeldRequests().then(receiveHeld),
     api.listShots().then(receiveShots),
+    api.getOverlay().then((overlay) => useShotStore.getState().setOverlay(overlay)),
   ]);
 
   // Not waited for: looking for the installed browsers is the system's pace, and only the toolbar's menu needs them.

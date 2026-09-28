@@ -4,6 +4,7 @@ import { captureName } from '../captureName';
 import { APP_BROWSER, CAPTURE_FORMAT, DESIGN_NAME } from '../constants';
 import { designScale } from '../designScale';
 import { imageInfo } from '../imageInfo';
+import { DesignOverlay } from '../../overlay';
 import { makeThumbnail } from '../makeThumbnail';
 import { waitUntilShown } from '../waitUntilShown';
 import type { PageShotsDeps } from './types';
@@ -12,11 +13,16 @@ import type { PageShotsDeps } from './types';
 const PAGE_AREAS: ReadonlySet<unknown> = new Set<CaptureArea>(['viewport', 'page']);
 
 /**
- * The workspace's captures and designs: taking captures of the app's page, keeping them, and every change announced
- * as `shots-changed` (the active workspace's, newest first).
+ * The workspace's captures and designs: taking captures of the app's page (with the design laid over it taken off
+ * while they are), keeping them, and every change announced as `shots-changed` (the active workspace's, newest first).
  */
 export class PageShots {
-  constructor(private readonly deps: PageShotsDeps) {}
+  /** The design laid over the page, if any. */
+  readonly overlay: DesignOverlay;
+
+  constructor(private readonly deps: PageShotsDeps) {
+    this.overlay = new DesignOverlay(deps);
+  }
 
   list(): Shot[] {
     return this.deps.store.list();
@@ -25,6 +31,8 @@ export class PageShots {
   /** The workspace whose shots are listed, and captures are added to. */
   setWorkspace(id: string): void {
     this.deps.store.setWorkspace(id);
+    // A design of the workspace left behind isn't this one's.
+    void this.overlay.remove().catch(() => undefined);
   }
 
   /** Deletes every shot of a workspace (not the active one: nothing is announced). */
@@ -93,6 +101,7 @@ export class PageShots {
   async remove(id: unknown): Promise<void> {
     await this.deps.store.remove(id);
     this.changed();
+    await this.overlay.shotRemoved(id as string).catch(() => undefined);
   }
 
   /** Announces the active workspace's shots (after a change, or a workspace switch). */
@@ -107,7 +116,7 @@ export class PageShots {
     if (!url) throw new Error('Open a page first');
     await waitUntilShown(page.view);
     const capture = () => captureOverCdp(page.cdp, target);
-    const image = await (around ? around(capture) : capture());
+    const image = await this.overlay.suspended(() => (around ? around(capture) : capture()));
     return this.keep(image, url, target.area, { ...APP_BROWSER, version: process.versions.chrome });
   }
 }

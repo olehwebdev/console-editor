@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { IPC_CHANNEL } from '../shared/ipcChannels';
 import type { ConsoleEditorApi, WireEvent } from '../shared/types';
 import { browsersApi } from './browsersApi';
+import { overlayApi } from './overlayApi';
 import { shotsApi } from './shotsApi';
 
 /** The global the renderer reaches the API through (`window.consoleEditor`, declared in its shared/api). */
@@ -89,6 +90,7 @@ const api: ConsoleEditorApi = {
 
   ...browsersApi,
   ...shotsApi,
+  ...overlayApi,
 
   getActionsWindow: () => ipcRenderer.invoke(IPC_CHANNEL.getActionsWindow),
   detachActions: () => ipcRenderer.invoke(IPC_CHANNEL.detachActions),

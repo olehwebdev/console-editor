@@ -26,6 +26,7 @@ const api = vi.hoisted(() => ({
   listNetworkRequests: vi.fn(),
   listHeldRequests: vi.fn(),
   listShots: vi.fn(),
+  getOverlay: vi.fn(),
   listBrowsers: vi.fn(),
   getPageState: vi.fn(),
   sessionFlushed: vi.fn(),
@@ -117,6 +118,7 @@ describe('start bridge', () => {
     api.listNetworkRequests.mockResolvedValue([]);
     api.listHeldRequests.mockResolvedValue([]);
     api.listShots.mockResolvedValue([]);
+    api.getOverlay.mockResolvedValue(null);
     api.listBrowsers.mockResolvedValue([]);
     api.getPageState.mockResolvedValue(PAGE);
   });

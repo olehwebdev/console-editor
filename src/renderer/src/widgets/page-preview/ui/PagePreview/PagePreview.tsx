@@ -1,5 +1,6 @@
 import { selectAnyOverlayOpen, useOverlayStore } from '@/shared/lib';
 import { selectHasPage, usePageStore } from '@/entities/page';
+import { OverlayBar } from '../OverlayBar';
 import { EmptyPreview } from './EmptyPreview';
 import { PageSnapshot } from './PageSnapshot';
 import { PreviewToolbar } from './PreviewToolbar';
@@ -25,6 +26,7 @@ export function PagePreview({ placement = 'editor', suspended = false, layoutKey
   return (
     <section className="flex h-full min-w-0 flex-col bg-surface" aria-label="Website preview">
       <PreviewToolbar hasPage={hasPage} placement={placement} addressBarRef={addressBarRef} onShowBrowserSettings={onShowBrowserSettings} />
+      <OverlayBar />
 
       <div ref={host} className="relative min-h-0 flex-1 bg-white" data-testid="page-host">
         <EmptyPreview hasPage={hasPage} />

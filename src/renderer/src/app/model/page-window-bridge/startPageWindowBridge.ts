@@ -11,6 +11,7 @@ export async function startPageWindowBridge(): Promise<() => void> {
   // Applied as its reply arrives, in order with the events around it (a later one is newer).
   usePageStore.getState().setPage(await api.getPageState());
   void api.listShots().then((shots) => useShotStore.getState().setAll(shots), () => undefined);
+  void api.getOverlay().then((overlay) => useShotStore.getState().setOverlay(overlay), () => undefined);
   void loadBrowsers();
   return off;
 }

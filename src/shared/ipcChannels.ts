@@ -108,6 +108,11 @@ export const IPC_CHANNEL = {
   setShotScale: 'shots:scale',
   captureForDesign: 'shots:capture-for-design',
 
+  getOverlay: 'overlay:get',
+  showOverlay: 'overlay:show',
+  updateOverlay: 'overlay:update',
+  removeOverlay: 'overlay:remove',
+
   getActionsWindow: 'actions-window:state',
   detachActions: 'actions-window:detach',
   attachActions: 'actions-window:attach',

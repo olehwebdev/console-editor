@@ -10,6 +10,7 @@ import { registerConsoleIpc } from './registerConsoleIpc';
 import { registerHarIpc } from './registerHarIpc';
 import { registerInspectorIpc } from './registerInspectorIpc';
 import { registerNetworkIpc } from './registerNetworkIpc';
+import { registerOverlayIpc } from './registerOverlayIpc';
 import { registerOverrideIpc } from './registerOverrideIpc';
 import { registerOverridesFileIpc } from './registerOverridesFileIpc';
 import { registerRuleIpc } from './registerRuleIpc';
@@ -54,7 +55,11 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   handle(IPC_CHANNEL.detachPage, () => page.window.detach());
   handlePage(IPC_CHANNEL.attachPage, () => page.window.attach());
   // Only the window showing the page places it: the other one's reports (a panel going away) are stale.
-  ipcMain.on(IPC_CHANNEL.setPageBounds, (event, rect: Rect) => page.window.place(event.sender, rect));
+  ipcMain.on(IPC_CHANNEL.setPageBounds, (event, rect: Rect) => {
+    page.window.place(event.sender, rect);
+    // A design's width scales the page to the view: to its new size.
+    shots.overlay.fit();
+  });
 
   handle(IPC_CHANNEL.listResources, () => page.listResources());
   handle(IPC_CHANNEL.getResourceContent, (url: unknown) => {
@@ -84,6 +89,7 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   registerOverridesFileIpc(handle, { win, page, store, rules });
   registerBrowserIpc(handle, handlePage, { win, browsers });
   registerShotIpc(handle, handlePage, { win, shots, store: shotStore, send });
+  registerOverlayIpc(handlePage, shots.overlay);
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

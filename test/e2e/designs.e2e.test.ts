@@ -40,7 +40,19 @@ describe.skipIf(!built)('Designs', () => {
   let dir: string;
   let app: ElectronApplication;
   let win: Page;
+  let origin: string;
 
+  /** The pixel at x, y of a shot's PNG, read in main. */
+  const pixelOf = (id: string, x: number, y: number) =>
+    app.evaluate(
+      ({ nativeImage }, [dir, id, x, y]) => {
+        const image = nativeImage.createFromPath(`${dir}/user-data/workspace/shots/${id}.png`);
+        const bgra = image.toBitmap();
+        const i = (y * image.getSize().width + x) * 4;
+        return [bgra[i + 2], bgra[i + 1], bgra[i]];
+      },
+      [dir, id, x, y] as const,
+    );
   const shots = () => win.evaluate(() => (window as unknown as { consoleEditor: { listShots(): Promise<Shot[]> } }).consoleEditor.listShots());
   const menu = () => win.getByTestId('shots-menu');
 
@@ -58,7 +70,7 @@ describe.skipIf(!built)('Designs', () => {
     app = await electron.launch({ args: [...sandboxArgs, root], cwd: root, env: { ...process.env, CONSOLE_EDITOR_USER_DATA: join(dir, 'user-data') } as Record<string, string> });
     win = await waitFor(() => app.windows().find((p) => EDITOR_URL.test(p.url())));
     await win.waitForSelector('body[data-ready]');
-    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     await win.getByTestId('address-bar').fill(`${origin}/`);
     await win.getByTestId('address-bar').press('Enter');
     await waitFor(() => app.evaluate(({ webContents }, o) => webContents.getAllWebContents().some((wc) => wc.getURL() === `${o}/` && !wc.isLoading()), origin));
@@ -114,6 +126,44 @@ describe.skipIf(!built)('Designs', () => {
     await menu().locator(`[data-shot-id="${design.id}"]`).click();
     await win.getByTestId('shot-scale-1').click();
     await expect.poll(async () => (await shots()).find((s) => s.id === design.id)?.scale).toBe(1);
+  });
+
+  it('lays the design over the page at its width, keeps it out of captures and after a reload, and takes it off', async () => {
+    const pageJs = (code: string) => app.evaluate(({ webContents }, [o, code]) => webContents.getAllWebContents().find((wc) => wc.getURL() === `${o}/`)!.executeJavaScript(code), [origin, code] as const);
+    const overlayStyle = () => pageJs(`document.getElementById('__console-editor-overlay')?.style.cssText ?? null`) as Promise<string | null>;
+    await win.getByTestId('shot-scale-2').click();
+    await win.getByTestId('shot-overlay').click();
+    await win.getByTestId('overlay-bar').waitFor();
+    await expect.poll(overlayStyle).toContain('width: 400px');
+    expect(await overlayStyle()).toContain('opacity: 0.5');
+    // The page is laid out at the design's width.
+    await expect.poll(() => pageJs('innerWidth')).toBe(400);
+
+    await win.getByTestId('overlay-opacity').fill('1');
+    await expect.poll(overlayStyle).toContain('opacity: 1');
+    await win.getByTestId('overlay-difference').click();
+    await expect.poll(overlayStyle).toContain('mix-blend-mode: difference');
+
+    // A capture shows the page alone, at its own width; the design is back afterwards.
+    const viewWidth = await app.evaluate(({ BrowserWindow, WebContentsView }, o) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        const view = w.contentView.children.find((v) => v instanceof WebContentsView && v.webContents.getURL() === `${o}/`);
+        if (view) return view.getBounds().width;
+      }
+      return 0;
+    }, origin);
+    const capture = await win.evaluate(() => (window as unknown as { consoleEditor: { captureShot(area: string): Promise<Shot> } }).consoleEditor.captureShot('viewport'));
+    expect(capture.width).toBe(viewWidth);
+    expect(await pixelOf(capture.id, 30, 30)).toEqual([0, 0, 255]);
+    await expect.poll(() => pageJs('innerWidth')).toBe(400);
+
+    await pageJs('location.reload()');
+    await expect.poll(overlayStyle, { timeout: 15_000 }).toContain('mix-blend-mode: difference');
+
+    await win.getByTestId('overlay-remove').click();
+    await expect.poll(overlayStyle).toBeNull();
+    await expect.poll(() => pageJs('innerWidth')).toBe(viewWidth);
+    expect(await win.getByTestId('overlay-bar').count()).toBe(0);
   });
 
   it('keeps an image dropped on the shots menu as a design', async () => {

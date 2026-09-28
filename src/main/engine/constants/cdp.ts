@@ -82,6 +82,7 @@ export const CDP = {
   Page: {
     addScriptToEvaluateOnNewDocument: 'Page.addScriptToEvaluateOnNewDocument',
     captureScreenshot: 'Page.captureScreenshot',
+    createIsolatedWorld: 'Page.createIsolatedWorld',
     enable: 'Page.enable',
     getFrameTree: 'Page.getFrameTree',
     getLayoutMetrics: 'Page.getLayoutMetrics',

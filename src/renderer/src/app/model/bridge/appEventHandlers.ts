@@ -1,5 +1,6 @@
 import { useActionStore } from '@/entities/action';
 import { useBrowserStore } from '@/entities/browser';
+import { useShotStore } from '@/entities/shot';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
@@ -73,6 +74,7 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'browsers-changed': (event) => useBrowserStore.getState().setAll(event.browsers),
   'shots-changed': (event) => receiveShots(event.shots),
   'show-shot': (event) => showShotById(event.id),
+  'overlay-changed': (event) => useShotStore.getState().setOverlay(event.overlay),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),
