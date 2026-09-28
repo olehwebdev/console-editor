@@ -127,7 +127,7 @@ export function EditorPage() {
         {showPreview ? (
           <PreviewPane>
             {/* The sidebar animating in or out can move the preview without resizing it. */}
-            <PagePreview suspended={resizing} layoutKey={!!sidebar} addressBarRef={setAddressBar} />
+            <PagePreview suspended={resizing} layoutKey={!!sidebar} addressBarRef={setAddressBar} onShowBrowserSettings={showSettings} />
           </PreviewPane>
         ) : null}
       </div>

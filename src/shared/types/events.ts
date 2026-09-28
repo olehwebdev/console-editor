@@ -1,4 +1,5 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
+import type { BrowserInfo } from './browsers';
 import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { FrameStack, InspectedComponent, InspectHover, RenderCommit, StoreAction } from './inspector';
@@ -85,6 +86,8 @@ export type AppEvent =
   | { type: 'actions-window'; state: ActionsWindowState }
   /** A window changed the settings (the others show them as they are now). */
   | { type: 'settings-changed'; settings: Settings }
+  /** The browsers on this computer were looked for again, a version was read, or one was added, removed, hidden or shown. */
+  | { type: 'browsers-changed'; browsers: BrowserInfo[] }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };

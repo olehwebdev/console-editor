@@ -2,23 +2,24 @@ import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
 import { IconButton } from '@/shared/ui/icon-button';
 import { usePageStore } from '@/entities/page';
+import { BrowserMenuButton } from '@/features/browser/open-in-browser';
 import { goBack, goForward, openPageDevTools, reloadPage } from '@/features/navigate-page';
 import { AddressBar } from '../AddressBar';
 import { MOVE_BUTTON } from './constants';
 import { PickButton } from './PickButton';
 import type { PagePreviewProps, PreviewPlacement } from './types';
 
-export interface PreviewToolbarProps extends Pick<PagePreviewProps, 'addressBarRef'> {
+export interface PreviewToolbarProps extends Pick<PagePreviewProps, 'addressBarRef' | 'onShowBrowserSettings'> {
   hasPage: boolean;
   placement: PreviewPlacement;
 }
 
 /**
- * The preview's navigation bar: back, forward, reload (spinning while the page loads), the address, the
+ * The preview's navigation bar: back, forward, reload (spinning while the page loads), the other browsers, the address, the
  * page's DevTools, picking an element (in the editor, which shows what was picked), and moving the website to its own
  * window or back.
  */
-export function PreviewToolbar({ hasPage, placement, addressBarRef }: PreviewToolbarProps) {
+export function PreviewToolbar({ hasPage, placement, addressBarRef, onShowBrowserSettings }: PreviewToolbarProps) {
   const move = MOVE_BUTTON[placement];
   const canGoBack = usePageStore((s) => s.page.canGoBack);
   const canGoForward = usePageStore((s) => s.page.canGoForward);
@@ -37,6 +38,7 @@ export function PreviewToolbar({ hasPage, placement, addressBarRef }: PreviewToo
         onClick={() => void reloadPage()}
         className={loading ? '[&_svg]:animate-spin-slow' : undefined}
       />
+      <BrowserMenuButton onShowSettings={onShowBrowserSettings} />
       <AddressBar inputRef={addressBarRef} className="mx-1" />
       {placement === 'editor' ? <PickButton disabled={!hasPage} /> : null}
       <IconButton icon={icons.DevToolsIcon} label="DevTools for the page" shortcut={SHORTCUT.pageDevTools} size="sm" disabled={!hasPage} onClick={() => void openPageDevTools()} />

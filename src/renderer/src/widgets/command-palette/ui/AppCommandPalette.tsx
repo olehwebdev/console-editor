@@ -2,8 +2,9 @@ import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SHORTCUT } from '@common/constants';
 import { icons } from '@/shared/config';
-import { fileName, hostOf, pathOf } from '@/shared/lib';
+import { fileName, hostOf, pathOf, webAddress } from '@/shared/lib';
 import { CommandPalette, type CommandGroup } from '@/shared/ui/command-palette';
+import { selectShownBrowsers, useBrowserStore } from '@/entities/browser';
 import { selectActiveSource, selectActiveTab, useTabStore } from '@/entities/editor-tab';
 import { selectOverrideList, useOverrideStore } from '@/entities/override';
 import { useRenderLog, useStoreLog } from '@/entities/inspector';
@@ -20,6 +21,7 @@ import { usePageFiles } from '../model/files';
 import { usePalette } from '../model/palette';
 import { useActionGroup } from '../model/useActionGroup';
 import { sourceActions, useOriginalSources } from '../model/sources';
+import { browserItems } from './browserItems';
 import { KIND_ICON, OVERRIDE_ITEM_PREFIX, WORKSPACE_ITEM_PREFIX } from './constants';
 import { fileTabItems } from './fileTabItems';
 import { inspectItems, type InspectLog } from './inspectItems';
@@ -52,6 +54,8 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeId);
   const detached = usePageStore((s) => s.page.detached);
+  const onWeb = usePageStore((s) => webAddress(s.page.url) !== '');
+  const browsers = useBrowserStore(useShallow(selectShownBrowsers));
   const recordingRenders = useRenderLog((s) => s.recording);
   const recordingStores = useStoreLog((s) => s.recording);
   const runGroup = useActionGroup(onNewAction);
@@ -94,6 +98,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
         { id: 'network', label: 'Show network', icon: icons.NetworkIcon, keywords: ['requests', 'fetch', 'xhr', 'api', 'json', 'graphql', 'response'], onSelect: onShowNetwork },
         { id: 'url', label: 'Go to URL…', icon: icons.GlobeIcon, shortcut: SHORTCUT.focusUrl, onSelect: onFocusAddressBar },
         { id: 'page-window', label: move.label, icon: move.icon, keywords: ['window', 'screen', 'monitor', 'detach', 'pop out', 'attach'], onSelect: () => void move.run() },
+        ...browserItems(browsers, onWeb),
         ...inspectItems({ renders: recordingRenders, stores: recordingStores }, onShowLog),
         { id: 'devtools', label: 'Open DevTools for the page', icon: icons.DevToolsIcon, shortcut: SHORTCUT.pageDevTools, onSelect: () => void openPageDevTools() },
         ...newRuleItems(),
@@ -134,7 +139,7 @@ export function AppCommandPalette({ onShowSettings, onShowExplorer, onFocusAddre
       ],
     };
     return [files, sources, overrideGroup, ruleGroup, runGroup, workspaceGroup, actions].filter((g) => g.items.length);
-  }, [open, files, sources, overrides, rules, runGroup, active, activeSource, workspaces, activeWorkspaceId, detached, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onShowNetwork, recordingRenders, recordingStores, onShowLog]);
+  }, [open, files, sources, overrides, rules, runGroup, active, activeSource, workspaces, activeWorkspaceId, detached, browsers, onWeb, onShowSettings, onShowExplorer, onFocusAddressBar, onSwitchWorkspace, onNewWorkspace, onToggleConsole, onShowNetwork, recordingRenders, recordingStores, onShowLog]);
 
   return <CommandPalette open={open} onOpenChange={setOpen} groups={groups} placeholder="Open a file, or type a command…" />;
 }

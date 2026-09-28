@@ -85,6 +85,12 @@ const api: ConsoleEditorApi = {
   listHeldRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listHeldRequests),
   resumeHeldRequest: (id, action) => ipcRenderer.invoke(IPC_CHANNEL.resumeHeldRequest, id, action),
 
+  listBrowsers: () => ipcRenderer.invoke(IPC_CHANNEL.listBrowsers),
+  openInBrowser: (id, url) => ipcRenderer.invoke(IPC_CHANNEL.openInBrowser, id, url),
+  addBrowser: () => ipcRenderer.invoke(IPC_CHANNEL.addBrowser),
+  removeBrowser: (id) => ipcRenderer.invoke(IPC_CHANNEL.removeBrowser, id),
+  setBrowserHidden: (id, hidden) => ipcRenderer.invoke(IPC_CHANNEL.setBrowserHidden, id, hidden),
+
   getActionsWindow: () => ipcRenderer.invoke(IPC_CHANNEL.getActionsWindow),
   detachActions: () => ipcRenderer.invoke(IPC_CHANNEL.detachActions),
   attachActions: () => ipcRenderer.invoke(IPC_CHANNEL.attachActions),

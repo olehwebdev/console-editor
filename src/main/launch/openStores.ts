@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ActionStore } from '../store/ActionStore';
+import { BrowserStore } from '../store/BrowserStore';
 import { OverrideStore } from '../store/OverrideStore';
 import { WindowStore } from '../store/WindowStore';
 import { RuleStore } from '../store/RuleStore';
@@ -22,6 +23,7 @@ export async function openStores(userData: string): Promise<AppStores> {
   const actionsWindow = new WindowStore(join(userData, USER_DATA.actionsWindow));
   const actions = new ActionStore(join(userData, USER_DATA.workspace));
   const sourceMaps = new SourceMapFileStore(join(userData, USER_DATA.workspace));
-  await Promise.all([store.load(), rules.load(), settings.load(), session.load(), pageWindow.load(), actionsWindow.load(), actions.load(), sourceMaps.load()]);
-  return { store, rules, settings, session, pageWindow, actionsWindow, actions, sourceMaps, hadData };
+  const browsers = new BrowserStore(join(userData, USER_DATA.browsers));
+  await Promise.all([store.load(), rules.load(), settings.load(), session.load(), pageWindow.load(), actionsWindow.load(), actions.load(), sourceMaps.load(), browsers.load()]);
+  return { store, rules, settings, session, pageWindow, actionsWindow, actions, sourceMaps, browsers, hadData };
 }

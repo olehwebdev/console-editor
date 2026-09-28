@@ -1,4 +1,5 @@
 import { useActionStore } from '@/entities/action';
+import { useBrowserStore } from '@/entities/browser';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
@@ -68,6 +69,7 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'held-requests': (event) => receiveHeld(event.held),
   'actions-window': (event) => useActionStore.getState().setWindow(event.state),
   'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),
+  'browsers-changed': (event) => useBrowserStore.getState().setAll(event.browsers),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),

@@ -1,5 +1,6 @@
 import type { AppEvent } from '../../shared/types';
 import type { ActionStore } from '../store/ActionStore';
+import type { BrowserStore } from '../store/BrowserStore';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { WindowStore } from '../store/WindowStore';
 import type { RuleStore } from '../store/RuleStore';
@@ -18,6 +19,7 @@ export interface AppStores {
   actionsWindow: WindowStore;
   actions: ActionStore;
   sourceMaps: SourceMapFileStore;
+  browsers: BrowserStore;
   /** The folder held data before the stores looked (an earlier version ran). */
   hadData: boolean;
 }

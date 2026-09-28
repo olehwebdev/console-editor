@@ -13,6 +13,8 @@ export interface PagePreviewProps {
    */
   layoutKey?: unknown;
   addressBarRef?: (el: HTMLInputElement | null) => void;
+  /** Shows Settings › Browsers, from the browser menu's gear (only where the editor's settings are). */
+  onShowBrowserSettings?: () => void;
 }
 
 /** The still shown while frozen: an image, CAPTURE_FAILED if capturing failed, or null while pending. */

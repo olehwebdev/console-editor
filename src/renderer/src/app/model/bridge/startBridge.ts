@@ -8,6 +8,7 @@ import { usePageStackStore } from '@/entities/page-stack';
 import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
+import { loadBrowsers } from '@/features/browser/open-in-browser';
 import { receiveEntries } from '@/features/filter-console';
 import { followUp } from '@/features/inspect/pick';
 import { receiveHeld } from '@/features/network/held';
@@ -53,6 +54,9 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     api.listNetworkRequests().then((requests) => receiveNetworkRequests(requests, true)),
     api.listHeldRequests().then(receiveHeld),
   ]);
+
+  // Not waited for: looking for the installed browsers is the system's pace, and only the toolbar's menu needs them.
+  void loadBrowsers();
 
   // Unsaved edits are kept as drafts rather than guarded: closing never asks to discard them.
   let stopSync: (() => void) | undefined;

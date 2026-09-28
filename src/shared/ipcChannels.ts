@@ -87,6 +87,12 @@ export const IPC_CHANNEL = {
   listHeldRequests: 'network:held',
   resumeHeldRequest: 'network:resume',
 
+  listBrowsers: 'browsers:list',
+  openInBrowser: 'browsers:open',
+  addBrowser: 'browsers:add',
+  removeBrowser: 'browsers:remove',
+  setBrowserHidden: 'browsers:hidden',
+
   getActionsWindow: 'actions-window:state',
   detachActions: 'actions-window:detach',
   attachActions: 'actions-window:attach',

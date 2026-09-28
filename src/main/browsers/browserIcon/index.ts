@@ -1,0 +1,1 @@
+export { browserIcon } from './browserIcon';

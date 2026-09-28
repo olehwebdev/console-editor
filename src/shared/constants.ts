@@ -21,6 +21,12 @@ export const ACTIONS_WINDOW_HASH = 'actions-window';
 export const ACTIONS_WINDOW_EVENTS = ['actions-changed', 'actions-window', 'frames-changed', 'settings-changed', 'workspaces-changed'] as const satisfies readonly AppEvent['type'][];
 
 /**
+ * The events the website's own window is sent besides its page's state and its shortcut: what its toolbar's menus
+ * show. Its UI has a handler for each, so one added here fails typecheck until it is handled there.
+ */
+export const PAGE_WINDOW_EVENTS = ['browsers-changed'] as const satisfies readonly AppEvent['type'][];
+
+/**
  * The events that can carry megabytes (a batch of commits of hundreds of components, of requests with their
  * initiators): sent to a window as JSON. A string is copied as one block by IPC and by the preload's bridge, and
  * parsed fast; an object graph is cloned value by value, twice, which blocks the window for as long again.
