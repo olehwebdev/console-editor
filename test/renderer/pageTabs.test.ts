@@ -92,7 +92,7 @@ describe('page tabs', () => {
     expect(isPageDirty(newRulePage('n1', EDITED))).toBe(true);
     expect(isPageDirty(STACK)).toBe(false);
     expect(isPageDirty(COMPONENT)).toBe(false);
-    expect(PAGE_SCOPES).toEqual({ 'whats-new': 'app', stack: 'app', rule: 'workspace', 'new-rule': 'workspace', component: 'workspace' });
+    expect(PAGE_SCOPES).toEqual({ 'whats-new': 'app', stack: 'app', rule: 'workspace', 'new-rule': 'workspace', component: 'workspace', shot: 'workspace', compare: 'workspace' });
   });
 
   it("closes the workspace's rule and new-rule pages with its tabs; What's New and the Page stack stay", () => {
