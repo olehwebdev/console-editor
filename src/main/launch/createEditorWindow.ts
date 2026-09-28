@@ -1,11 +1,20 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
 import { join } from 'node:path';
 import appIcon from '../../../build/icons/512x512.png?asset&asarUnpack';
-import { CANVAS_COLOR, PRELOAD_SCRIPT } from '../constants';
+import { CANVAS_COLOR, PRELOAD_SCRIPT, TITLE_BAR_HEIGHT, TITLE_BAR_SYMBOL_COLOR } from '../constants';
 
 /** The window's size when it first opens, and the smallest it can be made. */
 const WINDOW_SIZE = { width: 1600, height: 1000 };
 const MIN_WINDOW_SIZE = { width: 960, height: 600 };
+
+/**
+ * On Linux the system's title bar (a light bar naming the app, above the editor's own) gives way to the
+ * editor's title bar, with the window buttons drawn over its right end in its colours.
+ */
+const LINUX_TITLE_BAR: BrowserWindowConstructorOptions = {
+  titleBarStyle: 'hidden',
+  titleBarOverlay: { color: CANVAS_COLOR, symbolColor: TITLE_BAR_SYMBOL_COLOR, height: TITLE_BAR_HEIGHT },
+};
 
 /** The editor's window, hidden until its UI is ready to show. */
 export function createEditorWindow(): BrowserWindow {
@@ -16,7 +25,7 @@ export function createEditorWindow(): BrowserWindow {
     minHeight: MIN_WINDOW_SIZE.height,
     title: 'Console Editor',
     // Elsewhere the window takes the app's own icon; on Linux it has to be given one.
-    ...(process.platform === 'linux' ? { icon: appIcon } : {}),
+    ...(process.platform === 'linux' ? { icon: appIcon, ...LINUX_TITLE_BAR } : {}),
     backgroundColor: CANVAS_COLOR,
     // The app menu keeps its shortcuts; on Windows/Linux Alt shows the bar.
     autoHideMenuBar: true,

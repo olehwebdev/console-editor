@@ -33,11 +33,16 @@ export function TitleBar({ onOpenPalette, sidebarVisible, previewVisible, onTogg
   const errors = useConsoleStore(selectErrorCount);
 
   return (
-    <header className="flex h-[var(--titlebar-h)] shrink-0 items-center gap-3 border-b border-line bg-canvas px-3" data-testid="title-bar">
+    // The window's title bar where the system's gives way to it (Linux): dragging it moves the window, and its
+    // right end leaves room for the window buttons. Its controls stay clickable.
+    <header
+      className="flex h-[var(--titlebar-h)] shrink-0 items-center gap-3 border-b border-line bg-canvas pl-3 pr-[calc(0.75rem+var(--titlebar-controls-w))] [app-region:drag]"
+      data-testid="title-bar"
+    >
       <BrandMark />
       <div className="flex min-w-0 items-center gap-2 text-[13px]">
         <span
-          className="flex max-w-[260px] items-center gap-1.5 rounded-lg border border-line bg-surface-raised/60 px-2 py-1 text-fg"
+          className="flex max-w-[260px] items-center gap-1.5 rounded-lg border border-line bg-surface-raised/60 px-2 py-1 text-fg [app-region:no-drag]"
           title={url ? `${title}\n${url}` : 'No site open'}
         >
           <Icon icon={icons.GlobeIcon} size={13} className={url ? 'text-info' : 'text-fg-subtle'} />
@@ -64,7 +69,7 @@ export function TitleBar({ onOpenPalette, sidebarVisible, previewVisible, onTogg
         onClick={onOpenPalette}
         data-testid="palette-trigger"
         className={cn(
-          'flex h-7 w-[280px] items-center gap-2 rounded-lg border border-line bg-surface-raised/60 px-2.5 text-[12.5px] text-fg-subtle',
+          'flex h-7 w-[280px] items-center gap-2 rounded-lg border border-line bg-surface-raised/60 px-2.5 text-[12.5px] text-fg-subtle [app-region:no-drag]',
           'transition-[border-color,background-color,color] duration-150 ease-out-expo hover:border-line-strong hover:bg-surface-raised hover:text-fg-muted',
         )}
       >
@@ -73,7 +78,7 @@ export function TitleBar({ onOpenPalette, sidebarVisible, previewVisible, onTogg
         <Kbd keys={SHORTCUT.palette} />
       </button>
 
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 [app-region:no-drag]" data-testid="layout-toggles">
         <IconButton icon={icons.SidebarLeftIcon} label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'} shortcut={SHORTCUT.sidebar} aria-pressed={sidebarVisible} onClick={onToggleSidebar} tooltipSide={TOOLTIP_SIDE} />
         <IconButton
           icon={icons.ConsoleIcon}
