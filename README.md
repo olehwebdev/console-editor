@@ -228,9 +228,9 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 What shipped, release by release, is in the **[CHANGELOG](CHANGELOG.md)**. Next:
 
 - [ ] Parameters and scenarios for actions
-- [ ] Edit in your own editor (watch the overrides folder), and export/import patch sets for teammates
 - [ ] Search across every file the page loaded
 - [ ] Drive your own Chrome over CDP
+- [ ] Open the page in your other browsers (with your changes in Chromium browsers and Firefox), capture it, and check it against designs pixel by pixel ([research](docs/BROWSERS_RESEARCH.md))
 - [ ] Vue's renders and a data-flow view in the component inspector ([research](docs/INSPECTOR_RESEARCH.md))
 - [ ] Signed and notarized builds (and with them, installing updates in place on macOS)
 

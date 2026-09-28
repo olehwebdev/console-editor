@@ -51,6 +51,11 @@ A desktop app where you enter a website's URL, see every script, stylesheet and 
 | U31 | I see which code sent a request: the stack of the script, traced to the originals; and on a component's page, the requests sent from its file | ✅ (§6.10, §6.13) |
 | U32 | I keep a state value I set on the Component page as an action, which sets it again whenever I run it (after a reload too) | ✅ (§6.13) |
 | U33 | I see the renders I recorded by component: how often each rendered, mounted or was skipped, how long its own renders took, and why | ✅ (§6.14) |
+| U34 | I open the page in another browser installed on this computer (Chrome, Firefox, Safari, Edge…) from beside the address bar, to see whether something is broken there | 🔜 M5 ([research](BROWSERS_RESEARCH.md)) |
+| U35 | I open it in a Chromium browser or Firefox with my overrides and rules applied, and search the tabs the app opened there | 🔜 M5 |
+| U36 | I capture the page (the viewport, the whole page or one element), in the app or in another browser, and find my captures in a list at the end of the toolbar | 🔜 M5 |
+| U37 | I import a design and check the page against it pixel by pixel: laid over the live page, or side by side, swiped, faded or as a difference | 🔜 M5 |
+| U38 | I capture the page in every browser at once and see where they differ from each other or from the design | 🔜 M5 |
 
 ## 3. Architecture
 
@@ -804,7 +809,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - Docked/undocked page view, and responsive device presets.
 
 **M3: Your own Chrome, and distribution**
-- External Chrome mode: launch Chrome with a dedicated `--user-data-dir` plus `--remote-debugging-port`, or connect to a running one; `WebSocketTransport` implementing `CdpTransport`; one engine per tab.
+- External Chrome mode: launch Chrome with a dedicated `--user-data-dir` plus `--remote-debugging-port`, or connect to a running one; `WebSocketTransport` implementing `CdpTransport`; one engine per tab. Planned as phase 5 of M5 ([research](BROWSERS_RESEARCH.md)).
 - ✅ Installers with electron-builder, built and smoke-tested on all three systems by the release workflow (§10).
 - ✅ Update notifications, What's New, and installing updates on Windows and with the AppImage, `.deb` and `.rpm` (§10.1).
 - Signed and notarized builds, and with them installing updates in place on macOS.
@@ -814,6 +819,15 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - Research: editing an original module and recompiling only it (esbuild transform) inside a webpack/Vite bundle's module map.
 - ✅ Console panel for the page and every frame in it (§6.7), and actions: code kept to run in a frame with one click (§6.9). The Actions panel also goes into a window of its own. Still to come ([research](ACTIONS_RESEARCH.md)): parameters in actions, sending a message to a frame without writing code, a message log of `postMessage` between frames, waiting for a log, scenarios, showing a frame in the page, reloading or retargeting one frame, network and storage per frame.
 - Component inspector ([research](INSPECTOR_RESEARCH.md)): ✅ the page stack, which UI library, framework, state library and bundler each frame runs (§6.12); ✅ the React or Vue component behind an element, its original file (production builds too, through source maps), props, state, context, handlers and chain (§6.13); ✅ the Components tree, setting state, hook names from originals and source-map coverage (§6.12, §6.13); ✅ Renders, why each React component rendered (§6.14). ✅ Angular (development and production builds), Vue 2 and web components, the listeners on an element, and **Load a source map…** for a bundle whose map isn't published (§6.8, §6.13). ✅ Store actions (Redux, Redux Toolkit, NgRx, Zustand, Pinia, Vuex) with what each changed and the line that dispatched it (§6.15); who sent a request, and a component's requests (§6.10, §6.13); a state value kept as an action (§6.13); renders by component (§6.14). Still to come: Vue's renders, a data-flow view (what comes into a component and what it sets or calls), and async stacks for requests and actions.
+
+**M5: Other browsers, captures and designs** ([research](BROWSERS_RESEARCH.md))
+- Open the page in another installed browser: found per system, with their own icons, in a menu beside the address bar and in the palette.
+- Captures of the viewport, the whole page or one element, kept per workspace and listed in a menu at the end of the toolbar, with search and Captures/Designs.
+- Designs imported from files or the clipboard, and a compare page: side by side, swipe, onion skin and difference, with the share of pixels that differ.
+- A design laid over the live page (a canvas in an isolated world, so a strict CSP doesn't block it), at the design's width.
+- Chromium browsers with your overrides and rules (M3's external Chrome), and their tabs in the menu.
+- One capture in every browser, compared in a grid.
+- Firefox with your changes over WebDriver BiDi, and WebKit through Playwright's build.
 
 ## 12. Risks and open questions
 
