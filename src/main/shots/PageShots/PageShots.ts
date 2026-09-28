@@ -43,6 +43,11 @@ export class PageShots {
     return this.captureApp({ area: area as 'viewport' | 'page' });
   }
 
+  /** Captures the whole page as the first of a group (captures taken together, in every browser). */
+  captureInGroup(group: string): Promise<Shot> {
+    return this.captureApp({ area: 'page' }, undefined, group);
+  }
+
   /** Captures a pick's element (in any frame), without the inspector's highlight on it. */
   async captureElement(pickId: unknown): Promise<Shot> {
     const { inspector } = this.deps.page.frames;
@@ -107,13 +112,13 @@ export class PageShots {
   }
 
   /** Captures the app's page once it is on screen, through `around` (a width to lay it out at) when given. */
-  private async captureApp(target: CaptureTarget, around?: (capture: () => Promise<CapturedImage>) => Promise<CapturedImage>): Promise<Shot> {
+  private async captureApp(target: CaptureTarget, around?: (capture: () => Promise<CapturedImage>) => Promise<CapturedImage>, group: string | null = null): Promise<Shot> {
     const { page } = this.deps;
     const { url } = page.state();
     if (!url) throw new Error('Open a page first');
     await waitUntilShown(page.view);
     const capture = () => captureOverCdp(page.cdp, target);
     const image = await this.overlay.suspended(() => (around ? around(capture) : capture()));
-    return this.keep(image, url, target.area, { ...APP_BROWSER, version: process.versions.chrome });
+    return this.keep(image, url, target.area, { ...APP_BROWSER, version: process.versions.chrome }, group);
   }
 }

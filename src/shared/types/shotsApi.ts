@@ -1,4 +1,4 @@
-import type { CaptureArea, DesignImport, Shot } from './shots';
+import type { CaptureArea, DesignImport, GroupCapture, Shot } from './shots';
 
 /** Captures and designs' part of the API exposed to the renderer (`ConsoleEditorApi`). */
 export interface ShotsApi {
@@ -6,6 +6,11 @@ export interface ShotsApi {
   listShots(): Promise<Shot[]>;
   /** Captures the page shown, what its viewport shows or all of it, and keeps it with the workspace. */
   captureShot(area: Exclude<CaptureArea, 'element'>): Promise<Shot>;
+  /**
+   * Captures the whole page in the app and in every browser it drives with the workspace's changes, at the app's
+   * address, viewport and density, as one group.
+   */
+  captureInEveryBrowser(): Promise<GroupCapture>;
   /** Captures a tab of a browser the app drives: what it shows, or all of it. */
   captureTabShot(browserId: string, tabId: string, area: Exclude<CaptureArea, 'element'>): Promise<Shot>;
   /** Captures the element of a pick (the inspector's), in any frame. */

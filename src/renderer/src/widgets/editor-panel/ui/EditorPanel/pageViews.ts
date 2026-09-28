@@ -1,5 +1,6 @@
 import { ComparePage } from '../ComparePage';
 import { ComponentPage } from '../ComponentPage';
+import { GroupPage } from '../GroupPage';
 import { NewRulePage, RulePage } from '../RulePage';
 import { ShotPage } from '../ShotPage';
 import { StackPage } from '../StackPage';
@@ -15,4 +16,5 @@ export const PAGE_VIEWS: PageViews = {
   'new-rule': NewRulePage,
   shot: ShotPage,
   compare: ComparePage,
+  group: GroupPage,
 };

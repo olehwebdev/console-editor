@@ -9,4 +9,5 @@ export const PAGE_DIRTY_CHECKS: { [K in PageKind]: (page: PageTabOf<K>) => boole
   'new-rule': (page) => !!page.dirty,
   shot: () => false,
   compare: () => false,
+  group: () => false,
 };

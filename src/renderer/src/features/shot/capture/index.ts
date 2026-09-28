@@ -1,1 +1,1 @@
-export { captureShot, pickingStarted, pickToCapture, takePickCapture } from './model';
+export { captureEverywhere, captureShot, pickingStarted, pickToCapture, takePickCapture } from './model';

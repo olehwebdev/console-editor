@@ -39,6 +39,13 @@ export interface Shot {
   updatedAt: number;
 }
 
+/** What capturing in every browser did: the captures kept (one group, the app's first), and the browsers that failed. */
+export interface GroupCapture {
+  group: string;
+  shots: Shot[];
+  failed: { browser: string; reason: string }[];
+}
+
 /** What importing designs did: the ones kept, and the files that couldn't be (with why). */
 export interface DesignImport {
   added: Shot[];

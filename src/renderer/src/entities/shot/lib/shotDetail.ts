@@ -1,4 +1,5 @@
 import type { Shot } from '@common/types';
+import { browserLabel } from './browserLabel';
 import { KIND_LABEL } from './constants';
 import { timeAgo } from './timeAgo';
 
@@ -8,8 +9,7 @@ import { timeAgo } from './timeAgo';
  */
 export function shotDetail(shot: Shot, now: number): string {
   const { browser, viewport } = shot;
-  const major = browser?.version?.split('.')[0];
-  const where = browser ? `${browser.name}${major ? ` ${major}` : ''}` : null;
+  const where = browser ? browserLabel(browser) : null;
   const size = viewport ? `${viewport.width} × ${viewport.height}` : `${Math.round(shot.width / shot.scale)} wide`;
   return [KIND_LABEL[shot.kind], where, size, timeAgo(shot.createdAt, now)].filter(Boolean).join(' · ');
 }

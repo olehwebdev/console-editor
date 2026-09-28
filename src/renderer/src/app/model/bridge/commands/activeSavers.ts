@@ -12,4 +12,5 @@ export const ACTIVE_SAVERS: ActiveSavers = {
   'new-rule': (id) => void createRulePage(id),
   shot: () => undefined,
   compare: () => undefined,
+  group: () => undefined,
 };

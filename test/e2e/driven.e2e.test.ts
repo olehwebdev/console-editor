@@ -1,7 +1,8 @@
 /**
  * A Chromium browser driven with the workspace's changes, in the built app on Linux: a real Chromium installed as a
  * launcher is offered "with your changes" in the browser menu; the page opens there served the workspace's override,
- * its tab is listed under the browser and captured into the shots, and letting go of it takes it off the menu.
+ * its tab is listed under the browser and captured into the shots, the page is captured here and there at once and
+ * the two compared, and letting go of it takes it off the menu.
  */
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -123,7 +124,30 @@ describe.skipIf(!built || !chromiumPath || process.platform !== 'linux')('A brow
     expect(shot).toMatchObject({ kind: 'capture', area: 'viewport', pageUrl: `${origin}/page.html`, browser: { id: BROWSER_ID, name: 'Test Chromium' } });
   });
 
+  it('captures the page here and in the browser at once, as a group, and compares them', async () => {
+    await win.keyboard.press('Escape');
+    await expect.poll(() => menu().count()).toBe(0);
+    await win.getByTestId('shots-menu-button').click();
+    await win.getByTestId('shots-capture').click();
+    await win.getByRole('menuitem', { name: 'In every browser' }).click();
+    await expect.poll(async () => (await shots()).filter((s) => s.group).length, { timeout: 30_000 }).toBe(2);
+    // Newest first: the app's capture was taken first.
+    const [other, own] = (await shots()).filter((s) => s.group);
+    expect(own).toMatchObject({ kind: 'capture', area: 'page', pageUrl: `${origin}/page.html`, browser: { id: 'app' } });
+    expect(other).toMatchObject({ area: 'page', pageUrl: `${origin}/page.html`, group: own.group, browser: { id: BROWSER_ID }, viewport: own.viewport, scale: own.scale, width: own.width });
+
+    await win.getByRole('button', { name: 'Compare', exact: true }).click();
+    await win.getByTestId('group-page').waitFor();
+    await expect.poll(() => win.getByTestId('group-cell').count()).toBe(2);
+    expect(await win.getByTestId('group-cell').first().getAttribute('data-shot-id')).toBe(own.id);
+    await expect.poll(() => win.getByTestId('group-share').innerText(), { timeout: 20_000 }).toMatch(/% differ$/);
+    expect(await win.getByTestId('group-baseline').innerText()).toContain('This app');
+    await win.getByRole('tab', { name: 'Differences' }).click();
+    await expect.poll(() => win.getByTestId('group-cell').locator('canvas').count()).toBe(1);
+  });
+
   it('lets go of it, taking it off the menu', async () => {
+    await win.getByTestId('browser-menu-button').click();
     await menu().getByRole('button', { name: 'Stop serving your changes in Test Chromium' }).click();
     await expect.poll(() => driven()).toEqual([]);
     await expect.poll(() => menu().getByTestId('driven-browsers').count()).toBe(0);

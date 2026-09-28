@@ -1,13 +1,14 @@
 import type { AppEvent, CaptureArea, DrivenBrowser, ShotBrowser } from '../../../shared/types';
 import { HTTP_URL } from '../../constants';
 import { CDP } from '../../engine/constants';
-import type { CapturedImage } from '../../shots/capture';
+import type { BrowserCapture, CapturedImage, Viewport } from '../../shots/capture';
 import { PAGE_AREAS } from '../../shots/constants';
 import type { FoundBrowser } from '../types';
 import { PRODUCT_VERSION, RELOAD_DEBOUNCE_MS } from './constants';
 import { DrivenChromium } from './DrivenChromium';
 import { profileDir } from './profileDir';
 import { reachOrLaunch } from './reachOrLaunch';
+import { shotBrowser } from './shotBrowser';
 import type { DrivenBrowsersDeps } from './types';
 
 /** What each app event means for the driven browsers; the rest mean nothing to them. */
@@ -56,8 +57,19 @@ export class DrivenBrowsers {
   async capture(browserId: string, tabId: string, area: unknown): Promise<{ image: CapturedImage; url: string; browser: ShotBrowser }> {
     if (!PAGE_AREAS.has(area)) throw new Error('Invalid capture area');
     const driven = this.get(browserId);
-    const { id, name, version } = driven.list();
-    return { ...(await driven.capture(tabId, area as Exclude<CaptureArea, 'element'>)), browser: { id, name, version } };
+    return { ...(await driven.capture(tabId, area as Exclude<CaptureArea, 'element'>)), browser: shotBrowser(driven) };
+  }
+
+  /** Captures the whole page at `url` in every driven browser at once, laid out in `viewport`; one that fails says why. */
+  captureAt(url: string, viewport: Viewport): Promise<BrowserCapture[]> {
+    return Promise.all(
+      this.all().map((driven) =>
+        driven.captureAt(url, viewport).then(
+          (taken) => ({ ...taken, browser: shotBrowser(driven) }),
+          (err: unknown) => ({ browser: driven.browser.name, reason: err instanceof Error ? err.message : String(err) }),
+        ),
+      ),
+    );
   }
 
   /** Stops serving the workspace's changes in a browser; it stays open. */

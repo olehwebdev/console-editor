@@ -1,7 +1,7 @@
 /**
  * A Chromium browser driven with the workspace's changes: launched with a profile of the app's own and a debugging
  * port, every tab served the overrides (a new tab from its first request), changes served and the tabs reloaded, a tab
- * captured, the browser let go of (it stays open) and reached again rather than launched twice, and forgotten once
+ * captured (and at a viewport given, as in every browser at once), the browser let go of (it stays open) and reached again rather than launched twice, and forgotten once
  * it is quit.
  */
 import { existsSync, readFileSync } from 'node:fs';
@@ -114,6 +114,17 @@ describe.skipIf(!chromiumAvailable)('a Chromium browser driven with your changes
     expect(image.width).toBeGreaterThan(0);
     expect(decodePng(image.bytes).at(5, 5)).toEqual([255, 0, 0, 255]);
     await expect(driven.capture(browser.id, tab.id, 'element')).rejects.toThrow('Invalid capture area');
+  });
+
+  it('captures the whole page at an address in every driven browser, laid out in a viewport given (the app\'s)', async () => {
+    const taken = await driven.captureAt(`${origin}/page.html`, { width: 400, height: 300, scale: 2 });
+    expect(taken).toHaveLength(1);
+    const [capture] = taken;
+    if ('reason' in capture) throw new Error(capture.reason);
+    expect(capture).toMatchObject({ url: `${origin}/page.html`, browser: { id: browser.id, name: 'Test Chromium' } });
+    expect(capture.image).toMatchObject({ width: 800, height: 600, scale: 2, viewport: { width: 400, height: 300 } });
+    // The tab showing it was used: no other opened.
+    expect(tabs()).toHaveLength(2);
   });
 
   it('lets go of it (it stays open), and reaches it again rather than launching another', async () => {

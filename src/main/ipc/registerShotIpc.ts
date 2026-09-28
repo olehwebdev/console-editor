@@ -3,7 +3,7 @@ import { copyFile } from 'node:fs/promises';
 import { BrowserWindow, dialog, shell, type BrowserWindow as Window } from 'electron';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent, CaptureArea } from '../../shared/types';
-import { copyShotImage, importDesignFiles, type PageShots } from '../shots';
+import { captureInEveryBrowser, copyShotImage, importDesignFiles, type PageShots } from '../shots';
 import type { DrivenBrowsers } from '../browsers';
 import type { ShotStore } from '../store/ShotStore';
 import { assertString } from './assertString';
@@ -28,6 +28,7 @@ export function registerShotIpc(handle: IpcHandle, handlePage: IpcHandle, { win,
   handlePage(IPC_CHANNEL.listShots, () => shots.list());
   handlePage(IPC_CHANNEL.captureShot, (area: unknown) => shots.capture(area));
   handle(IPC_CHANNEL.captureElementShot, (pickId: unknown) => shots.captureElement(pickId));
+  handlePage(IPC_CHANNEL.captureInEveryBrowser, () => captureInEveryBrowser(shots, driven));
   handlePage(IPC_CHANNEL.captureTabShot, async (browserId: unknown, tabId: unknown, area: unknown) => {
     assertString(browserId, 'browserId');
     assertString(tabId, 'tabId');

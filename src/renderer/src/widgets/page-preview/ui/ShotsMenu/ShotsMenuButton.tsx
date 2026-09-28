@@ -4,7 +4,8 @@ import { api } from '@/shared/api';
 import { Popover } from '@/shared/ui/popover';
 import { Tooltip } from '@/shared/ui/tooltip';
 import { useShotStore } from '@/entities/shot';
-import { captureShot, pickToCapture } from '@/features/shot/capture';
+import { captureEverywhere, captureShot, pickToCapture } from '@/features/shot/capture';
+import { openGroup } from '@/features/shot/compare';
 import { addDesignFiles, importDesigns } from '@/features/shot/import-design';
 import { openShot } from '@/features/shot/open-shot';
 import { ShotStack } from './ShotStack';
@@ -29,6 +30,11 @@ export function ShotsMenuButton({ hasPage, inEditor }: ShotsMenuButtonProps) {
     if (area === 'element') void pickToCapture();
     else void captureShot(area, null, show);
   };
+  const captureGroup = () => {
+    setOpen(false);
+    // In the website's own window, the app's capture opens in the editor; its page leads to the group.
+    void captureEverywhere(({ shots: [first] }) => (inEditor ? openGroup(first) : show(first)));
+  };
   return (
     <>
       <Tooltip content="Captures and designs" describeTrigger={false}>
@@ -51,6 +57,7 @@ export function ShotsMenuButton({ hasPage, inEditor }: ShotsMenuButtonProps) {
           hasPage={hasPage}
           inEditor={inEditor}
           onCapture={capture}
+          onCaptureEverywhere={captureGroup}
           onOpen={(shot) => {
             setOpen(false);
             show(shot);

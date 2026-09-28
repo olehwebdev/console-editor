@@ -74,7 +74,9 @@ export type PageTab =
   /** A capture or design of the workspace. */
   | (PageTabBase & { page: 'shot'; shotId: string })
   /** Two captures or designs compared: `baseId` below (a design, usually), `otherId` over it. */
-  | (PageTabBase & { page: 'compare'; baseId: string; otherId: string });
+  | (PageTabBase & { page: 'compare'; baseId: string; otherId: string })
+  /** Captures taken together in every browser, compared with one of them or a design. */
+  | (PageTabBase & { page: 'group'; groupId: string });
 
 export type PageKind = PageTab['page'];
 

@@ -39,6 +39,9 @@ export const PAGE_ATTACH = { autoAttach: true, waitForDebuggerOnStart: true, fla
 /** Letting go of a driven browser's tabs: new ones start as they would. */
 export const STOP_ATTACH = { autoAttach: false, waitForDebuggerOnStart: false, flatten: true } as const;
 
+/** How long a tab captured in every browser may take to load before it is captured as it is. */
+export const LOAD_TIMEOUT_MS = 30_000;
+
 /** How long a tab the app opens has to be attached before opening it fails. */
 export const NEW_TAB_TIMEOUT_MS = 10_000;
 

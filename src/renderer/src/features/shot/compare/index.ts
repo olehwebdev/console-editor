@@ -1,1 +1,1 @@
-export { compareWithPage, openCompare, useImageDiff, type DiffSource, type DiffState } from './model';
+export { compareWithPage, openCompare, openGroup, useImageDiff, type DiffSource, type DiffState } from './model';

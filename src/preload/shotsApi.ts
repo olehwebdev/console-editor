@@ -8,6 +8,7 @@ export const shotsApi: ShotsApi = {
   captureShot: (area) => ipcRenderer.invoke(IPC_CHANNEL.captureShot, area),
   captureElementShot: (pickId) => ipcRenderer.invoke(IPC_CHANNEL.captureElementShot, pickId),
   captureTabShot: (browserId, tabId, area) => ipcRenderer.invoke(IPC_CHANNEL.captureTabShot, browserId, tabId, area),
+  captureInEveryBrowser: () => ipcRenderer.invoke(IPC_CHANNEL.captureInEveryBrowser),
   readShot: (id) => ipcRenderer.invoke(IPC_CHANNEL.readShot, id),
   renameShot: (id, name) => ipcRenderer.invoke(IPC_CHANNEL.renameShot, id, name),
   deleteShot: (id) => ipcRenderer.invoke(IPC_CHANNEL.deleteShot, id),

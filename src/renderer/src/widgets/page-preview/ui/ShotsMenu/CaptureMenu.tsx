@@ -9,14 +9,18 @@ export interface CaptureMenuProps {
   canPick: boolean;
   disabled: boolean;
   onCapture(area: CaptureArea): void;
+  /** Captures the whole page here and in every browser driven with the workspace's changes. */
+  onCaptureEverywhere(): void;
 }
 
-/** The shots menu's Capture: what the page shows, the whole page, or an element picked in it. */
-export function CaptureMenu({ canPick, disabled, onCapture }: CaptureMenuProps) {
+/** The shots menu's Capture: what the page shows, the whole page, an element picked in it, or the page in every browser. */
+export function CaptureMenu({ canPick, disabled, onCapture, onCaptureEverywhere }: CaptureMenuProps) {
   const items: MenuItem[] = [
     { label: 'What the page shows', icon: icons.CaptureIcon, onSelect: () => onCapture('viewport') },
     { label: 'The whole page', icon: icons.FullPageIcon, onSelect: () => onCapture('page') },
     ...(canPick ? [{ label: 'An element…', icon: icons.PickIcon, onSelect: () => onCapture('element') }] : []),
+    { separator: true },
+    { label: 'In every browser', icon: icons.BrowserIcon, onSelect: onCaptureEverywhere },
   ];
   return (
     <Menu items={items} label="Capture" align="end" disabled={disabled}>

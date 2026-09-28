@@ -1,3 +1,4 @@
+export { atViewport } from './atViewport';
 export { atWidth } from './atWidth';
 export { captureOverCdp } from './captureOverCdp';
-export type { CapturedImage, CaptureTarget } from './types';
+export type { BrowserCapture, CapturedImage, CaptureTarget, Viewport } from './types';

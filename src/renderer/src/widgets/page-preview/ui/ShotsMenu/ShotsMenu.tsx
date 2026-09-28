@@ -18,6 +18,7 @@ export interface ShotsMenuProps {
   /** In the editor: picking an element and deleting are offered. */
   inEditor: boolean;
   onCapture(area: CaptureArea): void;
+  onCaptureEverywhere(): void;
   onOpen(shot: Shot): void;
   /** Import designs: from the system's dialog (null), or images dropped or pasted on the menu. */
   onImport(files: File[] | null): void;
@@ -27,7 +28,7 @@ export interface ShotsMenuProps {
  * The shots menu's content: capturing, importing designs (dropped or pasted too), a search, All · Captures · Designs,
  * and the workspace's shots, newest first.
  */
-export function ShotsMenu({ hasPage, inEditor, onCapture, onOpen, onImport }: ShotsMenuProps) {
+export function ShotsMenu({ hasPage, inEditor, onCapture, onCaptureEverywhere, onOpen, onImport }: ShotsMenuProps) {
   const shots = useShotStore((s) => s.shots);
   const now = useMinute();
   const [query, setQuery] = useState('');
@@ -50,7 +51,7 @@ export function ShotsMenu({ hasPage, inEditor, onCapture, onOpen, onImport }: Sh
       <div className="flex items-center gap-2">
         <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search captures and designs…" aria-label="Search captures and designs" leading={<Icon icon={icons.SearchIcon} size={14} />} className="flex-1" />
         <IconButton icon={icons.ImportDesignIcon} label="Import designs…" size="sm" onClick={() => onImport(null)} data-testid="shots-import" />
-        <CaptureMenu canPick={inEditor} disabled={!hasPage} onCapture={onCapture} />
+        <CaptureMenu canPick={inEditor} disabled={!hasPage} onCapture={onCapture} onCaptureEverywhere={onCaptureEverywhere} />
       </div>
       <div className="h-7">
         <PaneTabs<ShotFilter> tabs={SHOT_FILTERS} value={filter} onChange={setFilter} label="Show" />

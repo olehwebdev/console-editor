@@ -117,5 +117,8 @@ export const MAX_URL_CHARS = 8192;
  */
 export const SHOT_SCHEME = 'console-editor-shot';
 
+/** The browser id of captures of the app's own page (other browsers' are their installed ids). */
+export const APP_BROWSER_ID = 'app';
+
 /** A shot URL's host: the image itself, or its thumbnail. */
 export const SHOT_URL_HOST = { image: 'image', thumb: 'thumb' } as const;

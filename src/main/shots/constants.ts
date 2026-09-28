@@ -1,3 +1,5 @@
+import { APP_BROWSER_ID } from '../../shared/constants';
+
 /**
  * Chromium's largest texture side, in device pixels: a capture taller than this comes back cut or blank, so a full
  * page is captured down to it.
@@ -32,10 +34,19 @@ export const MAX_NAME_STEM = 80;
 export const PAGE_AREAS: ReadonlySet<unknown> = new Set(['viewport', 'page']);
 
 /** The app's own page, as the browser a capture was taken in. */
-export const APP_BROWSER = { id: 'app', name: 'Chromium' } as const;
+export const APP_BROWSER = { id: APP_BROWSER_ID, name: 'Chromium' } as const;
 
 /** What a design brought in without a name (pasted) is called, before its extension. */
 export const DESIGN_NAME = 'design';
+
+/** How long a page captured in every browser has to be quiet after its load, before it is captured. */
+const SETTLE_QUIET_MS = 500;
+
+/** Waits for the page's load, then a quiet moment (run in its main world, awaited). */
+export const LOADED_EXPRESSION = `new Promise((resolve) => (document.readyState === 'complete' ? resolve() : addEventListener('load', () => resolve(), { once: true }))).then(() => new Promise((resolve) => setTimeout(resolve, ${SETTLE_QUIET_MS})))`;
+
+/** Bytes of a group's id (captures taken together, in every browser). */
+export const GROUP_ID_BYTES = 4;
 
 /** Waits for the page to have drawn twice and its fonts to be in (run in its main world, awaited). */
 export const SETTLE_EXPRESSION = 'document.fonts.ready.then(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))';

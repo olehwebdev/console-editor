@@ -40,6 +40,11 @@ export class DrivenTabs {
     return tab ? Promise.resolve(tab) : new Promise((resolve) => this.arrivals.set(targetId, resolve));
   }
 
+  /** The tab showing an address, if one does. */
+  showing(url: string): DrivenTabState | undefined {
+    return this.all().find((t) => t.info.url === url);
+  }
+
   /** A blank tab (the one the browser started on) to load an address in, rather than opening another. */
   blank(): DrivenTabState | undefined {
     return this.all().find((t) => t.info.url === START_URL);

@@ -101,6 +101,7 @@ export const IPC_CHANNEL = {
   captureShot: 'shots:capture',
   captureElementShot: 'shots:capture-element',
   captureTabShot: 'shots:capture-tab',
+  captureInEveryBrowser: 'shots:capture-every',
   readShot: 'shots:read',
   renameShot: 'shots:rename',
   deleteShot: 'shots:delete',

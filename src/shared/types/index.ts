@@ -60,7 +60,7 @@ export { FILE_KINDS, RESOURCE_KINDS } from './resources';
 export type { BlockRule, CorsRule, CreateRuleInput, HeaderEdit, HeaderOperation, HeaderRule, Rule, RuleAction, RuleBase, RuleOf, RulePatch, RuleResourceType } from './rules';
 export { HEADER_OPERATIONS, RULE_ACTIONS, RULE_RESOURCE_TYPES } from './rules';
 export type { SessionDraft, SessionState, SessionTab } from './session';
-export type { CaptureArea, DesignImport, Shot, ShotBrowser, ShotKind } from './shots';
+export type { CaptureArea, DesignImport, GroupCapture, Shot, ShotBrowser, ShotKind } from './shots';
 export { CAPTURE_AREAS, SHOT_KINDS } from './shots';
 export type { ShotsApi } from './shotsApi';
 export type { SourceMapBody, SourceMapFetchFailure, SourceMapFile, SourceMapFileInfo, SourceMapKind, SourceMapRequest } from './sourceMaps';
