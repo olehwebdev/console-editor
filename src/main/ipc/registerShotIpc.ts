@@ -2,8 +2,9 @@ import { basename } from 'node:path';
 import { copyFile } from 'node:fs/promises';
 import { BrowserWindow, dialog, shell, type BrowserWindow as Window } from 'electron';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
-import type { AppEvent } from '../../shared/types';
+import type { AppEvent, CaptureArea } from '../../shared/types';
 import { copyShotImage, importDesignFiles, type PageShots } from '../shots';
+import type { DrivenBrowsers } from '../browsers';
 import type { ShotStore } from '../store/ShotStore';
 import { assertString } from './assertString';
 import type { IpcHandle } from './types';
@@ -15,6 +16,7 @@ interface ShotIpcDeps {
   win: Window;
   shots: PageShots;
   store: ShotStore;
+  driven: DrivenBrowsers;
   send(event: AppEvent): void;
 }
 
@@ -22,10 +24,16 @@ interface ShotIpcDeps {
  * Captures and designs' channels. The shots menu is in both windows' toolbars (`handlePage`); capturing a picked
  * element is the Component page's, in the editor.
  */
-export function registerShotIpc(handle: IpcHandle, handlePage: IpcHandle, { win, shots, store, send }: ShotIpcDeps): void {
+export function registerShotIpc(handle: IpcHandle, handlePage: IpcHandle, { win, shots, store, driven, send }: ShotIpcDeps): void {
   handlePage(IPC_CHANNEL.listShots, () => shots.list());
   handlePage(IPC_CHANNEL.captureShot, (area: unknown) => shots.capture(area));
   handle(IPC_CHANNEL.captureElementShot, (pickId: unknown) => shots.captureElement(pickId));
+  handlePage(IPC_CHANNEL.captureTabShot, async (browserId: unknown, tabId: unknown, area: unknown) => {
+    assertString(browserId, 'browserId');
+    assertString(tabId, 'tabId');
+    const { image, url, browser } = await driven.capture(browserId, tabId, area);
+    return shots.keep(image, url, area as CaptureArea, browser);
+  });
   handlePage(IPC_CHANNEL.readShot, (id: unknown) => store.read(id));
   handlePage(IPC_CHANNEL.renameShot, (id: unknown, name: unknown) => shots.rename(id, name));
   handlePage(IPC_CHANNEL.deleteShot, (id: unknown) => shots.remove(id));

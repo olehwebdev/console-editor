@@ -1,4 +1,4 @@
-import type { BrowserInfo } from './browsers';
+import type { BrowserInfo, DrivenBrowser } from './browsers';
 
 /** The other browsers' part of the API exposed to the renderer (`ConsoleEditorApi`). */
 export interface BrowsersApi {
@@ -12,4 +12,15 @@ export interface BrowsersApi {
   removeBrowser(id: string): Promise<void>;
   /** Offers a browser beside the address bar again, or stops offering it. */
   setBrowserHidden(id: string, hidden: boolean): Promise<void>;
+  /**
+   * Opens an http(s) address in a Chromium browser with a profile of the app's own, serving the workspace's overrides
+   * and rules in its tabs (launching it, or reaching it when the app launched it before and it is still open).
+   */
+  openWithChanges(id: string, url: string): Promise<void>;
+  /** The browsers the app drives, with their tabs. */
+  listDriven(): Promise<DrivenBrowser[]>;
+  /** Brings a tab of a driven browser to the front. */
+  activateTab(browserId: string, tabId: string): Promise<void>;
+  /** Stops serving the workspace's changes in a driven browser (it stays open, as it is). */
+  stopDriving(browserId: string): Promise<void>;
 }

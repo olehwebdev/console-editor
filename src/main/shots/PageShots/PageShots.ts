@@ -1,16 +1,13 @@
 import type { CaptureArea, Shot, ShotBrowser } from '../../../shared/types';
 import { atWidth, captureOverCdp, type CapturedImage, type CaptureTarget } from '../capture';
 import { captureName } from '../captureName';
-import { APP_BROWSER, CAPTURE_FORMAT, DESIGN_NAME } from '../constants';
+import { APP_BROWSER, CAPTURE_FORMAT, DESIGN_NAME, PAGE_AREAS } from '../constants';
 import { designScale } from '../designScale';
 import { imageInfo } from '../imageInfo';
 import { DesignOverlay } from '../../overlay';
 import { makeThumbnail } from '../makeThumbnail';
 import { waitUntilShown } from '../waitUntilShown';
 import type { PageShotsDeps } from './types';
-
-/** The capture areas asked of the page as a whole (an element's goes through its pick). */
-const PAGE_AREAS: ReadonlySet<unknown> = new Set<CaptureArea>(['viewport', 'page']);
 
 /**
  * The workspace's captures and designs: taking captures of the app's page (with the design laid over it taken off

@@ -9,4 +9,8 @@ export const browsersApi: BrowsersApi = {
   addBrowser: () => ipcRenderer.invoke(IPC_CHANNEL.addBrowser),
   removeBrowser: (id) => ipcRenderer.invoke(IPC_CHANNEL.removeBrowser, id),
   setBrowserHidden: (id, hidden) => ipcRenderer.invoke(IPC_CHANNEL.setBrowserHidden, id, hidden),
+  openWithChanges: (id, url) => ipcRenderer.invoke(IPC_CHANNEL.openWithChanges, id, url),
+  listDriven: () => ipcRenderer.invoke(IPC_CHANNEL.listDriven),
+  activateTab: (browserId, tabId) => ipcRenderer.invoke(IPC_CHANNEL.activateTab, browserId, tabId),
+  stopDriving: (browserId) => ipcRenderer.invoke(IPC_CHANNEL.stopDriving, browserId),
 };

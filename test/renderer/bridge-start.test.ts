@@ -28,6 +28,7 @@ const api = vi.hoisted(() => ({
   listShots: vi.fn(),
   getOverlay: vi.fn(),
   listBrowsers: vi.fn(),
+  listDriven: vi.fn(),
   getPageState: vi.fn(),
   sessionFlushed: vi.fn(),
 }));
@@ -120,6 +121,7 @@ describe('start bridge', () => {
     api.listShots.mockResolvedValue([]);
     api.getOverlay.mockResolvedValue(null);
     api.listBrowsers.mockResolvedValue([]);
+    api.listDriven.mockResolvedValue([]);
     api.getPageState.mockResolvedValue(PAGE);
   });
   afterEach(() => {

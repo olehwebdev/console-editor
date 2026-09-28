@@ -18,3 +18,20 @@ export interface BrowserInfo {
   /** Turned off in Settings › Browsers: not offered beside the address bar. */
   hidden: boolean;
 }
+
+/** A tab of a browser the app drives. */
+export interface DrivenTab {
+  /** Its target id. */
+  id: string;
+  title: string;
+  url: string;
+}
+
+/** A browser the app launched with a profile of its own, and serves the workspace's overrides and rules in. */
+export interface DrivenBrowser {
+  /** The installed browser's id. */
+  id: string;
+  name: string;
+  version: string | null;
+  tabs: DrivenTab[];
+}

@@ -1,6 +1,7 @@
 /**
  * Other browsers: finding them the way each system lists them (Linux launchers and icon themes, macOS apps, the
- * Windows registry), telling their engines apart, what the user added or hid, and opening a page in one.
+ * Windows registry), telling their engines apart, what the user added or hid, and opening a page in one; and how a
+ * Chromium browser is started to be driven (its command, profile folder and debugging port's address) and its tabs kept.
  */
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -29,6 +30,11 @@ const { programOfCommand } = await import('../../src/main/browsers/findBrowsers/
 const { engineOf } = await import('../../src/main/browsers/engineOf');
 const { launchEnv } = await import('../../src/main/browsers/launchEnv');
 const { BrowserRegistry } = await import('../../src/main/browsers');
+const { driveCommand } = await import('../../src/main/browsers/driven/driveCommand');
+const { profileDir } = await import('../../src/main/browsers/driven/profileDir');
+const { readActivePort } = await import('../../src/main/browsers/driven/readActivePort');
+const { DrivenTabs } = await import('../../src/main/browsers/driven/DrivenTabs');
+type DrivenTabState = import('../../src/main/browsers/driven/types').DrivenTabState;
 const { BrowserStore } = await import('../../src/main/store/BrowserStore');
 type FoundBrowser = import('../../src/main/browsers').FoundBrowser;
 
@@ -273,5 +279,65 @@ describe('The registry', () => {
     writeFileSync(plain, '');
     await expect(r.add(plain)).rejects.toThrow("can't be run");
     await expect(r.add(tmp)).rejects.toThrow("isn't a program");
+  });
+});
+
+describe('Driving a Chromium browser', () => {
+  const chrome = (command: string[], urlAt = command.length, extra: Partial<FoundBrowser> = {}): FoundBrowser => ({
+    id: 'desktop:google-chrome.desktop',
+    name: 'Google Chrome',
+    engine: 'chromium',
+    command,
+    urlAt,
+    iconFile: null,
+    app: null,
+    program: command[0],
+    added: false,
+    ...extra,
+  });
+  const flags = ['--user-data-dir=/p', '--remote-debugging-port=0'];
+
+  it('puts its flags and address where the browser takes them', () => {
+    expect(driveCommand(chrome(['/usr/bin/google-chrome', '--incognito']), flags, 'about:blank')).toEqual(['/usr/bin/google-chrome', '--incognito', ...flags, 'about:blank']);
+    // A launcher's address in the middle stays in the middle.
+    expect(driveCommand(chrome(['/usr/bin/chrome', '--x'], 1), flags, 'about:blank')).toEqual(['/usr/bin/chrome', ...flags, 'about:blank', '--x']);
+    // Flatpak: before its forwarded-file markers, which go.
+    expect(driveCommand(chrome(['/usr/bin/flatpak', 'run', 'org.chromium.Chromium', '@@u', '@@'], 3), flags, 'about:blank')).toEqual(['/usr/bin/flatpak', 'run', 'org.chromium.Chromium', ...flags, 'about:blank']);
+    // macOS: a new instance of the app, the flags after --args.
+    expect(driveCommand(chrome(['open', '-a', '/Applications/Google Chrome.app']), flags, 'about:blank')).toEqual(['open', '-n', '-a', '/Applications/Google Chrome.app', '--args', ...flags, 'about:blank']);
+  });
+
+  it("keeps its profile in the app's data, or where a Snap's or Flatpak's sandbox lets it write", () => {
+    expect(profileDir(chrome(['/usr/bin/google-chrome']), '/data')).toBe('/data/browsers/desktop_google-chrome.desktop');
+    expect(profileDir(chrome(['/snap/bin/chromium']), '/data')).toMatch(/\/snap\/chromium\/common\/console-editor-profile$/);
+    expect(profileDir(chrome(['/usr/bin/flatpak', 'run', '--branch=stable', 'org.chromium.Chromium'], 4), '/data')).toMatch(/\/\.var\/app\/org\.chromium\.Chromium\/data\/console-editor-profile$/);
+  });
+
+  it('reads the address of its debugging port from its profile, once written', async () => {
+    const dir = join(tmp, 'profile');
+    mkdirSync(dir, { recursive: true });
+    expect(await readActivePort(dir)).toBeNull();
+    writeFileSync(join(dir, 'DevToolsActivePort'), '9333\n/devtools/browser/abc\n');
+    expect(await readActivePort(dir)).toBe('ws://127.0.0.1:9333/devtools/browser/abc');
+    writeFileSync(join(dir, 'DevToolsActivePort'), '9333');
+    expect(await readActivePort(dir)).toBeNull();
+  });
+
+  it('keeps its tabs: by target and session, their changes, a blank one to reuse, and the one a new target becomes', async () => {
+    const tabs = new DrivenTabs();
+    const tab = (id: string, url: string) => ({ info: { id, title: '', url }, sessionId: `s-${id}` }) as DrivenTabState;
+    tabs.add(tab('a', 'about:blank'));
+    expect(tabs.blank()?.info.id).toBe('a');
+    expect(tabs.update({ targetId: 'a', type: 'page', url: 'https://shop.test/', title: 'Shop' })).toBe(true);
+    expect(tabs.update({ targetId: 'a', type: 'page', url: 'https://shop.test/', title: 'Shop' })).toBe(false);
+    expect(tabs.update({ targetId: 'gone', type: 'page', url: 'x', title: 'y' })).toBe(false);
+    expect(tabs.blank()).toBeUndefined();
+    const arriving = tabs.arrival('b');
+    tabs.add(tab('b', 'about:blank'));
+    expect((await arriving).info.id).toBe('b');
+    expect(tabs.list()).toEqual([{ id: 'a', title: 'Shop', url: 'https://shop.test/' }, { id: 'b', title: '', url: 'about:blank' }]);
+    expect(tabs.remove('s-a')?.info.id).toBe('a');
+    expect(() => tabs.get('a')).toThrow('That tab is closed');
+    expect(tabs.clear().map((t) => t.info.id)).toEqual(['b']);
   });
 });

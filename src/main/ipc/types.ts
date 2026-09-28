@@ -1,7 +1,7 @@
 import type { BrowserWindow } from 'electron';
 import type { AppEvent } from '../../shared/types';
 import type { ActionsWindow } from '../ActionsWindow';
-import type { BrowserRegistry } from '../browsers';
+import type { BrowserRegistry, DrivenBrowsers } from '../browsers';
 import type { PageShots } from '../shots';
 import type { PageController } from '../PageController';
 import type { ActionStore } from '../store/ActionStore';
@@ -31,6 +31,8 @@ export interface IpcDeps {
   workspaces: WorkspaceController;
   /** The other browsers on this computer. */
   browsers: BrowserRegistry;
+  /** The Chromium browsers the app drives, serving the workspace's changes. */
+  driven: DrivenBrowsers;
   /** The workspace's captures and designs, and where they are kept. */
   shots: PageShots;
   shotStore: ShotStore;

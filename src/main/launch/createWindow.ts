@@ -5,7 +5,7 @@ import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent } from '../../shared/types';
 import { REPO_URL } from '../appInfo';
 import { ActionsWindow } from '../ActionsWindow';
-import { BrowserRegistry } from '../browsers';
+import { BrowserRegistry, DrivenBrowsers } from '../browsers';
 import { installMenu } from '../installMenu';
 import { watchOverrideFiles } from '../overrideFiles';
 import { registerIpc } from '../ipc';
@@ -44,6 +44,8 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     // The Actions panel's own window, if it has one, shows what its panel needs; the website's, what its toolbar does.
     actionsWindow.forward(event);
     page.window.forward(event);
+    // Browsers driven with the workspace's changes are served them as they change.
+    driven.onAppEvent(event);
   };
   const actionsWindow = new ActionsWindow({ editor: win, store: actionsWindowStore, announce: (state) => send({ type: 'actions-window', state }) });
 
@@ -53,6 +55,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   if (rulesProblem) win.webContents.once('did-finish-load', () => send({ type: 'error', message: rulesProblem }));
 
   const browsers = new BrowserRegistry({ prefs: browserPrefs, send });
+  const driven = new DrivenBrowsers({ registry: browsers, sources: { store, rules, settings }, userData, send });
   const page = new PageController(win, { store, rules, settings, send, windowStore: pageWindow, breakpoints: () => activeBreakpoints(session) });
   launchState.running = { win, page };
   // Before the engine attaches: it serves the active workspace's overrides and rules from the start.
@@ -76,8 +79,10 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     // The website's and the Actions panel's own windows go with the editor (and open again next time).
     page.window.dispose();
     actionsWindow.dispose();
+    // Browsers driven with the workspace's changes stay open, as they are.
+    driven.dispose();
   });
-  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, shots, shotStore, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
+  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, driven, shots, shotStore, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
 

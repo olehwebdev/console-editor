@@ -6,6 +6,8 @@ export interface ShotsApi {
   listShots(): Promise<Shot[]>;
   /** Captures the page shown, what its viewport shows or all of it, and keeps it with the workspace. */
   captureShot(area: Exclude<CaptureArea, 'element'>): Promise<Shot>;
+  /** Captures a tab of a browser the app drives: what it shows, or all of it. */
+  captureTabShot(browserId: string, tabId: string, area: Exclude<CaptureArea, 'element'>): Promise<Shot>;
   /** Captures the element of a pick (the inspector's), in any frame. */
   captureElementShot(pickId: string): Promise<Shot>;
   /** A shot's file, for reading its pixels. */

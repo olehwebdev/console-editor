@@ -5,5 +5,7 @@ import type { BrowserStore } from './types';
 export const useBrowserStore = create<BrowserStore>()((set) => ({
   browsers: [],
   loaded: false,
+  driven: [],
   setAll: (browsers) => set({ browsers, loaded: true }),
+  setDriven: (driven) => set({ driven }),
 }));

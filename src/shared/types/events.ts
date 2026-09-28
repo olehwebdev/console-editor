@@ -1,5 +1,5 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
-import type { BrowserInfo } from './browsers';
+import type { BrowserInfo, DrivenBrowser } from './browsers';
 import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { FrameStack, InspectedComponent, InspectHover, RenderCommit, StoreAction } from './inspector';
@@ -90,6 +90,8 @@ export type AppEvent =
   | { type: 'settings-changed'; settings: Settings }
   /** The browsers on this computer were looked for again, a version was read, or one was added, removed, hidden or shown. */
   | { type: 'browsers-changed'; browsers: BrowserInfo[] }
+  /** A browser the app drives opened, closed, or one of its tabs opened, closed or changed its address or title. */
+  | { type: 'driven-browsers-changed'; driven: DrivenBrowser[] }
   /** The active workspace's shots, newest first: one was taken, imported, renamed or deleted, or another workspace became active. */
   | { type: 'shots-changed'; shots: Shot[] }
   /** A design was laid over the page, its settings changed, or it was taken off (null). */

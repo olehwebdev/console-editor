@@ -1,6 +1,6 @@
 import { dialog, type BrowserWindow, type OpenDialogOptions } from 'electron';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
-import type { BrowserRegistry } from '../browsers';
+import type { BrowserRegistry, DrivenBrowsers } from '../browsers';
 import { assertString } from './assertString';
 import type { IpcHandle } from './types';
 
@@ -11,16 +11,37 @@ const ADD_BROWSER_DIALOG: Partial<Record<NodeJS.Platform, Pick<OpenDialogOptions
   linux: { defaultPath: '/usr/bin' },
 };
 
+interface BrowserIpcDeps {
+  win: BrowserWindow;
+  browsers: BrowserRegistry;
+  driven: DrivenBrowsers;
+}
+
 /**
- * The other browsers' channels. Listing and opening one serve the toolbar in both windows (`handlePage`); adding,
- * removing and hiding one are Settings', in the editor.
+ * The other browsers' channels. Listing and opening one, and the browsers driven with the workspace's changes, serve
+ * the toolbar in both windows (`handlePage`); adding, removing and hiding one are Settings', in the editor.
  */
-export function registerBrowserIpc(handle: IpcHandle, handlePage: IpcHandle, { win, browsers }: { win: BrowserWindow; browsers: BrowserRegistry }): void {
+export function registerBrowserIpc(handle: IpcHandle, handlePage: IpcHandle, { win, browsers, driven }: BrowserIpcDeps): void {
   handlePage(IPC_CHANNEL.listBrowsers, () => browsers.list());
   handlePage(IPC_CHANNEL.openInBrowser, (id: unknown, url: unknown) => {
     assertString(id, 'id');
     assertString(url, 'url');
     return browsers.open(id, url);
+  });
+  handlePage(IPC_CHANNEL.openWithChanges, (id: unknown, url: unknown) => {
+    assertString(id, 'id');
+    assertString(url, 'url');
+    return driven.open(id, url);
+  });
+  handlePage(IPC_CHANNEL.listDriven, () => driven.read());
+  handlePage(IPC_CHANNEL.activateTab, (browserId: unknown, tabId: unknown) => {
+    assertString(browserId, 'browserId');
+    assertString(tabId, 'tabId');
+    return driven.activate(browserId, tabId);
+  });
+  handlePage(IPC_CHANNEL.stopDriving, (browserId: unknown) => {
+    assertString(browserId, 'browserId');
+    driven.stop(browserId);
   });
   handle(IPC_CHANNEL.addBrowser, async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(win, { title: 'Add a browser', properties: ['openFile'], ...ADD_BROWSER_DIALOG[process.platform] });

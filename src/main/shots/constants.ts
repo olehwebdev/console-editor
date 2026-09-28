@@ -28,6 +28,9 @@ export const NAME_UNSAFE = /[^a-z0-9._-]+/gi;
 /** The longest part of a name made from an address. */
 export const MAX_NAME_STEM = 80;
 
+/** The capture areas asked of a page as a whole (an element's goes through its pick). */
+export const PAGE_AREAS: ReadonlySet<unknown> = new Set(['viewport', 'page']);
+
 /** The app's own page, as the browser a capture was taken in. */
 export const APP_BROWSER = { id: 'app', name: 'Chromium' } as const;
 

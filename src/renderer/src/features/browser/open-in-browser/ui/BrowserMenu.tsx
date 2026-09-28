@@ -9,8 +9,9 @@ import { Input } from '@/shared/ui/input';
 import { Spinner } from '@/shared/ui/spinner';
 import { selectShownBrowsers, useBrowserStore } from '@/entities/browser';
 import { usePageStore } from '@/entities/page';
-import { matchesBrowser, openInBrowser } from '../model';
+import { matchesBrowser, openInBrowser, openWithChanges } from '../model';
 import { BrowserRow } from './BrowserRow';
+import { DrivenSection } from './DrivenSection';
 
 export interface BrowserMenuProps {
   onClose(): void;
@@ -18,16 +19,24 @@ export interface BrowserMenuProps {
   onShowSettings?: () => void;
 }
 
-/** The browser menu's content: a search, and each browser offered; choosing one opens the page there. */
+/**
+ * The browser menu's content: a search, each browser offered (choosing one opens the page there), and the browsers
+ * driven with the workspace's changes, with their tabs.
+ */
 export function BrowserMenu({ onClose, onShowSettings }: BrowserMenuProps) {
   const [query, setQuery] = useState('');
   const browsers = useBrowserStore(useShallow(selectShownBrowsers));
   const loaded = useBrowserStore((s) => s.loaded);
+  const driven = useBrowserStore((s) => s.driven);
   const onWeb = usePageStore((s) => webAddress(s.page.url) !== '');
   const matches = browsers.filter((b) => matchesBrowser(b, query.trim()));
   const open = (browser: BrowserInfo) => {
     onClose();
     void openInBrowser(browser);
+  };
+  const openChanged = (browser: BrowserInfo) => {
+    onClose();
+    void openWithChanges(browser);
   };
 
   return (
@@ -40,7 +49,7 @@ export function BrowserMenu({ onClose, onShowSettings }: BrowserMenuProps) {
           onKeyDown={(event) => {
             if (event.key === KEY.enter && onWeb && matches[0]) open(matches[0]);
           }}
-          placeholder="Search browsers…"
+          placeholder={driven.length ? 'Search browsers and tabs…' : 'Search browsers…'}
           aria-label="Search browsers"
           leading={<Icon icon={icons.SearchIcon} size={14} />}
           className="flex-1"
@@ -50,13 +59,14 @@ export function BrowserMenu({ onClose, onShowSettings }: BrowserMenuProps) {
       {onWeb ? null : <p className="px-2 text-[12px] text-fg-subtle">Open a website first, then open it in another browser from here.</p>}
       <div className="flex max-h-80 flex-col overflow-y-auto">
         {matches.map((browser) => (
-          <BrowserRow key={browser.id} browser={browser} disabled={!onWeb} onOpen={open} />
+          <BrowserRow key={browser.id} browser={browser} disabled={!onWeb} driven={driven.some((d) => d.id === browser.id)} onOpen={open} onOpenWithChanges={openChanged} />
         ))}
         {!loaded ? <Spinner className="mx-auto my-3 text-fg-subtle" label="Looking for browsers" /> : null}
         {loaded && !matches.length ? (
           <p className="px-2 py-3 text-center text-[12px] text-fg-subtle">{browsers.length ? 'No browser matches.' : 'No other browsers were found. Add one in Settings › Browsers.'}</p>
         ) : null}
       </div>
+      <DrivenSection query={query.trim()} onClose={onClose} />
     </div>
   );
 }
