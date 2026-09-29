@@ -34,6 +34,12 @@ export const CLIP_BOX = 'box';
 /** A new top-level context's type. */
 export const TAB_TYPE = 'tab';
 
+/**
+ * How long bringing a tab to the front is waited for. Firefox selects the tab at once but answers only once its window
+ * has taken focus too, which a window starting up headless may never do: it would hold opening the tab for good.
+ */
+export const ACTIVATE_WAIT_MS = 2_000;
+
 /** How far `navigate` waits: not at all (opening a tab), or until the page has loaded (capturing it). */
 export const NAVIGATE_WAIT = { none: 'none', loaded: 'complete' } as const;
 

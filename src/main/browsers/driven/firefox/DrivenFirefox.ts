@@ -1,3 +1,4 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import type { CaptureArea } from '../../../../shared/types';
 import { BIDI, BidiInterception, type BidiConnection } from '../../../engine/bidi';
 import { withTimeout } from '../../../engine/PageInterception';
@@ -9,7 +10,7 @@ import type { Driver, DriverDeps, KeptTab, TabRead } from '../types';
 import { captureContext } from './captureContext';
 import { captureContextAt } from './captureContextAt';
 import { FirefoxDesigns } from './FirefoxDesigns';
-import { NAVIGATE_WAIT, TAB_TYPE } from './constants';
+import { ACTIVATE_WAIT_MS, NAVIGATE_WAIT, TAB_TYPE } from './constants';
 import { readFirefoxTabs } from './readFirefoxTabs';
 import type { ContextInfo } from './types';
 
@@ -60,9 +61,13 @@ export class DrivenFirefox extends DrivenBase<KeptTab> implements Driver {
     return this.load(url, NAVIGATE_WAIT.none);
   }
 
+  /** Brings a tab to the front, waiting a while at most for its window to take focus (see {@link ACTIVATE_WAIT_MS}). */
   async activate(tabId: string): Promise<void> {
     this.tabs.get(tabId);
-    await this.connection.send(BIDI.browsingContext.activate, { context: tabId });
+    const activated = this.connection.send(BIDI.browsingContext.activate, { context: tabId });
+    // An answer (or failure) coming after the wait is let go of.
+    void activated.catch(() => undefined);
+    await Promise.race([activated, delay(ACTIVATE_WAIT_MS, undefined, { ref: false })]);
   }
 
 

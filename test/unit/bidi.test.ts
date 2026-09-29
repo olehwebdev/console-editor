@@ -1,13 +1,18 @@
 /**
  * Driving Firefox over WebDriver BiDi, the parts that need no browser: the resource type each request is matched as,
- * what rules read from a request, the head an override answers with before its request is sent, and the address
- * Firefox writes in its profile.
+ * what rules read from a request, the head an override answers with before its request is sent, the address Firefox
+ * writes in its profile, and a tab brought to the front whose window never says it took focus.
  */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import type { FoundBrowser } from '../../src/main/browsers';
+import { ACTIVATE_WAIT_MS } from '../../src/main/browsers/driven/firefox/constants';
+import { DrivenFirefox } from '../../src/main/browsers/driven/firefox/DrivenFirefox';
 import { readBidiPort } from '../../src/main/browsers/driven/firefox/readBidiPort';
+import type { DriverDeps } from '../../src/main/browsers/driven/types';
+import type { BidiConnection } from '../../src/main/engine/bidi';
 import { requestBodyOf } from '../../src/main/engine/bidi/requestBodyOf';
 import { requestOf } from '../../src/main/engine/bidi/requestOf';
 import { resourceTypeOf } from '../../src/main/engine/bidi/resourceTypeOf';
@@ -133,5 +138,44 @@ describe("Firefox's BiDi address", () => {
     expect(await readBidiPort(tmp)).toBe('ws://127.0.0.1:9222/session');
     writeFileSync(join(tmp, 'WebDriverBiDiServer.json'), '{ "ws_host": "127.0.0.1"');
     expect(await readBidiPort(tmp)).toBeNull();
+  });
+});
+
+describe('A Firefox tab brought to the front', () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** Firefox with one blank tab, answering every command but `activate`, which it answers as `activate` says. */
+  const firefox = (activate: () => Promise<unknown>) => {
+    const sent: string[] = [];
+    const answers: Record<string, () => Promise<unknown>> = {
+      'browsingContext.getTree': async () => ({ contexts: [{ context: 'c1', url: 'about:blank', children: [] }] }),
+      'browsingContext.activate': activate,
+    };
+    const send = (method: string) => {
+      sent.push(method);
+      return (answers[method] ?? (async () => ({})))();
+    };
+    const connection = { send, onEvent: () => () => undefined, onClose: () => () => undefined } as unknown as BidiConnection;
+    const sources = { store: { list: () => [] }, rules: { list: () => [] }, settings: { get: () => DEFAULT_SETTINGS } } as unknown as DriverDeps['sources'];
+    const deps: DriverDeps = { listedAs: { id: 'firefox', name: 'Firefox', everyday: false }, home: tmp, sources, userData: tmp, changed: () => undefined, closed: () => undefined };
+    const driver = new DrivenFirefox({ id: 'firefox', name: 'Firefox' } as FoundBrowser, '150.0', connection, deps);
+    return { sent, driver };
+  };
+
+  it("doesn't hold opening a page for good when its window never says it took focus", async () => {
+    const { sent, driver } = firefox(() => new Promise(() => undefined));
+    await driver.start();
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    const opened = driver.open('https://shop.test/');
+    await vi.advanceTimersByTimeAsync(ACTIVATE_WAIT_MS);
+    await expect(opened).resolves.toMatchObject({ info: { id: 'c1', url: 'https://shop.test/' } });
+    expect(sent.slice(-2)).toEqual(['browsingContext.navigate', 'browsingContext.activate']);
+  });
+
+  it('still says when Firefox refuses it', async () => {
+    const { driver } = firefox(() => Promise.reject(new Error('browsingContext.activate: no such frame')));
+    await driver.start();
+    await expect(driver.activate('c1')).rejects.toThrow('no such frame');
+    await expect(driver.activate('c2')).rejects.toThrow('That tab is closed');
   });
 });
