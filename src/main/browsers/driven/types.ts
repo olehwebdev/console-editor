@@ -1,4 +1,5 @@
 import type { AppEvent, CaptureArea, DrivenBrowser, DrivenTab } from '../../../shared/types';
+import type { PageDesign } from '../../overlay';
 import type { CapturedImage, Viewport } from '../../shots/capture';
 import type { OverrideStore } from '../../store/OverrideStore';
 import type { RuleStore } from '../../store/RuleStore';
@@ -50,8 +51,22 @@ export interface Driver {
   applySettings(): Promise<void>;
   /** Reloads its tabs showing a website. */
   reload(): Promise<void>;
+  /** Lays the design over every tab (null: takes it off), and over tabs opened later. */
+  setDesign(design: PageDesign | null): Promise<void>;
   /** Stops serving the workspace's changes; the browser stays open. */
   stop(): void;
+}
+
+/** How a driver lays the app's design over its tabs. */
+export interface TabDesigns<T extends KeptTab> {
+  /** Lays `design` over each of `tabs` (null: takes it off), and keeps it for tabs found later. */
+  set(design: PageDesign | null, tabs: readonly T[]): Promise<void>;
+  /** Lays the design over a tab found since (nothing while there is none). */
+  found(tab: T): Promise<void>;
+  /** Runs `task` (a capture) with the design off the tab and the page at its own width, then lays it back. */
+  hidden<R>(tab: T, task: () => Promise<R>): Promise<R>;
+  /** Forgets a tab that closed. */
+  gone(tab: T): void;
 }
 
 export interface DriverDeps {

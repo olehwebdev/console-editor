@@ -5,9 +5,10 @@ import type { CapturedImage, Viewport } from '../../../shots/capture';
 import type { FoundBrowser } from '../../types';
 import { LOAD_TIMEOUT_MS, START_URL } from '../constants';
 import { DrivenBase } from '../DrivenBase';
-import type { Driver, DriverDeps, KeptTab, TabCapture, TabRead } from '../types';
+import type { Driver, DriverDeps, KeptTab, TabRead } from '../types';
 import { captureContext } from './captureContext';
 import { captureContextAt } from './captureContextAt';
+import { FirefoxDesigns } from './FirefoxDesigns';
 import { NAVIGATE_WAIT, TAB_TYPE } from './constants';
 import { readFirefoxTabs } from './readFirefoxTabs';
 import type { ContextInfo } from './types';
@@ -19,6 +20,7 @@ import type { ContextInfo } from './types';
  */
 export class DrivenFirefox extends DrivenBase<KeptTab> implements Driver {
   private readonly interception: BidiInterception;
+  protected readonly designs: FirefoxDesigns;
 
   constructor(
     browser: FoundBrowser,
@@ -27,6 +29,7 @@ export class DrivenFirefox extends DrivenBase<KeptTab> implements Driver {
     deps: DriverDeps,
   ) {
     super(browser, version, deps);
+    this.designs = new FirefoxDesigns(connection);
     const { store, rules, settings } = deps.sources;
     this.interception = new BidiInterception(connection, { getOverrides: () => store.list(), getRules: () => rules.list(), getSettings: () => settings.get() });
   }
@@ -62,12 +65,6 @@ export class DrivenFirefox extends DrivenBase<KeptTab> implements Driver {
     await this.connection.send(BIDI.browsingContext.activate, { context: tabId });
   }
 
-  async captureAt(url: string, viewport: Viewport): Promise<TabCapture> {
-    const shown = this.tabs.showing(url);
-    const tab = shown ?? (await withTimeout(this.load(url, NAVIGATE_WAIT.loaded), LOAD_TIMEOUT_MS, 'Loading the page'));
-    if (shown) await this.activate(tab.info.id);
-    return { image: await captureContextAt(this.connection, tab.info.id, viewport), url: tab.info.url };
-  }
 
   refresh(): Promise<void> {
     return this.interception.refresh();
@@ -97,6 +94,14 @@ export class DrivenFirefox extends DrivenBase<KeptTab> implements Driver {
     return captureContext(this.connection, tab.info.id, area);
   }
 
+  protected openLoaded(url: string): Promise<KeptTab> {
+    return withTimeout(this.load(url, NAVIGATE_WAIT.loaded), LOAD_TIMEOUT_MS, 'Loading the page');
+  }
+
+  protected takeAt(tab: KeptTab, viewport: Viewport): Promise<CapturedImage> {
+    return captureContextAt(this.connection, tab.info.id, viewport);
+  }
+
   /** Loads an address in the blank tab the browser started on, or else in a new tab, and brings it to the front. */
   private async load(url: string, wait: string): Promise<KeptTab> {
     const tab = this.tabs.blank() ?? (await this.newTab());
@@ -115,8 +120,10 @@ export class DrivenFirefox extends DrivenBase<KeptTab> implements Driver {
 
   private found(id: string, url: string): void {
     if (this.tabs.has(id)) return;
-    this.tabs.add({ info: { id, title: '', url } });
+    const tab = { info: { id, title: '', url } };
+    this.tabs.add(tab);
     this.deps.changed();
+    void this.designs.found(tab);
   }
 
   /** The browser was quit: its tabs are gone with it. */

@@ -6,10 +6,11 @@ import { BACKDROP, DIFFERENCE, OVERLAY_ELEMENT_ID, OVERLAY_GLOBAL, TRANSPARENT }
  * the page removes it; `setStyle` places and styles it; `remove` takes it off. A canvas, not an `<img>`: a page's
  * CSP can refuse a data: image, but not pixels drawn from bytes. Blended as a difference, it needs a backdrop: a page
  * that paints no background of its own shows the browser's white, which nothing blends with, so it is given that
- * white (no change to see) while it is, and its own back after.
+ * white (no change to see) while it is, and its own back after. Only a top document gets one: the scripts run in
+ * every frame's document.
  */
 export const OVERLAY_JS = `(() => {
-  if (globalThis.${OVERLAY_GLOBAL}) return;
+  if (globalThis.${OVERLAY_GLOBAL} || window.top !== window) return;
   let canvas = null;
   let style = '';
   let difference = false;

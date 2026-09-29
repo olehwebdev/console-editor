@@ -21,6 +21,7 @@ import { defaultMatcherFor } from '../../src/shared/matcher';
 import { DEFAULT_SETTINGS, type AppEvent, type DrivenTab, type Override, type Settings } from '../../src/shared/types';
 import { chromiumAvailable } from '../helpers/chromium';
 import { decodePng } from '../helpers/decodePng';
+import { encodePng } from '../helpers/encodePng';
 
 async function waitFor<T>(fn: () => T | undefined | false | Promise<T | undefined | false>, timeout = 20_000): Promise<T> {
   const deadline = Date.now() + timeout;
@@ -61,6 +62,7 @@ describe.skipIf(!chromiumAvailable)('a Chromium browser driven with your changes
       const path = new URL(req.url ?? '/', 'http://x').pathname;
       const files: Record<string, [string, string]> = {
         '/page.html': ['text/html', '<!doctype html><title>upstream</title><body style="margin:0;background:#ff0000"><script src="/app.js"></script></body>'],
+        '/design.html': ['text/html', `<!doctype html><title>-</title><body style="margin:0;background:#0000ff"><script>setInterval(() => { const c = document.getElementById('__console-editor-overlay'); document.title = (c ? 'design ' + getComputedStyle(c).opacity : 'no design') + ' ' + innerWidth; }, 100);</script></body>`],
         '/app.js': ['text/javascript', "document.title = 'upstream';"],
       };
       const file = files[path];
@@ -137,6 +139,29 @@ describe.skipIf(!chromiumAvailable)('a Chromium browser driven with your changes
     expect(readFileSync(join(profile(), 'DevToolsActivePort'), 'utf8')).toBe(port);
     await waitFor(() => tabs().some((t) => t.url.endsWith('?third') && t.title === 'changed'));
     expect(tabs()).toHaveLength(3);
+  });
+
+  it('lays the design over its tabs at its width, keeps it after a reload and out of captures, and takes it off', async () => {
+    const title = async () => (await driven.read())[0]?.tabs.find((t) => t.url === `${origin}/design.html`)?.title ?? '';
+    await driven.open(browser.id, `${origin}/design.html`);
+    const settings = { opacity: 0.5, blend: 'normal', invert: false, x: 0, y: 0, attached: 'page', hidden: false, fitWidth: true } as const;
+    const design = { key: 'd1', base64: encodePng(40, 30, () => [255, 0, 0]).toString('base64'), width: 300, height: 200, settings };
+    await driven.setDesign(design);
+    await waitFor(async () => (await title()) === 'design 0.5 300');
+    await driven.setDesign({ ...design, settings: { ...settings, opacity: 1 } });
+    await waitFor(async () => (await title()) === 'design 1 300');
+    // Captured without it, at the window's own width.
+    const tab = (await driven.read())[0].tabs.find((t) => t.url === `${origin}/design.html`)!;
+    const { image } = await driven.capture(browser.id, tab.id, 'viewport');
+    expect(decodePng(image.bytes).at(5, 5)).toEqual([0, 0, 255, 255]);
+    expect(image.viewport.width).not.toBe(300);
+    await waitFor(async () => (await title()) === 'design 1 300');
+    // A new document gets it too.
+    driven.onAppEvent({ type: 'overrides-changed', overrides: [] });
+    await waitFor(async () => (await title()) === '-');
+    await waitFor(async () => (await title()) === 'design 1 300');
+    await driven.setDesign(null);
+    await waitFor(async () => /^no design \d+$/.test(await title()) && !(await title()).endsWith(' 300'));
   });
 
   it('refuses a browser it can\'t drive (Safari), and an address not on the web', async () => {

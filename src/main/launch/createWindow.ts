@@ -59,7 +59,8 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   const page = new PageController(win, { store, rules, settings, send, windowStore: pageWindow, breakpoints: () => activeBreakpoints(session) });
   launchState.running = { win, page };
   // Before the engine attaches: it serves the active workspace's overrides and rules from the start.
-  const shots = new PageShots({ store: shotStore, page, send });
+  // The design laid over the page goes over the tabs of browsers driven with the workspace's changes too.
+  const shots = new PageShots({ store: shotStore, page, send, onDesign: (design) => void driven.setDesign(design) });
   registerShotProtocol(shotStore);
   const workspaces = new WorkspaceController(page, session, store, rules, actions, send, sourceMaps, shots);
   await workspaces.start();

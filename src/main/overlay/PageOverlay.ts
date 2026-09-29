@@ -1,7 +1,7 @@
 import type { OverlaySettings } from '../../shared/types';
 import { CDP } from '../engine/constants';
 import type { CdpTransport } from '../engine/cdp';
-import { OVERLAY_GLOBAL, OVERLAY_WORLD } from './constants';
+import { OVERLAY_WORLD } from './constants';
 import { overlayCall } from './overlayCall';
 import { OVERLAY_JS } from './overlaySource';
 import { overlayStyle } from './overlayStyle';
@@ -40,7 +40,7 @@ export class PageOverlay {
     this.scripts = {};
     if (!ids.length) return;
     await Promise.all(ids.map((identifier) => this.transport.send(CDP.Page.removeScriptToEvaluateOnNewDocument, { identifier }).catch(() => undefined)));
-    await this.run(await this.world(), `globalThis.${OVERLAY_GLOBAL} && ${overlayCall('remove')}`).catch(() => undefined);
+    await this.run(await this.world(), overlayCall('remove')).catch(() => undefined);
   }
 
   private async add(source: string): Promise<string> {

@@ -1,5 +1,6 @@
 import type { AppEvent, CaptureArea, DrivenBrowser, DrivenEngine, ShotBrowser } from '../../../shared/types';
 import { HTTP_URL } from '../../constants';
+import type { PageDesign } from '../../overlay';
 import type { BrowserCapture, CapturedImage, Viewport } from '../../shots/capture';
 import { PAGE_AREAS } from '../../shots/constants';
 import type { FoundBrowser } from '../types';
@@ -24,6 +25,8 @@ export class DrivenBrowsers {
   private readonly driven = new Map<string, Driver>();
   private readonly starting = new Map<string, Promise<Driver>>();
   private reloadTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The design over the app's page, if any: driven tabs have it too. */
+  private design: PageDesign | null = null;
   private readonly reactions: AppEventReactions = {
     'overrides-changed': () => this.served(),
     'rules-changed': () => this.served(),
@@ -81,6 +84,12 @@ export class DrivenBrowsers {
     this.changed();
   }
 
+  /** Lays the design over the app's page over every driven tab too (null: takes it off), and over tabs opened later. */
+  async setDesign(design: PageDesign | null): Promise<void> {
+    this.design = design;
+    await Promise.all(this.all().map((d) => d.setDesign(design).catch(() => undefined)));
+  }
+
   /** Told every app event: overrides, rules and settings that change are served in the driven tabs too. */
   onAppEvent(event: AppEvent): void {
     this.reactions[event.type]?.();
@@ -118,6 +127,7 @@ export class DrivenBrowsers {
       this.changed();
     };
     const driven = await connect(browser, { sources: this.deps.sources, userData: this.deps.userData, changed: () => this.changed(), closed });
+    await driven.setDesign(this.design).catch(() => undefined);
     this.driven.set(browser.id, driven);
     this.changed();
     return driven;

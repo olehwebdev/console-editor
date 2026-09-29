@@ -8,7 +8,8 @@ import { attachTab } from './attachTab';
 import { captureTabAt } from './captureTabAt';
 import { NEW_TAB_TIMEOUT_MS, START_URL } from '../constants';
 import { DrivenBase } from '../DrivenBase';
-import type { Driver, DriverDeps, TabCapture, TabRead } from '../types';
+import type { Driver, DriverDeps, TabRead } from '../types';
+import { ChromiumDesigns } from './ChromiumDesigns';
 import { PAGE_ATTACH, PAGE_TARGET, STOP_ATTACH } from './constants';
 import { letTargetGo } from './letTargetGo';
 import { readTabInfos } from './readTabInfos';
@@ -22,6 +23,8 @@ import type { AttachedPage, DrivenTabState, PageTargetInfo } from './types';
  * the app's page. Tabs are listed with their address and title as they change.
  */
 export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver {
+  protected readonly designs = new ChromiumDesigns();
+
   constructor(
     browser: FoundBrowser,
     version: string | null,
@@ -60,14 +63,6 @@ export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver
     return tab;
   }
 
-  /** Captures the whole page at `url`, in the tab showing it (or one opened there), laid out in `viewport`. */
-  async captureAt(url: string, viewport: Viewport): Promise<TabCapture> {
-    const shown = this.tabs.showing(url);
-    const tab = shown ?? (await this.open(url));
-    if (shown) await this.activate(tab.info.id);
-    return captureTabAt(tab, viewport);
-  }
-
   async activate(tabId: string): Promise<void> {
     this.tabs.get(tabId);
     await this.connection.send(CDP.Target.activateTarget, { targetId: tabId });
@@ -103,12 +98,14 @@ export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver
     tab.transport.on(CDP.Page.loadEventFired, () => void this.readTabs([tab.info.id]));
     this.tabs.add(tab);
     this.deps.changed();
+    void this.designs.found(tab);
   }
 
   private detached(sessionId: string): void {
     const tab = this.tabs.all().find((t) => t.sessionId === sessionId);
     if (!tab) return;
     this.tabs.remove(tab.info.id);
+    this.designs.gone(tab);
     releaseTab(tab);
     this.deps.changed();
   }
@@ -119,6 +116,15 @@ export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver
 
   protected take(tab: DrivenTabState, area: Exclude<CaptureArea, 'element'>): Promise<CapturedImage> {
     return captureOverCdp(tab.transport, { area });
+  }
+
+  protected openLoaded(url: string): Promise<DrivenTabState> {
+    // Page.navigate answers once the page is committed: the capture waits for its load.
+    return this.open(url);
+  }
+
+  protected takeAt(tab: DrivenTabState, viewport: Viewport): Promise<CapturedImage> {
+    return captureTabAt(tab, viewport);
   }
 
   private async newTab(): Promise<DrivenTabState> {

@@ -29,7 +29,7 @@ export const BIDI = {
     beforeRequestSent: 'network.beforeRequestSent',
     responseStarted: 'network.responseStarted',
   },
-  script: { evaluate: 'script.evaluate' },
+  script: { addPreloadScript: 'script.addPreloadScript', evaluate: 'script.evaluate', removePreloadScript: 'script.removePreloadScript' },
 } as const;
 
 /** The phases the interception pauses requests at: before they are sent (to block or answer them), and at their response's head. */

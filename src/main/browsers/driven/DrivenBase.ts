@@ -1,10 +1,14 @@
 import type { CaptureArea, DrivenBrowser } from '../../../shared/types';
-import type { CapturedImage } from '../../shots/capture';
+import type { PageDesign } from '../../overlay';
+import type { CapturedImage, Viewport } from '../../shots/capture';
 import type { FoundBrowser } from '../types';
 import { DrivenTabs } from './DrivenTabs';
-import type { DriverDeps, KeptTab, TabCapture, TabRead } from './types';
+import type { DriverDeps, KeptTab, TabCapture, TabDesigns, TabRead } from './types';
 
-/** What every driven browser does the same way, whatever protocol it speaks: its tabs, listed, read again and captured. */
+/**
+ * What every driven browser does the same way, whatever protocol it speaks: its tabs, listed, read again and captured
+ * (with the design off them while they are).
+ */
 export abstract class DrivenBase<T extends KeptTab> {
   protected readonly tabs = new DrivenTabs<T>();
   protected readonly disposers: Array<() => void> = [];
@@ -31,11 +35,32 @@ export abstract class DrivenBase<T extends KeptTab> {
   async capture(tabId: string, area: Exclude<CaptureArea, 'element'>): Promise<TabCapture> {
     const tab = this.tabs.get(tabId);
     await this.activate(tabId);
-    return { image: await this.take(tab, area), url: tab.info.url };
+    return { image: await this.designs.hidden(tab, () => this.take(tab, area)), url: tab.info.url };
   }
+
+  /** Captures the whole page at `url`, in the tab showing it (or one opened there, loaded), laid out in `viewport`. */
+  async captureAt(url: string, viewport: Viewport): Promise<TabCapture> {
+    const shown = this.tabs.showing(url);
+    const tab = shown ?? (await this.openLoaded(url));
+    if (shown) await this.activate(tab.info.id);
+    return { image: await this.designs.hidden(tab, () => this.takeAt(tab, viewport)), url: tab.info.url };
+  }
+
+  setDesign(design: PageDesign | null): Promise<void> {
+    return this.designs.set(design, this.tabs.all());
+  }
+
+  /** How the design is laid over this browser's tabs. */
+  protected abstract readonly designs: TabDesigns<T>;
 
   /** Brings a tab to the front, in its window. */
   abstract activate(tabId: string): Promise<void>;
+
+  /** Opens an address as `open` does, resolving once it has loaded (or at least is on its way). */
+  protected abstract openLoaded(url: string): Promise<T>;
+
+  /** Captures a tab's whole page, in front, laid out in `viewport`, once it has loaded and been quiet a moment. */
+  protected abstract takeAt(tab: T, viewport: Viewport): Promise<CapturedImage>;
 
   /** What the browser says of each tab now. */
   protected abstract read(ids: string[]): Promise<TabRead[]>;

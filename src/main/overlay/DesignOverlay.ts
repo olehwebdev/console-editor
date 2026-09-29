@@ -16,6 +16,8 @@ const PATCH_SCHEMA = overlaySettingsSchema.partial();
  */
 export class DesignOverlay {
   private state: OverlayState | null = null;
+  /** The design's image, as base64: what other browsers' tabs are given too. */
+  private image = '';
   private readonly overlay: PageOverlay;
   /** The width the page is laid out at and the view's size then ('' at its own width): unchanged, it isn't laid out again. */
   private fitted = '';
@@ -33,8 +35,10 @@ export class DesignOverlay {
     const shot = this.deps.store.get(shotId);
     const bytes = await this.deps.store.read(shotId);
     const state: OverlayState = { shotId: shot.id, name: shot.name, width: Math.round(shot.width / shot.scale), height: Math.round(shot.height / shot.scale), settings: this.state?.settings ?? DEFAULT_OVERLAY_SETTINGS };
-    await this.overlay.show(bytes.toString('base64'), state.settings, state.width, state.height);
+    const image = bytes.toString('base64');
+    await this.overlay.show(image, state.settings, state.width, state.height);
     this.state = state;
+    this.image = image;
     this.fit();
     this.announce();
     return state;
@@ -93,6 +97,8 @@ export class DesignOverlay {
   }
 
   private announce(): void {
-    this.deps.send({ type: 'overlay-changed', overlay: this.state });
+    const { state } = this;
+    this.deps.send({ type: 'overlay-changed', overlay: state });
+    this.deps.onDesign?.(state && { key: state.shotId, base64: this.image, width: state.width, height: state.height, settings: state.settings });
   }
 }

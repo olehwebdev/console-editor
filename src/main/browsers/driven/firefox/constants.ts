@@ -36,3 +36,6 @@ export const TAB_TYPE = 'tab';
 
 /** How far `navigate` waits: not at all (opening a tab), or until the page has loaded (capturing it). */
 export const NAVIGATE_WAIT = { none: 'none', loaded: 'complete' } as const;
+
+/** A tab's window height, asked of its page to keep it while its width is a design's. */
+export const HEIGHT_EXPRESSION = 'String(innerHeight)';

@@ -20,6 +20,7 @@ import { BidiConnection } from '../../src/main/engine/bidi';
 import { defaultMatcherFor } from '../../src/shared/matcher';
 import { DEFAULT_SETTINGS, type AppEvent, type DrivenTab, type Override, type Rule, type Settings } from '../../src/shared/types';
 import { decodePng } from '../helpers/decodePng';
+import { encodePng } from '../helpers/encodePng';
 import { killMatching } from '../helpers/killMatching';
 
 const firefox = (() => {
@@ -64,6 +65,7 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
       const script = `Promise.all([fetch('/api').then((r) => r.headers.get('x-rule')), fetch('/blocked.js').then(() => 'loaded', () => 'blocked'), fetch('${other}/data', { method: 'PUT' }).then((r) => r.text(), () => 'refused')]).then((all) => { document.title = [window.appValue, ...all].join(' '); });`;
       const files: Record<string, [string, string]> = {
         '/page.html': ['text/html', `<!doctype html><title>upstream</title><body style="margin:0;background:#ff0000"><script src="/app.js"></script><script>${script}</script></body>`],
+        '/design.html': ['text/html', `<!doctype html><title>-</title><body style="margin:0;background:#0000ff"><script>setInterval(() => { const c = document.getElementById('__console-editor-overlay'); document.title = (c ? 'design ' + getComputedStyle(c).opacity : 'no design') + ' ' + innerWidth; }, 100);</script></body>`],
         '/app.js': ['text/javascript', "window.appValue = 'upstream';"],
         '/api': ['application/json', '{}'],
         '/blocked.js': ['text/javascript', ''],
@@ -128,6 +130,29 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
     await driven.open(browser.id, `${origin}/page.html?again`);
     expect(readFileSync(join(profile(), 'WebDriverBiDiServer.json'), 'utf8')).toBe(port);
     await waitFor(async () => (await tabs()).some((t) => t.url.endsWith('?again') && t.title.startsWith('changed')));
+  });
+
+  it('lays the design over its tabs at its width, keeps it after a reload and out of captures, and takes it off', async () => {
+    const title = async () => (await driven.read())[0]?.tabs.find((t) => t.url === `${origin}/design.html`)?.title ?? '';
+    await driven.open(browser.id, `${origin}/design.html`);
+    const settings = { opacity: 0.5, blend: 'normal', invert: false, x: 0, y: 0, attached: 'page', hidden: false, fitWidth: true } as const;
+    const design = { key: 'd1', base64: encodePng(40, 30, () => [255, 0, 0]).toString('base64'), width: 300, height: 200, settings };
+    await driven.setDesign(design);
+    await waitFor(async () => (await title()) === 'design 0.5 300');
+    await driven.setDesign({ ...design, settings: { ...settings, opacity: 1 } });
+    await waitFor(async () => (await title()) === 'design 1 300');
+    // Captured without it, at the window's own width.
+    const tab = (await driven.read())[0].tabs.find((t) => t.url === `${origin}/design.html`)!;
+    const { image } = await driven.capture(browser.id, tab.id, 'viewport');
+    expect(decodePng(image.bytes).at(5, 5)).toEqual([0, 0, 255, 255]);
+    expect(image.viewport.width).not.toBe(300);
+    await waitFor(async () => (await title()) === 'design 1 300');
+    // A new document gets it too.
+    driven.onAppEvent({ type: 'overrides-changed', overrides: [] });
+    await waitFor(async () => (await title()) === '-');
+    await waitFor(async () => (await title()) === 'design 1 300');
+    await driven.setDesign(null);
+    await waitFor(async () => /^no design \d+$/.test(await title()) && !(await title()).endsWith(' 300'));
   });
 
   it('forgets it once it is quit', async () => {
