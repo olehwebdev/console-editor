@@ -22,7 +22,7 @@ export interface BrowsersApi {
   listDriven(): Promise<DrivenBrowser[]>;
   /** Brings a tab of a driven browser to the front. */
   activateTab(browserId: string, tabId: string): Promise<void>;
-  /** The tabs open in your everyday Firefox, from its session file (read when asked, and nowhere else). */
+  /** The tabs open in your everyday browsers: Firefox's session files, macOS scripting (read when asked, and nowhere else). */
   listEverydayTabs(): Promise<EverydayBrowser[]>;
   /** Stops serving the workspace's changes in a driven browser (it stays open, as it is). */
   stopDriving(browserId: string): Promise<void>;

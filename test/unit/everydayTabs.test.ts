@@ -1,12 +1,18 @@
 /**
  * Your everyday Firefox's tabs: its compressed session file (`mozLz40`, an LZ4 block) read, including one Firefox
  * wrote, its profiles found from profiles.ini (the install's default first), and the page each tab shows, on the web.
+ * And your macOS browsers' tabs through scripting: the script run against a stand-in for JavaScript for Automation.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { listEverydayTabs } from '../../src/main/browsers/everyday';
+import { runInNewContext } from 'node:vm';
+import { listEverydayTabs, listsTabs } from '../../src/main/browsers/everyday';
+import { scriptableApp } from '../../src/main/browsers/everyday/scriptable';
+import { scriptTabsOf } from '../../src/main/browsers/everyday/scriptable/scriptTabsOf';
+import { tabsScript } from '../../src/main/browsers/everyday/scriptable/tabsScript';
+import type { FoundBrowser } from '../../src/main/browsers/types';
 import { lz4Block } from '../../src/main/browsers/everyday/lz4Block';
 import { profilesOf } from '../../src/main/browsers/everyday/profilesOf';
 import { readMozLz4 } from '../../src/main/browsers/everyday/readMozLz4';
@@ -69,7 +75,84 @@ describe("Firefox's profiles", () => {
     mkdirSync(join(data, 'Profiles/e.empty'), { recursive: true });
     writeFileSync(join(data, 'profiles.ini'), '[Profile0]\nName=default\nIsRelative=1\nPath=Profiles/d.default\n[Profile1]\nName=empty\nIsRelative=1\nPath=Profiles/e.empty\n');
     writeFileSync(join(data, 'Profiles/d.default/sessionstore-backups/recovery.jsonlz4'), mozLz4(session));
-    expect(await listEverydayTabs(home, 'linux')).toEqual([{ id: join(data, 'Profiles/d.default'), name: 'Firefox', profile: 'default', tabs: sessionTabsOf(JSON.stringify(session)) }]);
-    expect(await listEverydayTabs(home, 'aix')).toEqual([]);
+    expect(await listEverydayTabs([], home, 'linux')).toEqual([{ id: join(data, 'Profiles/d.default'), name: 'Firefox', profile: 'default', tabs: sessionTabsOf(JSON.stringify(session)) }]);
+    expect(await listEverydayTabs([], home, 'aix')).toEqual([]);
+  });
+});
+
+describe("Your macOS browsers' tabs, through scripting (JavaScript for Automation)", () => {
+  const mac = (name: string, engine: FoundBrowser['engine'] = 'chromium'): FoundBrowser => ({ id: `mac:${name}`, name, engine, command: ['open', '-a', `/Applications/${name}.app`], urlAt: 3, iconFile: null, app: `/Applications/${name}.app`, program: null, added: false });
+  const [safari, chrome, arc, opera, firefox] = [mac('Safari', 'webkit'), mac('Google Chrome'), mac('Arc'), mac('Opera'), mac('Firefox', 'gecko')];
+
+  /**
+   * A stand-in for JXA's `Application`: running apps' windows, each a tab list whose properties are read at once
+   * (`w.tabs.url()` gives every tab's address), a window without tabs throwing as Safari's settings window does.
+   */
+  const automation = (apps: Record<string, { running: boolean; windows?: Array<Array<{ url: string; title: string }> | null>; refuse?: string }>) => (name: string) => {
+    const app = apps[name];
+    if (!app) throw new Error(`Can't get application "${name}"`);
+    return {
+      running: () => app.running,
+      windows: () => {
+        if (app.refuse) throw new Error(app.refuse);
+        return (app.windows ?? []).map((tabs) => ({
+          tabs: new Proxy({}, { get: (_, key: string) => () => {
+            if (!tabs) throw new Error("Can't get tabs of window (-1728)");
+            return tabs.map((t) => (key === 'url' ? t.url : (t as Record<string, string>)[key === 'name' ? 'title' : key]));
+          } }),
+        }));
+      },
+    };
+  };
+  const runScript = (script: string, apps: Parameters<typeof automation>[0]) => String(runInNewContext(script, { Application: automation(apps) }));
+
+  it('are asked of the browsers scripting reaches, by the name of their app', () => {
+    expect([safari, chrome, arc, opera, firefox].map(scriptableApp)).toEqual(['Safari', 'Google Chrome', 'Arc', null, null]);
+    expect(scriptableApp({ ...chrome, app: null })).toBeNull();
+    expect([safari, chrome, opera, firefox].map((b) => listsTabs(b, 'darwin'))).toEqual([true, true, false, true]);
+    expect([safari, chrome, firefox].map((b) => listsTabs(b, 'linux'))).toEqual([false, false, true]);
+  });
+
+  it("are read by a script of running apps' windows (Safari's titles are names), skipping a window without tabs", () => {
+    const output = runScript(tabsScript(['Safari', 'Google Chrome', 'Arc']), {
+      Safari: { running: true, windows: [[{ url: 'https://shop.test/', title: 'Shop' }], null] },
+      'Google Chrome': { running: true, windows: [[{ url: 'https://a.test/', title: 'A' }, { url: 'chrome://settings/', title: 'Settings' }], [{ url: 'http://localhost:3000/', title: '' }]] },
+      Arc: { running: false },
+    });
+    expect(JSON.parse(output)).toEqual([
+      { name: 'Safari', running: true, tabs: [['https://shop.test/', 'Shop']] },
+      { name: 'Google Chrome', running: true, tabs: [['https://a.test/', 'A'], ['chrome://settings/', 'Settings'], ['http://localhost:3000/', '']] },
+      { name: 'Arc', running: false, tabs: [] },
+    ]);
+  });
+
+  it("give running browsers' pages on the web, titled by their address when untitled, and why one couldn't be read", () => {
+    const ids = new Map([['Safari', 'mac:Safari'], ['Google Chrome', 'mac:Google Chrome'], ['Arc', 'mac:Arc']]);
+    const output = runScript(tabsScript(['Safari', 'Google Chrome', 'Arc']), {
+      Safari: { running: true, refuse: 'Error: Not authorized to send Apple events to Safari. (-1743)' },
+      'Google Chrome': { running: true, windows: [[{ url: 'https://a.test/', title: 'A' }, { url: 'chrome://settings/', title: 'Settings' }, { url: 'http://localhost:3000/', title: '' }]] },
+      Arc: { running: false },
+    });
+    expect(scriptTabsOf(output, ids)).toEqual([
+      { id: 'mac:Safari', name: 'Safari', profile: null, tabs: [], problem: 'Allow Console Editor to control Safari in System Settings › Privacy & Security › Automation' },
+      { id: 'mac:Google Chrome', name: 'Google Chrome', profile: null, tabs: [{ url: 'https://a.test/', title: 'A' }, { url: 'http://localhost:3000/', title: 'http://localhost:3000/' }] },
+    ]);
+    expect(scriptTabsOf('[{"name":"Arc","running":true,"tabs":[],"error":"Error: timed out"}]', ids)).toEqual([{ id: 'mac:Arc', name: 'Arc', profile: null, tabs: [], problem: 'Could not read its tabs: Error: timed out' }]);
+    expect(scriptTabsOf('not json', ids)).toEqual([]);
+    expect(scriptTabsOf('[{"name":"Unknown","running":true,"tabs":[]}]', ids)).toEqual([]);
+  });
+
+  it('are read on macOS only, in one script for every browser that has them, beside Firefox', async () => {
+    const calls: Array<[string, string[]]> = [];
+    const run = async (file: string, args: string[]) => {
+      calls.push([file, args]);
+      return runScript(args.at(-1)!, { Safari: { running: true, windows: [[{ url: 'https://shop.test/', title: 'Shop' }]] }, 'Google Chrome': { running: false } });
+    };
+    const home = join(tmp, 'mac-home');
+    expect(await listEverydayTabs([safari, chrome, opera, firefox], home, 'darwin', run)).toEqual([{ id: 'mac:Safari', name: 'Safari', profile: null, tabs: [{ url: 'https://shop.test/', title: 'Shop' }] }]);
+    expect(calls.map(([file, args]) => [file, ...args.slice(0, -1)])).toEqual([['osascript', '-l', 'JavaScript', '-e']]);
+    expect(await listEverydayTabs([opera, firefox], home, 'darwin', run)).toEqual([]);
+    expect(await listEverydayTabs([safari, chrome], home, 'linux', run)).toEqual([]);
+    expect(calls).toHaveLength(1);
   });
 });

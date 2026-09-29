@@ -12,28 +12,30 @@ export interface EverydaySectionProps {
 }
 
 /**
- * Your everyday Firefox's tabs, profile by profile, to load one here: read from its session file only once asked (the
+ * Your everyday browsers' tabs, to load one here: Firefox's profile by profile, from its session files, and on macOS
+ * those of your running Safari, Chrome, Edge, Brave, Arc or Vivaldi, through scripting. Read only once asked (the
  * button), then again each time the menu opens.
  */
 export function EverydaySection({ query, onClose }: EverydaySectionProps) {
   const everyday = useBrowserStore((s) => s.everyday);
-  const hasFirefox = useBrowserStore((s) => s.browsers.some((b) => b.engine === 'gecko'));
+  const listsTabs = useBrowserStore((s) => s.browsers.some((b) => b.listsTabs));
   if (!everyday) {
-    if (!hasFirefox) return null;
+    if (!listsTabs) return null;
     return (
       <Button variant="ghost" size="sm" leading={<Icon icon={icons.BrowserIcon} size={14} />} onClick={() => void loadEverydayTabs()} className="self-start" data-testid="everyday-show">
-        Your Firefox tabs
+        Your open tabs
       </Button>
     );
   }
   return (
-    <section aria-label="Your Firefox tabs" data-testid="everyday-tabs" className="flex max-h-60 flex-col gap-1 overflow-y-auto border-t border-border pt-2">
-      {everyday.length ? null : <p className="px-2 py-1 text-[12px] text-fg-subtle">No Firefox tabs found.</p>}
+    <section aria-label="Your open tabs" data-testid="everyday-tabs" className="flex max-h-60 flex-col gap-1 overflow-y-auto border-t border-border pt-2">
+      {everyday.length ? null : <p className="px-2 py-1 text-[12px] text-fg-subtle">No open tabs found.</p>}
       {everyday.map((browser) => (
         <div key={browser.id} className="flex flex-col">
           <span className="truncate px-2 py-0.5 text-[12px] font-medium text-fg-muted">
-            {browser.name} · {browser.profile}
+            {browser.profile ? `${browser.name} · ${browser.profile}` : browser.name}
           </span>
+          {browser.problem ? <p className="px-2 py-0.5 text-[12px] text-warning">{browser.problem}</p> : null}
           {browser.tabs
             // Keyed by where they are in the session (the same page can be open twice), before the search narrows them.
             .map((tab, i) => ({ tab, key: `${i}:${tab.url}` }))

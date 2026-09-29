@@ -35,7 +35,7 @@ export function registerBrowserIpc(handle: IpcHandle, handlePage: IpcHandle, { w
     return driven.open(id, url, everyday === true);
   });
   handlePage(IPC_CHANNEL.listDriven, () => driven.read());
-  handlePage(IPC_CHANNEL.listEverydayTabs, () => listEverydayTabs());
+  handlePage(IPC_CHANNEL.listEverydayTabs, async () => listEverydayTabs(await browsers.installed()));
   handlePage(IPC_CHANNEL.activateTab, (browserId: unknown, tabId: unknown) => {
     assertString(browserId, 'browserId');
     assertString(tabId, 'tabId');

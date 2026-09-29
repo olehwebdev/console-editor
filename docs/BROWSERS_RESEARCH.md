@@ -291,7 +291,7 @@ How it would go, on a machine that can reach Playwright's CDN, with CI installin
 - [ ] Tests: skipped where the build isn't there.
 
 ### Phase 9: Later
-- [ ] Tabs of everyday browsers: AppleScript on macOS (can't be checked on Linux).
+- [x] Tabs of everyday browsers on macOS: JavaScript for Automation rather than AppleScript's text (JSON back, each app's terms looked up when run), for Safari, Chrome, Edge, Brave, Arc and Vivaldi, only while they run (SPEC §6.16). The script is checked against a stand-in for JXA's objects; it couldn't be run on a Mac here.
 - [x] Firefox's session file everywhere: `recovery.jsonlz4` of each profile in `profiles.ini`, read only when asked (SPEC §6.16).
 - [ ] Figma frames by link (a personal token, kept with `safeStorage`).
 - [x] Stitching full pages taller than the texture limit: parts 4096 device pixels tall, their rows packed again as one PNG without decoding it whole (only each part's first row is unfiltered), down to 32 767 device pixels (SPEC §6.17).

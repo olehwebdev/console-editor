@@ -42,6 +42,12 @@ export class BrowserRegistry {
     return this.infos();
   }
 
+  /** The browsers found and added, looked for again first when the last scan is old. */
+  async installed(): Promise<FoundBrowser[]> {
+    await this.scan();
+    return this.all();
+  }
+
   /** A browser by id, looked for again first when the last scan is old. */
   async get(id: string): Promise<FoundBrowser> {
     await this.scan();

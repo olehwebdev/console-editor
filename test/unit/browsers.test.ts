@@ -251,7 +251,7 @@ describe('The registry', () => {
 
   it('lists what it found, looks again only after a minute, and announces versions once read', async () => {
     const { registry: r, events, find } = await registry();
-    expect(await r.list()).toEqual([{ id: found.id, name: 'Fake', engine: 'chromium', version: null, icon: null, added: false, hidden: false, debuggable: false }]);
+    expect(await r.list()).toEqual([{ id: found.id, name: 'Fake', engine: 'chromium', version: null, icon: null, added: false, hidden: false, debuggable: false, listsTabs: false }]);
     await r.list();
     expect(find).toHaveBeenCalledTimes(1);
     await expect.poll(() => events.length).toBe(1);
@@ -269,7 +269,7 @@ describe('The registry', () => {
   it('adds a program, hides and removes it, and refuses what can’t be run', async () => {
     const { registry: r, events } = await registry();
     const added = await r.add(fake);
-    expect(added).toEqual({ id: expect.stringMatching(/^added:[0-9a-f]{8}$/), name: 'fake-browser', engine: 'unknown', version: null, icon: null, added: true, hidden: false, debuggable: false });
+    expect(added).toEqual({ id: expect.stringMatching(/^added:[0-9a-f]{8}$/), name: 'fake-browser', engine: 'unknown', version: null, icon: null, added: true, hidden: false, debuggable: false, listsTabs: false });
     await r.setHidden(added.id, true);
     expect((await r.list()).find((b) => b.id === added.id)?.hidden).toBe(true);
     await r.remove(added.id);

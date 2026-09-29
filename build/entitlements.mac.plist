@@ -17,5 +17,8 @@
     <true/>
     <key>com.apple.security.personal-information.location</key>
     <true/>
+    <!-- Reading your other browsers' tabs when you ask (osascript, on the app's behalf); macOS asks you first. -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
   </dict>
 </plist>

@@ -56,7 +56,7 @@ A desktop app where you enter a website's URL, see every script, stylesheet and 
 | U36 | I capture the page (the viewport, the whole page or one element), in the app or in another browser, and find my captures in a list at the end of the toolbar | ✅ (§6.17) |
 | U37 | I import a design and check the page against it pixel by pixel: laid over the live page, or side by side, swiped, faded or as a difference | ✅ (§6.17, §6.18) |
 | U38 | I capture the page in every browser at once and see where they differ from each other or from the design | ✅ (§6.17) |
-| U39 | I bring an address from my everyday Firefox into the app: its open tabs are listed in the browser menu | ✅ (§6.16) |
+| U39 | I bring an address from my everyday Firefox (or, on macOS, Safari, Chrome, Edge, Brave, Arc or Vivaldi) into the app: its open tabs are listed in the browser menu | ✅ (§6.16) |
 
 ## 3. Architecture
 
@@ -153,8 +153,8 @@ src/
                      findBrowsers/ (Linux desktop entries and icon themes, macOS apps, the Windows registry),
                      startBrowser.ts; driven/ (browsers driven with the workspace's changes: DrivenBrowsers, the
                      Driver interface and DrivenBase, DrivenTabs, launching with a profile and reaching one again;
-                     chromium/ over CDP, firefox/ over WebDriver BiDi); everyday/ (your everyday Firefox's tabs, from
-                     its session file)
+                     chromium/ over CDP, firefox/ over WebDriver BiDi); everyday/ (your everyday browsers' tabs: Firefox's
+                     session file, macOS scripting)
     shots/           PageShots/ (captures of the app's page, designs, groups), capture/ (over CDP: an area, at a
                      width or a viewport), captureInEveryBrowser.ts, image type and size, thumbnails, the
                      `console-editor-shot:` protocol (§6.17)
@@ -759,7 +759,11 @@ The page can be opened in the browsers installed on this computer, to check whet
 - **Keeping them in step:** overrides, rules and settings that change reach the driven tabs at once, and with **Reload page after changes** on, their tabs showing a website reload (after a burst, once). Nothing is reported from them: the console, Network panel and inspector stay the app page's.
 - **Tabs:** the menu lists each driven browser's tabs, with their titles (read when a page has loaded and whenever the menu opens, since neither protocol announces a title) and addresses. A tab can be brought to the front, loaded in the app, or captured. The × lets go of the browser, which stays open. A browser the user quits is forgotten, and the status bar counts the tabs served your changes.
 
-**Your everyday Firefox's tabs** (`src/main/browsers/everyday/`): with Firefox installed, the menu offers **Your Firefox tabs**. Once asked, and then each time the menu opens in that run, it reads every Firefox profile's session file (`sessionstore-backups/recovery.jsonlz4`, which Firefox keeps up to date as it runs): `profiles.ini` in Firefox's folder on each system (Snap and Flatpak ones too) names the profiles, the install's default first. The file is an LZ4 block behind a `mozLz40` header, decoded by the app's own reader. Each tab's current page is listed when it is on the web, and choosing one loads it here.
+**Your everyday browsers' tabs** (`src/main/browsers/everyday/`): with a browser installed whose tabs can be listed (`listsTabs`: Firefox; on macOS also Safari, Chrome, Edge, Brave, Arc and Vivaldi, with their betas), the menu offers **Your open tabs**. Once asked, and then each time the menu opens in that run, it reads them:
+- **Firefox**, on every system: every profile's session file (`sessionstore-backups/recovery.jsonlz4`, which Firefox keeps up to date as it runs): `profiles.ini` in Firefox's folder on each system (Snap and Flatpak ones too) names the profiles, the install's default first. The file is an LZ4 block behind a `mozLz40` header, decoded by the app's own reader.
+- **On macOS**, the installed browsers scripting reaches, by their app's name, in one JavaScript for Automation script (`osascript -l JavaScript`, 60 s at most): an app that isn't running is left alone (never started); a running one's windows give their tabs' addresses and titles in two requests each (a window without tabs, as Safari's settings, is skipped), as JSON. The first time, macOS asks whether the app may control that browser (`NSAppleEventsUsageDescription`, and the `automation.apple-events` entitlement); refused, the browser is listed with how to allow it (System Settings › Privacy & Security › Automation). Their tabs aren't one profile's, so they are listed under the browser's name alone. Checked against a stand-in for JXA's objects in the unit tests: there is no Mac to run it on here.
+
+Each tab's current page is listed when it is on the web, and choosing one loads it here.
 
 ### 6.17 Captures and designs
 
@@ -855,7 +859,7 @@ The site's `WebContentsView` can move to a window of its own (`PageWindow`), e.g
 - Rules change only what the app's own browser sees. A CORS rule makes an API readable by the page shown, credentials included, which is what it is for; it can't change what the server allows, and cookies still follow the browser's rules.
 - Other browsers are started as the user's own programs, found where the system lists them or picked by the user, with an http(s) address only. A browser driven with your changes has a profile of the app's own (never the everyday one) and a debugging port on `127.0.0.1` that the system picks; like any debugging port, a local program can connect to it while the browser runs. The app reaches it only through the address that browser wrote in that profile, and lets go of it (the browser stays open) when asked or when the app quits.
 - A driven browser's tabs are served the workspace's overrides and rules, as the app's page is; nothing is read back from them but their titles, addresses and captures.
-- Your everyday Firefox's session file (it holds your open tabs, and more) is read only after you ask for its tabs in the browser menu, in the main process; only each tab's current http(s) address and title reach the UI, and nothing of it is kept or sent anywhere.
+- Your everyday Firefox's session file (it holds your open tabs, and more), and on macOS your other browsers' tabs through scripting, are read only after you ask for them in the browser menu, in the main process; only each tab's current http(s) address and title reach the UI, and nothing of it is kept or sent anywhere.
 - Shots are images the app took or the user imported (checked by their bytes), served to its own UI by the `console-editor-shot:` protocol on its own session only; the site's session can't load them. The design laid over the page lives in an isolated world the page's scripts can't reach, and takes no pointer events; the page can still see the element in its DOM, and it is put back if removed.
 - The site sees a standard Chrome user agent (Electron tokens removed).
 - All data stays local: nothing is uploaded, and there is no telemetry. Besides the page and out-of-page fetches for the files you open and for the page's favicon (from the site shown, through its session; kept only if its bytes are an image, and shown as an `<img>` data URL, where SVG can't run scripts), the source maps of the page's scripts and stylesheets when you ask for them (§6.8: http(s) through the site's session, with cookies only for the bundle's or the page's origin; `data:` maps decoded locally; any other scheme refused; 64 MB, 30 s), the only other network calls are the update check (GitHub's releases API and the release's CHANGELOG.md at its tag) and, when you ask for it, the update's download. **Settings › Check for updates** turns the automatic check off.
@@ -939,7 +943,7 @@ The package manager is asked rather than electron-builder's `resources/package-t
 - ✅ A design laid over the live page (a canvas in an isolated world, so a strict CSP doesn't block it), at the design's width (§6.18).
 - ✅ Chromium browsers with your overrides and rules (M3's external Chrome), and their tabs in the menu (§6.16).
 - ✅ One capture in every browser, compared in a grid against a baseline (§6.17).
-- ✅ Firefox with your changes over WebDriver BiDi (§6.16), and your everyday Firefox's tabs in the menu.
+- ✅ Firefox with your changes over WebDriver BiDi (§6.16), and your everyday Firefox's tabs in the menu (on macOS, Safari's, Chrome's and others' too).
 - Still to come ([research](BROWSERS_RESEARCH.md), phases 8 and 9): WebKit through Playwright's build (it needs `playwright-core` in the packaged app, and a machine that can download the build to check it); the design over a driven browser's tab; tabs of other everyday browsers (AppleScript on macOS); Figma frames by link; full pages taller than 16 384 device pixels; the console, Network and inspector for an outside tab.
 
 ## 12. Risks and open questions

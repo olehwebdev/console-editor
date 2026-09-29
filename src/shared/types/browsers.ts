@@ -24,6 +24,8 @@ export interface BrowserInfo {
   hidden: boolean;
   /** A Chromium browser whose everyday profile runs with remote debugging turned on: it can be driven as it is. */
   debuggable: boolean;
+  /** Its everyday tabs can be listed: Firefox's (its session file), and on macOS those scripting reaches (Safari, Chrome…). */
+  listsTabs: boolean;
 }
 
 /** A tab of your everyday browser (one the app didn't launch), as its session has it. */
@@ -32,13 +34,16 @@ export interface EverydayTab {
   url: string;
 }
 
-/** Your everyday browser's tabs, for one of its profiles. */
+/** Your everyday browser's tabs: for one of its profiles (Firefox), or all of them (read through macOS's scripting). */
 export interface EverydayBrowser {
-  /** The profile's folder. */
+  /** The profile's folder, or the browser's id. */
   id: string;
   name: string;
-  profile: string;
+  /** The profile's name, when the tabs are one profile's. */
+  profile: string | null;
   tabs: EverydayTab[];
+  /** Why its tabs couldn't be read (macOS didn't allow the app to ask it, say), when they couldn't. */
+  problem?: string;
 }
 
 /** A tab of a browser the app drives. */
