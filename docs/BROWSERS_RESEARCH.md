@@ -162,7 +162,7 @@ interface Shot {
   - wait for `document.fonts.ready` and for 500 ms without requests;
   - hide the design overlay;
   - optionally, pause animations (`Animation.setPlaybackRate` 0).
-- **Limits:** a full page is capped at 16 384 device pixels tall, Chromium's largest texture; stitching tiles comes later. A file is at most 50 MB, and a workspace holds at most 500 shots.
+- **Limits:** a full page is capped at 32 767 device pixels tall, the tallest a canvas draws; past Chromium's largest texture (16 384) it is captured in parts and joined (SPEC §6.17). A file is at most 50 MB, and a workspace holds at most 500 shots.
 - **Importing a design:** **Import design…** (several files), dropping files on the list, or pasting (Figma's Copy as PNG). PNG, JPEG and WebP are accepted. The renderer decodes each one to check and measure it, and the file is kept as it came.
   - A design's **scale** comes from `@2x` or `@3x` in its name, else 2 when it is wider than 2000 px, else 1. It can be changed on the shot's page.
   - Importing a Figma frame by its link, through Figma's API with a personal token, comes later.
@@ -294,7 +294,7 @@ How it would go, on a machine that can reach Playwright's CDN, with CI installin
 - [ ] Tabs of everyday browsers: AppleScript on macOS (can't be checked on Linux).
 - [x] Firefox's session file everywhere: `recovery.jsonlz4` of each profile in `profiles.ini`, read only when asked (SPEC §6.16).
 - [ ] Figma frames by link (a personal token, kept with `safeStorage`).
-- [ ] Stitching full pages taller than the texture limit (a PNG codec in the main process, and hundreds of MB per capture).
+- [x] Stitching full pages taller than the texture limit: parts 4096 device pixels tall, their rows packed again as one PNG without decoding it whole (only each part's first row is unfiltered), down to 32 767 device pixels (SPEC §6.17).
 - [ ] The console, Network and inspector for an outside tab.
 - [ ] The design over a driven browser's tab (Chromium: the same isolated-world script; Firefox: a preload script in a sandbox, which the probe showed works).
 

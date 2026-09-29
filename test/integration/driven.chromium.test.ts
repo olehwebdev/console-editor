@@ -62,7 +62,7 @@ describe.skipIf(!chromiumAvailable)('a Chromium browser driven with your changes
       const path = new URL(req.url ?? '/', 'http://x').pathname;
       const files: Record<string, [string, string]> = {
         '/page.html': ['text/html', '<!doctype html><title>upstream</title><body style="margin:0;background:#ff0000"><script src="/app.js"></script></body>'],
-        '/design.html': ['text/html', `<!doctype html><title>-</title><body style="margin:0;background:#0000ff"><script>setInterval(() => { const c = document.getElementById('__console-editor-overlay'); document.title = (c ? 'design ' + getComputedStyle(c).opacity : 'no design') + ' ' + innerWidth; }, 100);</script></body>`],
+        '/design.html': ['text/html', `<!doctype html><title>-</title><body style="margin:0;background:#0000ff"><script>const id = Math.random().toString(36).slice(2); setInterval(() => { const c = document.getElementById('__console-editor-overlay'); document.title = (c ? 'design ' + getComputedStyle(c).opacity : 'no design') + ' ' + innerWidth + ' ' + id; }, 100);</script></body>`],
         '/app.js': ['text/javascript', "document.title = 'upstream';"],
       };
       const file = files[path];
@@ -142,7 +142,10 @@ describe.skipIf(!chromiumAvailable)('a Chromium browser driven with your changes
   });
 
   it('lays the design over its tabs at its width, keeps it after a reload and out of captures, and takes it off', async () => {
-    const title = async () => (await driven.read())[0]?.tabs.find((t) => t.url === `${origin}/design.html`)?.title ?? '';
+    // What the page says of the design (and its width), and which document it is (a reload makes another).
+    const read = async () => ((await driven.read())[0]?.tabs.find((t) => t.url === `${origin}/design.html`)?.title ?? '').split(' ');
+    const title = async () => (await read()).slice(0, -1).join(' ');
+    const documentId = async () => (await read()).at(-1);
     await driven.open(browser.id, `${origin}/design.html`);
     const settings = { opacity: 0.5, blend: 'normal', invert: false, x: 0, y: 0, attached: 'page', hidden: false, fitWidth: true } as const;
     const design = { key: 'd1', base64: encodePng(40, 30, () => [255, 0, 0]).toString('base64'), width: 300, height: 200, settings };
@@ -157,9 +160,9 @@ describe.skipIf(!chromiumAvailable)('a Chromium browser driven with your changes
     expect(image.viewport.width).not.toBe(300);
     await waitFor(async () => (await title()) === 'design 1 300');
     // A new document gets it too.
+    const before = await documentId();
     driven.onAppEvent({ type: 'overrides-changed', overrides: [] });
-    await waitFor(async () => (await title()) === '-');
-    await waitFor(async () => (await title()) === 'design 1 300');
+    await waitFor(async () => (await documentId()) !== before && (await title()) === 'design 1 300');
     await driven.setDesign(null);
     await waitFor(async () => /^no design \d+$/.test(await title()) && !(await title()).endsWith(' 300'));
   });

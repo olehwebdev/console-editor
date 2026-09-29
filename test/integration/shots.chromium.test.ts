@@ -1,6 +1,6 @@
 /**
  * Captures against real Chromium: what the viewport shows, the whole page (past the viewport, which stays as it
- * was), and an element picked in a cross-site frame (its own process and session), placed through its frame's
+ * was; in parts, joined, past a texture's side), and an element picked in a cross-site frame (its own process and session), placed through its frame's
  * owner and captured where it is on the page.
  */
 import { createServer, type Server } from 'node:http';
@@ -101,5 +101,35 @@ describe.skipIf(!chromiumAvailable)('captures in Chromium', () => {
     expect(image).toMatchObject({ width: 120, height: 80 });
     const png = decodePng(image.bytes);
     for (const [x, y] of [[0, 0], [60, 40], [119, 79]]) expect(png.at(x, y)).toEqual([255, 0, 0, 255]);
+  });
+
+  it('captures a page taller than a texture in parts, joined without a gap or a repeat, down to the tallest a canvas draws', async () => {
+    const tall = await chrome.newPage();
+    try {
+      await tall.page.setViewportSize({ width: 60, height: 600 });
+      // 40,000 rows, each its own colour: its position, red the low byte and green the high one.
+      await tall.page.setContent('<!doctype html><body style="margin:0"></body>');
+      await tall.page.evaluate(() => {
+        for (let y = 0; y < 40_000; y++) {
+          const row = document.createElement('div');
+          row.style.cssText = `height:1px;background:rgb(${y % 256},${y >> 8},0)`;
+          document.body.append(row);
+        }
+      });
+      const rowOf = (pixel: number[]) => pixel[0] + pixel[1] * 256;
+      for (const scale of [1, 2]) {
+        await tall.transport.send('Emulation.setDeviceMetricsOverride', { width: 60, height: 600, deviceScaleFactor: scale, mobile: false });
+        const width = await tall.page.evaluate(() => document.documentElement.clientWidth);
+        const image = await captureOverCdp(tall.transport, { area: 'page' });
+        const cssHeight = Math.floor(32_767 / scale);
+        expect(image).toMatchObject({ width: width * scale, height: cssHeight * scale, scale });
+        const png = decodePng(image.bytes);
+        const wrong = Array.from({ length: image.height }, (_, y) => y).filter((y) => rowOf(png.at(1, y)) !== Math.floor(y / scale));
+        expect(wrong.slice(0, 5)).toEqual([]);
+      }
+    } finally {
+      await tall.transport.detach();
+      await tall.page.close();
+    }
   });
 });

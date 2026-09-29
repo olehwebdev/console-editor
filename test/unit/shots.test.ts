@@ -8,7 +8,11 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ShotStore, type NewShot } from '../../src/main/store/ShotStore';
 import { captureName } from '../../src/main/shots/captureName';
+import { encodePng } from '../helpers/encodePng';
+import { captureInParts } from '../../src/main/shots/capture/captureInParts';
 import { clipOf } from '../../src/main/shots/capture/clipOf';
+import { partHeight } from '../../src/main/shots/capture/partHeight';
+import { partsOf } from '../../src/main/shots/capture/partsOf';
 import { readPngSize } from '../../src/main/shots/readPngSize';
 
 const tmp = realpathSync(mkdtempSync(join(tmpdir(), 'console-editor-shots-')));
@@ -134,7 +138,7 @@ describe('Capturing', () => {
     expect(captureName('not a url', 800, 'viewport')).toBe('page-800.png');
   });
 
-  it('clips to the whole page (down to the texture limit) or to an element moved by the scroll, inside the page', () => {
+  it('clips to the whole page (down to the height given) or to an element moved by the scroll, inside the page', () => {
     const metrics = { cssLayoutViewport: { pageX: 0, pageY: 500, clientWidth: 1440, clientHeight: 900 }, cssContentSize: { width: 1440, height: 20_000 } };
     expect(clipOf({ area: 'viewport' }, metrics, 8192)).toBeNull();
     expect(clipOf({ area: 'page' }, metrics, 8192)).toEqual({ x: 0, y: 0, width: 1440, height: 8192 });
@@ -142,6 +146,33 @@ describe('Capturing', () => {
     // Partly off the page's left edge: what is on the page.
     expect(clipOf({ area: 'element', box: { x: -40, y: 0, width: 100, height: 10 } }, metrics, 8192)).toEqual({ x: 0, y: 500, width: 60, height: 10 });
     expect(() => clipOf({ area: 'element', box: { x: 10, y: 10, width: 0, height: 10 } }, metrics, 8192)).toThrow('no size');
+  });
+
+  it('cuts a clip taller than a texture into parts that meet on a device pixel, the last one what is left', () => {
+    expect(partsOf({ x: 0, y: 100, width: 50, height: 10_000 }, 4096)).toEqual([
+      { x: 0, y: 100, width: 50, height: 4096 },
+      { x: 0, y: 4196, width: 50, height: 4096 },
+      { x: 0, y: 8292, width: 50, height: 1808 },
+    ]);
+    // A whole number of device pixels at each ratio, as near 4096 as that allows.
+    const ratios = [1, 2, 1.25, 1.5, 1.1, 1.3333333730697632, 3];
+    expect(ratios.map((ratio) => partHeight(4096, ratio))).toEqual([4096, 2048, 3276, 2730, 3720, 3069, 1365]);
+    // None just below: as many CSS pixels as fit.
+    expect(partHeight(4096, Math.SQRT2)).toBe(2896);
+  });
+
+  it('captures a clip at once when it fits in a texture, else part by part', async () => {
+    const shot: object[] = [];
+    const shoot = async (part: object) => {
+      shot.push(part);
+      return encodePng(2, 1, () => [0, 0, 0]);
+    };
+    await captureInParts({ x: 0, y: 0, width: 2, height: 16_384 }, 1, shoot);
+    expect(shot).toEqual([{ x: 0, y: 0, width: 2, height: 16_384 }]);
+    shot.length = 0;
+    const joined = await captureInParts({ x: 0, y: 0, width: 2, height: 8193 }, 2, shoot);
+    expect(shot.map((p) => (p as { y: number }).y)).toEqual([0, 2048, 4096, 6144, 8192]);
+    expect(readPngSize(joined)).toEqual({ width: 2, height: 5 });
   });
 
   it("reads a PNG's size from its header", () => {

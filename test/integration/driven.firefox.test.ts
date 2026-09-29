@@ -1,7 +1,7 @@
 /**
  * Firefox driven with the workspace's changes over WebDriver BiDi: launched with a profile of the app's own, a script
  * override served, a header rule and a block rule applied, a cross-origin request an override answers readable (its
- * preflight answered), a GraphQL operation answered by the body sent, changes served and the tab reloaded, a tab captured (and at a viewport given), the browser let
+ * preflight answered), a GraphQL operation answered by the body sent, changes served and the tab reloaded, a tab captured (and at a viewport given, a page taller than a texture in parts), the browser let
  * go of and reached again, and forgotten once it is quit. Runs where Firefox is found: `FIREFOX_PATH`, or `firefox` on
  * the PATH.
  */
@@ -68,8 +68,10 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
       const script = `Promise.all([fetch('/api').then((r) => r.headers.get('x-rule')), fetch('/blocked.js').then(() => 'loaded', () => 'blocked'), fetch('${other}/data', { method: 'PUT' }).then((r) => r.text(), () => 'refused')]).then((all) => { document.title = [window.appValue, ...all].join(' '); });`;
       const files: Record<string, [string, string]> = {
         '/page.html': ['text/html', `<!doctype html><title>upstream</title><body style="margin:0;background:#ff0000"><script src="/app.js"></script><script>${script}</script></body>`],
-        '/design.html': ['text/html', `<!doctype html><title>-</title><body style="margin:0;background:#0000ff"><script>setInterval(() => { const c = document.getElementById('__console-editor-overlay'); document.title = (c ? 'design ' + getComputedStyle(c).opacity : 'no design') + ' ' + innerWidth; }, 100);</script></body>`],
+        '/design.html': ['text/html', `<!doctype html><title>-</title><body style="margin:0;background:#0000ff"><script>const id = Math.random().toString(36).slice(2); setInterval(() => { const c = document.getElementById('__console-editor-overlay'); document.title = (c ? 'design ' + getComputedStyle(c).opacity : 'no design') + ' ' + innerWidth + ' ' + id; }, 100);</script></body>`],
         '/graphql.html': ['text/html', `<!doctype html><title>-</title><script>const ask = ${ask}; Promise.all([ask('GetUser'), ask('GetCart')]).then((all) => { document.title = all.join(' '); });</script>`],
+        // 40,000 rows, each its own colour: its position, red the low byte and green the high one.
+        '/tall.html': ['text/html', '<!doctype html><body style="margin:0"><script>for (let y = 0; y < 40000; y++) { const row = document.createElement("div"); row.style.cssText = `height:1px;background:rgb(${y % 256},${y >> 8},0)`; document.body.append(row); }</script></body>'],
         '/app.js': ['text/javascript', "window.appValue = 'upstream';"],
         '/api': ['application/json', '{}'],
         '/blocked.js': ['text/javascript', ''],
@@ -142,7 +144,10 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
   });
 
   it('lays the design over its tabs at its width, keeps it after a reload and out of captures, and takes it off', async () => {
-    const title = async () => (await driven.read())[0]?.tabs.find((t) => t.url === `${origin}/design.html`)?.title ?? '';
+    // What the page says of the design (and its width), and which document it is (a reload makes another).
+    const read = async () => ((await driven.read())[0]?.tabs.find((t) => t.url === `${origin}/design.html`)?.title ?? '').split(' ');
+    const title = async () => (await read()).slice(0, -1).join(' ');
+    const documentId = async () => (await read()).at(-1);
     await driven.open(browser.id, `${origin}/design.html`);
     const settings = { opacity: 0.5, blend: 'normal', invert: false, x: 0, y: 0, attached: 'page', hidden: false, fitWidth: true } as const;
     const design = { key: 'd1', base64: encodePng(40, 30, () => [255, 0, 0]).toString('base64'), width: 300, height: 200, settings };
@@ -157,11 +162,20 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
     expect(image.viewport.width).not.toBe(300);
     await waitFor(async () => (await title()) === 'design 1 300');
     // A new document gets it too.
+    const before = await documentId();
     driven.onAppEvent({ type: 'overrides-changed', overrides: [] });
-    await waitFor(async () => (await title()) === '-');
-    await waitFor(async () => (await title()) === 'design 1 300');
+    await waitFor(async () => (await documentId()) !== before && (await title()) === 'design 1 300');
     await driven.setDesign(null);
     await waitFor(async () => /^no design \d+$/.test(await title()) && !(await title()).endsWith(' 300'));
+  });
+
+  it('captures a page taller than a texture in parts, joined without a gap or a repeat, down to the tallest a canvas draws', async () => {
+    const [capture] = await driven.captureAt(`${origin}/tall.html`, { width: 60, height: 600, scale: 1 });
+    if ('reason' in capture) throw new Error(capture.reason);
+    expect(capture.image).toMatchObject({ height: 32_767, scale: 1 });
+    const png = decodePng(capture.image.bytes);
+    const wrong = Array.from({ length: png.height }, (_, y) => y).filter((y) => png.at(1, y)[0] + png.at(1, y)[1] * 256 !== y);
+    expect(wrong.slice(0, 5)).toEqual([]);
   });
 
   it('forgets it once it is quit', async () => {

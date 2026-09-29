@@ -1,10 +1,21 @@
 import { APP_BROWSER_ID } from '../../shared/constants';
 
 /**
- * Chromium's largest texture side, in device pixels: a capture taller than this comes back cut or blank, so a full
- * page is captured down to it.
+ * Chromium's largest texture side, in device pixels: a capture taller than this comes back cut or blank, so a taller
+ * one is captured in parts this many device pixels tall (one part unpacked at a time to join them), and joined.
  */
 export const MAX_TEXTURE_SIDE = 16_384;
+export const PART_SIDE = 4096;
+
+/** The tallest full page captured, in device pixels: the tallest image a canvas draws, so it can still be compared. */
+export const MAX_PAGE_SIDE = 32_767;
+
+/**
+ * How far a part's height (CSS pixels) may be from a whole number of device pixels, for parts to meet on one, and how
+ * many heights below the largest are tried for one (enough for the usual ratios: 1.25, 1.5, 4/3, 1.1…).
+ */
+export const WHOLE_PIXEL_SLACK = 1e-3;
+export const WHOLE_PIXEL_TRIES = 16;
 
 /** A PNG's width and height, big-endian, after its signature and the IHDR chunk's length and type. */
 export const PNG_SIZE_AT = { width: 16, height: 20, minLength: 24 } as const;
