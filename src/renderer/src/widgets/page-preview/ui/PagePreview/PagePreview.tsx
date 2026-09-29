@@ -1,5 +1,6 @@
 import { selectAnyOverlayOpen, useOverlayStore } from '@/shared/lib';
 import { selectHasPage, usePageStore } from '@/entities/page';
+import { OverlayBar } from '../OverlayBar';
 import { EmptyPreview } from './EmptyPreview';
 import { PageSnapshot } from './PageSnapshot';
 import { PreviewToolbar } from './PreviewToolbar';
@@ -12,7 +13,7 @@ import { usePageSnapshot } from './usePageSnapshot';
  * this panel's host box; we keep its bounds in sync, and swap it for a still
  * snapshot while an overlay (palette, menu, dialog) is open.
  */
-export function PagePreview({ placement = 'editor', suspended = false, layoutKey, addressBarRef }: PagePreviewProps) {
+export function PagePreview({ placement = 'editor', suspended = false, layoutKey, addressBarRef, onShowBrowserSettings }: PagePreviewProps) {
   const hasPage = usePageStore(selectHasPage);
   const overlayOpen = useOverlayStore(selectAnyOverlayOpen);
   const frozen = overlayOpen && hasPage;
@@ -24,7 +25,8 @@ export function PagePreview({ placement = 'editor', suspended = false, layoutKey
 
   return (
     <section className="flex h-full min-w-0 flex-col bg-surface" aria-label="Website preview">
-      <PreviewToolbar hasPage={hasPage} placement={placement} addressBarRef={addressBarRef} />
+      <PreviewToolbar hasPage={hasPage} placement={placement} addressBarRef={addressBarRef} onShowBrowserSettings={onShowBrowserSettings} />
+      <OverlayBar />
 
       <div ref={host} className="relative min-h-0 flex-1 bg-white" data-testid="page-host">
         <EmptyPreview hasPage={hasPage} />

@@ -1,0 +1,1 @@
+export { ShotPage } from './ShotPage';

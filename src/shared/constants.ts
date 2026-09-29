@@ -21,6 +21,12 @@ export const ACTIONS_WINDOW_HASH = 'actions-window';
 export const ACTIONS_WINDOW_EVENTS = ['actions-changed', 'actions-window', 'frames-changed', 'settings-changed', 'workspaces-changed'] as const satisfies readonly AppEvent['type'][];
 
 /**
+ * The events the website's own window is sent besides its page's state and its shortcut: what its toolbar's menus
+ * show. Its UI has a handler for each, so one added here fails typecheck until it is handled there.
+ */
+export const PAGE_WINDOW_EVENTS = ['browsers-changed', 'browser-download', 'driven-browsers-changed', 'shots-changed', 'overlay-changed'] as const satisfies readonly AppEvent['type'][];
+
+/**
  * The events that can carry megabytes (a batch of commits of hundreds of components, of requests with their
  * initiators): sent to a window as JSON. A string is copied as one block by IPC and by the preload's bridge, and
  * parsed fast; an object graph is cloned value by value, twice, which blocks the window for as long again.
@@ -67,6 +73,8 @@ export const ENV = {
   gallery: 'CONSOLE_EDITOR_GALLERY',
   /** A local update server standing in for GitHub (tests); honoured only with a data folder of its own. */
   updateFeed: 'CONSOLE_EDITOR_UPDATE_FEED',
+  /** A local server standing in for Figma's API (tests); honoured only with a data folder of its own. */
+  figmaApi: 'CONSOLE_EDITOR_FIGMA_API',
   /** Set by electron-vite in development: the renderer's dev-server URL. */
   rendererUrl: 'ELECTRON_RENDERER_URL',
 } as const;
@@ -104,3 +112,15 @@ export const SHORTCUT = {
 
 /** The longest URL the app takes from outside (IPC, a file): longer ones aren't a file a page loaded. */
 export const MAX_URL_CHARS = 8192;
+
+/**
+ * The scheme the app's windows load captures and designs by (`console-editor-shot://image/<id>`, `…//thumb/<id>`),
+ * served by the main process from the workspace folder. Only the app's own session has it: the website can't.
+ */
+export const SHOT_SCHEME = 'console-editor-shot';
+
+/** The browser id of captures of the app's own page (other browsers' are their installed ids). */
+export const APP_BROWSER_ID = 'app';
+
+/** A shot URL's host: the image itself, or its thumbnail. */
+export const SHOT_URL_HOST = { image: 'image', thumb: 'thumb' } as const;

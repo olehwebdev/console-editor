@@ -40,16 +40,21 @@ export class OverrideMatcher {
   }
 
   /**
-   * The enabled response override that answers `url` for `method` without sending it, whatever GraphQL
-   * operation it names: what a CORS preflight asking to send `method` is answered for.
+   * The enabled override that answers `url` for `method`, whatever GraphQL operation it names (among those `answers`
+   * keeps): what a CORS preflight asking to send `method` is answered for.
    */
-  unsentFor(url: string, resourceType: string, method: string): Override | undefined {
+  preflightFor(url: string, resourceType: string, method: string, answers: (o: Override) => boolean = () => true): Override | undefined {
     // A preflight carries no body to name an operation: only the method is asked of the override.
     const preflight: MatchedRequest = { method, operation: () => undefined };
     return this.opts.getOverrides().find((o) => {
-      if (!o.enabled || sendsRequest(o) || !answersKind(o.kind, resourceType)) return false;
+      if (!o.enabled || !answers(o) || !answersKind(o.kind, resourceType)) return false;
       return requestMatches(o.request && { method: o.request.method, operation: '' }, preflight) && this.matcherFor(o)(url);
     });
+  }
+
+  /** The response override {@link preflightFor} finds among those that answer without sending the request. */
+  unsentFor(url: string, resourceType: string, method: string): Override | undefined {
+    return this.preflightFor(url, resourceType, method, (o) => !sendsRequest(o));
   }
 
   /** The version of the override that would serve `url` now (`id@updatedAt`), or '' for the live file. */

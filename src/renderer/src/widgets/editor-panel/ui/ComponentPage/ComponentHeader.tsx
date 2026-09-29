@@ -5,6 +5,8 @@ import { Badge } from '@/shared/ui/badge';
 import { IconButton } from '@/shared/ui/icon-button';
 import { componentTitle, elementLabel, useInspectorStore } from '@/entities/inspector';
 import { highlightPick, readComponentAt, togglePicking } from '@/features/inspect/pick';
+import { captureShot } from '@/features/shot/capture';
+import { openShot } from '@/features/shot/open-shot';
 import { BUILD_TONE } from '../StackPage/constants';
 import { ComponentFrame } from './ComponentFrame';
 import { FRAMEWORK_NAME } from './constants';
@@ -24,6 +26,7 @@ export function ComponentHeader({ component }: { component: InspectedComponent }
         {component.build ? <Badge tone={BUILD_TONE[component.build]}>{component.build}</Badge> : null}
         <span className="flex-1" />
         <IconButton icon={icons.ReloadIcon} label="Read it again" size="sm" onClick={() => void readComponentAt(component.depth)} data-testid="component-reread" />
+        <IconButton icon={icons.CaptureIcon} label="Capture the element" size="sm" onClick={() => void captureShot('element', component.pickId, openShot)} data-testid="component-capture" />
         <IconButton icon={icons.PickIcon} label="Pick another element" shortcut={SHORTCUT.pickElement} size="sm" onClick={() => void togglePicking()} />
       </div>
       <div className="flex min-w-0 items-center gap-2">

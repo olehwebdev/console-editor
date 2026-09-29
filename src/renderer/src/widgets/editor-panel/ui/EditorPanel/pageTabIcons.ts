@@ -9,4 +9,7 @@ export const PAGE_TAB_ICONS: Record<PageKind, PageTabIcon> = {
   component: { icon: icons.ComponentIcon, className: 'text-info' },
   rule: { icon: icons.RulesIcon, className: 'text-fg-muted' },
   'new-rule': { icon: icons.RulesIcon, className: 'text-fg-muted' },
+  shot: { icon: icons.ShotIcon, className: 'text-info' },
+  compare: { icon: icons.DiffIcon, className: 'text-info' },
+  group: { icon: icons.BrowserIcon, className: 'text-info' },
 };

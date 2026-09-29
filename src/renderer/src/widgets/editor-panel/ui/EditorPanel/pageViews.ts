@@ -1,5 +1,8 @@
+import { ComparePage } from '../ComparePage';
 import { ComponentPage } from '../ComponentPage';
+import { GroupPage } from '../GroupPage';
 import { NewRulePage, RulePage } from '../RulePage';
+import { ShotPage } from '../ShotPage';
 import { StackPage } from '../StackPage';
 import type { PageViews } from './types';
 import { WhatsNewPageView } from './WhatsNewPageView';
@@ -11,4 +14,7 @@ export const PAGE_VIEWS: PageViews = {
   component: ComponentPage,
   rule: RulePage,
   'new-rule': NewRulePage,
+  shot: ShotPage,
+  compare: ComparePage,
+  group: GroupPage,
 };

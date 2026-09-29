@@ -1,9 +1,8 @@
 import { screen, type BrowserWindow, type WebContents } from 'electron';
 import { ACTIONS_WINDOW_HASH } from '../../shared/constants';
-import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { ActionsWindowState, AppEvent } from '../../shared/types';
 import { loadEditor } from '../launch/loadEditor';
-import { createAppWindow, DockOnClose, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
+import { createAppWindow, DockOnClose, forwardEvent, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
 import { ACTIONS_WINDOW_MENU_ID, ACTIONS_WINDOW_SIZE, ACTIONS_WINDOW_TITLE, FORWARDED_EVENTS, MIN_ACTIONS_WINDOW_SIZE } from './constants';
 import type { ActionsWindowDeps } from './types';
 
@@ -76,8 +75,7 @@ export class ActionsWindow {
 
   /** Hands the window's UI an event its panel shows; the editor's other events aren't its business. */
   forward(event: AppEvent): void {
-    const win = this.win;
-    if (win && !win.isDestroyed() && FORWARDED_EVENTS.has(event.type)) win.webContents.send(IPC_CHANNEL.onEvent, event);
+    forwardEvent(this.win, FORWARDED_EVENTS, event);
   }
 
   /** The editor's window is gone (the app is quitting): this window goes too, and opens again next time. */

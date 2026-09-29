@@ -8,6 +8,9 @@ export type { ActionInput, ActionPatch, ActionsWindowState, ConsoleAction } from
 export type { Breakpoint, BreakpointStage, FailReason, HeldAction, HeldActionType, HeldRequest, HeldResponse } from './breakpoints';
 export { BREAKPOINT_STAGES, FAIL_REASONS } from './breakpoints';
 export type { ConsoleEditorApi } from './api';
+export type { BrowserEngine, BrowserInfo, DrivenBrowser, DrivenEngine, DrivenTab, EverydayBrowser, EverydayTab } from './browsers';
+export { BROWSER_ENGINES, DRIVEN_ENGINES } from './browsers';
+export type { BrowsersApi } from './browsersApi';
 export type { ConsoleEntry, ConsoleFrame, ConsoleLevel, ConsoleLocation, ConsoleProperty, ConsoleSource, ConsoleValue, ConsoleValueKind } from './console';
 export { CONSOLE_LEVELS } from './console';
 export type { AppEvent, EngineEvent, WireEvent } from './events';
@@ -49,12 +52,18 @@ export type { HarImport, HttpHeader, NetworkBody, NetworkBodyGap, NetworkRequest
 export type { CreateOverrideInput, MatchType, Override, OverrideMeta, OverridePatch, OverrideWithContent, RequestMatch, ResponseSettings, UnpatchedReason, UrlMatcher } from './overrides';
 export { MATCH_TYPES } from './overrides';
 export type { ExportedOverride, ExportedRule, OverridesExport, OverridesFile, OverridesFileEntries, OverridesImport } from './overridesFile';
+export type { OverlaySettings, OverlayState } from './overlay';
+export type { OverlayApi } from './overlayApi';
 export type { PageState, Rect } from './page';
 export type { FileKind, ResourceContent, ResourceEntry, ResourceKind } from './resources';
 export { FILE_KINDS, RESOURCE_KINDS } from './resources';
 export type { BlockRule, CorsRule, CreateRuleInput, HeaderEdit, HeaderOperation, HeaderRule, Rule, RuleAction, RuleBase, RuleOf, RulePatch, RuleResourceType } from './rules';
 export { HEADER_OPERATIONS, RULE_ACTIONS, RULE_RESOURCE_TYPES } from './rules';
 export type { SessionDraft, SessionState, SessionTab } from './session';
+export type { CaptureArea, DesignImport, GroupCapture, Shot, ShotBrowser, ShotKind } from './shots';
+export { CAPTURE_AREAS, SHOT_KINDS } from './shots';
+export type { ShotsApi } from './shotsApi';
+export type { FigmaFrame, FigmaImport } from './figma';
 export type { SourceMapBody, SourceMapFetchFailure, SourceMapFile, SourceMapFileInfo, SourceMapKind, SourceMapRequest } from './sourceMaps';
 export { SOURCE_MAP_KINDS } from './sourceMaps';
 export type { Settings, SwitchSetting, Throttling } from './settings';

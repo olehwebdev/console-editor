@@ -1,14 +1,17 @@
 import type { ActionsWindowState, ConsoleAction } from './actions';
+import type { BrowserInfo, DrivenBrowser } from './browsers';
 import type { HeldRequest } from './breakpoints';
 import type { ConsoleEntry, ConsoleFrame } from './console';
 import type { FrameStack, InspectedComponent, InspectHover, RenderCommit, StoreAction } from './inspector';
 import type { MenuCommand } from './menu';
 import type { NetworkRequest } from './network';
+import type { OverlayState } from './overlay';
 import type { OverrideMeta, UnpatchedReason } from './overrides';
 import type { PageState } from './page';
 import type { ResourceEntry } from './resources';
 import type { Rule } from './rules';
 import type { Settings } from './settings';
+import type { Shot } from './shots';
 import type { UpdateState } from './updates';
 import type { MissedReason } from './workers';
 import type { WorkspacesState } from './workspaces';
@@ -85,6 +88,18 @@ export type AppEvent =
   | { type: 'actions-window'; state: ActionsWindowState }
   /** A window changed the settings (the others show them as they are now). */
   | { type: 'settings-changed'; settings: Settings }
+  /** The browsers on this computer were looked for again, a version was read, or one was added, removed, hidden or shown. */
+  | { type: 'browsers-changed'; browsers: BrowserInfo[] }
+  /** A browser build the app downloads (WebKit's) is on its way: bytes done, of how many when the server says. */
+  | { type: 'browser-download'; id: string; done: number; total: number | null }
+  /** A browser the app drives opened, closed, or one of its tabs opened, closed or changed its address or title. */
+  | { type: 'driven-browsers-changed'; driven: DrivenBrowser[] }
+  /** The active workspace's shots, newest first: one was taken, imported, renamed or deleted, or another workspace became active. */
+  | { type: 'shots-changed'; shots: Shot[] }
+  /** A design was laid over the page, its settings changed, or it was taken off (null). */
+  | { type: 'overlay-changed'; overlay: OverlayState | null }
+  /** Show a shot's page (asked for from the website's own window). */
+  | { type: 'show-shot'; id: string }
   /** The window is closing: write pending drafts, then call `sessionFlushed`. */
   | { type: 'flush-session' }
   | { type: 'update'; state: UpdateState };

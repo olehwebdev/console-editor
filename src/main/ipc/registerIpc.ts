@@ -5,18 +5,21 @@ import { HTTP_URL } from '../constants';
 import { assertString } from './assertString';
 import { registerActionIpc } from './registerActionIpc';
 import { registerActionsWindowIpc } from './registerActionsWindowIpc';
+import { registerBrowserIpc } from './registerBrowserIpc';
 import { registerConsoleIpc } from './registerConsoleIpc';
 import { registerHarIpc } from './registerHarIpc';
 import { registerInspectorIpc } from './registerInspectorIpc';
 import { registerNetworkIpc } from './registerNetworkIpc';
+import { registerOverlayIpc } from './registerOverlayIpc';
 import { registerOverrideIpc } from './registerOverrideIpc';
 import { registerOverridesFileIpc } from './registerOverridesFileIpc';
 import { registerRuleIpc } from './registerRuleIpc';
 import { registerSettingsIpc } from './registerSettingsIpc';
+import { registerShotIpc } from './registerShotIpc';
 import { registerSourceMapIpc } from './registerSourceMapIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, updates, send, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, driven, webkit, shots, shotStore, figma, updates, send, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -52,7 +55,11 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   handle(IPC_CHANNEL.detachPage, () => page.window.detach());
   handlePage(IPC_CHANNEL.attachPage, () => page.window.attach());
   // Only the window showing the page places it: the other one's reports (a panel going away) are stale.
-  ipcMain.on(IPC_CHANNEL.setPageBounds, (event, rect: Rect) => page.window.place(event.sender, rect));
+  ipcMain.on(IPC_CHANNEL.setPageBounds, (event, rect: Rect) => {
+    page.window.place(event.sender, rect);
+    // A design's width scales the page to the view: to its new size.
+    shots.overlay.fit();
+  });
 
   handle(IPC_CHANNEL.listResources, () => page.listResources());
   handle(IPC_CHANNEL.getResourceContent, (url: unknown) => {
@@ -80,6 +87,9 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   registerNetworkIpc(handle, page.network);
   registerHarIpc(handle, { win, page, store });
   registerOverridesFileIpc(handle, { win, page, store, rules });
+  registerBrowserIpc(handle, handlePage, { win, browsers, driven, webkit });
+  registerShotIpc(handle, handlePage, { win, shots, store: shotStore, driven, figma, send });
+  registerOverlayIpc(handlePage, shots.overlay);
 
   handle(IPC_CHANNEL.getSession, () => session.get());
   handle(IPC_CHANNEL.saveSessionTabs, (workspaceId: unknown, tabs: unknown, activeTabId: unknown) => session.setTabs(workspaceId, tabs, activeTabId));

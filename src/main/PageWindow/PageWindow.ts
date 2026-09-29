@@ -4,8 +4,8 @@ import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { AppEvent, PageState, Rect } from '../../shared/types';
 import { loadEditor } from '../launch/loadEditor';
 import { AddressBarFocus } from './AddressBarFocus';
-import { createAppWindow, DockOnClose, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
-import { DEFAULT_WINDOW_SIZE, MIN_WINDOW_SIZE, PAGE_WINDOW_MENU_ID, UNTITLED } from './constants';
+import { createAppWindow, DockOnClose, forwardEvent, placeWindow, setUpWindow, syncMenuCheck, trackPlacement } from '../windows';
+import { DEFAULT_WINDOW_SIZE, FORWARDED_EVENTS, MIN_WINDOW_SIZE, PAGE_WINDOW_MENU_ID, UNTITLED } from './constants';
 import { toViewBounds } from './toViewBounds';
 import type { PageWindowDeps } from './types';
 
@@ -82,6 +82,11 @@ export class PageWindow {
   /** Brings the website window forward with its address bar focused (once its UI listens). */
   focusAddressBar(): void {
     this.focus?.request();
+  }
+
+  /** Sends the website window's UI an event its toolbar's menus show, if it has a window and hears that event. */
+  forward(event: AppEvent): void {
+    forwardEvent(this.win, FORWARDED_EVENTS, event);
   }
 
   /** `sender` asked for the page's state: the website window's UI does that once it listens for events. */

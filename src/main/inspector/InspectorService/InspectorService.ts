@@ -1,4 +1,4 @@
-import type { ComponentTreeLevel, FrameStack, InspectedComponent } from '../../../shared/types';
+import type { ComponentTreeLevel, FrameStack, InspectedComponent, Rect } from '../../../shared/types';
 import type { SessionKey } from '../../console/ConsoleFrames';
 import { dropSessions } from '../../console/dropSessions';
 import type { CdpTransport } from '../../engine/cdp';
@@ -90,6 +90,11 @@ export class InspectorService implements SessionObserver {
 
   inspectComponent(pickId: unknown, depth: unknown): Promise<InspectedComponent> {
     return this.reader.describe(pickId, depth);
+  }
+
+  /** Where a pick's element is, in the top page's viewport (CSS pixels). */
+  elementBox(pickId: unknown): Promise<Rect> {
+    return this.reader.box(pickId);
   }
 
   setComponentState(pickId: unknown, depth: unknown, edit: unknown): Promise<InspectedComponent> {

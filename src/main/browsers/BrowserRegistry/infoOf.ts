@@ -1,0 +1,9 @@
+import type { BrowserInfo } from '../../../shared/types';
+import { listsTabs } from '../everyday';
+import type { FoundBrowser } from '../types';
+
+/** What the UI is told of a browser: never its command or paths. */
+export function infoOf(browser: FoundBrowser, icon: string | null | undefined, version: string | null | undefined, hidden: ReadonlySet<string>, debuggable: ReadonlySet<string>, build: BrowserInfo['build']): BrowserInfo {
+  const { id, name, engine, added } = browser;
+  return { id, name, engine, version: version ?? null, icon: icon ?? null, added, hidden: hidden.has(id), debuggable: debuggable.has(id), listsTabs: listsTabs(browser), build };
+}

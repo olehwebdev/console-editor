@@ -1,8 +1,9 @@
 import { Switch } from '@/shared/ui/switch';
 import { SETTING_META, useSettingsStore } from '@/entities/settings';
+import { BrowserSettings } from '@/features/browser/manage-browsers';
 import { setSetting } from '@/features/update-settings';
 
-/** Sidebar view with every setting as a switch plus a one-line explanation. */
+/** Sidebar view with every setting as a switch plus a one-line explanation, then the browsers offered beside the address bar. */
 export function SettingsPanel() {
   const settings = useSettingsStore((s) => s.settings);
   return (
@@ -20,6 +21,7 @@ export function SettingsPanel() {
             <Switch size="sm" tone="accent" checked={settings[key]} onCheckedChange={(on) => void setSetting(key, on)} aria-label={label} />
           </label>
         ))}
+        <BrowserSettings />
       </div>
     </div>
   );

@@ -1,4 +1,6 @@
 import { useActionStore } from '@/entities/action';
+import { useBrowserStore } from '@/entities/browser';
+import { useShotStore } from '@/entities/shot';
 import { useOverrideStore } from '@/entities/override';
 import { useConsoleStore } from '@/entities/console-log';
 import { useFrameStore } from '@/entities/frame';
@@ -9,6 +11,7 @@ import { useSettingsStore } from '@/entities/settings';
 import { useWorkspaceStore } from '@/entities/workspace';
 import { takeOutsideEdits } from '@/features/override/external-editor';
 import { receiveEntries } from '@/features/filter-console';
+import { receiveShots, showShotById } from '@/features/shot/open-shot';
 import { receiveHeld } from '@/features/network/held';
 import { handleUpdateState } from '@/features/update-app';
 import { runCommand } from './commands/runCommand';
@@ -68,6 +71,12 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'held-requests': (event) => receiveHeld(event.held),
   'actions-window': (event) => useActionStore.getState().setWindow(event.state),
   'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),
+  'browsers-changed': (event) => useBrowserStore.getState().setAll(event.browsers),
+  'browser-download': ({ id, done, total }) => useBrowserStore.getState().setDownload(id, { done, total }),
+  'driven-browsers-changed': (event) => useBrowserStore.getState().setDriven(event.driven),
+  'shots-changed': (event) => receiveShots(event.shots),
+  'show-shot': (event) => showShotById(event.id),
+  'overlay-changed': (event) => useShotStore.getState().setOverlay(event.overlay),
   command: (event) => runCommand(event.command),
   'flush-session': answerFlushSession,
   update: (event) => handleUpdateState(event.state),

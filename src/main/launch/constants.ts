@@ -9,6 +9,8 @@ export const USER_DATA = {
   pageWindow: 'page-window.json',
   /** Whether the Actions panel had a window of its own, where, and whether it stayed on top. */
   actionsWindow: 'actions-window.json',
+  /** The browsers the user added, and the ones they turned off. */
+  browsers: 'browsers.json',
   /** The last version run. */
   updateRecord: 'update.json',
   /** Updates downloaded from a local update server (tests). */

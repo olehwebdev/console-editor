@@ -5,19 +5,21 @@ import type { Pending, RawHandler } from './types';
  * A browser-level Chrome DevTools Protocol connection over WebSocket
  * (`ws://…/devtools/browser/<id>`), using flattened sessions.
  *
- * Used by the tests to drive a real Chromium, and the building block for
- * driving an external Chrome (roadmap M3).
+ * How the app drives a Chromium browser it launched (`browsers/driven`), and
+ * how the tests drive a real Chromium.
  */
 export class CdpConnection {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
   private readonly handlers = new Set<RawHandler>();
+  private readonly closeHandlers = new Set<() => void>();
 
   private constructor(private readonly ws: WebSocket) {
     ws.addEventListener('message', (event) => this.onMessage(String(event.data)));
     ws.addEventListener('close', () => {
       for (const p of this.pending.values()) p.reject(new Error(`CDP connection closed during ${p.method}`));
       this.pending.clear();
+      for (const h of this.closeHandlers) h();
     });
   }
 
@@ -40,6 +42,12 @@ export class CdpConnection {
   onEvent(handler: RawHandler): () => void {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
+  }
+
+  /** Called once the connection has closed: closed here, or the browser went away. */
+  onClose(handler: () => void): () => void {
+    this.closeHandlers.add(handler);
+    return () => this.closeHandlers.delete(handler);
   }
 
   close(): void {

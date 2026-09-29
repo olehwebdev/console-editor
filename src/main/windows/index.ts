@@ -1,5 +1,6 @@
 export { createAppWindow } from './createAppWindow';
 export { DockOnClose } from './DockOnClose';
+export { forwardEvent } from './forwardEvent';
 export { placeWindow } from './placeWindow';
 export { setUpWindow } from './setUpWindow';
 export { syncMenuCheck } from './syncMenuCheck';

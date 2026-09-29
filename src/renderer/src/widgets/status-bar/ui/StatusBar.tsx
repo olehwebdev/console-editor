@@ -13,6 +13,7 @@ import { THROTTLING_LABELS, useSettingsStore } from '@/entities/settings';
 import { KIND_NAME, selectIframeCount, selectWorkerCount, useResourceStore } from '@/entities/resource';
 import { UpdateStatus } from '@/features/update-app';
 import { ITEM_ICON_SIZE } from './constants';
+import { DrivenChip } from './DrivenChip';
 import { StackChip } from './StackChip';
 
 /** Quiet one-line summary: page state, what is being served, the active file. */
@@ -52,6 +53,7 @@ export function StatusBar() {
           <span>No overrides</span>
         )}
       </span>
+      <DrivenChip />
       {throttling !== NO_THROTTLING ? (
         <span className="flex items-center gap-1.5 text-warning" data-testid="status-throttling">
           <Icon icon={icons.ThrottleIcon} size={ITEM_ICON_SIZE} />

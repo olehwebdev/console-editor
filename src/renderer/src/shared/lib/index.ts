@@ -4,7 +4,7 @@ export { cn } from './cn';
 export { firstErrorMessage } from './form';
 export { DURATION, EASE_OUT, ICON_PRESS_SCALE, PRESS_SCALE, SLIDE_IN_X, SPRING_LAYOUT, SPRING_PANEL, SPRING_PRESS, SPRING_SWAP } from './motion';
 export { fileName, hostOf, pathFileName, pathOf, pathSegments, webAddress } from './url';
-export { predicateFor } from './match';
+export { matchesWords, predicateFor } from './match';
 export { isMac, keyLabel } from './platform';
 export { formatCode, looksMinified, responseText } from './format';
 export { formatTime } from './formatTime';

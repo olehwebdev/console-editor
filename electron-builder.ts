@@ -16,8 +16,9 @@ const config: Configuration = {
   productName: 'Console Editor',
   copyright: 'Copyright © 2026 olehwebdev',
   directories: { output: 'dist', buildResources: 'build' },
-  // electron-vite bundles everything the app runs (dependencies included) into out/.
-  files: ['out/**/*', '!node_modules/**/*'],
+  // electron-vite bundles everything the app runs (dependencies included) into out/, but playwright-core, which drives
+  // the WebKit build the app downloads: it reads its own files by the paths it computes, so it ships as it is.
+  files: ['out/**/*', '!node_modules/**/*', 'node_modules/playwright-core/**/*'],
   // The icon is also given to GTK (Linux About dialog), which can't read inside app.asar.
   asarUnpack: ['out/main/chunks/*.png'],
   npmRebuild: false,
@@ -59,6 +60,8 @@ const config: Configuration = {
       NSLocationUsageDescription: 'A website open in Console Editor wants to know your location.',
       NSLocationWhenInUseUsageDescription: 'A website open in Console Editor wants to know your location.',
       NSLocalNetworkUsageDescription: 'Console Editor opens websites on your local network when you ask it to.',
+      // Asked when you list your other browsers' tabs; without it macOS refuses without asking.
+      NSAppleEventsUsageDescription: 'Console Editor lists the tabs open in your browsers when you ask it to, to open one here.',
     },
   },
   dmg: { writeUpdateInfo: false },

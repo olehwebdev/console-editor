@@ -104,3 +104,6 @@ export const MAX_SELECTOR_LENGTH = 600;
 export const MAX_HOST_KIDS = 500;
 /** The object group a read's listeners are looked up in: the read's, with this after it. */
 export const LISTENERS_GROUP_SUFFIX = '-listeners';
+
+/** How many frames up an element's frame is looked for in its parents before it counts as gone (frames nest a few deep at most). */
+export const MAX_FRAME_HOPS = 16;

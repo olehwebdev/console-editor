@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { IPC_CHANNEL } from '../shared/ipcChannels';
 import type { ConsoleEditorApi, WireEvent } from '../shared/types';
+import { browsersApi } from './browsersApi';
+import { overlayApi } from './overlayApi';
+import { shotsApi } from './shotsApi';
 
 /** The global the renderer reaches the API through (`window.consoleEditor`, declared in its shared/api). */
 const API_GLOBAL = 'consoleEditor';
@@ -84,6 +87,10 @@ const api: ConsoleEditorApi = {
   clearNetworkLog: () => ipcRenderer.invoke(IPC_CHANNEL.clearNetworkLog),
   listHeldRequests: () => ipcRenderer.invoke(IPC_CHANNEL.listHeldRequests),
   resumeHeldRequest: (id, action) => ipcRenderer.invoke(IPC_CHANNEL.resumeHeldRequest, id, action),
+
+  ...browsersApi,
+  ...shotsApi,
+  ...overlayApi,
 
   getActionsWindow: () => ipcRenderer.invoke(IPC_CHANNEL.getActionsWindow),
   detachActions: () => ipcRenderer.invoke(IPC_CHANNEL.detachActions),

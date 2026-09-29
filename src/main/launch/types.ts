@@ -1,10 +1,12 @@
 import type { AppEvent } from '../../shared/types';
 import type { ActionStore } from '../store/ActionStore';
+import type { BrowserStore } from '../store/BrowserStore';
 import type { OverrideStore } from '../store/OverrideStore';
 import type { WindowStore } from '../store/WindowStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
 import type { SettingsStore } from '../store/SettingsStore';
+import type { ShotStore } from '../store/ShotStore';
 import type { SourceMapFileStore } from '../store/SourceMapFileStore';
 import type { CloseGuard } from './CloseGuard';
 
@@ -18,6 +20,8 @@ export interface AppStores {
   actionsWindow: WindowStore;
   actions: ActionStore;
   sourceMaps: SourceMapFileStore;
+  browsers: BrowserStore;
+  shots: ShotStore;
   /** The folder held data before the stores looked (an earlier version ran). */
   hadData: boolean;
 }

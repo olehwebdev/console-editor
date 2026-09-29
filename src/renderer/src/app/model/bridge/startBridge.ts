@@ -7,8 +7,11 @@ import { useRenderLog, useStoreLog } from '@/entities/inspector';
 import { usePageStackStore } from '@/entities/page-stack';
 import { useRuleStore } from '@/entities/rule';
 import { useSettingsStore } from '@/entities/settings';
+import { useShotStore } from '@/entities/shot';
 import { useWorkspaceStore } from '@/entities/workspace';
+import { loadBrowsers } from '@/features/browser/open-in-browser';
 import { receiveEntries } from '@/features/filter-console';
+import { receiveShots } from '@/features/shot/open-shot';
 import { followUp } from '@/features/inspect/pick';
 import { receiveHeld } from '@/features/network/held';
 import { startUpdates } from '@/features/update-app';
@@ -52,7 +55,12 @@ export async function startBridge(commands: PageCommands, session: PageSession):
     }),
     api.listNetworkRequests().then((requests) => receiveNetworkRequests(requests, true)),
     api.listHeldRequests().then(receiveHeld),
+    api.listShots().then(receiveShots),
+    api.getOverlay().then((overlay) => useShotStore.getState().setOverlay(overlay)),
   ]);
+
+  // Not waited for: looking for the installed browsers is the system's pace, and only the toolbar's menu needs them.
+  void loadBrowsers();
 
   // Unsaved edits are kept as drafts rather than guarded: closing never asks to discard them.
   let stopSync: (() => void) | undefined;

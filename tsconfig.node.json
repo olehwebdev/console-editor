@@ -35,6 +35,7 @@
   "exclude": [
     "test/renderer/**/*",
     "test/fixtures/apps/**/*",
-    "test/perf/apps/**/*"
+    "test/perf/apps/**/*",
+    "test/perf/renderer/**/*"
   ]
 }

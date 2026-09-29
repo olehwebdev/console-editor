@@ -10,4 +10,7 @@ export const ACTIVE_SAVERS: ActiveSavers = {
   component: () => undefined,
   rule: (id) => void applyRulePage(id),
   'new-rule': (id) => void createRulePage(id),
+  shot: () => undefined,
+  compare: () => undefined,
+  group: () => undefined,
 };

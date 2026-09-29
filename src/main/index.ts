@@ -39,8 +39,9 @@ if (app.isPackaged && !ownDataFolder) {
   app.commandLine.removeSwitch(CHROMIUM_SWITCH.remoteDebuggingPipe);
 }
 
-/** A local update server standing in for GitHub (tests); likewise never for the real profile. */
-const updateFeed = ownDataFolder ? process.env[ENV.updateFeed]?.replace(/\/+$/, '') || undefined : undefined;
+/** Local servers standing in for GitHub's releases and Figma's API (tests); likewise never for the real profile. */
+const standIn = (name: string) => (ownDataFolder ? process.env[name]?.replace(/\/+$/, '') || undefined : undefined);
+const standIns = { updateFeed: standIn(ENV.updateFeed), figmaApi: standIn(ENV.figmaApi) };
 
 // Documents served from overrides would otherwise lose access to local/intranet hosts (see chromiumFlags/).
 app.commandLine.appendSwitch(
@@ -67,7 +68,7 @@ if (!app.requestSingleInstanceLock()) {
   // Where no package installed a launcher (the AppImage, a .tar.gz), keep one of the app's own, so docks show its
   // icon. Started now, so it's in place by the time the window opens.
   integrateWithDesktop().catch((err) => console.error(err));
-  app.whenReady().then(() => createWindow(updateFeed), (err) => {
+  app.whenReady().then(() => createWindow(standIns), (err) => {
     console.error(err);
     app.exit(1);
   });
