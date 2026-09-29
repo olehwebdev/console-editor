@@ -32,12 +32,16 @@ const firefox = (() => {
   }
 })();
 
-async function waitFor<T>(fn: () => T | undefined | false | Promise<T | undefined | false>, timeout = 30_000): Promise<T> {
+/** The tabs as last read, told when a wait times out. */
+let lastRead: DrivenTab[] = [];
+
+/** Waits for `fn` to be true, giving up (with the tabs as last read) before a test's own timeout would. */
+async function waitFor<T>(fn: () => T | undefined | false | Promise<T | undefined | false>, timeout = 20_000): Promise<T> {
   const deadline = Date.now() + timeout;
   for (;;) {
     const value = await fn();
     if (value) return value;
-    if (Date.now() > deadline) throw new Error('Timed out');
+    if (Date.now() > deadline) throw new Error(`Timed out; the tabs last read: ${JSON.stringify(lastRead)}`);
     await new Promise((r) => setTimeout(r, 200));
   }
 }
@@ -55,7 +59,7 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
   const sources = { store: { list: () => overrides, base: async () => '' }, rules: { list: () => rules }, settings: { get: () => settings } } as unknown as InterceptionSources;
   const browser: FoundBrowser = { id: 'desktop:firefox.desktop', name: 'Firefox', engine: 'gecko', command: [firefox ?? 'firefox', '--headless'], urlAt: 2, iconFile: null, app: null, program: firefox, added: false };
   const profile = () => join(userData, 'browsers', 'desktop_firefox.desktop');
-  const tabs = async (): Promise<DrivenTab[]> => (await driven.read())[0]?.tabs ?? [];
+  const tabs = async (): Promise<DrivenTab[]> => (lastRead = (await driven.read())[0]?.tabs ?? []);
   const now = Date.now();
   const override = (sourceUrl: string, kind: Override['kind'], content: string, extra: Partial<Override> = {}): Override => ({ id: `o${overrides.length}`, kind, sourceUrl, match: defaultMatcherFor(sourceUrl), content, enabled: true, originalHash: null, createdAt: now, updatedAt: now, ...extra });
 
@@ -104,7 +108,8 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
     await rm(userData, { recursive: true, force: true, maxRetries: 5 });
   });
 
-  it('launches it with a profile of its own, serving the overrides and applying the rules', async () => {
+  // A cold start: the app gives Firefox up to 30 s to open its port, then the page loads.
+  it('launches it with a profile of its own, serving the overrides and applying the rules', { timeout: 60_000 }, async () => {
     await driven.open(browser.id, `${origin}/page.html`);
     await waitFor(async () => (await tabs()).some((t) => t.title === 'overridden yes blocked from-override'));
     expect(driven.list()).toEqual([{ id: browser.id, browserId: browser.id, everyday: false, name: 'Firefox', version: expect.stringMatching(/^\d+\./), tabs: [expect.objectContaining({ url: `${origin}/page.html` })] }]);
@@ -145,7 +150,7 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
 
   it('lays the design over its tabs at its width, keeps it after a reload and out of captures, and takes it off', async () => {
     // What the page says of the design (and its width), and which document it is (a reload makes another).
-    const read = async () => ((await driven.read())[0]?.tabs.find((t) => t.url === `${origin}/design.html`)?.title ?? '').split(' ');
+    const read = async () => ((await tabs()).find((t) => t.url === `${origin}/design.html`)?.title ?? '').split(' ');
     const title = async () => (await read()).slice(0, -1).join(' ');
     const documentId = async () => (await read()).at(-1);
     await driven.open(browser.id, `${origin}/design.html`);
