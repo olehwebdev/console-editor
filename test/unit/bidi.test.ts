@@ -8,11 +8,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { readBidiPort } from '../../src/main/browsers/driven/firefox/readBidiPort';
+import { requestBodyOf } from '../../src/main/engine/bidi/requestBodyOf';
 import { requestOf } from '../../src/main/engine/bidi/requestOf';
 import { resourceTypeOf } from '../../src/main/engine/bidi/resourceTypeOf';
 import { answerContext, decideRequest } from '../../src/main/engine/answering';
 import { servedHead } from '../../src/main/engine/answering/servedHead';
-import type { BidiRequestData } from '../../src/main/engine/bidi/types';
+import type { BidiAnswerContext, BidiRequestData } from '../../src/main/engine/bidi/types';
 import { defaultMatcherFor } from '../../src/shared/matcher';
 import { DEFAULT_SETTINGS, type Override, type Rule } from '../../src/shared/types';
 
@@ -81,6 +82,47 @@ describe('Deciding what to do with a request before it is sent', () => {
     expect(decide('https://shop.test/other.js', 'Script')).toEqual({ action: 'continue' });
     expect(decide('https://shop.test/app.js', 'Stylesheet')).toEqual({ action: 'continue' });
     expect(decide('https://api.test/data', 'Fetch', { method: 'GET' })).toEqual({ action: 'continue' });
+  });
+
+  it('answers a GraphQL operation an override names by the body given, and its preflight whatever the body', () => {
+    const graphql: Override = { ...api, id: 'o3', sourceUrl: 'https://api.test/graphql', match: defaultMatcherFor('https://api.test/graphql'), content: '{"data":1}', request: { method: 'POST', operation: 'GetUser' } };
+    const ctx = answerContext({ getOverrides: () => [graphql], getRules: () => [], getSettings: () => DEFAULT_SETTINGS });
+    const post = (body?: string) => decideRequest(ctx, { ...requestOf(data({ url: 'https://api.test/graphql', method: 'POST' })), body }, 'Fetch');
+    expect(post(JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id } }' }))).toMatchObject({ action: 'answer', body: '{"data":1}' });
+    expect(post(JSON.stringify({ query: 'query GetUser { user { id } }' }))).toMatchObject({ action: 'answer' });
+    expect(post(JSON.stringify({ operationName: 'GetCart' }))).toEqual({ action: 'continue' });
+    expect(post()).toEqual({ action: 'continue' });
+    const preflight = requestOf(data({ url: 'https://api.test/graphql', method: 'OPTIONS', headers: [header('Origin', 'https://app.test'), header('Access-Control-Request-Method', 'POST')] }));
+    expect(decideRequest(ctx, preflight, 'Other')).toMatchObject({ action: 'answer', head: { status: 204 } });
+  });
+});
+
+describe("A paused request's body", () => {
+  const ctx = (collector: string | null, answer: () => Promise<unknown>) => {
+    const sent: unknown[] = [];
+    const send = (method: string, params: unknown) => {
+      sent.push([method, params]);
+      return answer();
+    };
+    return { sent, ctx: { collector, connection: { send } } as unknown as BidiAnswerContext };
+  };
+
+  it('is read as text from the collector keeping it, and let go of there', async () => {
+    const text = ctx('c1', async () => ({ bytes: { type: 'string', value: '{"query":"{ a }"}' } }));
+    expect(await requestBodyOf(text.ctx, data({ request: 'r1', bodySize: 17 }))).toBe('{"query":"{ a }"}');
+    expect(text.sent).toEqual([['network.getData', { dataType: 'request', collector: 'c1', request: 'r1', disown: true }]]);
+    const binary = ctx('c1', async () => ({ bytes: { type: 'base64', value: Buffer.from('{"x":1}').toString('base64') } }));
+    expect(await requestBodyOf(binary.ctx, data({ bodySize: 7 }))).toBe('{"x":1}');
+  });
+
+  it("isn't asked for without a collector or a body, and is unknown when the browser didn't keep it", async () => {
+    const none = ctx(null, async () => ({}));
+    expect(await requestBodyOf(none.ctx, data({ bodySize: 10 }))).toBeUndefined();
+    const empty = ctx('c1', async () => ({}));
+    expect(await requestBodyOf(empty.ctx, data({ bodySize: 0 }))).toBeUndefined();
+    expect([...none.sent, ...empty.sent]).toEqual([]);
+    const gone = ctx('c1', () => Promise.reject(new Error('no such network data')));
+    expect(await requestBodyOf(gone.ctx, data({ bodySize: 10 }))).toBeUndefined();
   });
 });
 

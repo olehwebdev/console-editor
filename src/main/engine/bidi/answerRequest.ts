@@ -2,6 +2,7 @@ import { decideRequest, type RequestDecision } from '../answering';
 import { holdFor } from '../InterceptionEngine/holdFor';
 import { BIDI } from './constants';
 import { provideResponse } from './provideResponse';
+import { requestBodyOf } from './requestBodyOf';
 import { requestOf } from './requestOf';
 import { resourceTypeOf } from './resourceTypeOf';
 import type { BidiAnswerContext, BidiNetworkEvent } from './types';
@@ -16,9 +17,10 @@ const CARRY_OUT: { [A in RequestDecision['action']]: (ctx: BidiAnswerContext, re
   },
 };
 
-/** Answers a request paused before it is sent, as {@link decideRequest} decides. */
+/** Answers a request paused before it is sent, as {@link decideRequest} decides (with its body, when kept). */
 export async function answerRequest(ctx: BidiAnswerContext, { request: data }: BidiNetworkEvent): Promise<void> {
-  const decision = decideRequest(ctx, requestOf(data), resourceTypeOf(data));
+  const request = { ...requestOf(data), body: await requestBodyOf(ctx, data) };
+  const decision = decideRequest(ctx, request, resourceTypeOf(data));
   const carryOut = CARRY_OUT[decision.action] as (ctx: BidiAnswerContext, request: string, decision: RequestDecision) => Promise<unknown>;
   await carryOut(ctx, data.request, decision);
 }

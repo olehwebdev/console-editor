@@ -1,7 +1,7 @@
 import { answerContext, type AnswerSources } from '../answering';
 import { answerRequest } from './answerRequest';
 import { answerResponse } from './answerResponse';
-import { BIDI, CACHE_BEHAVIOR, INTERCEPT_PHASES } from './constants';
+import { BIDI, CACHE_BEHAVIOR, INTERCEPT_PHASES, MAX_REQUEST_BODY, REQUEST_DATA } from './constants';
 import type { BidiConnection } from './BidiConnection';
 import type { BidiAnswerContext, BidiNetworkEvent } from './types';
 
@@ -14,7 +14,8 @@ const ANSWERS: Readonly<Record<string, (ctx: BidiAnswerContext, event: BidiNetwo
 /**
  * The workspace's overrides and rules in every tab of a browser driven over WebDriver BiDi (Firefox): the engine's
  * matching and rules on each paused request, requests paused only while an override or a rule is on, and the cache
- * bypassed then (and when the settings say so) so every request is seen.
+ * bypassed then (and when the settings say so) so every request is seen. Request bodies are kept, to read the GraphQL
+ * operation they name, only while an override names one.
  */
 export class BidiInterception {
   private readonly ctx: BidiAnswerContext;
@@ -23,7 +24,7 @@ export class BidiInterception {
   private off: (() => void) | undefined;
 
   constructor(connection: BidiConnection, sources: AnswerSources) {
-    this.ctx = { ...answerContext(sources), connection };
+    this.ctx = { ...answerContext(sources), connection, collector: null };
   }
 
   async start(): Promise<void> {
@@ -51,7 +52,9 @@ export class BidiInterception {
   stop(): void {
     this.off?.();
     if (this.intercept) this.ctx.connection.send(BIDI.network.removeIntercept, { intercept: this.intercept }).catch(() => undefined);
+    if (this.ctx.collector) this.ctx.connection.send(BIDI.network.removeDataCollector, { collector: this.ctx.collector }).catch(() => undefined);
     this.intercept = null;
+    this.ctx.collector = null;
   }
 
   private async update(): Promise<void> {
@@ -65,6 +68,20 @@ export class BidiInterception {
       this.intercept = null;
       await connection.send(BIDI.network.removeIntercept, { intercept }).catch(() => undefined);
     }
+    await this.collect(sources.getOverrides().some((o) => o.enabled && !!o.request?.operation));
     await this.applySettings();
+  }
+
+  /** Keeps request bodies while `needed` (never in a Firefox too old to keep them: the operation is then unknown). */
+  private async collect(needed: boolean): Promise<void> {
+    const { connection, collector } = this.ctx;
+    if (needed && !collector) {
+      const params = { dataTypes: [REQUEST_DATA], maxEncodedDataSize: MAX_REQUEST_BODY };
+      this.ctx.collector = (await connection.send<{ collector: string }>(BIDI.network.addDataCollector, params).catch(() => null))?.collector ?? null;
+    }
+    if (!needed && collector) {
+      this.ctx.collector = null;
+      await connection.send(BIDI.network.removeDataCollector, { collector }).catch(() => undefined);
+    }
   }
 }

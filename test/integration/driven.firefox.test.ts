@@ -1,7 +1,7 @@
 /**
  * Firefox driven with the workspace's changes over WebDriver BiDi: launched with a profile of the app's own, a script
  * override served, a header rule and a block rule applied, a cross-origin request an override answers readable (its
- * preflight answered), changes served and the tab reloaded, a tab captured (and at a viewport given), the browser let
+ * preflight answered), a GraphQL operation answered by the body sent, changes served and the tab reloaded, a tab captured (and at a viewport given), the browser let
  * go of and reached again, and forgotten once it is quit. Runs where Firefox is found: `FIREFOX_PATH`, or `firefox` on
  * the PATH.
  */
@@ -62,10 +62,14 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
   beforeAll(async () => {
     server = createServer((req, res) => {
       const path = new URL(req.url ?? '/', 'http://x').pathname;
+      // A GraphQL endpoint on the other origin, readable there but answering no preflight: only the app does.
+      if (path === '/graphql') return void res.writeHead(req.method === 'OPTIONS' ? 404 : 200, { 'access-control-allow-origin': '*' }).end('upstream');
+      const ask = `(name) => fetch('${other}/graphql', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ operationName: name, query: 'query ' + name + ' { a }' }) }).then((r) => r.text(), () => 'refused')`;
       const script = `Promise.all([fetch('/api').then((r) => r.headers.get('x-rule')), fetch('/blocked.js').then(() => 'loaded', () => 'blocked'), fetch('${other}/data', { method: 'PUT' }).then((r) => r.text(), () => 'refused')]).then((all) => { document.title = [window.appValue, ...all].join(' '); });`;
       const files: Record<string, [string, string]> = {
         '/page.html': ['text/html', `<!doctype html><title>upstream</title><body style="margin:0;background:#ff0000"><script src="/app.js"></script><script>${script}</script></body>`],
         '/design.html': ['text/html', `<!doctype html><title>-</title><body style="margin:0;background:#0000ff"><script>setInterval(() => { const c = document.getElementById('__console-editor-overlay'); document.title = (c ? 'design ' + getComputedStyle(c).opacity : 'no design') + ' ' + innerWidth; }, 100);</script></body>`],
+        '/graphql.html': ['text/html', `<!doctype html><title>-</title><script>const ask = ${ask}; Promise.all([ask('GetUser'), ask('GetCart')]).then((all) => { document.title = all.join(' '); });</script>`],
         '/app.js': ['text/javascript', "window.appValue = 'upstream';"],
         '/api': ['application/json', '{}'],
         '/blocked.js': ['text/javascript', ''],
@@ -80,7 +84,7 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
     // Another origin (a CORS request), whose server never answers `/data`: only the override does.
     other = `http://localhost:${port}`;
     userData = await mkdtemp(join(tmpdir(), 'console-editor-firefox-'));
-    overrides.push(override(`${origin}/app.js`, 'Script', "window.appValue = 'overridden';"), override(`${other}/data`, 'Fetch', 'from-override', { request: { method: 'PUT', operation: '' }, response: { status: 200, delayMs: 0, headers: [], send: false, patch: false } }));
+    overrides.push(override(`${origin}/app.js`, 'Script', "window.appValue = 'overridden';"), override(`${other}/data`, 'Fetch', 'from-override', { request: { method: 'PUT', operation: '' }, response: { status: 200, delayMs: 0, headers: [], send: false, patch: false } }), override(`${other}/graphql`, 'Fetch', 'from-graphql', { request: { method: 'POST', operation: 'GetUser' }, response: { status: 200, delayMs: 0, headers: [], send: false, patch: false } }));
     const rule = { enabled: true, resourceTypes: [], createdAt: now, updatedAt: now };
     rules.push({ ...rule, id: 'r1', action: 'headers', match: defaultMatcherFor(`${origin}/api`), headers: [{ operation: 'set', name: 'x-rule', value: 'yes' }] }, { ...rule, id: 'r2', action: 'block', match: defaultMatcherFor(`${origin}/blocked.js`) });
     driven = new DrivenBrowsers({ registry: { get: async () => browser }, sources, userData, send: (event) => events.push(event) });
@@ -130,6 +134,11 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
     await driven.open(browser.id, `${origin}/page.html?again`);
     expect(readFileSync(join(profile(), 'WebDriverBiDiServer.json'), 'utf8')).toBe(port);
     await waitFor(async () => (await tabs()).some((t) => t.url.endsWith('?again') && t.title.startsWith('changed')));
+  });
+
+  it('answers the GraphQL operation an override names, read off the body the page sends, and its preflight', async () => {
+    await driven.open(browser.id, `${origin}/graphql.html`);
+    await waitFor(async () => (await tabs()).some((t) => t.url === `${origin}/graphql.html` && t.title === 'from-graphql upstream'));
   });
 
   it('lays the design over its tabs at its width, keeps it after a reload and out of captures, and takes it off', async () => {

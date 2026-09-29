@@ -18,11 +18,14 @@ export const BIDI = {
     navigationStarted: 'browsingContext.navigationStarted',
   },
   network: {
+    addDataCollector: 'network.addDataCollector',
     addIntercept: 'network.addIntercept',
     continueRequest: 'network.continueRequest',
     continueResponse: 'network.continueResponse',
     failRequest: 'network.failRequest',
+    getData: 'network.getData',
     provideResponse: 'network.provideResponse',
+    removeDataCollector: 'network.removeDataCollector',
     removeIntercept: 'network.removeIntercept',
     setCacheBehavior: 'network.setCacheBehavior',
     // Events
@@ -34,6 +37,16 @@ export const BIDI = {
 
 /** The phases the interception pauses requests at: before they are sent (to block or answer them), and at their response's head. */
 export const INTERCEPT_PHASES = ['beforeRequestSent', 'responseStarted'] as const;
+
+/**
+ * The data a collector keeps (request bodies, read for the GraphQL operation they name), and the largest body it
+ * keeps (bytes): a GraphQL request is far smaller, and a larger one is sent on unread.
+ */
+export const REQUEST_DATA = 'request';
+export const MAX_REQUEST_BODY = 1_048_576;
+
+/** The type of bytes BiDi gives as base64 (binary), not as text. */
+export const BASE64_BYTES = 'base64';
 
 /** Cache behaviours: the network cache used as usual, or bypassed (so every request reaches the interception). */
 export const CACHE_BEHAVIOR = { normal: 'default', bypass: 'bypass' } as const;
