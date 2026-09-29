@@ -3,7 +3,7 @@ import type { Rect } from '@common/types';
 /** Where comparing two shots is at: not asked, working, its result, or why it failed. */
 export type DiffState =
   | { status: 'idle' | 'working' }
-  | { status: 'done'; image: ImageBitmap; differing: number; total: number; regions: Rect[] }
+  | { status: 'done'; image: ImageBitmap; differing: number; smoothed: number; total: number; regions: Rect[] }
   | { status: 'failed'; error: string };
 
 /** A shot as compared: which file, and the size it is drawn at (CSS pixels). */

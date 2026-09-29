@@ -25,7 +25,7 @@ export function useImageDiff(a: DiffSource, b: DiffSource, offset: { x: number; 
       const data = event.data;
       if ('error' in data) return setState({ status: 'failed', error: data.error });
       current = data.image;
-      setState({ status: 'done', image: data.image, differing: data.differing, total: data.total, regions: data.regions });
+      setState({ status: 'done', image: data.image, differing: data.differing, smoothed: data.smoothed, total: data.total, regions: data.regions });
     };
     const timer = setTimeout(async () => {
       setState({ status: 'working' });

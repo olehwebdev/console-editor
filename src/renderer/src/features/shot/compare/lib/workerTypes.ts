@@ -15,4 +15,4 @@ export interface DiffRequest {
   threshold: number;
 }
 
-export type DiffResponse = { id: number; image: ImageBitmap; differing: number; total: number; regions: Rect[] } | { id: number; error: string };
+export type DiffResponse = { id: number; image: ImageBitmap; differing: number; smoothed: number; total: number; regions: Rect[] } | { id: number; error: string };

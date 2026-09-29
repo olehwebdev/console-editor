@@ -161,6 +161,25 @@ describe('Comparing', () => {
     expect(taller).toMatchObject({ differing: 50, total: 150, regions: [{ x: 0, y: 0, width: 10, height: 15 }] });
   });
 
+  it('tells anti-aliasing apart: an edge smoothed another way shows in yellow, uncounted; a thin line still differs', async () => {
+    const { diffPixels } = await import('@/features/shot/compare/lib/diffPixels');
+    // Black on the left, white on the right, the edge between them smoothed grey: darker in one, lighter in the other.
+    const picture = (edge: number, line: boolean) => {
+      const data = new Uint8ClampedArray(20 * 20 * 4);
+      for (let y = 0; y < 20; y++) {
+        for (let x = 0; x < 20; x++) {
+          const value = x < 10 ? 0 : x === 10 ? edge : line && x === 17 ? 0 : 255;
+          data.set([value, value, value, 255], (y * 20 + x) * 4);
+        }
+      }
+      return { data, width: 20, height: 20 };
+    };
+    const result = diffPixels(picture(100, false), picture(180, true), { x: 0, y: 0 }, 0.1);
+    expect(result).toMatchObject({ differing: 20, smoothed: 20, regions: [{ x: 16, y: 0, width: 4, height: 20 }] });
+    expect([...result.image.data.slice((5 * 20 + 10) * 4, (5 * 20 + 10) * 4 + 4)]).toEqual([255, 200, 0, 255]);
+    expect([...result.image.data.slice((5 * 20 + 17) * 4, (5 * 20 + 17) * 4 + 4)]).toEqual([255, 0, 64, 255]);
+  });
+
   it('says how much differs as a share a person reads', async () => {
     const { differingShare } = await import('@/widgets/editor-panel/ui/ComparePage/differingShare');
     expect(differingShare(0, 100)).toBe('0%');

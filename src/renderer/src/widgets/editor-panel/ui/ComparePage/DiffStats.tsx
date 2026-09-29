@@ -25,6 +25,7 @@ const STATS: { [S in DiffState['status']]: (diff: Extract<DiffState, { status: S
   done: (diff, onStep) => (
     <>
       <span className="text-fg">{differingShare(diff.differing, diff.total)} of pixels differ</span>
+      {diff.smoothed ? <span data-testid="compare-smoothed">{differingShare(diff.smoothed, diff.total)} more only in anti-aliasing (yellow)</span> : null}
       <span>{diff.regions.length === 1 ? '1 area' : `${diff.regions.length} areas`}</span>
       <IconButton icon={icons.BackIcon} label="Previous area" size="sm" disabled={!diff.regions.length} onClick={() => onStep(-1)} />
       <IconButton icon={icons.ForwardIcon} label="Next area" size="sm" disabled={!diff.regions.length} onClick={() => onStep(1)} />

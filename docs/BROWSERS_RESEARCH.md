@@ -245,7 +245,7 @@ Each phase ends in a pull request of its own. Each updates SPEC, the CHANGELOG a
 ### Phase 3: Designs and the compare page
 - [x] **Import design…**, dropping files, pasting: decode and measure in the renderer, guess the scale, keep the file.
 - [x] The compare page: side by side, swipe, onion skin, difference, and offsets.
-- [x] The diff worker: YIQ distance over a threshold, the share of pixels that differ, differing areas (16 px cells, at most 200). Anti-aliased pixels aren't told apart (the threshold stands in), and it wasn't measured on a 1440×10 000 page.
+- [x] The diff worker: YIQ distance over a threshold, the share of pixels that differ, differing areas (16 px cells, at most 200), and anti-aliased pixels told apart (shown yellow, not counted). On a 1440×10 000 page with a tenth of its pixels differing it takes about 4 s, 2 s without telling anti-aliasing apart (`test/perf/renderer/diff.perf.test.ts`).
 - [x] "Compare with the page": capture at the design's width (`Emulation.setDeviceMetricsOverride`), then compare, then clear the emulation.
 - [x] Tests: unit tests for the diff (identical, shifted and anti-aliased images); e2e: import a PNG, compare it with a capture of a fixture page, check the share of differing pixels.
 

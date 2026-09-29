@@ -8,7 +8,10 @@ import type { CompareViewProps } from './types';
 /** Room kept above an area scrolled to, so its box shows whole. */
 const SCROLL_MARGIN = 24;
 
-/** Where two shots differ: differing pixels in red over the faded base, how many, and each area to step through. */
+/**
+ * Where two shots differ: differing pixels in red over the faded base (anti-aliasing in yellow), how many, and each
+ * area to step through.
+ */
 export function DifferenceView({ base, other, zoom, offset }: CompareViewProps) {
   const diff = useImageDiff(sourceOf(base), sourceOf(other), offset, true);
   const [at, setAt] = useState(0);

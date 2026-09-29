@@ -16,5 +16,11 @@ export const SAME_FADE = 0.1;
 /** RGBA of a pixel that differs. */
 export const DIFF_COLOR = [255, 0, 64, 255] as const;
 
+/** RGBA of a pixel that differs only as anti-aliasing does (an edge smoothed another way): shown, not counted. */
+export const SMOOTHED_COLOR = [255, 200, 0, 255] as const;
+
+/** How many neighbours of its own colour make a pixel part of a flat area, and not of an edge (an image's side counts as one). */
+export const FLAT_SIBLINGS = 3;
+
 /** Channels per pixel in RGBA pixel data. */
 export const CHANNELS = 4;
