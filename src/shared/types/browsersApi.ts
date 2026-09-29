@@ -13,10 +13,11 @@ export interface BrowsersApi {
   /** Offers a browser beside the address bar again, or stops offering it. */
   setBrowserHidden(id: string, hidden: boolean): Promise<void>;
   /**
-   * Opens an http(s) address in a Chromium browser with a profile of the app's own, serving the workspace's overrides
-   * and rules in its tabs (launching it, or reaching it when the app launched it before and it is still open).
+   * Opens an http(s) address in a Chromium browser or Firefox with a profile of the app's own, serving the workspace's
+   * overrides and rules in its tabs (launching it, or reaching it when the app launched it before and it is still open);
+   * with `everyday`, in your everyday Chromium browser, remote debugging turned on for it (only the tabs the app opens).
    */
-  openWithChanges(id: string, url: string): Promise<void>;
+  openWithChanges(id: string, url: string, everyday?: boolean): Promise<void>;
   /** The browsers the app drives, with their tabs. */
   listDriven(): Promise<DrivenBrowser[]>;
   /** Brings a tab of a driven browser to the front. */

@@ -34,6 +34,8 @@ const { driveCommand } = await import('../../src/main/browsers/driven/driveComma
 const { profileDir } = await import('../../src/main/browsers/driven/profileDir');
 const { readActivePort } = await import('../../src/main/browsers/driven/chromium/readActivePort');
 const { DrivenTabs } = await import('../../src/main/browsers/driven/DrivenTabs');
+const { everydayProfileDir } = await import('../../src/main/browsers/driven/everyday/everydayProfileDir');
+const { isListening } = await import('../../src/main/browsers/driven/everyday/isListening');
 type DrivenTabState = import('../../src/main/browsers/driven/chromium/types').DrivenTabState;
 const { BrowserStore } = await import('../../src/main/store/BrowserStore');
 type FoundBrowser = import('../../src/main/browsers').FoundBrowser;
@@ -244,12 +246,12 @@ describe('The registry', () => {
     await prefs.load();
     const events: unknown[] = [];
     const find = vi.fn(async () => [found]);
-    return { registry: new BrowserRegistry({ prefs, send: (e) => events.push(e), find }), events, find, prefs };
+    return { registry: new BrowserRegistry({ prefs, send: (e) => events.push(e), find, home: tmp }), events, find, prefs };
   }
 
   it('lists what it found, looks again only after a minute, and announces versions once read', async () => {
     const { registry: r, events, find } = await registry();
-    expect(await r.list()).toEqual([{ id: found.id, name: 'Fake', engine: 'chromium', version: null, icon: null, added: false, hidden: false }]);
+    expect(await r.list()).toEqual([{ id: found.id, name: 'Fake', engine: 'chromium', version: null, icon: null, added: false, hidden: false, debuggable: false }]);
     await r.list();
     expect(find).toHaveBeenCalledTimes(1);
     await expect.poll(() => events.length).toBe(1);
@@ -267,7 +269,7 @@ describe('The registry', () => {
   it('adds a program, hides and removes it, and refuses what can’t be run', async () => {
     const { registry: r, events } = await registry();
     const added = await r.add(fake);
-    expect(added).toEqual({ id: expect.stringMatching(/^added:[0-9a-f]{8}$/), name: 'fake-browser', engine: 'unknown', version: null, icon: null, added: true, hidden: false });
+    expect(added).toEqual({ id: expect.stringMatching(/^added:[0-9a-f]{8}$/), name: 'fake-browser', engine: 'unknown', version: null, icon: null, added: true, hidden: false, debuggable: false });
     await r.setHidden(added.id, true);
     expect((await r.list()).find((b) => b.id === added.id)?.hidden).toBe(true);
     await r.remove(added.id);
@@ -341,5 +343,33 @@ describe('Driving a Chromium browser', () => {
     expect(tabs.remove('a')?.info.id).toBe('a');
     expect(() => tabs.get('a')).toThrow('That tab is closed');
     expect(tabs.clear().map((t) => t.info.id)).toEqual(['b']);
+  });
+});
+
+describe("Your everyday Chromium browser's profile", () => {
+  const found = (name: string, command: string[], id = 'desktop:x.desktop'): FoundBrowser => ({ id, name, engine: 'chromium', command, urlAt: command.length, iconFile: null, app: null, program: command[0], added: false });
+
+  it("is where each system keeps it, by the browser's name or program", () => {
+    expect(everydayProfileDir(found('Google Chrome', ['/usr/bin/google-chrome-stable']), '/home/me', 'linux')).toBe('/home/me/.config/google-chrome');
+    expect(everydayProfileDir(found('Google Chrome (beta)', ['/usr/bin/google-chrome-beta']), '/home/me', 'linux')).toBe('/home/me/.config/google-chrome-beta');
+    expect(everydayProfileDir(found('Brave Web Browser', ['/usr/bin/brave-browser']), '/home/me', 'linux')).toBe('/home/me/.config/BraveSoftware/Brave-Browser');
+    expect(everydayProfileDir(found('Microsoft Edge', ['open', '-a', '/Applications/Microsoft Edge.app']), '/Users/me', 'darwin')).toBe('/Users/me/Library/Application Support/Microsoft Edge');
+    expect(everydayProfileDir(found('Google Chrome', ['C:/Program Files/Google/Chrome/Application/chrome.exe']), 'C:/Users/me', 'win32')).toMatch(/AppData.Local.Google.Chrome.User Data$/);
+    expect(everydayProfileDir(found('Unknown Browser', ['/usr/bin/unknown']), '/home/me', 'linux')).toBeNull();
+  });
+
+  it("is in a Snap's or a Flatpak's own folder", () => {
+    expect(everydayProfileDir(found('Chromium', ['/snap/bin/chromium']), '/home/me', 'linux')).toBe('/home/me/snap/chromium/common/chromium');
+    expect(everydayProfileDir(found('Google Chrome', ['/usr/bin/flatpak', 'run', '--branch=stable', 'com.google.Chrome']), '/home/me', 'linux')).toBe('/home/me/.var/app/com.google.Chrome/config/google-chrome');
+  });
+
+  it('counts as running when its debugging port takes connections', async () => {
+    const { createServer } = await import('node:net');
+    const server = createServer((socket) => socket.end());
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const { port } = server.address() as import('node:net').AddressInfo;
+    expect(await isListening(port)).toBe(true);
+    await new Promise((r) => server.close(r));
+    expect(await isListening(port)).toBe(false);
   });
 });

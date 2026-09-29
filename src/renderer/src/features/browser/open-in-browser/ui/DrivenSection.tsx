@@ -25,7 +25,7 @@ export function DrivenSection({ query, onClose }: DrivenSectionProps) {
         return (
           <div key={browser.id} data-testid="driven-browser" data-browser-id={browser.id} className="flex flex-col">
             <div className="flex items-center gap-2 px-2 py-0.5">
-              <BrowserIcon browser={iconOf(browser.id, browser.name)} size={14} />
+              <BrowserIcon browser={iconOf(browser.browserId, browser.name)} size={14} />
               <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-fg-muted">{browser.name}, with your changes</span>
               <IconButton icon={icons.CloseIcon} label={`Stop serving your changes in ${browser.name}`} size="sm" onClick={() => void stopDriving(browser)} />
             </div>

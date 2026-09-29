@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { homedir } from 'node:os';
 import { basename, extname } from 'node:path';
 import type { BrowserInfo } from '../../../shared/types';
 import { HTTP_URL } from '../../constants';
@@ -7,6 +8,7 @@ import { BROWSER_ID_PREFIX, SCAN_REUSE_MS } from '../constants';
 import { engineOf } from '../engineOf';
 import { findBrowsers } from '../findBrowsers';
 import { readVersion } from '../readVersion';
+import { reachableEveryday } from '../driven/everyday/reachableEveryday';
 import { startBrowser } from '../startBrowser';
 import type { BrowserRegistryDeps, FoundBrowser } from '../types';
 import { addedBrowser } from './addedBrowser';
@@ -27,11 +29,16 @@ export class BrowserRegistry {
   private readingVersions = false;
   private readonly icons = new Map<string, string | null>();
   private readonly versions = new Map<string, string | null>();
+  /** The browsers whose everyday profile ran with remote debugging on when they were last listed. */
+  private debuggable = new Set<string>();
 
   constructor(private readonly deps: BrowserRegistryDeps) {}
 
   async list(): Promise<BrowserInfo[]> {
     await this.scan();
+    const home = this.deps.home ?? homedir();
+    const reachable = await Promise.all(this.all().map(async (b) => ((await reachableEveryday(b, home)) ? [b.id] : [])));
+    this.debuggable = new Set(reachable.flat());
     return this.infos();
   }
 
@@ -59,7 +66,7 @@ export class BrowserRegistry {
     this.icons.set(browser.id, await browserIcon(browser));
     this.changed();
     void this.readVersions();
-    return infoOf(browser, this.icons.get(browser.id), null, new Set());
+    return infoOf(browser, this.icons.get(browser.id), null, new Set(), new Set());
   }
 
   async remove(id: string): Promise<void> {
@@ -79,7 +86,7 @@ export class BrowserRegistry {
 
   private infos(): BrowserInfo[] {
     const hidden = new Set(this.deps.prefs.get().hidden);
-    return this.all().map((b) => infoOf(b, this.icons.get(b.id), this.versions.get(b.id), hidden));
+    return this.all().map((b) => infoOf(b, this.icons.get(b.id), this.versions.get(b.id), hidden, this.debuggable));
   }
 
   private changed(): void {

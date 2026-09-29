@@ -28,7 +28,7 @@ export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver
   constructor(
     browser: FoundBrowser,
     version: string | null,
-    private readonly connection: CdpConnection,
+    protected readonly connection: CdpConnection,
     deps: DriverDeps,
   ) {
     super(browser, version, deps);
@@ -36,6 +36,12 @@ export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver
 
   /** Attaches to the browser's tabs, the ones open now and every one opened later. */
   async start(): Promise<void> {
+    await this.listen();
+    await this.connection.send(CDP.Target.setAutoAttach, { ...PAGE_ATTACH });
+  }
+
+  /** Follows the browser's tabs attached (and their address and title), and the connection closing. */
+  protected async listen(): Promise<void> {
     const events: Partial<Record<string, (params: any) => void>> = {
       [CDP.Target.attachedToTarget]: (p: AttachedPage) => this.attached(p),
       [CDP.Target.detachedFromTarget]: (p: { sessionId: string }) => this.detached(p.sessionId),
@@ -49,7 +55,6 @@ export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver
       this.connection.onClose(() => this.closed()),
     );
     await this.connection.send(CDP.Target.setDiscoverTargets, { discover: true });
-    await this.connection.send(CDP.Target.setAutoAttach, { ...PAGE_ATTACH });
   }
 
   /** Opens an address in the blank tab the browser started on, or else in a new tab, and brings it to the front. */
@@ -91,9 +96,10 @@ export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver
     this.connection.close();
   }
 
-  private attached(p: AttachedPage): void {
+  protected attached(p: AttachedPage): void {
     // Only tabs are asked for; anything else is let go of as it came.
     if (p.targetInfo.type !== PAGE_TARGET) return letTargetGo(this.connection, p.sessionId);
+    if (this.tabs.has(p.targetInfo.targetId)) return;
     const tab = attachTab(this.connection, p, this.deps.sources);
     tab.transport.on(CDP.Page.loadEventFired, () => void this.readTabs([tab.info.id]));
     this.tabs.add(tab);
@@ -127,7 +133,7 @@ export class DrivenChromium extends DrivenBase<DrivenTabState> implements Driver
     return captureTabAt(tab, viewport);
   }
 
-  private async newTab(): Promise<DrivenTabState> {
+  protected async newTab(): Promise<DrivenTabState> {
     const { targetId } = await this.connection.send<{ targetId: string }>(CDP.Target.createTarget, { url: START_URL });
     return withTimeout(this.tabs.arrival(targetId), NEW_TAB_TIMEOUT_MS, 'Opening a tab');
   }

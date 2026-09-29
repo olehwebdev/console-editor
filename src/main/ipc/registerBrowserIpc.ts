@@ -29,10 +29,10 @@ export function registerBrowserIpc(handle: IpcHandle, handlePage: IpcHandle, { w
     assertString(url, 'url');
     return browsers.open(id, url);
   });
-  handlePage(IPC_CHANNEL.openWithChanges, (id: unknown, url: unknown) => {
+  handlePage(IPC_CHANNEL.openWithChanges, (id: unknown, url: unknown, everyday: unknown) => {
     assertString(id, 'id');
     assertString(url, 'url');
-    return driven.open(id, url);
+    return driven.open(id, url, everyday === true);
   });
   handlePage(IPC_CHANNEL.listDriven, () => driven.read());
   handlePage(IPC_CHANNEL.listEverydayTabs, () => listEverydayTabs());

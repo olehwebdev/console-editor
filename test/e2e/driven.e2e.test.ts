@@ -2,8 +2,10 @@
  * A Chromium browser driven with the workspace's changes, in the built app on Linux: a real Chromium installed as a
  * launcher is offered "with your changes" in the browser menu; the page opens there served the workspace's override,
  * its tab is listed under the browser and captured into the shots, the page is captured here and there at once and
- * the two compared, and letting go of it takes it off the menu.
+ * the two compared, and letting go of it takes it off the menu. Your own Chromium, remote debugging on for it, is
+ * offered too, and served your changes only in the tab the app opens.
  */
+import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
@@ -48,6 +50,7 @@ describe.skipIf(!built || !chromiumPath || process.platform !== 'linux')('A brow
   let dir: string;
   let app: ElectronApplication;
   let win: Page;
+  let everyday: ChildProcess | undefined;
 
   type Api = { consoleEditor: { listDriven(): Promise<DrivenBrowser[]>; listShots(): Promise<Shot[]>; createOverride(input: object): Promise<unknown> } };
   const driven = () => win.evaluate(() => (window as unknown as Api).consoleEditor.listDriven());
@@ -76,7 +79,7 @@ describe.skipIf(!built || !chromiumPath || process.platform !== 'linux')('A brow
     app = await electron.launch({
       args: [...sandboxArgs, root],
       cwd: root,
-      env: { ...process.env, CONSOLE_EDITOR_USER_DATA: join(dir, 'user-data'), XDG_DATA_HOME: join(dir, 'data'), XDG_DATA_DIRS: join(dir, 'system') } as Record<string, string>,
+      env: { ...process.env, HOME: join(dir, 'home'), CONSOLE_EDITOR_USER_DATA: join(dir, 'user-data'), XDG_DATA_HOME: join(dir, 'data'), XDG_DATA_DIRS: join(dir, 'system') } as Record<string, string>,
     });
     win = await waitFor(() => app.windows().find((p) => EDITOR_URL.test(p.url())));
     await win.waitForSelector('body[data-ready]');
@@ -94,6 +97,7 @@ describe.skipIf(!built || !chromiumPath || process.platform !== 'linux')('A brow
     const connection = address ? await CdpConnection.connect(address).catch(() => null) : null;
     await connection?.send('Browser.close').catch(() => undefined);
     connection?.close();
+    everyday?.kill();
     await app?.close();
     await new Promise((r) => server?.close(r));
     await rm(dir, { recursive: true, force: true, maxRetries: 5 });
@@ -151,5 +155,25 @@ describe.skipIf(!built || !chromiumPath || process.platform !== 'linux')('A brow
     await menu().getByRole('button', { name: 'Stop serving your changes in Test Chromium' }).click();
     await expect.poll(() => driven()).toEqual([]);
     await expect.poll(() => menu().getByTestId('driven-browsers').count()).toBe(0);
+    await win.keyboard.press('Escape');
+    await expect.poll(() => menu().count()).toBe(0);
+  });
+
+  it('uses your own Chromium, remote debugging on for it, with your changes: only in the tab it opens', async () => {
+    // Your everyday Chromium (its profile in the home folder), with a tab of your own.
+    const profile = join(dir, 'home/.config/chromium');
+    mkdirSync(profile, { recursive: true });
+    everyday = spawn(chromiumPath!, ['--headless=new', ...sandboxArgs, `--user-data-dir=${profile}`, '--remote-debugging-port=0', '--no-first-run', 'about:blank'], { stdio: 'ignore' });
+    await waitFor(() => readActivePort(profile));
+    await win.getByTestId('browser-menu-button').click();
+    const row = menu().locator(`[data-testid="browser-row"][data-browser-id="${BROWSER_ID}"]`);
+    await row.getByTestId('browser-open-everyday').click();
+    await expect.poll(async () => (await driven()).find((d) => d.everyday)?.tabs.map((t) => t.title), { timeout: 30_000 }).toEqual(['overridden']);
+    expect((await driven())[0]).toMatchObject({ id: `${BROWSER_ID}#everyday`, browserId: BROWSER_ID, name: 'Test Chromium · your profile' });
+    await win.getByTestId('browser-menu-button').click();
+    await menu().getByRole('button', { name: 'Stop serving your changes in Test Chromium · your profile' }).click();
+    await expect.poll(() => driven()).toEqual([]);
+    // Still running, as it was.
+    expect(everyday.exitCode).toBeNull();
   });
 });

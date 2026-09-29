@@ -2,7 +2,7 @@ import type { DrivenBrowser, DrivenTab } from '../../../shared/types';
 import { HTTP_URL } from '../../constants';
 import type { FoundBrowser } from '../types';
 import { START_URL } from './constants';
-import type { KeptTab, TabRead } from './types';
+import type { DriverDeps, KeptTab, TabRead } from './types';
 
 /** A driven browser's tabs, in the order they were found; waits for the tab a new one becomes. */
 export class DrivenTabs<T extends KeptTab> {
@@ -76,8 +76,8 @@ export class DrivenTabs<T extends KeptTab> {
   }
 
   /** The browser with these tabs, as listed. */
-  described({ id, name }: Pick<FoundBrowser, 'id' | 'name'>, version: string | null): DrivenBrowser {
-    return { id, name, version, tabs: this.list() };
+  described(listedAs: DriverDeps['listedAs'], browser: Pick<FoundBrowser, 'id'>, version: string | null): DrivenBrowser {
+    return { ...listedAs, browserId: browser.id, version, tabs: this.list() };
   }
 
   /** Forgets every tab, and returns them. */

@@ -70,6 +70,10 @@ export interface TabDesigns<T extends KeptTab> {
 }
 
 export interface DriverDeps {
+  /** How the driver lists itself: its key among the driven browsers, and its name. */
+  listedAs: { id: string; name: string; everyday: boolean };
+  /** The home folder, where everyday profiles are. */
+  home: string;
   sources: InterceptionSources;
   /** The app's data folder, where driven browsers keep their profiles. */
   userData: string;
@@ -96,5 +100,7 @@ export interface DrivenBrowsersDeps {
   sources: InterceptionSources;
   /** The app's data folder, where driven browsers keep their profiles. */
   userData: string;
+  /** The home folder, where everyday profiles are (the user's by default). */
+  home?: string;
   send(event: AppEvent): void;
 }

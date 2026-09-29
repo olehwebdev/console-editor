@@ -35,9 +35,9 @@ export function BrowserMenu({ onClose, onShowSettings }: BrowserMenuProps) {
     onClose();
     void openInBrowser(browser);
   };
-  const openChanged = (browser: BrowserInfo) => {
+  const openChanged = (browser: BrowserInfo, everyday: boolean) => {
     onClose();
-    void openWithChanges(browser);
+    void openWithChanges(browser, everyday);
   };
 
   return (
@@ -60,7 +60,7 @@ export function BrowserMenu({ onClose, onShowSettings }: BrowserMenuProps) {
       {onWeb ? null : <p className="px-2 text-[12px] text-fg-subtle">Open a website first, then open it in another browser from here.</p>}
       <div className="flex max-h-80 flex-col overflow-y-auto">
         {matches.map((browser) => (
-          <BrowserRow key={browser.id} browser={browser} disabled={!onWeb} driven={driven.some((d) => d.id === browser.id)} onOpen={open} onOpenWithChanges={openChanged} />
+          <BrowserRow key={browser.id} browser={browser} disabled={!onWeb} driven={driven.some((d) => d.browserId === browser.id)} onOpen={open} onOpenWithChanges={openChanged} />
         ))}
         {!loaded ? <Spinner className="mx-auto my-3 text-fg-subtle" label="Looking for browsers" /> : null}
         {loaded && !matches.length ? (

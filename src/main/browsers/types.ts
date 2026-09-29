@@ -27,4 +27,6 @@ export interface BrowserRegistryDeps {
   send(event: AppEvent): void;
   /** Looks for the installed browsers (the system's own way by default; tests hand their own). */
   find?: () => Promise<FoundBrowser[]>;
+  /** The home folder, where everyday profiles are (the user's by default). */
+  home?: string;
 }

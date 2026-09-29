@@ -22,6 +22,8 @@ export interface BrowserInfo {
   added: boolean;
   /** Turned off in Settings › Browsers: not offered beside the address bar. */
   hidden: boolean;
+  /** A Chromium browser whose everyday profile runs with remote debugging turned on: it can be driven as it is. */
+  debuggable: boolean;
 }
 
 /** A tab of your everyday browser (one the app didn't launch), as its session has it. */
@@ -49,8 +51,12 @@ export interface DrivenTab {
 
 /** A browser the app launched with a profile of its own, and serves the workspace's overrides and rules in. */
 export interface DrivenBrowser {
-  /** The installed browser's id. */
+  /** Its key among the driven browsers: the installed browser's id, with a suffix for its everyday profile. */
   id: string;
+  /** The installed browser's id. */
+  browserId: string;
+  /** It is your everyday profile (remote debugging turned on for it), not one of the app's own. */
+  everyday: boolean;
   name: string;
   version: string | null;
   tabs: DrivenTab[];

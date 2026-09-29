@@ -20,7 +20,7 @@ export abstract class DrivenBase<T extends KeptTab> {
   ) {}
 
   list(): DrivenBrowser {
-    return this.tabs.described(this.browser, this.version);
+    return this.tabs.described(this.deps.listedAs, this.browser, this.version);
   }
 
   /**

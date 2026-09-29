@@ -10,12 +10,14 @@ export interface BrowserRowProps {
   /** The app drives it with the workspace's changes (it is marked). */
   driven: boolean;
   onOpen(browser: BrowserInfo): void;
-  onOpenWithChanges(browser: BrowserInfo): void;
+  /** Opens it with the workspace's changes: with a profile of the app's own, or your everyday one (`everyday`). */
+  onOpenWithChanges(browser: BrowserInfo, everyday: boolean): void;
 }
 
 /**
  * A browser in the menu: its icon, name and version; choosing it opens the page there. A Chromium browser or Firefox
- * also offers opening it with the workspace's changes, in a profile of the app's own.
+ * also offers opening it with the workspace's changes, in a profile of the app's own; a Chromium browser running with
+ * remote debugging turned on, in your everyday profile too.
  */
 export function BrowserRow({ browser, disabled, driven, onOpen, onOpenWithChanges }: BrowserRowProps) {
   return (
@@ -37,8 +39,19 @@ export function BrowserRow({ browser, disabled, driven, onOpen, onOpenWithChange
           label={`Open in ${browser.name} with your changes`}
           size="sm"
           disabled={disabled}
-          onClick={() => onOpenWithChanges(browser)}
+          onClick={() => onOpenWithChanges(browser, false)}
           data-testid="browser-open-with-changes"
+          className={browser.debuggable ? undefined : 'mr-1'}
+        />
+      ) : null}
+      {browser.debuggable ? (
+        <IconButton
+          icon={icons.LiveIcon}
+          label={`Use your own ${browser.name} with your changes`}
+          size="sm"
+          disabled={disabled}
+          onClick={() => onOpenWithChanges(browser, true)}
+          data-testid="browser-open-everyday"
           className="mr-1"
         />
       ) : null}
