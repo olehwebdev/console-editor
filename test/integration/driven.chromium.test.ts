@@ -91,7 +91,7 @@ describe.skipIf(!chromiumAvailable)('a Chromium browser driven with your changes
   it('launches it with a profile of its own, and serves the overrides in the tab it opens', async () => {
     await driven.open(browser.id, `${origin}/page.html`);
     await waitFor(() => tabs().some((t) => t.url === `${origin}/page.html` && t.title === 'overridden'));
-    expect(driven.list()).toEqual([{ id: browser.id, name: 'Test Chromium', version: expect.stringMatching(/^\d+\./), tabs: expect.any(Array) }]);
+    expect(driven.list()).toEqual([{ id: browser.id, browserId: browser.id, everyday: false, name: 'Test Chromium', version: expect.stringMatching(/^\d+\./), tabs: expect.any(Array) }]);
     expect(existsSync(join(profile(), 'DevToolsActivePort'))).toBe(true);
     expect(events.at(-1)).toMatchObject({ type: 'driven-browsers-changed', driven: [{ id: browser.id }] });
   });

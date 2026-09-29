@@ -101,7 +101,7 @@ describe.skipIf(!firefox)('Firefox driven with your changes', () => {
   it('launches it with a profile of its own, serving the overrides and applying the rules', async () => {
     await driven.open(browser.id, `${origin}/page.html`);
     await waitFor(async () => (await tabs()).some((t) => t.title === 'overridden yes blocked from-override'));
-    expect(driven.list()).toEqual([{ id: browser.id, name: 'Firefox', version: expect.stringMatching(/^\d+\./), tabs: [expect.objectContaining({ url: `${origin}/page.html` })] }]);
+    expect(driven.list()).toEqual([{ id: browser.id, browserId: browser.id, everyday: false, name: 'Firefox', version: expect.stringMatching(/^\d+\./), tabs: [expect.objectContaining({ url: `${origin}/page.html` })] }]);
     expect(existsSync(join(profile(), 'WebDriverBiDiServer.json'))).toBe(true);
     expect(readFileSync(join(profile(), 'user.js'), 'utf8')).toContain('browser.shell.checkDefaultBrowser');
   });
