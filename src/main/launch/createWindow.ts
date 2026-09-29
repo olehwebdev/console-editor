@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import { join } from 'node:path';
 import appIcon from '../../../build/icons/512x512.png?asset&asarUnpack';
 import { encodeEvent } from '../../shared/appEventWire';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
@@ -6,6 +7,7 @@ import type { AppEvent } from '../../shared/types';
 import { REPO_URL } from '../appInfo';
 import { ActionsWindow } from '../ActionsWindow';
 import { BrowserRegistry, DrivenBrowsers } from '../browsers';
+import { FIGMA_API, FigmaImporter, TOKEN_FILE } from '../figma';
 import { installMenu } from '../installMenu';
 import { watchOverrideFiles } from '../overrideFiles';
 import { registerIpc } from '../ipc';
@@ -23,10 +25,10 @@ import { lockEditorNavigation } from './lockEditorNavigation';
 import { openStores } from './openStores';
 
 /**
- * Opens the editor window with its stores, menu, IPC and updater, then the first page.
- * `updateFeed`: a local update server standing in for GitHub (tests).
+ * Opens the editor window with its stores, menu, IPC and updater, then the first page. `standIns`: local servers
+ * standing in for GitHub's releases and Figma's API (tests).
  */
-export async function createWindow(updateFeed: string | undefined): Promise<void> {
+export async function createWindow({ updateFeed, figmaApi }: { updateFeed?: string; figmaApi?: string }): Promise<void> {
   app.setAboutPanelOptions({
     applicationName: 'Console Editor',
     applicationVersion: app.getVersion(),
@@ -62,6 +64,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
   // The design laid over the page goes over the tabs of browsers driven with the workspace's changes too.
   const shots = new PageShots({ store: shotStore, page, send, onDesign: (design) => void driven.setDesign(design) });
   registerShotProtocol(shotStore);
+  const figma = new FigmaImporter({ tokenFile: join(userData, TOKEN_FILE), api: figmaApi ?? FIGMA_API, addDesign: (name, bytes) => shots.addDesign(name, bytes) });
   const workspaces = new WorkspaceController(page, session, store, rules, actions, send, sourceMaps, shots);
   await workspaces.start();
   const attached = page.attach();
@@ -83,7 +86,7 @@ export async function createWindow(updateFeed: string | undefined): Promise<void
     // Browsers driven with the workspace's changes stay open, as they are.
     driven.dispose();
   });
-  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, driven, shots, shotStore, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
+  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, driven, shots, shotStore, figma, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
 

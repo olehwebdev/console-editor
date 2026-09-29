@@ -112,6 +112,9 @@ export const IPC_CHANNEL = {
   showShot: 'shots:show',
   importDesigns: 'shots:import-designs',
   addDesign: 'shots:add-design',
+  importFigmaFrame: 'shots:figma-import',
+  hasFigmaToken: 'shots:figma-has-token',
+  forgetFigmaToken: 'shots:figma-forget-token',
   setShotScale: 'shots:scale',
   captureForDesign: 'shots:capture-for-design',
 

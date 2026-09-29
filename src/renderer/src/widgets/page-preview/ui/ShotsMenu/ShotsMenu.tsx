@@ -6,6 +6,7 @@ import { IconButton } from '@/shared/ui/icon-button';
 import { Input } from '@/shared/ui/input';
 import { PaneTabs } from '@/shared/ui/pane-tabs';
 import { matchesShot, useMinute, useShotStore } from '@/entities/shot';
+import { FigmaImportForm, figmaTokenSaved } from '@/features/shot/import-figma';
 import { imageFilesOf } from '@/features/shot/import-design';
 import { CaptureMenu } from './CaptureMenu';
 import { FILES_TYPE, SHOT_FILTERS } from './constants';
@@ -25,14 +26,16 @@ export interface ShotsMenuProps {
 }
 
 /**
- * The shots menu's content: capturing, importing designs (dropped or pasted too), a search, All · Captures · Designs,
- * and the workspace's shots, newest first.
+ * The shots menu's content: capturing, importing designs (dropped or pasted too, or a Figma frame by its link), a
+ * search, All · Captures · Designs, and the workspace's shots, newest first.
  */
 export function ShotsMenu({ hasPage, inEditor, onCapture, onCaptureEverywhere, onOpen, onImport }: ShotsMenuProps) {
   const shots = useShotStore((s) => s.shots);
   const now = useMinute();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<ShotFilter>('all');
+  // The Figma form, while open: whether a token is kept is asked as it opens (each time, so it starts afresh).
+  const [figma, setFigma] = useState<{ tokenSaved: boolean } | null>(null);
   const shown = shots.filter((s) => (filter === 'all' || s.kind === filter) && matchesShot(s, query.trim()));
   // Images dropped or pasted on the menu are imported as designs.
   const take = (data: DataTransfer | null) => {
@@ -51,8 +54,19 @@ export function ShotsMenu({ hasPage, inEditor, onCapture, onCaptureEverywhere, o
       <div className="flex items-center gap-2">
         <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search captures and designs…" aria-label="Search captures and designs" leading={<Icon icon={icons.SearchIcon} size={14} />} className="flex-1" />
         <IconButton icon={icons.ImportDesignIcon} label="Import designs…" size="sm" onClick={() => onImport(null)} data-testid="shots-import" />
+        <IconButton icon={icons.FigmaIcon} label="Import a Figma frame…" size="sm" onClick={() => (figma ? setFigma(null) : void figmaTokenSaved().then((tokenSaved) => setFigma({ tokenSaved })))} data-testid="shots-figma" />
         <CaptureMenu canPick={inEditor} disabled={!hasPage} onCapture={onCapture} onCaptureEverywhere={onCaptureEverywhere} />
       </div>
+      {figma ? (
+        <FigmaImportForm
+          tokenSaved={figma.tokenSaved}
+          onImported={(shot) => {
+            setFigma(null);
+            onOpen(shot);
+          }}
+          onCancel={() => setFigma(null)}
+        />
+      ) : null}
       <div className="h-7">
         <PaneTabs<ShotFilter> tabs={SHOT_FILTERS} value={filter} onChange={setFilter} label="Show" />
       </div>

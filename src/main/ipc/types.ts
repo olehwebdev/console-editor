@@ -9,6 +9,7 @@ import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
 import type { SettingsStore } from '../store/SettingsStore';
+import type { FigmaImporter } from '../figma';
 import type { ShotStore } from '../store/ShotStore';
 import type { SourceMapFileStore } from '../store/SourceMapFileStore';
 import type { UpdateService } from '../update/UpdateService';
@@ -36,6 +37,8 @@ export interface IpcDeps {
   /** The workspace's captures and designs, and where they are kept. */
   shots: PageShots;
   shotStore: ShotStore;
+  /** Figma frames brought in as designs. */
+  figma: FigmaImporter;
   updates: UpdateService;
   /** Pushes an event to the editor's UI. */
   send(event: AppEvent): void;

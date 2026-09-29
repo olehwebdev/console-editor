@@ -19,7 +19,7 @@ import { registerShotIpc } from './registerShotIpc';
 import { registerSourceMapIpc } from './registerSourceMapIpc';
 import type { IpcDeps } from './types';
 
-export function registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, driven, shots, shotStore, updates, send, onSessionFlushed }: IpcDeps): void {
+export function registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, driven, shots, shotStore, figma, updates, send, onSessionFlushed }: IpcDeps): void {
   // Only the editor UI may call these (the website view has no preload, but be strict anyway).
   const fromEditor = (event: IpcMainInvokeEvent | IpcMainEvent) => event.sender.id === win.webContents.id;
 
@@ -88,7 +88,7 @@ export function registerIpc({ win, page, store, rules, settings, session, action
   registerHarIpc(handle, { win, page, store });
   registerOverridesFileIpc(handle, { win, page, store, rules });
   registerBrowserIpc(handle, handlePage, { win, browsers, driven });
-  registerShotIpc(handle, handlePage, { win, shots, store: shotStore, driven, send });
+  registerShotIpc(handle, handlePage, { win, shots, store: shotStore, driven, figma, send });
   registerOverlayIpc(handlePage, shots.overlay);
 
   handle(IPC_CHANNEL.getSession, () => session.get());

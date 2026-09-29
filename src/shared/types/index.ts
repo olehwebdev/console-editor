@@ -63,6 +63,7 @@ export type { SessionDraft, SessionState, SessionTab } from './session';
 export type { CaptureArea, DesignImport, GroupCapture, Shot, ShotBrowser, ShotKind } from './shots';
 export { CAPTURE_AREAS, SHOT_KINDS } from './shots';
 export type { ShotsApi } from './shotsApi';
+export type { FigmaFrame, FigmaImport } from './figma';
 export type { SourceMapBody, SourceMapFetchFailure, SourceMapFile, SourceMapFileInfo, SourceMapKind, SourceMapRequest } from './sourceMaps';
 export { SOURCE_MAP_KINDS } from './sourceMaps';
 export type { Settings, SwitchSetting, Throttling } from './settings';

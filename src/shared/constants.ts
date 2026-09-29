@@ -73,6 +73,8 @@ export const ENV = {
   gallery: 'CONSOLE_EDITOR_GALLERY',
   /** A local update server standing in for GitHub (tests); honoured only with a data folder of its own. */
   updateFeed: 'CONSOLE_EDITOR_UPDATE_FEED',
+  /** A local server standing in for Figma's API (tests); honoured only with a data folder of its own. */
+  figmaApi: 'CONSOLE_EDITOR_FIGMA_API',
   /** Set by electron-vite in development: the renderer's dev-server URL. */
   rendererUrl: 'ELECTRON_RENDERER_URL',
 } as const;

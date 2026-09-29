@@ -18,6 +18,9 @@ export const shotsApi: ShotsApi = {
   showShot: (id) => ipcRenderer.invoke(IPC_CHANNEL.showShot, id),
   importDesigns: () => ipcRenderer.invoke(IPC_CHANNEL.importDesigns),
   addDesign: (name, bytes) => ipcRenderer.invoke(IPC_CHANNEL.addDesign, name, bytes),
+  importFigmaFrame: (input) => ipcRenderer.invoke(IPC_CHANNEL.importFigmaFrame, input),
+  hasFigmaToken: () => ipcRenderer.invoke(IPC_CHANNEL.hasFigmaToken),
+  forgetFigmaToken: () => ipcRenderer.invoke(IPC_CHANNEL.forgetFigmaToken),
   setShotScale: (id, scale) => ipcRenderer.invoke(IPC_CHANNEL.setShotScale, id, scale),
   captureForDesign: (designId) => ipcRenderer.invoke(IPC_CHANNEL.captureForDesign, designId),
 };

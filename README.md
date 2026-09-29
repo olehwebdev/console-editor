@@ -109,7 +109,7 @@ Right-click a file to block it (an analytics script, a slow third-party iframe) 
 
 - **Your other browsers** (Chrome, Firefox, Safari, Edge…) are a click away beside the address bar. Chromium browsers and Firefox can also open the page **with your changes**: the app serves your overrides and rules in their tabs too, and lists those tabs.
 - **Capture** what the page shows, the whole page or one element, here or in those browsers; **Capture in every browser** takes them all at once, at the same size, and shows where they differ.
-- **Compare with a design** pixel by pixel: side by side, swiped, faded, or as their difference with how much differs and where, or lay the design over the live page at its width.
+- **Compare with a design** pixel by pixel: side by side, swiped, faded, or as their difference with how much differs and where, or lay the design over the live page at its width. Bring a design in from a file, by dropping or pasting it, or from **Figma** by a frame's link (with a personal access token, kept encrypted).
 
 ### And
 
@@ -213,6 +213,7 @@ Everything stays on your machine: no telemetry, no uploads. Besides the sites yo
 | Workspaces: each one's name and tile, last page, open tabs, unsaved drafts and site icon | `session/` |
 | Captures and designs, with their thumbnails | `workspace/shots.json`, `workspace/shots/` |
 | Browsers you added or hid | `browsers.json` |
+| Your Figma token, encrypted by the system (once it has worked) | `figma-token` |
 | The profiles of browsers opened with your changes (their logins stay there) | `browsers/` |
 | The site's cookies, logins, storage | A persistent browser profile used only by the site view |
 

@@ -1,3 +1,4 @@
+import type { FigmaImport } from './figma';
 import type { CaptureArea, DesignImport, GroupCapture, Shot } from './shots';
 
 /** Captures and designs' part of the API exposed to the renderer (`ConsoleEditorApi`). */
@@ -31,6 +32,15 @@ export interface ShotsApi {
   importDesigns(): Promise<DesignImport>;
   /** Keeps an image dropped or pasted as a design. */
   addDesign(name: string, bytes: Uint8Array): Promise<Shot>;
+  /**
+   * Keeps a Figma frame as a design, exported at 2× through Figma's API with a personal access token: the one given
+   * (kept, encrypted, once it has worked) or else the one kept.
+   */
+  importFigmaFrame(input: FigmaImport): Promise<Shot>;
+  /** Whether a Figma token is kept. */
+  hasFigmaToken(): Promise<boolean>;
+  /** Forgets the Figma token kept. */
+  forgetFigmaToken(): Promise<void>;
   /** Sets how many image pixels a design has per CSS pixel (2 for a 2× export). */
   setShotScale(id: string, scale: number): Promise<Shot>;
   /** Captures the whole page laid out at a design's width and scale, to compare them. */

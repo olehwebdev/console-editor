@@ -1,7 +1,7 @@
 /**
  * Designs in the built app: importing a 2× design (its scale taken from its name), its page, comparing it with the
  * page captured at the design's width (how much differs, and where), the other ways to compare, changing its scale,
- * and a design dropped on the shots menu.
+ * a design dropped on the shots menu, and a Figma frame brought in by its link from a stand-in for Figma's API.
  */
 import { existsSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -37,6 +37,7 @@ async function waitFor<T>(fn: () => T | undefined | Promise<T | undefined>, time
 
 describe.skipIf(!built)('Designs', () => {
   let server: Server;
+  let figma: Server;
   let dir: string;
   let app: ElectronApplication;
   let win: Page;
@@ -66,8 +67,18 @@ describe.skipIf(!built)('Designs', () => {
     // The design, exported at 2×: 400 × 1400 CSS px, the page's colours but shorter, and a red 50 px box at 20, 20.
     const design = encodePng(800, 2800, (x, y) => (x >= 40 && x < 140 && y >= 40 && y < 140 ? RED : y < 2400 ? BLUE : GREEN));
     await writeFile(join(dir, 'hero@2x.png'), design);
+    // Figma's API, as far as a frame's export goes: its name, then where its 2× render is (with the token asked for).
+    figma = createServer((req, res) => {
+      const { pathname } = new URL(req.url ?? '/', 'http://x');
+      if (pathname === '/render.png') return void res.writeHead(200, { 'content-type': 'image/png' }).end(encodePng(60, 40, () => GREEN));
+      if (req.headers['x-figma-token'] !== 'figd_good') return void res.writeHead(403, { 'content-type': 'application/json' }).end('{"status":403,"err":"Invalid token"}');
+      const answers: Record<string, unknown> = { '/v1/files/AbC/nodes': { nodes: { '12:34': { document: { name: 'Checkout' } } } }, '/v1/images/AbC': { err: null, images: { '12:34': `${figmaApi}/render.png` } } };
+      res.writeHead(pathname in answers ? 200 : 404, { 'content-type': 'application/json' }).end(JSON.stringify(answers[pathname] ?? {}));
+    });
+    await new Promise<void>((r) => figma.listen(0, '127.0.0.1', r));
+    const figmaApi = `http://127.0.0.1:${(figma.address() as AddressInfo).port}`;
 
-    app = await electron.launch({ args: [...sandboxArgs, root], cwd: root, env: { ...process.env, CONSOLE_EDITOR_USER_DATA: join(dir, 'user-data') } as Record<string, string> });
+    app = await electron.launch({ args: [...sandboxArgs, root], cwd: root, env: { ...process.env, CONSOLE_EDITOR_USER_DATA: join(dir, 'user-data'), CONSOLE_EDITOR_FIGMA_API: figmaApi } as Record<string, string> });
     win = await waitFor(() => app.windows().find((p) => EDITOR_URL.test(p.url())));
     await win.waitForSelector('body[data-ready]');
     origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -79,6 +90,7 @@ describe.skipIf(!built)('Designs', () => {
   afterAll(async () => {
     await app?.close();
     await new Promise((r) => server?.close(r));
+    await new Promise((r) => figma?.close(r));
     await rm(dir, { recursive: true, force: true });
   });
 
@@ -177,5 +189,30 @@ describe.skipIf(!built)('Designs', () => {
     }, png);
     await expect.poll(async () => (await shots()).map((s) => s.name)).toContain('dropped.png');
     expect((await shots()).find((s) => s.name === 'dropped.png')).toMatchObject({ kind: 'design', width: 20, height: 10, scale: 1 });
+  });
+
+  it('brings in a Figma frame by its link at 2×, asking for a token once, and forgets the token', async () => {
+    if (!(await menu().count())) await win.getByTestId('shots-menu-button').click();
+    await menu().getByTestId('shots-figma').click();
+    const form = win.getByTestId('figma-form');
+    await form.getByTestId('figma-link').fill('https://www.figma.com/design/AbC/Shop');
+    await form.getByTestId('figma-import').click();
+    await expect.poll(() => form.innerText()).toContain('Paste the link to a frame');
+    await form.getByTestId('figma-link').fill('https://www.figma.com/design/AbC/Shop?node-id=12-34');
+    await form.getByTestId('figma-token').fill('figd_bad');
+    await form.getByTestId('figma-import').click();
+    await expect.poll(() => form.getByTestId('figma-error').innerText()).toContain('Figma refused the token');
+    await form.getByTestId('figma-token').fill('figd_good');
+    await form.getByTestId('figma-import').click();
+    // Kept as a design and opened.
+    await expect.poll(async () => (await shots()).find((s) => s.name === 'Checkout@2x.png')).toMatchObject({ kind: 'design', width: 60, height: 40, scale: 2 });
+    await win.getByTestId('shot-page').waitFor();
+    // The token is kept: asked for no more, until forgotten.
+    await win.getByTestId('shots-menu-button').click();
+    await menu().getByTestId('shots-figma').click();
+    await expect.poll(() => form.getByTestId('figma-token-saved').count()).toBe(1);
+    await form.getByTestId('figma-forget').click();
+    await form.getByTestId('figma-token').waitFor();
+    expect(await win.evaluate(() => (window as unknown as { consoleEditor: { hasFigmaToken(): Promise<boolean> } }).consoleEditor.hasFigmaToken())).toBe(false);
   });
 });

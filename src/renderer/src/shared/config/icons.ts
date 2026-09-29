@@ -39,6 +39,7 @@ export {
   Delete02Icon as DeleteIcon,
   Download04Icon as DownloadIcon,
   EraserIcon as ClearValueIcon,
+  FigmaIcon,
   File01Icon as FileIcon,
   FileCodeIcon as CodeFileIcon,
   FileExportIcon as ExportIcon,
