@@ -2,8 +2,8 @@ import { CDP } from '../../engine/constants';
 import type { CdpTransport } from '../../engine/cdp';
 import type { Rect } from '../../../shared/types';
 import { CAPTURE_FORMAT, MAX_PAGE_SIDE } from '../constants';
-import { readPngSize } from '../readPngSize';
 import { captureInParts } from './captureInParts';
+import { capturedImageOf } from './capturedImageOf';
 import { clipOf } from './clipOf';
 import { windowMetrics } from './windowMetrics';
 import type { CapturedImage, CaptureTarget, LayoutMetrics } from './types';
@@ -21,8 +21,5 @@ export async function captureOverCdp(transport: CdpTransport, target: CaptureTar
     const shown = part ? { clip: { ...part, scale: 1 }, captureBeyondViewport: true } : {};
     return Buffer.from((await transport.send<{ data: string }>(CDP.Page.captureScreenshot, { format: CAPTURE_FORMAT, ...shown })).data, 'base64');
   };
-  const bytes = clip ? await captureInParts(clip, view.ratio, shoot) : await shoot(null);
-  const { width, height } = readPngSize(bytes);
-  const scale = clip ? width / clip.width : view.ratio;
-  return { bytes, width, height, scale, viewport: { width: view.width || Math.round(width / scale), height: view.height || Math.round(height / scale) } };
+  return capturedImageOf(clip ? await captureInParts(clip, view.ratio, shoot) : await shoot(null), clip?.width ?? null, view);
 }

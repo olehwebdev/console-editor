@@ -4,8 +4,9 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
 
 export default defineConfig({
-  // Bundle dependencies too, so out/ is all the installers need (see electron-builder.ts).
-  main: { build: { externalizeDeps: false } },
+  // Bundle dependencies too, so out/ is almost all the installers need (see electron-builder.ts). playwright-core can't
+  // be: it reads its own files by the paths it computes. It is loaded from node_modules when WebKit is first used.
+  main: { build: { externalizeDeps: false, rolldownOptions: { external: [/^playwright-core(\/|$)/] } } },
   preload: { build: { externalizeDeps: false } },
   renderer: {
     resolve: {

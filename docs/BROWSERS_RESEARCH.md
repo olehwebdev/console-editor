@@ -1,6 +1,6 @@
 # Research: other browsers, captures and designs
 
-**Status.** Phases 1 to 7 are built (SPEC §6.16–§6.18), and from phase 9 your everyday Firefox's tabs. Phase 8 (WebKit) is not: what stands in its way, and how to do it, is under [Phase 8](#phase-8-webkit). The to-do list below says, item by item, what was built and where it went another way.
+**Status.** Phases 1 to 8 are built (SPEC §6.16–§6.18), and phase 9 but for the console, Network panel and inspector of an outside tab. WebKit's build couldn't be downloaded here, so it is checked with Playwright's Chromium standing in for it (see [Phase 8](#phase-8-webkit)). The to-do list below says, item by item, what was built and where it went another way.
 
 **Question.** Two things in one request:
 
@@ -261,7 +261,7 @@ Each phase ends in a pull request of its own. Each updates SPEC, the CHANGELOG a
 - [x] `DrivenChromium`: browser-level auto-attach (a new tab waits until it is set up), a `PageInterception` per tab, following workspace switches and override, rule and settings changes. It reloads after saves, forgets a browser that closes, and reaches it again through its profile.
 - [x] Tabs in the browser menu (search, bring forward, Open here), the dot, the status bar count, and **Open with my changes**.
 - [x] Captures in those tabs, through the same CDP code. Not yet: the overlay in them.
-- [ ] Probe Chrome 144's `chrome://inspect` permission for the everyday profile (U14): no Chrome to probe it with in the development container.
+- [x] Your everyday Chrome (U14): with remote debugging turned on in `chrome://inspect/#remote-debugging`, it writes `DevToolsActivePort` in its everyday profile; the app reaches it there and drives only the tabs it opens (SPEC §6.16). The permission prompt itself couldn't be probed (the container's Chromium 141 predates it); a Chromium on a stand-in everyday profile plays the part in the tests.
 - [x] Tests: integration with Playwright's Chromium launched as the installed browser (an override served, a reload after a change, captures, reached again, forgotten once quit); e2e with a launcher running it.
 
 ### Phase 6: Capture in every browser
@@ -278,17 +278,16 @@ Each phase ends in a pull request of its own. Each updates SPEC, the CHANGELOG a
 
 ### Phase 8: WebKit
 
-Not built. What stands in the way, found while building phases 5 to 7:
+Built (SPEC §6.16), and not as first planned in two ways:
 
-- **Nothing to check it with.** Playwright's CDN (and Mozilla's download hosts) are refused by the development container's network, so no WebKit build could be downloaded or run. Firefox came from conda-forge's package of Mozilla's build; there is none of Playwright's WebKit.
-- **Packaging.** The build bundles the main process (`externalizeDeps: false`) and ships no `node_modules`. `playwright-core` can't be bundled: when it loads it `require`s its own `package.json` and `browsers.json` by paths it computes, and its installer forks `lib/entry/oopBrowserDownload.js` by path. Shipping it means `playwright-core` in the dependencies (pinned), left out of the bundle, and its folder in the packaged app (unpacked from the asar for the fork), about 14 MB. Only the release workflow's packaged tests can show that works.
-- **The download** would be `cli.js install webkit` with `PLAYWRIGHT_BROWSERS_PATH=<userData>/browsers/playwright`, run by Electron as Node, about 90 MB, and on Linux system libraries only an administrator can install (`install-deps`).
+- **No installer run.** Playwright's `cli.js install webkit` forks `oopBrowserDownload.js` as Node, which the packaged app's fuses refuse (`runAsNode: false`). The app downloads the build itself instead: its URLs, folder and program from the pinned `playwright-core`'s registry (`PLAYWRIGHT_DOWNLOAD_HOST` too), unpacked with Playwright's own extractor, the program made runnable and the marker written last, as the installer does.
+- **Packaging.** `playwright-core` is in the dependencies (pinned: the registry and extractor are its internals), left out of the main bundle and shipped in the asar as it is (not unpacked: nothing forks it), 134 files. An unpacked Linux build lists WebKit, downloads a stand-in build from a stand-in host and launches it.
+- **Nothing to check WebKit itself with.** Playwright's CDN is refused by the development container's network. The driver speaks only Playwright's API, so Playwright's Chromium stands in for WebKit in its tests; the download is tested against a stand-in host. On a machine that can reach the CDN (CI with `npx playwright install --with-deps webkit`), a test with the real build is still to add.
 
-How it would go, on a machine that can reach Playwright's CDN, with CI installing WebKit for its tests (`npx playwright install --with-deps webkit`):
-- [ ] The packaging change above, checked by the release workflow's packaged tests.
-- [ ] The download with progress, and removing it from Settings.
-- [ ] A driver on `playwright-core` behind the `Driver` interface (`browsers/driven/types.ts`): `route` carries out `decideRequest` (fulfil, abort, continue) and, through `route.fetch`, `ruledHead` for header rules; `page.screenshot` for captures; a context per capture viewport (`deviceScaleFactor` is a context's).
-- [ ] Tests: skipped where the build isn't there.
+- [x] The packaging change above (checked with an unpacked build; the release workflow's packaged tests don't cover WebKit yet).
+- [x] The download with progress in the menu's row, once agreed, and removing it from Settings.
+- [x] A driver on `playwright-core` behind the `Driver` interface: `route` carries out `decideRequest` (fulfil, abort, continue) and, through `route.fetch`, `ruledHead` for response rules; `page.screenshot` for captures (in parts past a texture); a context per capture viewport; the design by init scripts in the page's world.
+- [x] Tests: the driver with Playwright's Chromium, the download against a stand-in host, the menu's flow end to end.
 
 ### Phase 9: Later
 - [x] Tabs of everyday browsers on macOS: JavaScript for Automation rather than AppleScript's text (JSON back, each app's terms looked up when run), for Safari, Chrome, Edge, Brave, Arc and Vivaldi, only while they run (SPEC §6.16). The script is checked against a stand-in for JXA's objects; it couldn't be run on a Mac here.
@@ -296,13 +295,13 @@ How it would go, on a machine that can reach Playwright's CDN, with CI installin
 - [x] Figma frames by link: the frame's name, its 2× render downloaded, a personal token kept with `safeStorage` once it works (SPEC §6.17). Tested against a stand-in for Figma's API (`CONSOLE_EDITOR_FIGMA_API`); `api.figma.com` can't be reached from here.
 - [x] Stitching full pages taller than the texture limit: parts 4096 device pixels tall, their rows packed again as one PNG without decoding it whole (only each part's first row is unfiltered), down to 32 767 device pixels (SPEC §6.17).
 - [ ] The console, Network and inspector for an outside tab.
-- [ ] The design over a driven browser's tab (Chromium: the same isolated-world script; Firefox: a preload script in a sandbox, which the probe showed works).
+- [x] The design over a driven browser's tab: Chromium through the same isolated-world script, Firefox through preload scripts in a sandbox, WebKit through init scripts; each at the design's width while that is on (SPEC §6.16).
 
 ## 7. Limits and risks
 
 | Risk | Mitigation |
 |---|---|
-| Safari can't be served changes | It is only opened as it is; WebKit through Playwright (phase 8) is still to come |
+| Safari can't be served changes | It is only opened as it is; WebKit through Playwright's build is offered beside it, downloaded on first use |
 | Firefox replaces a body only before the request is sent | Overrides answer then, with their file type's headers; redeploy detection and patch mode stay off there (README › Limitations) |
 | Snap and Flatpak sandboxes | Profile folders inside the sandbox. If a launch fails, show the browser's own output |
 | The page's scripts can see or remove the overlay | Add it to `<html>` and put it back; documented |
@@ -312,7 +311,7 @@ How it would go, on a machine that can reach Playwright's CDN, with CI installin
 
 ## 8. Decisions to make
 
-Taken: the recommendations below, as built; the WebKit one waits on phase 8.
+Taken: the recommendations below, as built.
 
 | Question | Recommendation | Alternative |
 |---|---|---|

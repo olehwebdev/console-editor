@@ -7,6 +7,7 @@ import type { AppEvent } from '../../shared/types';
 import { REPO_URL } from '../appInfo';
 import { ActionsWindow } from '../ActionsWindow';
 import { BrowserRegistry, DrivenBrowsers } from '../browsers';
+import { BUILDS_DIR, WebKitDownload } from '../browsers/webkit';
 import { FIGMA_API, FigmaImporter, TOKEN_FILE } from '../figma';
 import { installMenu } from '../installMenu';
 import { watchOverrideFiles } from '../overrideFiles';
@@ -56,7 +57,9 @@ export async function createWindow({ updateFeed, figmaApi }: { updateFeed?: stri
   const rulesProblem = locked ?? (setAside && `rules.json could not be read and was kept as ${setAside}; you start with no rules`);
   if (rulesProblem) win.webContents.once('did-finish-load', () => send({ type: 'error', message: rulesProblem }));
 
-  const browsers = new BrowserRegistry({ prefs: browserPrefs, send });
+  // The WebKit build the app downloads is listed with the browsers found, downloaded or not.
+  const webkit = new WebKitDownload({ dir: join(userData, ...BUILDS_DIR), send, changed: () => void browsers.buildsChanged() });
+  const browsers = new BrowserRegistry({ prefs: browserPrefs, send, builds: webkit });
   const driven = new DrivenBrowsers({ registry: browsers, sources: { store, rules, settings }, userData, send });
   const page = new PageController(win, { store, rules, settings, send, windowStore: pageWindow, breakpoints: () => activeBreakpoints(session) });
   launchState.running = { win, page };
@@ -86,7 +89,7 @@ export async function createWindow({ updateFeed, figmaApi }: { updateFeed?: stri
     // Browsers driven with the workspace's changes stay open, as they are.
     driven.dispose();
   });
-  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, driven, shots, shotStore, figma, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
+  registerIpc({ win, page, store, rules, settings, session, actions, sourceMaps, actionsWindow, workspaces, browsers, driven, webkit, shots, shotStore, figma, updates, send, onSessionFlushed: (ok) => closing.flushed(ok) });
 
   lockEditorNavigation(win);
 

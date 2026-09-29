@@ -13,6 +13,7 @@ export const PAGE_WINDOW_EVENT_HANDLERS: PageWindowEventHandlers = {
   'page-state': (event) => usePageStore.getState().setPage(event.state),
   command: (event) => PAGE_WINDOW_COMMANDS[event.command]?.(),
   'browsers-changed': (event) => useBrowserStore.getState().setAll(event.browsers),
+  'browser-download': ({ id, done, total }) => useBrowserStore.getState().setDownload(id, { done, total }),
   'driven-browsers-changed': (event) => useBrowserStore.getState().setDriven(event.driven),
   'shots-changed': (event) => useShotStore.getState().setAll(event.shots),
   'overlay-changed': (event) => useShotStore.getState().setOverlay(event.overlay),

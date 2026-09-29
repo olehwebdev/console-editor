@@ -13,13 +13,18 @@ const OPEN_EVERYDAY_PREFIX = 'open-everyday:';
 export function browserItems(browsers: BrowserInfo[], onWeb: boolean): CommandItem[] {
   if (!onWeb) return [];
   return browsers.flatMap((browser) => [
-    {
-      id: `${OPEN_IN_PREFIX}${browser.id}`,
-      label: `Open in ${browser.name}`,
-      icon: icons.BrowserIcon,
-      keywords: ['browser', 'other browser', browser.engine],
-      onSelect: () => void openInBrowser(browser),
-    },
+    // A build the app downloads (WebKit's) opens with the workspace's changes only.
+    ...(browser.build
+      ? []
+      : [
+          {
+            id: `${OPEN_IN_PREFIX}${browser.id}`,
+            label: `Open in ${browser.name}`,
+            icon: icons.BrowserIcon,
+            keywords: ['browser', 'other browser', browser.engine],
+            onSelect: () => void openInBrowser(browser),
+          },
+        ]),
     ...(canDrive(browser)
       ? [
           {

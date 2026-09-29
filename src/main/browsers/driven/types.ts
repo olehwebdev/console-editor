@@ -19,6 +19,12 @@ export interface TabCapture {
   url: string;
 }
 
+/** What a tab's page says of itself: its window (CSS pixels) and density, and its whole document's box, if any. */
+export interface PageMetrics {
+  window: { width: number; height: number; ratio: number };
+  page: { x: number; y: number; width: number; height: number } | null;
+}
+
 /** A tab's address and title as read again, each when it could be. */
 export interface TabRead {
   id: string;

@@ -72,6 +72,7 @@ export const APP_EVENT_HANDLERS: AppEventHandlers = {
   'actions-window': (event) => useActionStore.getState().setWindow(event.state),
   'settings-changed': (event) => useSettingsStore.getState().setSettings(event.settings),
   'browsers-changed': (event) => useBrowserStore.getState().setAll(event.browsers),
+  'browser-download': ({ id, done, total }) => useBrowserStore.getState().setDownload(id, { done, total }),
   'driven-browsers-changed': (event) => useBrowserStore.getState().setDriven(event.driven),
   'shots-changed': (event) => receiveShots(event.shots),
   'show-shot': (event) => showShotById(event.id),

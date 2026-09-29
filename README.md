@@ -107,7 +107,7 @@ Right-click a file to block it (an analytics script, a slow third-party iframe) 
 
 ### Check it in other browsers and against designs
 
-- **Your other browsers** (Chrome, Firefox, Safari, Edge…) are a click away beside the address bar. Chromium browsers and Firefox can also open the page **with your changes**: the app serves your overrides and rules in their tabs too, and lists those tabs.
+- **Your other browsers** (Chrome, Firefox, Safari, Edge…) are a click away beside the address bar. Chromium browsers and Firefox can also open the page **with your changes**: the app serves your overrides and rules in their tabs too, lays your design over them, and lists those tabs. So can **WebKit** (Playwright's build of Safari's engine, downloaded the first time you use it) on any system, and **your own Chrome** once you turn on remote debugging for it (`chrome://inspect/#remote-debugging`): only the tabs the app opens there get your changes.
 - **Capture** what the page shows, the whole page or one element, here or in those browsers; **Capture in every browser** takes them all at once, at the same size, and shows where they differ.
 - **Compare with a design** pixel by pixel: side by side, swiped, faded, or as their difference with how much differs and where, or lay the design over the live page at its width. Bring a design in from a file, by dropping or pasting it, or from **Figma** by a frame's link (with a personal access token, kept encrypted).
 
@@ -214,6 +214,7 @@ Everything stays on your machine: no telemetry, no uploads. Besides the sites yo
 | Captures and designs, with their thumbnails | `workspace/shots.json`, `workspace/shots/` |
 | Browsers you added or hid | `browsers.json` |
 | Your Figma token, encrypted by the system (once it has worked) | `figma-token` |
+| The WebKit build, once downloaded | `browsers/playwright/` |
 | The profiles of browsers opened with your changes (their logins stay there) | `browsers/` |
 | The site's cookies, logins, storage | A persistent browser profile used only by the site view |
 
@@ -233,7 +234,7 @@ The data folder is `~/.config/Console Editor` on Linux, `~/Library/Application S
 - A response override with **Send request** on (the default for a GET) answers after the server has: the request is still sent, so a POST would still create what it creates, which is why overrides made from anything but a GET start with it off. An event stream an override matches is replaced as a whole, which ends it.
 - A paused request waits only as long as the page does: if the page gives up on it (a timeout, leaving the page), its tab closes with a note.
 - WebSocket messages are shown, not changed: Chromium reports them but can't hold or edit them. A HAR import makes overrides for fetch and XHR responses only, not for documents or scripts.
-- In Firefox opened with your changes, an override answers before the request is sent (Firefox can only replace a response then): its headers are its file type's rather than the server's, patch mode serves your saved text, and a script behind an `integrity` attribute needs the page's HTML overridden too. Breakpoints, the console and the Network panel stay with the app's own page. Safari is opened as it is.
+- In Firefox opened with your changes, an override answers before the request is sent (Firefox can only replace a response then): its headers are its file type's rather than the server's, patch mode serves your saved text, and a script behind an `integrity` attribute needs the page's HTML overridden too. Breakpoints, the console and the Network panel stay with the app's own page. Safari is opened as it is: check its engine with your changes in WebKit, which quits when you let go of it. On Linux, WebKit needs system libraries you may have to install (`sudo npx playwright install-deps webkit`).
 - A full-page capture stops at 32 767 device pixels tall, the tallest image the compare page can draw. Past 16 384 (Chromium's limit for one capture) it is captured in parts and joined, which takes a while on a long page at high density.
 - Chromium's local-network checks are off in the app's browser, so a patched localhost or intranet page can still reach its own servers. Browse only sites you're working on (see [SPEC §8](docs/SPEC.md#8-security)).
 
@@ -243,7 +244,7 @@ What shipped, release by release, is in the **[CHANGELOG](CHANGELOG.md)**. Next:
 
 - [ ] Parameters and scenarios for actions
 - [ ] Search across every file the page loaded
-- [ ] WebKit with your changes through Playwright's build ([research](docs/BROWSERS_RESEARCH.md))
+- [ ] The console, Network panel and inspector for a tab in another browser ([research](docs/BROWSERS_RESEARCH.md))
 - [ ] Vue's renders and a data-flow view in the component inspector ([research](docs/INSPECTOR_RESEARCH.md))
 - [ ] Signed and notarized builds (and with them, installing updates in place on macOS)
 

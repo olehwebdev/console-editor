@@ -1,6 +1,7 @@
 import { BIDI, type BidiConnection } from '../../../engine/bidi';
-import { OVERLAY_JS, OVERLAY_WORLD, overlayCall, overlayStyle, type PageDesign } from '../../../overlay';
+import { designStyleCall, OVERLAY_JS, OVERLAY_WORLD, overlayCall, type PageDesign } from '../../../overlay';
 import type { KeptTab, TabDesigns } from '../types';
+import { withDesignAside } from '../withDesignAside';
 import { HEIGHT_EXPRESSION } from './constants';
 import { evaluateIn } from './evaluateIn';
 
@@ -25,7 +26,7 @@ export class FirefoxDesigns implements TabDesigns<KeptTab> {
       await Promise.all(tabs.map((tab) => this.run(tab, [overlayCall('remove')]).then(() => this.fit(tab, null))));
       return;
     }
-    const style = this.style(design, false);
+    const style = designStyleCall(design, false);
     if (this.key === design.key) {
       await this.unload([this.scripts.style]);
       this.scripts.style = await this.preload(style);
@@ -45,27 +46,18 @@ export class FirefoxDesigns implements TabDesigns<KeptTab> {
     if (this.design) await this.fit(tab, this.design);
   }
 
-  async hidden<R>(tab: KeptTab, task: () => Promise<R>): Promise<R> {
-    const design = this.design;
-    if (!design) return task();
-    await this.run(tab, [this.style(design, true)]);
-    await this.fit(tab, null);
-    try {
-      return await task();
-    } finally {
-      if (this.design) {
-        await this.run(tab, [this.style(this.design, false)]);
-        await this.fit(tab, this.design);
-      }
-    }
+  hidden<R>(tab: KeptTab, task: () => Promise<R>): Promise<R> {
+    return withDesignAside(() => this.design, (design, aside) => this.lay(tab, design, aside), task);
   }
 
   gone(): void {
     // Preload scripts are the browser's, not a tab's: nothing is kept per tab.
   }
 
-  private style({ settings, width, height }: PageDesign, hidden: boolean): string {
-    return overlayCall('setStyle', overlayStyle({ ...settings, hidden: hidden || settings.hidden }, width, height), settings.blend);
+  /** Styles a tab's design as it is, or hidden with the page at its own width (`aside`, for a capture). */
+  private async lay(tab: KeptTab, design: PageDesign, aside: boolean): Promise<void> {
+    await this.run(tab, [designStyleCall(design, aside)]);
+    await this.fit(tab, aside ? null : design);
   }
 
   /** Runs each expression in turn in a tab's document, in the overlay's sandbox. */

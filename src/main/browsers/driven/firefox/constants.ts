@@ -24,9 +24,8 @@ export const FIREFOX_PREFS: ReadonlyArray<readonly [string, string | boolean]> =
   ['browser.tabs.warnOnClose', false],
 ];
 
-/** A tab's title, and its window (CSS pixels), density and document size, read in its page (the latter as JSON). */
+/** A tab's title, read in its page. */
 export const TITLE_EXPRESSION = 'document.title';
-export const METRICS_EXPRESSION = 'JSON.stringify([innerWidth, innerHeight, devicePixelRatio, document.documentElement.scrollWidth, document.documentElement.scrollHeight])';
 
 /** What a capture of each area is taken relative to, and the type of a box clipped out of it. */
 export const SCREENSHOT_ORIGIN = { viewport: 'viewport', page: 'document' } as const;

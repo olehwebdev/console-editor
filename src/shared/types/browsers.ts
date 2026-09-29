@@ -26,6 +26,8 @@ export interface BrowserInfo {
   debuggable: boolean;
   /** Its everyday tabs can be listed: Firefox's (its session file), and on macOS those scripting reaches (Safari, Chrome…). */
   listsTabs: boolean;
+  /** A build the app downloads (Playwright's WebKit), opened only with your changes: whether it is downloaded; null for another. */
+  build: { downloaded: boolean } | null;
 }
 
 /** A tab of your everyday browser (one the app didn't launch), as its session has it. */

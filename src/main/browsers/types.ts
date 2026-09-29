@@ -1,5 +1,6 @@
 import type { AppEvent, BrowserEngine } from '../../shared/types';
 import type { BrowserStore } from '../store/BrowserStore';
+import type { BuiltBrowser } from './webkit';
 
 /** How a browser is started with an address: its program and arguments, and where among them the address goes. */
 export interface BrowserCommand {
@@ -29,4 +30,6 @@ export interface BrowserRegistryDeps {
   find?: () => Promise<FoundBrowser[]>;
   /** The home folder, where everyday profiles are (the user's by default). */
   home?: string;
+  /** The browser builds the app downloads (WebKit's), listed as browsers of their own. */
+  builds?: { list(): Promise<BuiltBrowser[]> };
 }

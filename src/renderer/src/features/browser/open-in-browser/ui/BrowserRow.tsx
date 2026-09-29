@@ -2,6 +2,7 @@ import type { BrowserInfo } from '@common/types';
 import { icons } from '@/shared/config';
 import { IconButton } from '@/shared/ui/icon-button';
 import { BrowserIcon, canDrive } from '@/entities/browser';
+import { BuildState } from './BuildState';
 
 export interface BrowserRowProps {
   browser: BrowserInfo;
@@ -17,7 +18,8 @@ export interface BrowserRowProps {
 /**
  * A browser in the menu: its icon, name and version; choosing it opens the page there. A Chromium browser or Firefox
  * also offers opening it with the workspace's changes, in a profile of the app's own; a Chromium browser running with
- * remote debugging turned on, in your everyday profile too.
+ * remote debugging turned on, in your everyday profile too. The WebKit build the app downloads opens with them only
+ * (downloaded first), and says how far its download is.
  */
 export function BrowserRow({ browser, disabled, driven, onOpen, onOpenWithChanges }: BrowserRowProps) {
   return (
@@ -25,13 +27,14 @@ export function BrowserRow({ browser, disabled, driven, onOpen, onOpenWithChange
       <button
         type="button"
         disabled={disabled}
-        onClick={() => onOpen(browser)}
+        onClick={() => (browser.build ? onOpenWithChanges(browser, false) : onOpen(browser))}
         className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left outline-none focus-visible:bg-hover disabled:pointer-events-none disabled:opacity-40"
       >
         <BrowserIcon browser={browser} size={20} />
         <span className="min-w-0 flex-1 truncate text-[13px] text-fg">{browser.name}</span>
         {driven ? <span className="size-1.5 shrink-0 rounded-full bg-accent" title="Open with your changes" data-testid="browser-driven" /> : null}
-        {browser.version ? <span className="shrink-0 font-mono text-[11px] text-fg-subtle">{browser.version}</span> : null}
+        {browser.build ? <BuildState browser={browser} /> : null}
+        {!browser.build && browser.version ? <span className="shrink-0 font-mono text-[11px] text-fg-subtle">{browser.version}</span> : null}
       </button>
       {canDrive(browser) ? (
         <IconButton

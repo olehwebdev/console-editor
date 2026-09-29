@@ -12,6 +12,7 @@ import { reachableEveryday } from '../driven/everyday/reachableEveryday';
 import { startBrowser } from '../startBrowser';
 import type { BrowserRegistryDeps, FoundBrowser } from '../types';
 import { addedBrowser } from './addedBrowser';
+import { BuiltBrowsers } from './BuiltBrowsers';
 import { checkBrowserPath } from './checkBrowserPath';
 import { infoOf } from './infoOf';
 
@@ -31,8 +32,11 @@ export class BrowserRegistry {
   private readonly versions = new Map<string, string | null>();
   /** The browsers whose everyday profile ran with remote debugging on when they were last listed. */
   private debuggable = new Set<string>();
+  private readonly builds: BuiltBrowsers;
 
-  constructor(private readonly deps: BrowserRegistryDeps) {}
+  constructor(private readonly deps: BrowserRegistryDeps) {
+    this.builds = new BuiltBrowsers(deps.builds);
+  }
 
   async list(): Promise<BrowserInfo[]> {
     await this.scan();
@@ -56,10 +60,18 @@ export class BrowserRegistry {
     return browser;
   }
 
-  /** Opens an http(s) address in a browser, with its everyday profile. */
+  /** Opens an http(s) address in a browser, with its everyday profile (a build the app downloads opens with changes only). */
   async open(id: string, url: string): Promise<void> {
     if (!HTTP_URL.test(url)) throw new Error('Only http(s) pages open in another browser');
-    await startBrowser(await this.get(id), [url]);
+    const browser = await this.get(id);
+    if (this.builds.has(id)) throw new Error(`${browser.name} opens with your changes only`);
+    await startBrowser(browser, [url]);
+  }
+
+  /** A build the app downloads was downloaded or removed. */
+  async buildsChanged(): Promise<void> {
+    await this.builds.refresh();
+    this.changed();
   }
 
   /** Adds the program (or macOS app) at `path`, named after its file. */
@@ -72,7 +84,7 @@ export class BrowserRegistry {
     this.icons.set(browser.id, await browserIcon(browser));
     this.changed();
     void this.readVersions();
-    return infoOf(browser, this.icons.get(browser.id), null, new Set(), new Set());
+    return infoOf(browser, this.icons.get(browser.id), null, new Set(), new Set(), null);
   }
 
   async remove(id: string): Promise<void> {
@@ -87,12 +99,12 @@ export class BrowserRegistry {
   }
 
   private all(): FoundBrowser[] {
-    return [...this.found, ...this.deps.prefs.get().added.map(addedBrowser)];
+    return [...this.found, ...this.builds.browsers(), ...this.deps.prefs.get().added.map(addedBrowser)];
   }
 
   private infos(): BrowserInfo[] {
     const hidden = new Set(this.deps.prefs.get().hidden);
-    return this.all().map((b) => infoOf(b, this.icons.get(b.id), this.versions.get(b.id), hidden, this.debuggable));
+    return this.all().map((b) => infoOf(b, this.icons.get(b.id), this.builds.version(b.id) ?? this.versions.get(b.id), hidden, this.debuggable, this.builds.state(b.id)));
   }
 
   private changed(): void {
@@ -103,7 +115,8 @@ export class BrowserRegistry {
     if (Date.now() - this.scannedAt < SCAN_REUSE_MS) return;
     this.scanning ??= (async () => {
       const found = (await (this.deps.find ?? findBrowsers)().catch((): FoundBrowser[] => [])).sort((a, b) => a.name.localeCompare(b.name));
-      const all = [...found, ...this.deps.prefs.get().added.map(addedBrowser)];
+      await this.builds.refresh();
+      const all = [...found, ...this.builds.browsers(), ...this.deps.prefs.get().added.map(addedBrowser)];
       await Promise.all(all.filter((b) => !this.icons.has(b.id)).map(async (b) => this.icons.set(b.id, await browserIcon(b))));
       this.found = found;
       this.scannedAt = Date.now();
@@ -131,6 +144,6 @@ export class BrowserRegistry {
   }
 
   private unversioned(): FoundBrowser | undefined {
-    return this.all().find((b) => !this.versions.has(b.id));
+    return this.all().find((b) => !this.versions.has(b.id) && !this.builds.has(b.id));
   }
 }

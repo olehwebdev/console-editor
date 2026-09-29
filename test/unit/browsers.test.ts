@@ -251,7 +251,7 @@ describe('The registry', () => {
 
   it('lists what it found, looks again only after a minute, and announces versions once read', async () => {
     const { registry: r, events, find } = await registry();
-    expect(await r.list()).toEqual([{ id: found.id, name: 'Fake', engine: 'chromium', version: null, icon: null, added: false, hidden: false, debuggable: false, listsTabs: false }]);
+    expect(await r.list()).toEqual([{ id: found.id, name: 'Fake', engine: 'chromium', version: null, icon: null, added: false, hidden: false, debuggable: false, listsTabs: false, build: null }]);
     await r.list();
     expect(find).toHaveBeenCalledTimes(1);
     await expect.poll(() => events.length).toBe(1);
@@ -266,10 +266,26 @@ describe('The registry', () => {
     await expect(r.open('desktop:unknown.desktop', 'https://shop.test/')).rejects.toThrow('no longer there');
   });
 
+  it('lists a build the app downloads (WebKit) with its version, whether downloaded, and opens it with changes only', async () => {
+    const prefs = new BrowserStore(join(mkdtempSync(join(tmp, 'registry-')), 'browsers.json'));
+    await prefs.load();
+    const events: Array<{ type: string; browsers?: Array<{ id: string; build: unknown }> }> = [];
+    let downloaded = false;
+    const webkit: FoundBrowser = { id: 'playwright:webkit', name: 'WebKit', engine: 'webkit', command: [], urlAt: 0, iconFile: null, app: null, program: join(tmp, 'pw_run.sh'), added: false };
+    const builds = { list: async () => [{ browser: webkit, version: '26.6', downloaded }] };
+    const r = new BrowserRegistry({ prefs, send: (e) => events.push(e as (typeof events)[number]), find: async () => [found], home: tmp, builds });
+    expect((await r.list()).find((b) => b.id === webkit.id)).toMatchObject({ name: 'WebKit', engine: 'webkit', version: '26.6', build: { downloaded: false } });
+    await expect(r.open(webkit.id, 'https://shop.test/')).rejects.toThrow('WebKit opens with your changes only');
+    downloaded = true;
+    await r.buildsChanged();
+    expect(events.at(-1)?.browsers?.find((b) => b.id === webkit.id)).toMatchObject({ build: { downloaded: true } });
+    expect(await r.get(webkit.id)).toEqual(webkit);
+  });
+
   it('adds a program, hides and removes it, and refuses what can’t be run', async () => {
     const { registry: r, events } = await registry();
     const added = await r.add(fake);
-    expect(added).toEqual({ id: expect.stringMatching(/^added:[0-9a-f]{8}$/), name: 'fake-browser', engine: 'unknown', version: null, icon: null, added: true, hidden: false, debuggable: false, listsTabs: false });
+    expect(added).toEqual({ id: expect.stringMatching(/^added:[0-9a-f]{8}$/), name: 'fake-browser', engine: 'unknown', version: null, icon: null, added: true, hidden: false, debuggable: false, listsTabs: false, build: null });
     await r.setHidden(added.id, true);
     expect((await r.list()).find((b) => b.id === added.id)?.hidden).toBe(true);
     await r.remove(added.id);

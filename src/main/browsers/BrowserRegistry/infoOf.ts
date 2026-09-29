@@ -3,6 +3,7 @@ import { listsTabs } from '../everyday';
 import type { FoundBrowser } from '../types';
 
 /** What the UI is told of a browser: never its command or paths. */
-export function infoOf(browser: FoundBrowser, icon: string | null | undefined, version: string | null | undefined, hidden: ReadonlySet<string>, debuggable: ReadonlySet<string>): BrowserInfo {
-  return { id: browser.id, name: browser.name, engine: browser.engine, version: version ?? null, icon: icon ?? null, added: browser.added, hidden: hidden.has(browser.id), debuggable: debuggable.has(browser.id), listsTabs: listsTabs(browser) };
+export function infoOf(browser: FoundBrowser, icon: string | null | undefined, version: string | null | undefined, hidden: ReadonlySet<string>, debuggable: ReadonlySet<string>, build: BrowserInfo['build']): BrowserInfo {
+  const { id, name, engine, added } = browser;
+  return { id, name, engine, version: version ?? null, icon: icon ?? null, added, hidden: hidden.has(id), debuggable: debuggable.has(id), listsTabs: listsTabs(browser), build };
 }

@@ -9,6 +9,7 @@ import type { OverrideStore } from '../store/OverrideStore';
 import type { RuleStore } from '../store/RuleStore';
 import type { SessionStore } from '../store/SessionStore';
 import type { SettingsStore } from '../store/SettingsStore';
+import type { WebKitDownload } from '../browsers/webkit';
 import type { FigmaImporter } from '../figma';
 import type { ShotStore } from '../store/ShotStore';
 import type { SourceMapFileStore } from '../store/SourceMapFileStore';
@@ -37,6 +38,8 @@ export interface IpcDeps {
   /** The workspace's captures and designs, and where they are kept. */
   shots: PageShots;
   shotStore: ShotStore;
+  /** The WebKit build the app downloads. */
+  webkit: WebKitDownload;
   /** Figma frames brought in as designs. */
   figma: FigmaImporter;
   updates: UpdateService;

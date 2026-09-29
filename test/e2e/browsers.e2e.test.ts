@@ -110,14 +110,19 @@ describe.skipIf(!built || process.platform !== 'linux')('Other browsers', () => 
 
   it('stops offering a browser turned off in Settings, and adds and removes one by its program', async () => {
     await win.getByTestId('rail-settings').click();
-    const offer = win.getByRole('switch', { name: 'Offer Fake Chromium' });
-    await offer.click();
-    await expect.poll(() => offer.getAttribute('aria-checked')).toBe('false');
+    // This test's launcher, and the WebKit build the app offers on every system.
+    const offers = [win.getByRole('switch', { name: 'Offer Fake Chromium' }), win.getByRole('switch', { name: 'Offer WebKit' })];
+    for (const offer of offers) {
+      await offer.click();
+      await expect.poll(() => offer.getAttribute('aria-checked')).toBe('false');
+    }
     await win.getByTestId('browser-menu-button').click();
     await win.getByText('No other browsers were found. Add one in Settings › Browsers.').waitFor();
     await win.keyboard.press('Escape');
-    await offer.click();
-    await expect.poll(() => offer.getAttribute('aria-checked')).toBe('true');
+    for (const offer of offers) {
+      await offer.click();
+      await expect.poll(() => offer.getAttribute('aria-checked')).toBe('true');
+    }
 
     await app.evaluate(({ dialog }, path) => {
       dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as unknown as typeof dialog.showOpenDialog;

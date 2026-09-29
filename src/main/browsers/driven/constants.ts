@@ -19,6 +19,9 @@ export const MAC_OPEN = { newInstance: '-n', args: '--args' } as const;
 /** Flatpak's markers around forwarded files: flags go before them. */
 export const FLATPAK_MARKERS: readonly string[] = ['@@u', '@@'];
 
+/** A tab's window (CSS pixels), density and document size, read in its page as JSON. */
+export const METRICS_EXPRESSION = 'JSON.stringify([innerWidth, innerHeight, devicePixelRatio, document.documentElement.scrollWidth, document.documentElement.scrollHeight])';
+
 /** How long a tab captured in every browser may take to load before it is captured as it is. */
 export const LOAD_TIMEOUT_MS = 30_000;
 

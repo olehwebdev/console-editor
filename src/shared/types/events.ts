@@ -90,6 +90,8 @@ export type AppEvent =
   | { type: 'settings-changed'; settings: Settings }
   /** The browsers on this computer were looked for again, a version was read, or one was added, removed, hidden or shown. */
   | { type: 'browsers-changed'; browsers: BrowserInfo[] }
+  /** A browser build the app downloads (WebKit's) is on its way: bytes done, of how many when the server says. */
+  | { type: 'browser-download'; id: string; done: number; total: number | null }
   /** A browser the app drives opened, closed, or one of its tabs opened, closed or changed its address or title. */
   | { type: 'driven-browsers-changed'; driven: DrivenBrowser[] }
   /** The active workspace's shots, newest first: one was taken, imported, renamed or deleted, or another workspace became active. */

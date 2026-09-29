@@ -2,6 +2,7 @@ import { dialog, type BrowserWindow, type OpenDialogOptions } from 'electron';
 import { IPC_CHANNEL } from '../../shared/ipcChannels';
 import type { BrowserRegistry, DrivenBrowsers } from '../browsers';
 import { listEverydayTabs } from '../browsers/everyday';
+import { WEBKIT_ID, type WebKitDownload } from '../browsers/webkit';
 import { assertString } from './assertString';
 import type { IpcHandle } from './types';
 
@@ -16,13 +17,14 @@ interface BrowserIpcDeps {
   win: BrowserWindow;
   browsers: BrowserRegistry;
   driven: DrivenBrowsers;
+  webkit: WebKitDownload;
 }
 
 /**
  * The other browsers' channels. Listing and opening one, and the browsers driven with the workspace's changes, serve
  * the toolbar in both windows (`handlePage`); adding, removing and hiding one are Settings', in the editor.
  */
-export function registerBrowserIpc(handle: IpcHandle, handlePage: IpcHandle, { win, browsers, driven }: BrowserIpcDeps): void {
+export function registerBrowserIpc(handle: IpcHandle, handlePage: IpcHandle, { win, browsers, driven, webkit }: BrowserIpcDeps): void {
   handlePage(IPC_CHANNEL.listBrowsers, () => browsers.list());
   handlePage(IPC_CHANNEL.openInBrowser, (id: unknown, url: unknown) => {
     assertString(id, 'id');
@@ -35,6 +37,14 @@ export function registerBrowserIpc(handle: IpcHandle, handlePage: IpcHandle, { w
     return driven.open(id, url, everyday === true);
   });
   handlePage(IPC_CHANNEL.listDriven, () => driven.read());
+  handlePage(IPC_CHANNEL.downloadBrowser, (id: unknown) => {
+    if (id !== WEBKIT_ID) throw new Error('Only WebKit is downloaded by the app');
+    return webkit.download();
+  });
+  handle(IPC_CHANNEL.removeBrowserDownload, (id: unknown) => {
+    if (id !== WEBKIT_ID) throw new Error('Only WebKit is downloaded by the app');
+    return webkit.remove();
+  });
   handlePage(IPC_CHANNEL.listEverydayTabs, async () => listEverydayTabs(await browsers.installed()));
   handlePage(IPC_CHANNEL.activateTab, (browserId: unknown, tabId: unknown) => {
     assertString(browserId, 'browserId');

@@ -24,6 +24,10 @@ export interface BrowsersApi {
   activateTab(browserId: string, tabId: string): Promise<void>;
   /** The tabs open in your everyday browsers: Firefox's session files, macOS scripting (read when asked, and nowhere else). */
   listEverydayTabs(): Promise<EverydayBrowser[]>;
+  /** Downloads a browser build the app keeps (Playwright's WebKit), its progress announced as `browser-download`. */
+  downloadBrowser(id: string): Promise<void>;
+  /** Removes a browser build the app downloaded. */
+  removeBrowserDownload(id: string): Promise<void>;
   /** Stops serving the workspace's changes in a driven browser (it stays open, as it is). */
   stopDriving(browserId: string): Promise<void>;
 }

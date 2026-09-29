@@ -1,30 +1,26 @@
 import { homedir } from 'node:os';
-import type { AppEvent, CaptureArea, DrivenBrowser, DrivenEngine, ShotBrowser } from '../../../shared/types';
+import type { AppEvent, CaptureArea, DrivenBrowser, ShotBrowser } from '../../../shared/types';
 import { HTTP_URL } from '../../constants';
 import type { PageDesign } from '../../overlay';
 import type { BrowserCapture, CapturedImage, Viewport } from '../../shots/capture';
 import { PAGE_AREAS } from '../../shots/constants';
 import type { FoundBrowser } from '../types';
 import { captureEvery } from './captureEvery';
-import { connectChromium } from './chromium/connectChromium';
+import { connectorOf } from './connectorOf';
 import { RELOAD_DEBOUNCE_MS } from './constants';
 import { DriverPool } from './DriverPool';
 import { EVERYDAY_KEY_SUFFIX, EVERYDAY_NAME_SUFFIX } from './everyday/constants';
-import { connectEverydayChrome } from './everyday/connectEverydayChrome';
-import { connectFirefox } from './firefox/connectFirefox';
 import { shotBrowser } from './shotBrowser';
 import type { ConnectDriver, DrivenBrowsersDeps, Driver } from './types';
-
-/** How a browser of each engine is driven (the UI offers what `DRIVEN_ENGINES` lists); another can't be served the workspace's changes. */
-const DRIVERS: Readonly<Record<DrivenEngine, ConnectDriver>> = { chromium: connectChromium, gecko: connectFirefox };
 
 /** What each app event means for the driven browsers; the rest mean nothing to them. */
 type AppEventReactions = Partial<Record<AppEvent['type'], () => void>>;
 
 /**
- * The browsers the app drives (Chromium ones and Firefox, each with a profile of the app's own, and your everyday
- * Chrome when remote debugging is on for it): launched or reached when an address is first opened in one with the
- * workspace's changes, and kept in step with them. Every change is announced as `driven-browsers-changed`.
+ * The browsers the app drives (Chromium ones and Firefox, each with a profile of the app's own; the WebKit build it
+ * downloads; your everyday Chrome when remote debugging is on for it): launched or reached when an address is first
+ * opened in one with the workspace's changes, and kept in step with them. Every change is announced as
+ * `driven-browsers-changed`.
  */
 export class DrivenBrowsers {
   private readonly pool = new DriverPool();
@@ -56,9 +52,8 @@ export class DrivenBrowsers {
   async open(id: string, url: string, everyday = false): Promise<void> {
     if (!HTTP_URL.test(url)) throw new Error('Only http(s) pages open in another browser');
     const browser = await this.deps.registry.get(id);
-    const own = Object.hasOwn(DRIVERS, browser.engine) ? DRIVERS[browser.engine as DrivenEngine] : undefined;
-    const connect = everyday ? (browser.engine === 'chromium' ? connectEverydayChrome : undefined) : own;
-    if (!connect) throw new Error(`${browser.name} can't be served your changes: only Chromium browsers${everyday ? '' : ' and Firefox'} can`);
+    const connect = connectorOf(browser, everyday);
+    if (!connect) throw new Error(`${browser.name} can't be served your changes: only Chromium browsers${everyday ? '' : ', Firefox and WebKit (the app downloads it)'} can`);
     const listedAs = everyday ? { id: `${id}${EVERYDAY_KEY_SUFFIX}`, name: `${browser.name}${EVERYDAY_NAME_SUFFIX}`, everyday } : { id, name: browser.name, everyday };
     const driver = await this.pool.reach(listedAs.id, () => this.connect(browser, listedAs, connect));
     this.changed();
